@@ -13,12 +13,12 @@
     },
     "csm_sources": {
         "sources": {
-            "JamesG": "UPDATE_THIS_PATH",
-            "Jordan": "UPDATE_THIS_PATH",
-            "Aaron": "UPDATE_THIS_PATH",
-            "Gregg": "UPDATE_THIS_PATH",
-            "Dan": "UPDATE_THIS_PATH",
-            "Max": "UPDATE_THIS_PATH"
+            "JamesG": "M:\\ARS\\Incoming\\ODDD Files\\JamesG",
+            "Jordan": "M:\\ARS\\Incoming\\ODDD Files\\Jordan",
+            "Aaron": "M:\\ARS\\Incoming\\ODDD Files\\Aaron",
+            "Gregg": "M:\\ARS\\Incoming\\ODDD Files\\Gregg",
+            "Dan": "M:\\ARS\\Incoming\\ODDD Files\\Dan",
+            "Max": "M:\\ARS\\Incoming\\ODDD Files\\Max"
         }
     },
     "pipeline": {
