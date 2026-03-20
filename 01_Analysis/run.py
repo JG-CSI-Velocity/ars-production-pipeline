@@ -17,6 +17,29 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+
+class TeeLogger:
+    """Write everything to both terminal and a log file."""
+
+    def __init__(self, log_path):
+        self.terminal = sys.stdout
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        self.log_file = open(log_path, "w", encoding="utf-8")
+        self.log_path = log_path
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log_file.write(message)
+        self.log_file.flush()
+
+    def flush(self):
+        self.terminal.flush()
+        self.log_file.flush()
+
+    def close(self):
+        self.log_file.close()
+
+
 # Add 00-Scripts to path so imports work
 _scripts_dir = Path(__file__).parent / "00-Scripts"
 sys.path.insert(0, str(_scripts_dir))
@@ -83,6 +106,23 @@ def main():
     parser.add_argument("--skip-pptx", action="store_true",
                         help="Skip PowerPoint generation (Excel only)")
     args = parser.parse_args()
+
+    # Start logging to file: 04_Logs/CSM/month/clientID_YYYYMMDD_HHMMSS.log
+    _log_csm = args.csm or "unknown"
+    _log_month = args.month or datetime.now().strftime("%Y.%m")
+    _log_client = args.client or "all"
+    _log_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if os.name == "nt":
+        _log_dir = Path(r"M:\ARS\04_Logs") / _log_csm / _log_month
+    else:
+        _log_dir = Path("/Volumes/M/ARS/04_Logs") / _log_csm / _log_month
+    _log_path = _log_dir / f"{_log_client}_{_log_timestamp}.log"
+    try:
+        _tee = TeeLogger(_log_path)
+        sys.stdout = _tee
+        sys.stderr = _tee
+    except OSError:
+        pass  # can't write to M: drive, just use terminal
 
     # Resolve the ODD file path
     if args.odd_file:
@@ -279,6 +319,11 @@ def main():
 
         print("=" * 70)
         print()
+
+        # Log location
+        if '_tee' in dir() and hasattr(_tee, 'log_path'):
+            print(f"  Full log saved to: {_tee.log_path}")
+            print()
 
     except Exception as e:
         print()
