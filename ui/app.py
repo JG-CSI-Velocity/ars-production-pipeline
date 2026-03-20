@@ -239,7 +239,7 @@ async def start_run(
     run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
     # Find the analysis run.py
-    analysis_run = Path(__file__).parent.parent / "01_Analysis" / "run.py"
+    analysis_run = ARS_BASE / "01_Analysis" / "run.py"
     if not analysis_run.exists():
         raise HTTPException(status_code=500, detail=f"run.py not found at {analysis_run}")
 
