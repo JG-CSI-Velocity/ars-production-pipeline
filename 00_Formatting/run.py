@@ -34,7 +34,7 @@ def log_message(message, log_file=None):
             f.write(message + "\n")
 
 
-def process_csm(csm_name, src_directory, staging_directory, output_directory, log_file=None, client_filter=None):
+def process_csm(csm_name, src_directory, staging_directory, output_directory, log_file=None, client_filter=None, force=False):
     """Process ODD files for a single CSM.
 
     1. Copy ZIPs from CSM source to staging (01-Data-Ready for Formatting)
@@ -70,8 +70,8 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
         zip_client_id = zip_client.group(1) if zip_client else 'unknown'
         client_staging = os.path.join(staging_directory, zip_client_id)
 
-        # Skip if already extracted (CSV exists in staging)
-        if os.path.exists(client_staging):
+        # Skip if already extracted (CSV exists in staging) unless --force
+        if not force and os.path.exists(client_staging):
             existing_csvs = [f for f in os.listdir(client_staging) if f.endswith('.csv') and 'odd' in f.lower()]
             if existing_csvs:
                 log_message(f"    Skipping {item} -- already extracted ({existing_csvs[0]})", log_file)
@@ -129,11 +129,11 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
             client_path = os.path.join(staging_directory, client_id)
             csv_path = os.path.join(client_path, csv_file)
 
-            # Skip if already formatted (output Excel exists)
+            # Skip if already formatted (output Excel exists) unless --force
             excel_filename = os.path.splitext(csv_file)[0] + '.xlsx'
             client_output_dir = os.path.join(output_directory, client_id)
             output_path = os.path.join(client_output_dir, excel_filename)
-            if os.path.exists(output_path):
+            if not force and os.path.exists(output_path):
                 log_message(f"    Skipping {csv_file} -- already formatted", log_file)
                 continue
 
@@ -152,18 +152,49 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
             # Run the canonical 7-step formatting
             df = format_odd(df)
 
-            # Save formatted Excel directly to output: CSM/YYYY.MM/ClientID/
+            # Save formatted Excel: write to local temp first, then copy to network
+            # This prevents corrupted files from interrupted network writes
+            import tempfile
             excel_filename = os.path.splitext(csv_file)[0] + '.xlsx'
             client_output_dir = os.path.join(output_directory, client_id)
             os.makedirs(client_output_dir, exist_ok=True)
             output_path = os.path.join(client_output_dir, excel_filename)
-            df.to_excel(output_path, index=False, engine='openpyxl')
 
-            log_message(f"    Done: {excel_filename} -> {client_output_dir}", log_file)
+            with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
+                tmp_path = tmp.name
+
+            df.to_excel(tmp_path, index=False, engine='openpyxl')
+
+            # Verify the temp file is valid before moving
+            tmp_size = os.path.getsize(tmp_path)
+            if tmp_size < 1000:
+                os.remove(tmp_path)
+                log_message(f"    ERROR: Output file too small ({tmp_size} bytes) -- likely corrupted", log_file)
+                error_count += 1
+                continue
+
+            # Verify it's a valid Excel file
+            try:
+                import zipfile
+                with zipfile.ZipFile(tmp_path, 'r') as zf:
+                    zf.testzip()
+            except (zipfile.BadZipFile, Exception) as ve:
+                os.remove(tmp_path)
+                log_message(f"    ERROR: Output file failed validation: {ve}", log_file)
+                error_count += 1
+                continue
+
+            # Copy verified file to network destination
+            shutil.copy2(tmp_path, output_path)
+            os.remove(tmp_path)
+
+            # Final size check
+            final_size = os.path.getsize(output_path) / (1024 * 1024)
+            log_message(f"    Done: {excel_filename} ({final_size:.1f} MB) -> {client_output_dir}", log_file)
             success_count += 1
 
         except Exception as e:
-            log_message(f"    ERROR formatting {item}: {e}", log_file)
+            log_message(f"    ERROR formatting {csv_file}: {e}", log_file)
             error_count += 1
 
     return success_count, error_count
@@ -177,6 +208,8 @@ def main():
                         help="Process only this CSM (default: all)")
     parser.add_argument("--client", type=str, default=None,
                         help="Process only this client ID (default: all)")
+    parser.add_argument("--force", action="store_true",
+                        help="Re-process even if output already exists")
     parser.add_argument("--config", type=str, default=None,
                         help="Path to ars_config.json")
     args = parser.parse_args()
@@ -242,7 +275,7 @@ def main():
         log_message(f"    Staging: {staging}", log_file)
         log_message(f"    Output:  {output}", log_file)
 
-        success, errors = process_csm(csm_name, str(src), str(staging), str(output), log_file, args.client)
+        success, errors = process_csm(csm_name, str(src), str(staging), str(output), log_file, args.client, args.force)
         total_success += success
         total_errors += errors
 
