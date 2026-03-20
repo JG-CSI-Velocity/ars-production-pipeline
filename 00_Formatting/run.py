@@ -16,6 +16,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -112,10 +113,22 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
             new_path = os.path.join(client_path, new_name)
             original_path = os.path.join(client_path, csv_file)
             if original_path != new_path:
-                if os.path.exists(new_path):
-                    os.remove(new_path)
-                os.rename(original_path, new_path)
-                log_message(f"    Renamed: {csv_file} -> {new_name}", log_file)
+                # Retry rename with delay -- Windows may hold file lock after ZIP extraction
+                for _attempt in range(3):
+                    try:
+                        if os.path.exists(new_path):
+                            os.remove(new_path)
+                        os.rename(original_path, new_path)
+                        log_message(f"    Renamed: {csv_file} -> {new_name}", log_file)
+                        break
+                    except PermissionError:
+                        if _attempt < 2:
+                            log_message(f"    File locked, retrying in 2s...", log_file)
+                            time.sleep(2)
+                        else:
+                            # Give up renaming, use original name
+                            log_message(f"    Could not rename (file locked) -- using original name", log_file)
+                            new_name = csv_file
             renamed_csv_files.append((client_id, new_name))
         else:
             renamed_csv_files.append((client_id, csv_file))
