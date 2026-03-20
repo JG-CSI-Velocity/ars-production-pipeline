@@ -227,6 +227,37 @@ async def get_recent():
     return get_recent_runs()
 
 
+@app.get("/api/stats")
+async def get_stats():
+    """Dashboard KPIs."""
+    config = load_clients_config()
+    recent = get_recent_runs()
+
+    # Count unique clients with completed outputs
+    completed_clients = set()
+    if COMPLETED_ANALYSIS.exists():
+        for csm_dir in COMPLETED_ANALYSIS.iterdir():
+            if csm_dir.is_dir():
+                for month_dir in csm_dir.iterdir():
+                    if month_dir.is_dir():
+                        for client_dir in month_dir.iterdir():
+                            if client_dir.is_dir():
+                                completed_clients.add(client_dir.name)
+
+    # Count PPTX files generated
+    pptx_count = 0
+    if PRESENTATIONS_BASE.exists():
+        for f in PRESENTATIONS_BASE.rglob("*.pptx"):
+            pptx_count += 1
+
+    return {
+        "total_clients": len(config),
+        "completed_clients": len(completed_clients),
+        "reports_generated": pptx_count,
+        "recent_runs": len(recent),
+    }
+
+
 @app.post("/api/run")
 async def start_run(
     csm: str,

@@ -908,13 +908,22 @@ async function loadResultsAfterRun(csm, month, clientId) {
 
 async function loadDashboardData() {
     try {
+        // Load stats
+        const statsResp = await fetch('/api/stats');
+        if (statsResp.ok) {
+            const stats = await statsResp.json();
+            document.getElementById('kpiClients').textContent = stats.total_clients;
+            document.getElementById('kpiReports').textContent = stats.reports_generated;
+        }
+
         // Load recent runs
         const resp = await fetch('/api/recent');
         if (!resp.ok) return;
         const runs = await resp.json();
 
-        // Update KPIs
-        document.getElementById('kpiReports').textContent = runs.length;
+        if (runs.length > 0) {
+            document.getElementById('kpiSuccess').textContent = runs.length + ' runs';
+        }
 
         // Update recent runs table
         const tbody = document.getElementById('recentRunsBody');
@@ -927,14 +936,14 @@ async function loadDashboardData() {
                     <td>ARS</td>
                     <td>${r.csm}</td>
                     <td>${r.month}</td>
-                    <td class="mono">--</td>
+                    <td class="mono">${r.timestamp.split('_').slice(-2).join(' ')}</td>
                     <td><span class="badge badge-green">Complete</span></td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        // Update history table too
+        // Update history table
         const hbody = document.getElementById('historyBody');
         if (hbody && runs.length > 0) {
             hbody.innerHTML = '';
@@ -954,17 +963,8 @@ async function loadDashboardData() {
             });
         }
 
-        // Client count
-        try {
-            const cResp = await fetch('/api/clients');
-            if (cResp.ok) {
-                const clients = await cResp.json();
-                document.getElementById('kpiClients').textContent = clients.length;
-            }
-        } catch(e) {}
-
     } catch(e) {
-        console.error('Failed to load dashboard data:', e);
+        console.error('Dashboard data not available (API may not be running)');
     }
 }
 
