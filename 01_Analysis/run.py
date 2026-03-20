@@ -192,6 +192,14 @@ def main():
     csm_name = args.csm or ""
     month = args.month or ""
 
+    # Resolve fuzzy CSM name (e.g. "James" -> "JamesG")
+    if csm_name:
+        if os.name == "nt":
+            _csm_base = Path(r"M:\ARS\00_Formatting\02-Data-Ready for Analysis")
+        else:
+            _csm_base = Path("/Volumes/M/ARS/00_Formatting/02-Data-Ready for Analysis")
+        csm_name = _resolve_csm_name(csm_name, _csm_base)
+
     if not csm_name or not month:
         try:
             client_dir = odd_path.parent
@@ -307,12 +315,28 @@ def main():
         results = run_ars(ctx)
 
         # Move PPTX files to 02_Presentations
+        import gc
         import shutil
+        gc.collect()  # release any file handles held by python-pptx/matplotlib
+
         pptx_files = [f for f in output_dir.iterdir() if f.suffix == '.pptx']
         for pf in pptx_files:
             dest = pptx_dir / pf.name
-            shutil.copy2(pf, dest)
-            pf.unlink()  # remove from analysis output
+            for _attempt in range(3):
+                try:
+                    shutil.copy2(pf, dest)
+                    pf.unlink()
+                    break
+                except PermissionError:
+                    if _attempt < 2:
+                        import time
+                        print(f"    File locked, retrying in 2s... ({pf.name})")
+                        time.sleep(2)
+                        gc.collect()
+                    else:
+                        print(f"    WARNING: Could not move {pf.name} (file locked)")
+                        print(f"    PPTX remains at: {pf}")
+                        print(f"    Copy it manually to: {dest}")
 
         print()
         print("=" * 70)
