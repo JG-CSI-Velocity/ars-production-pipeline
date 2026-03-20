@@ -451,9 +451,6 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
 
     <!-- Step 3: Downloads (hidden until run completes) -->
     <div class="dl-grid" id="gDl">
-        <div class="card dl-card"><div class="dl-ext">.pptx</div><div class="dl-name">PowerPoint Deck</div><div class="dl-meta" id="dlPptxMeta">--</div><button class="btn" style="margin-top:12px;width:100%;">Download</button></div>
-        <div class="card dl-card"><div class="dl-ext">.xlsx</div><div class="dl-name">Excel Workbook</div><div class="dl-meta" id="dlXlsxMeta">--</div><button class="btn btn-dark" style="margin-top:12px;width:100%;">Download</button></div>
-        <div class="card dl-card"><div class="dl-ext">.zip</div><div class="dl-name">Complete Package</div><div class="dl-meta" id="dlZipMeta">--</div><button class="btn btn-dark" style="margin-top:12px;width:100%;">Download</button></div>
     </div>
 </div>
 
@@ -822,11 +819,123 @@ async function runGenReal() {
             st.textContent = data.status === 'complete' ? 'Complete' : 'Error';
             bar.style.width = '100%';
             if (data.status === 'complete') {
-                document.getElementById('gDl').classList.add('visible');
+                loadDownloads(csm, month, clientId);
+                loadResultsAfterRun(csm, month, clientId);
+                loadDashboardData();
             }
         }
     };
 }
+
+// ─── REAL DATA LOADERS ───
+
+async function loadDownloads(csm, month, clientId) {
+    try {
+        const resp = await fetch(`/api/outputs/${csm}/${month}/${clientId}`);
+        if (!resp.ok) return;
+        const files = await resp.json();
+        const dlGrid = document.getElementById('gDl');
+        dlGrid.innerHTML = '';
+
+        if (files.length === 0) {
+            dlGrid.innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;padding:24px;color:var(--muted);">No output files found.</div>';
+            dlGrid.classList.add('visible');
+            return;
+        }
+
+        files.forEach(f => {
+            const card = document.createElement('div');
+            card.className = 'card dl-card';
+            const btnClass = f.type === 'pptx' ? 'btn' : 'btn btn-dark';
+            card.innerHTML = `
+                <div class="dl-ext">.${f.type}</div>
+                <div class="dl-name">${f.name}</div>
+                <div class="dl-meta">${f.size_mb} MB</div>
+                <a href="/api/download?path=${encodeURIComponent(f.path)}" download="${f.name}" style="text-decoration:none;">
+                    <button class="${btnClass}" style="margin-top:12px;width:100%;">Download</button>
+                </a>
+            `;
+            dlGrid.appendChild(card);
+        });
+        dlGrid.classList.add('visible');
+    } catch(e) {
+        console.error('Failed to load downloads:', e);
+    }
+}
+
+async function loadResultsAfterRun(csm, month, clientId) {
+    // Switch to results page and load charts
+    const rSel = document.getElementById('rClientSel');
+    if (rSel) {
+        rSel.value = clientId;
+        loadResults();
+    }
+}
+
+async function loadDashboardData() {
+    try {
+        // Load recent runs
+        const resp = await fetch('/api/recent');
+        if (!resp.ok) return;
+        const runs = await resp.json();
+
+        // Update KPIs
+        document.getElementById('kpiReports').textContent = runs.length;
+
+        // Update recent runs table
+        const tbody = document.getElementById('recentRunsBody');
+        if (tbody && runs.length > 0) {
+            tbody.innerHTML = '';
+            runs.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${r.client_id}</strong></td>
+                    <td>ARS</td>
+                    <td>${r.csm}</td>
+                    <td>${r.month}</td>
+                    <td class="mono">--</td>
+                    <td><span class="badge badge-green">Complete</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Update history table too
+        const hbody = document.getElementById('historyBody');
+        if (hbody && runs.length > 0) {
+            hbody.innerHTML = '';
+            runs.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${r.client_id}</strong></td>
+                    <td>ARS</td>
+                    <td class="mono">22</td>
+                    <td>${r.csm}</td>
+                    <td>${r.month}</td>
+                    <td class="mono">--</td>
+                    <td class="mono">--</td>
+                    <td><span class="badge badge-green">Complete</span></td>
+                `;
+                hbody.appendChild(tr);
+            });
+        }
+
+        // Client count
+        try {
+            const cResp = await fetch('/api/clients');
+            if (cResp.ok) {
+                const clients = await cResp.json();
+                document.getElementById('kpiClients').textContent = clients.length;
+            }
+        } catch(e) {}
+
+    } catch(e) {
+        console.error('Failed to load dashboard data:', e);
+    }
+}
+
+// Load dashboard data on page load
+loadDashboardData();
 
 // ─── RESULTS VIEWER ───
 
