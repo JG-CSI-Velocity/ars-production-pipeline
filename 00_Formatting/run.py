@@ -16,7 +16,6 @@ import re
 import shutil
 import sys
 import tempfile
-import time
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -81,17 +80,24 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
 
         os.makedirs(client_staging, exist_ok=True)
 
-        staged_zip = os.path.join(client_staging, item)
         if zipfile.is_zipfile(item_path):
-            shutil.copy2(item_path, staged_zip)
-            with zipfile.ZipFile(staged_zip, 'r') as zip_ref:
-                # Only extract ODD files from the ZIP
+            with zipfile.ZipFile(item_path, 'r') as zip_ref:
+                # Read ODD CSVs from ZIP and write with cleaned name directly
+                # No intermediate extract + rename -- avoids Windows file lock issues
                 odd_entries = [n for n in zip_ref.namelist()
                                if 'odd' in n.lower() and not n.startswith('__MACOSX')]
                 for entry in odd_entries:
-                    zip_ref.extract(entry, client_staging)
-            os.remove(staged_zip)
-            log_message(f"    Copied + extracted: {item} -> {client_staging}", log_file)
+                    # Determine final filename: truncate after "ODD"
+                    basename = os.path.basename(entry)
+                    odd_pos = basename.upper().find('ODD')
+                    if odd_pos != -1:
+                        final_name = basename[:odd_pos + 3] + '.csv'
+                    else:
+                        final_name = basename
+                    final_path = os.path.join(client_staging, final_name)
+                    with open(final_path, 'wb') as out_f:
+                        out_f.write(zip_ref.read(entry))
+                    log_message(f"    Extracted: {basename} -> {final_name}", log_file)
 
     # Step 2: Find ODD CSVs across all client subfolders in staging
     csv_files = []
@@ -104,34 +110,6 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
         for f in os.listdir(client_path):
             if f.endswith('.csv') and 'odd' in f.lower():
                 csv_files.append((client_dir, f))
-    renamed_csv_files = []
-    for client_id, csv_file in csv_files:
-        client_path = os.path.join(staging_directory, client_id)
-        odd_position = csv_file.upper().find('ODD')
-        if odd_position != -1:
-            new_name = csv_file[:odd_position + 3] + '.csv'
-            new_path = os.path.join(client_path, new_name)
-            original_path = os.path.join(client_path, csv_file)
-            if original_path != new_path:
-                # Retry rename with delay -- Windows may hold file lock after ZIP extraction
-                for _attempt in range(3):
-                    try:
-                        if os.path.exists(new_path):
-                            os.remove(new_path)
-                        os.rename(original_path, new_path)
-                        log_message(f"    Renamed: {csv_file} -> {new_name}", log_file)
-                        break
-                    except PermissionError:
-                        if _attempt < 2:
-                            log_message(f"    File locked, retrying in 2s...", log_file)
-                            time.sleep(2)
-                        else:
-                            # Give up renaming, use original name
-                            log_message(f"    Could not rename (file locked) -- using original name", log_file)
-                            new_name = csv_file
-            renamed_csv_files.append((client_id, new_name))
-        else:
-            renamed_csv_files.append((client_id, csv_file))
 
     # Step 3+4: Read CSV, format, write formatted Excel directly to output
     # Skips the intermediate CSV->Excel conversion entirely (avoids OLE issues)
