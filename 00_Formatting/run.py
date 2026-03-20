@@ -113,10 +113,10 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
 
     # Step 3+4: Read CSV, format, write formatted Excel directly to output
     # Skips the intermediate CSV->Excel conversion entirely (avoids OLE issues)
-    if renamed_csv_files:
-        log_message(f"  {csm_name}: Formatting {len(renamed_csv_files)} file(s)", log_file)
+    if csv_files:
+        log_message(f"  {csm_name}: Formatting {len(csv_files)} file(s)", log_file)
 
-    for client_id, csv_file in renamed_csv_files:
+    for client_id, csv_file in csv_files:
         try:
             client_path = os.path.join(staging_directory, client_id)
             csv_path = os.path.join(client_path, csv_file)
