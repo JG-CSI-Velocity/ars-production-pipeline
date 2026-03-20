@@ -278,6 +278,7 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     <div class="h-brand">Velocity</div>
     <ul class="h-nav">
         <li class="on" onclick="showPage('dashboard')">Dashboard</li>
+        <li onclick="showPage('format')">Format</li>
         <li onclick="showPage('generate')">Generate</li>
         <li onclick="showPage('results')">Results</li>
         <li onclick="showPage('history')">History</li>
@@ -337,6 +338,78 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                 <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">Run history will appear here after reports are generated.</td></tr>
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- ═══════════════ FORMAT ═══════════════ -->
+<div class="page" id="page-format">
+    <div class="page-title">Format ODD Files</div>
+    <div class="page-sub">Extract and format raw ODD files from the CSM data dump folder. This prepares the data for analysis.</div>
+
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <div class="card-title">Select What to Format</div>
+            <div class="card-meta">Choose your name, the period, and optionally a specific client. Leave client blank to format all.</div>
+        </div>
+        <div class="config-row" style="margin-bottom: 0;">
+            <div class="config-field"><div class="label">CSM</div>
+                <select class="sel" id="fCsmSel">
+                    <option value="JamesG">James Gilmore</option>
+                    <option value="Jordan">Jordan</option>
+                    <option value="Aaron">Aaron</option>
+                    <option value="Gregg">Gregg</option>
+                    <option value="Dan">Dan</option>
+                    <option value="Max">Max</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Period</div>
+                <select class="sel" id="fMonthSel">
+                    <option value="2026.03">2026.03</option>
+                    <option value="2026.02">2026.02</option>
+                    <option value="2026.01">2026.01</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Client ID (blank = all)</div>
+                <input class="sel" type="text" id="fClientId" placeholder="e.g. 1200 or leave blank for all">
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <div class="card-title">What This Does</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+            <div style="text-align:center;padding:16px;">
+                <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">1</div>
+                <div style="font-weight:600;margin-bottom:4px;">Extract</div>
+                <div style="font-size:13px;color:var(--muted);">Copies ZIP from your CSM data dump folder. Extracts the ODD CSV. Never modifies the original.</div>
+            </div>
+            <div style="text-align:center;padding:16px;">
+                <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">2</div>
+                <div style="font-weight:600;margin-bottom:4px;">Format</div>
+                <div style="font-size:13px;color:var(--muted);">Runs the 7-step formatting: totals, averages, swipe categories, ages, response grouping, segmentation.</div>
+            </div>
+            <div style="text-align:center;padding:16px;">
+                <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">3</div>
+                <div style="font-weight:600;margin-bottom:4px;">Save</div>
+                <div style="font-size:13px;color:var(--muted);">Writes the formatted Excel to 02-Data-Ready for Analysis, verified and ready for the Generate step.</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:12px;">
+        <button class="btn" onclick="runFormat()">Format ODD Files</button>
+        <button class="btn btn-dark" onclick="runFormat(true)">Force Re-Format (overwrite existing)</button>
+    </div>
+
+    <div class="prog-section card" id="fProg" style="margin-top:24px;">
+        <div class="card-header">
+            <div class="card-title">Formatting</div>
+            <div class="card-meta" id="fProgStatus">--</div>
+        </div>
+        <div class="prog-track"><div class="prog-fill" id="fProgBar" style="width:0%"></div></div>
+        <div class="prog-log" id="fProgLog"></div>
     </div>
 </div>
 
@@ -419,7 +492,7 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                 <div class="run-what" id="gRunWhat">Select a client and product</div>
                 <div class="run-meta" id="gRunMeta">--</div>
             </div>
-            <button class="btn" onclick="smartRunGen()">Generate Report</button>
+            <button class="btn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
         </div>
 
         <div class="grid-4" style="margin-bottom: 0;">
@@ -970,6 +1043,51 @@ async function loadDashboardData() {
 
 // Load dashboard data on page load
 loadDashboardData();
+
+async function runFormat(force = false) {
+    const csm = document.getElementById('fCsmSel').value;
+    const month = document.getElementById('fMonthSel').value;
+    const clientId = document.getElementById('fClientId').value.trim();
+
+    const prog = document.getElementById('fProg');
+    prog.classList.add('visible');
+    const log = document.getElementById('fProgLog');
+    const bar = document.getElementById('fProgBar');
+    const st = document.getElementById('fProgStatus');
+    log.innerHTML = '';
+    bar.style.width = '0%';
+
+    try {
+        const url = `/api/format?csm=${csm}&month=${month}&client_id=${clientId}&force=${force}`;
+        const resp = await fetch(url, {method: 'POST'});
+        if (!resp.ok) { st.textContent = 'Failed to start'; return; }
+        const {run_id} = await resp.json();
+
+        const evtSource = new EventSource(`/api/run/${run_id}/stream`);
+        evtSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'log') {
+                const line = document.createElement('div');
+                line.className = 'done';
+                line.textContent = data.message;
+                log.appendChild(line);
+                log.scrollTop = log.scrollHeight;
+            }
+            if (data.type === 'progress') {
+                bar.style.width = data.value + '%';
+                st.textContent = data.value + '%';
+            }
+            if (data.type === 'done') {
+                evtSource.close();
+                st.textContent = data.status === 'complete' ? 'Formatting Complete' : 'Error';
+                bar.style.width = '100%';
+            }
+        };
+    } catch(e) {
+        // Fallback: run mock progress
+        st.textContent = 'API not available';
+    }
+}
 
 async function checkPreviousOutputs() {
     const csm = document.getElementById('gCsmSel')?.value || '';

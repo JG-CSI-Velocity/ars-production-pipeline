@@ -258,6 +258,69 @@ async def get_stats():
     }
 
 
+@app.post("/api/format")
+async def start_format(
+    csm: str,
+    month: str,
+    client_id: str = "",
+    force: bool = False,
+):
+    """Start a formatting run."""
+    run_id = f"fmt_{client_id or 'all'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
+
+    formatting_run = ARS_BASE / "00_Formatting" / "00-Scripts" / "00_Formatting" / "run.py"
+    if not formatting_run.exists():
+        raise HTTPException(status_code=500, detail=f"Formatting run.py not found at {formatting_run}")
+
+    runs[run_id] = {
+        "status": "running",
+        "client_id": client_id or "all",
+        "csm": csm,
+        "month": month,
+        "product": "formatting",
+        "started": datetime.now().isoformat(),
+        "progress": 0,
+        "current_step": "Starting formatting...",
+        "log": [],
+    }
+
+    def _run():
+        try:
+            cmd = [sys.executable, str(formatting_run),
+                   "--month", month, "--csm", csm]
+            if client_id:
+                cmd.extend(["--client", client_id])
+            if force:
+                cmd.append("--force")
+
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, encoding="utf-8", errors="replace",
+            )
+            for line in proc.stdout:
+                line = line.rstrip()
+                if run_id in runs:
+                    runs[run_id]["log"].append(line)
+                    runs[run_id]["current_step"] = line.strip()
+                    log_len = len(runs[run_id]["log"])
+                    runs[run_id]["progress"] = min(95, log_len * 3)
+
+            proc.wait()
+            if run_id in runs:
+                runs[run_id]["status"] = "complete" if proc.returncode == 0 else "error"
+                runs[run_id]["progress"] = 100 if proc.returncode == 0 else runs[run_id]["progress"]
+                runs[run_id]["finished"] = datetime.now().isoformat()
+        except Exception as e:
+            if run_id in runs:
+                runs[run_id]["status"] = "error"
+                runs[run_id]["log"].append(f"ERROR: {e}")
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    return {"run_id": run_id}
+
+
 @app.post("/api/run")
 async def start_run(
     csm: str,
@@ -265,13 +328,15 @@ async def start_run(
     client_id: str,
     product: str = "ars",
 ):
-    """Start a pipeline run. Returns a run_id for tracking."""
+    """Start a full pipeline run: format (if needed) + analysis + PPTX."""
     run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
-    # Find the analysis run.py
+    # Find both run scripts
+    formatting_run = ARS_BASE / "00_Formatting" / "00-Scripts" / "00_Formatting" / "run.py"
     analysis_run = ARS_BASE / "01_Analysis" / "run.py"
+
     if not analysis_run.exists():
-        raise HTTPException(status_code=500, detail=f"run.py not found at {analysis_run}")
+        raise HTTPException(status_code=500, detail=f"Analysis run.py not found at {analysis_run}")
 
     runs[run_id] = {
         "status": "running",
@@ -287,6 +352,47 @@ async def start_run(
 
     def _run():
         try:
+            # Step 1: Check if formatted file exists, if not run formatting
+            odd_file = find_formatted_odd(csm, month, client_id)
+            if not odd_file and formatting_run.exists():
+                runs[run_id]["current_step"] = "Step 1: Formatting ODD file..."
+                runs[run_id]["log"].append("=" * 60)
+                runs[run_id]["log"].append("  STEP 1: Formatting ODD file")
+                runs[run_id]["log"].append("=" * 60)
+
+                fmt_proc = subprocess.Popen(
+                    [sys.executable, str(formatting_run),
+                     "--month", month, "--csm", csm, "--client", client_id],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, encoding="utf-8", errors="replace",
+                )
+                for line in fmt_proc.stdout:
+                    line = line.rstrip()
+                    if run_id in runs:
+                        runs[run_id]["log"].append(line)
+                        runs[run_id]["current_step"] = f"Formatting: {line.strip()}"
+                fmt_proc.wait()
+
+                if fmt_proc.returncode != 0:
+                    runs[run_id]["log"].append("  Formatting failed!")
+                else:
+                    runs[run_id]["log"].append("  Formatting complete.")
+                    odd_file = find_formatted_odd(csm, month, client_id)
+
+                runs[run_id]["log"].append("")
+
+            if not odd_file:
+                runs[run_id]["status"] = "error"
+                runs[run_id]["log"].append("ERROR: No formatted ODD file found after formatting.")
+                runs[run_id]["log"].append(f"Check: {READY_FOR_ANALYSIS / csm / month / client_id}")
+                return
+
+            # Step 2: Run analysis
+            runs[run_id]["current_step"] = "Step 2: Running analysis..."
+            runs[run_id]["log"].append("=" * 60)
+            runs[run_id]["log"].append("  STEP 2: Running ARS Analysis")
+            runs[run_id]["log"].append("=" * 60)
+
             proc = subprocess.Popen(
                 [sys.executable, str(analysis_run),
                  "--month", month, "--csm", csm, "--client", client_id],
