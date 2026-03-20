@@ -111,7 +111,11 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
         else:
             renamed_csv_files.append((client_id, csv_file))
 
-    # Step 3: Convert CSVs to Excel (save in staging client subfolder)
+    # Step 3+4: Read CSV, format, write formatted Excel directly to output
+    # Skips the intermediate CSV->Excel conversion entirely (avoids OLE issues)
+    if renamed_csv_files:
+        log_message(f"  {csm_name}: Formatting {len(renamed_csv_files)} file(s)", log_file)
+
     for client_id, csv_file in renamed_csv_files:
         try:
             client_path = os.path.join(staging_directory, client_id)
@@ -119,60 +123,26 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
             df = pd.read_csv(csv_path, skiprows=4, low_memory=False)
 
             if df.empty:
-                log_message(f"    Skipping empty file: {csv_file}", log_file)
+                log_message(f"    Skipping empty: {csv_file}", log_file)
                 continue
 
             # Drop first column if it's an index column
             if df.columns[0].startswith("Unnamed") or df.iloc[:, 0].dtype == "int64":
                 df = df.drop(columns=[df.columns[0]])
 
-            excel_filename = os.path.splitext(csv_file)[0] + '.xlsx'
-            excel_path = os.path.join(client_path, excel_filename)
-            df.to_excel(excel_path, index=False, engine='openpyxl')
-
-            log_message(f"    Converted: {csv_file} -> {excel_filename}", log_file)
-
-        except Exception as e:
-            log_message(f"    ERROR converting {csv_file}: {e}", log_file)
-            error_count += 1
-
-    # Step 4: Format Excel files from staging client subfolders,
-    #         save to output (02-Data-Ready for Analysis/CSM/YYYY.MM/ClientID/)
-    excel_items = []
-    for client_dir in os.listdir(staging_directory):
-        client_path = os.path.join(staging_directory, client_dir)
-        if not os.path.isdir(client_path):
-            continue
-        if client_filter and client_dir != client_filter:
-            continue
-        for f in os.listdir(client_path):
-            if f.endswith('.xlsx') and 'formatted' not in f.lower():
-                excel_items.append((client_dir, f))
-
-    if excel_items:
-        log_message(f"  {csm_name}: Formatting {len(excel_items)} Excel file(s)", log_file)
-
-    for client_id, item in excel_items:
-        try:
-            file_path = os.path.join(staging_directory, client_id, item)
-            df = pd.read_excel(file_path)
-
-            if df.empty:
-                log_message(f"    Skipping empty: {item}", log_file)
-                continue
-
-            log_message(f"    Formatting: {item} ({len(df):,} rows, {len(df.columns)} cols)", log_file)
+            log_message(f"    Formatting: {csv_file} ({len(df):,} rows, {len(df.columns)} cols)", log_file)
 
             # Run the canonical 7-step formatting
             df = format_odd(df)
 
-            # Save formatted file to output: CSM/YYYY.MM/ClientID/filename.xlsx
+            # Save formatted Excel directly to output: CSM/YYYY.MM/ClientID/
+            excel_filename = os.path.splitext(csv_file)[0] + '.xlsx'
             client_output_dir = os.path.join(output_directory, client_id)
             os.makedirs(client_output_dir, exist_ok=True)
-            output_path = os.path.join(client_output_dir, item)
+            output_path = os.path.join(client_output_dir, excel_filename)
             df.to_excel(output_path, index=False, engine='openpyxl')
 
-            log_message(f"    Done: {item} -> {client_output_dir}", log_file)
+            log_message(f"    Done: {excel_filename} -> {client_output_dir}", log_file)
             success_count += 1
 
         except Exception as e:
