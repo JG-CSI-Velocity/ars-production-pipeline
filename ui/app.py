@@ -286,7 +286,7 @@ async def start_format(
 
     def _run():
         try:
-            cmd = [sys.executable, str(formatting_run),
+            cmd = [sys.executable, "-u", str(formatting_run),
                    "--month", month, "--csm", csm]
             if client_id:
                 cmd.extend(["--client", client_id])
@@ -297,6 +297,8 @@ async def start_format(
                 cmd,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace",
+                bufsize=1,
+                cwd=str(formatting_run.parent),
             )
             for line in proc.stdout:
                 line = line.rstrip()
@@ -361,10 +363,12 @@ async def start_run(
                 runs[run_id]["log"].append("=" * 60)
 
                 fmt_proc = subprocess.Popen(
-                    [sys.executable, str(formatting_run),
+                    [sys.executable, "-u", str(formatting_run),
                      "--month", month, "--csm", csm, "--client", client_id],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, encoding="utf-8", errors="replace",
+                    bufsize=1,
+                    cwd=str(formatting_run.parent),
                 )
                 for line in fmt_proc.stdout:
                     line = line.rstrip()
@@ -394,10 +398,12 @@ async def start_run(
             runs[run_id]["log"].append("=" * 60)
 
             proc = subprocess.Popen(
-                [sys.executable, str(analysis_run),
+                [sys.executable, "-u", str(analysis_run),
                  "--month", month, "--csm", csm, "--client", client_id],
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace",
+                bufsize=1,
+                cwd=str(analysis_run.parent),
             )
             for line in proc.stdout:
                 line = line.rstrip()
