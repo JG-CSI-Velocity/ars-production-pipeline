@@ -98,68 +98,64 @@ def _step3_totals_averages_categories(df: pd.DataFrame) -> pd.DataFrame:
         for c in col_list:
             df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
 
-    df["Total Spend"] = df[pin_spend].sum(axis=1) + df[sig_spend].sum(axis=1)
-    df["Total Swipes"] = df[pin_count].sum(axis=1) + df[sig_count].sum(axis=1)
-    df["Total Items"] = df[mtd_cols].sum(axis=1) if mtd_cols else 0
+    # Build all new columns in a dict, then concat once
+    new = {}
+    new["Total Spend"] = df[pin_spend].sum(axis=1) + df[sig_spend].sum(axis=1)
+    new["Total Swipes"] = df[pin_count].sum(axis=1) + df[sig_count].sum(axis=1)
+    new["Total Items"] = df[mtd_cols].sum(axis=1) if mtd_cols else 0
 
-    # Last 3 and 12 month sums
     for n, label in [(3, "3"), (12, "12")]:
-        recent_pin_s = pin_spend[-n:] if len(pin_spend) >= n else pin_spend
-        recent_sig_s = sig_spend[-n:] if len(sig_spend) >= n else sig_spend
-        recent_pin_c = pin_count[-n:] if len(pin_count) >= n else pin_count
-        recent_sig_c = sig_count[-n:] if len(sig_count) >= n else sig_count
-        recent_mtd = mtd_cols[-n:] if len(mtd_cols) >= n else mtd_cols
+        rps = pin_spend[-n:] if len(pin_spend) >= n else pin_spend
+        rss = sig_spend[-n:] if len(sig_spend) >= n else sig_spend
+        rpc = pin_count[-n:] if len(pin_count) >= n else pin_count
+        rsc = sig_count[-n:] if len(sig_count) >= n else sig_count
+        rm = mtd_cols[-n:] if len(mtd_cols) >= n else mtd_cols
 
-        df[f"last {label}-mon spend"] = df[recent_pin_s].sum(axis=1) + df[recent_sig_s].sum(axis=1)
-        df[f"last {label}-mon swipes"] = df[recent_pin_c].sum(axis=1) + df[recent_sig_c].sum(axis=1)
-        if recent_mtd:
-            df[f"Last {label}-mon Items"] = df[recent_mtd].sum(axis=1)
-        else:
-            df[f"Last {label}-mon Items"] = 0
+        new[f"last {label}-mon spend"] = df[rps].sum(axis=1) + df[rss].sum(axis=1)
+        new[f"last {label}-mon swipes"] = df[rpc].sum(axis=1) + df[rsc].sum(axis=1)
+        new[f"Last {label}-mon Items"] = df[rm].sum(axis=1) if rm else 0
 
-    # Monthly averages
     for period, divisor in [("12", 12), ("3", 3)]:
-        spend_key = f"last {period}-mon spend"
-        swipe_key = f"last {period}-mon swipes"
-        items_key = f"Last {period}-mon Items"
+        new[f"MonthlySpend{period}"] = new[f"last {period}-mon spend"] / divisor
+        new[f"MonthlySwipes{period}"] = new[f"last {period}-mon swipes"] / divisor
+        new[f"MonthlyItems{period}"] = new[f"Last {period}-mon Items"] / divisor
 
-        df[f"MonthlySpend{period}"] = df[spend_key] / divisor
-        df[f"MonthlySwipes{period}"] = df[swipe_key] / divisor
-        df[f"MonthlyItems{period}"] = df[items_key] / divisor
+    new["SwipeCat12"] = new["MonthlySwipes12"].apply(_categorize_swipes)
+    new["SwipeCat3"] = new["MonthlySwipes3"].apply(_categorize_swipes)
 
-    # Swipe categories
-    df["SwipeCat12"] = df["MonthlySwipes12"].apply(_categorize_swipes)
-    df["SwipeCat3"] = df["MonthlySwipes3"].apply(_categorize_swipes)
-
+    df = pd.concat([df, pd.DataFrame(new)], axis=1)
     return df
 
 
 def _step4_combine_pin_sig(df: pd.DataFrame) -> pd.DataFrame:
     """Create combined Spend and Swipes columns for each month."""
-    pin_spend_cols = [c for c in df.columns if c.endswith("PIN $")]
-    for col in pin_spend_cols:
+    new = {}
+
+    for col in [c for c in df.columns if c.endswith("PIN $")]:
         prefix = col.replace(" PIN $", "")
         sig_col = f"{prefix} Sig $"
         if sig_col in df.columns:
-            df[f"{prefix} Spend"] = df[col] + df[sig_col]
+            new[f"{prefix} Spend"] = df[col] + df[sig_col]
 
-    pin_count_cols = [c for c in df.columns if c.endswith("PIN #")]
-    for col in pin_count_cols:
+    for col in [c for c in df.columns if c.endswith("PIN #")]:
         prefix = col.replace(" PIN #", "")
         sig_col = f"{prefix} Sig #"
         if sig_col in df.columns:
-            df[f"{prefix} Swipes"] = df[col] + df[sig_col]
+            new[f"{prefix} Swipes"] = df[col] + df[sig_col]
 
+    if new:
+        df = pd.concat([df, pd.DataFrame(new)], axis=1)
     return df
 
 
 def _step5_age_calculations(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate Account Holder Age and Account Age."""
     anchor_date = _infer_report_date(df)
+    new = {}
 
     if "DOB" in df.columns:
         df["DOB"] = pd.to_datetime(df["DOB"], errors="coerce", format="mixed")
-        df["Account Holder Age"] = anchor_date.year - df["DOB"].dt.year
+        new["Account Holder Age"] = anchor_date.year - df["DOB"].dt.year
 
     if "Date Opened" in df.columns:
         df["Date Opened"] = pd.to_datetime(df["Date Opened"], errors="coerce", format="mixed")
@@ -168,28 +164,34 @@ def _step5_age_calculations(df: pd.DataFrame) -> pd.DataFrame:
             end_date = df["Date Closed"].fillna(anchor_date)
         else:
             end_date = anchor_date
-        df["Account Age"] = (end_date - df["Date Opened"]).dt.days / 365.25
+        new["Account Age"] = (end_date - df["Date Opened"]).dt.days / 365.25
 
+    if new:
+        df = pd.concat([df, pd.DataFrame(new)], axis=1)
     return df
 
 
 def _step6_mail_response_grouping(df: pd.DataFrame) -> pd.DataFrame:
     """Count offers/responses and classify Response Grouping."""
-    # Preserve pre-existing columns (some ODD files arrive with these populated)
+    new = {}
+
     if "# of Offers" not in df.columns:
         mail_cols = [c for c in df.columns if c.endswith(" Mail")]
         if mail_cols:
-            df["# of Offers"] = df[mail_cols].notna().sum(axis=1)
+            new["# of Offers"] = df[mail_cols].notna().sum(axis=1)
         else:
-            df["# of Offers"] = 0
+            new["# of Offers"] = pd.Series(0, index=df.index)
 
     if "# of Responses" not in df.columns:
         resp_cols = [c for c in df.columns if c.endswith(" Resp")]
         if resp_cols:
             resp_data = df[resp_cols].replace("NU 1-4", pd.NA)
-            df["# of Responses"] = resp_data.notna().sum(axis=1)
+            new["# of Responses"] = resp_data.notna().sum(axis=1)
         else:
-            df["# of Responses"] = 0
+            new["# of Responses"] = pd.Series(0, index=df.index)
+
+    if new:
+        df = pd.concat([df, pd.DataFrame(new)], axis=1)
 
     # Response Grouping classification
     rg = pd.Series("check", index=df.index)
@@ -198,7 +200,7 @@ def _step6_mail_response_grouping(df: pd.DataFrame) -> pd.DataFrame:
     rg[(df["# of Offers"] == 1) & (df["# of Responses"] == 1)] = "SO-SR"
     rg[(df["# of Offers"] >= 2) & (df["# of Responses"] == 1)] = "MO-SR"
     rg[df["# of Responses"] >= 2] = "MR"
-    df["Response Grouping"] = rg
+    df = pd.concat([df, pd.DataFrame({"Response Grouping": rg})], axis=1)
 
     return df
 
@@ -208,6 +210,7 @@ def _step7_control_segmentation(df: pd.DataFrame) -> pd.DataFrame:
     resp_cols = [c for c in df.columns if c.endswith(" Resp")]
     response_segments = {"NU 5+", "TH-10", "TH-15", "TH-20", "TH-25"}
 
+    seg_new = {}
     for resp_col in resp_cols:
         mail_col = resp_col.replace(" Resp", " Mail")
         seg_col = resp_col.replace(" Resp", " Segmentation")
@@ -221,8 +224,10 @@ def _step7_control_segmentation(df: pd.DataFrame) -> pd.DataFrame:
             df[mail_col].notna() & df[resp_col].isin(response_segments),
         ]
         choices = ["Control", "Non-Responder", "Responder"]
-        df[seg_col] = np.select(conditions, choices, default="Control")
+        seg_new[seg_col] = np.select(conditions, choices, default="Control")
 
+    if seg_new:
+        df = pd.concat([df, pd.DataFrame(seg_new)], axis=1)
     return df
 
 
