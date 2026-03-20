@@ -69,6 +69,14 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
         zip_client = re.match(r'^(\d+)', item)
         zip_client_id = zip_client.group(1) if zip_client else 'unknown'
         client_staging = os.path.join(staging_directory, zip_client_id)
+
+        # Skip if already extracted (CSV exists in staging)
+        if os.path.exists(client_staging):
+            existing_csvs = [f for f in os.listdir(client_staging) if f.endswith('.csv') and 'odd' in f.lower()]
+            if existing_csvs:
+                log_message(f"    Skipping {item} -- already extracted ({existing_csvs[0]})", log_file)
+                continue
+
         os.makedirs(client_staging, exist_ok=True)
 
         staged_zip = os.path.join(client_staging, item)
@@ -120,6 +128,15 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
         try:
             client_path = os.path.join(staging_directory, client_id)
             csv_path = os.path.join(client_path, csv_file)
+
+            # Skip if already formatted (output Excel exists)
+            excel_filename = os.path.splitext(csv_file)[0] + '.xlsx'
+            client_output_dir = os.path.join(output_directory, client_id)
+            output_path = os.path.join(client_output_dir, excel_filename)
+            if os.path.exists(output_path):
+                log_message(f"    Skipping {csv_file} -- already formatted", log_file)
+                continue
+
             df = pd.read_csv(csv_path, skiprows=4, low_memory=False)
 
             if df.empty:
