@@ -1,0 +1,9 @@
+loguru
+rich
+pydantic
+pydantic-settings
+openpyxl
+python-pptx
+matplotlib
+numpy
+pandas
