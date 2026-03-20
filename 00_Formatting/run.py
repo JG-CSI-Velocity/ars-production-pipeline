@@ -129,13 +129,18 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
             client_path = os.path.join(staging_directory, client_id)
             csv_path = os.path.join(client_path, csv_file)
 
-            # Skip if already formatted (output Excel exists) unless --force
+            # Skip if already formatted (output Excel exists AND is valid) unless --force
             excel_filename = os.path.splitext(csv_file)[0] + '.xlsx'
             client_output_dir = os.path.join(output_directory, client_id)
             output_path = os.path.join(client_output_dir, excel_filename)
             if not force and os.path.exists(output_path):
-                log_message(f"    Skipping {csv_file} -- already formatted", log_file)
-                continue
+                _existing_size = os.path.getsize(output_path)
+                if _existing_size > 10000:  # must be > 10KB to be a real Excel file
+                    log_message(f"    Skipping {csv_file} -- already formatted ({_existing_size / 1024 / 1024:.1f} MB)", log_file)
+                    continue
+                else:
+                    log_message(f"    Existing output is invalid ({_existing_size} bytes) -- re-formatting", log_file)
+                    os.remove(output_path)
 
             df = pd.read_csv(csv_path, skiprows=4, low_memory=False)
 
