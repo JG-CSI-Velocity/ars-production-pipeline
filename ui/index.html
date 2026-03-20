@@ -892,12 +892,12 @@ async function runGenReal() {
     const csm = document.getElementById('gCsmSel').value;
     const month = document.getElementById('gMonthSel').value;
 
-    // Start the run
-    const resp = await fetch(`/api/run?csm=${csm}&month=${month}&client_id=${clientId}&product=${curProd}`, {method: 'POST'});
-    if (!resp.ok) { alert('Failed to start run'); return; }
-    const {run_id} = await resp.json();
+    if (!csm || !month || !clientId) {
+        alert('Please select a CSM, period, and client first.');
+        return;
+    }
 
-    // Show progress
+    // Show progress immediately
     const prog = document.getElementById('gProg');
     prog.classList.add('visible');
     document.getElementById('gDl').classList.remove('visible');
@@ -905,33 +905,78 @@ async function runGenReal() {
     const bar = document.getElementById('gProgBar');
     const st = document.getElementById('gProgStatus');
     log.innerHTML = '';
+    bar.style.width = '5%';
+    bar.style.background = '';
+    st.textContent = 'Starting...';
 
-    // Stream progress via SSE
-    const evtSource = new EventSource(`/api/run/${run_id}/stream`);
-    evtSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        if (data.type === 'log') {
-            const line = document.createElement('div');
-            line.className = 'done';
-            line.textContent = data.message;
-            log.appendChild(line);
-            log.scrollTop = log.scrollHeight;
+    const startLine = document.createElement('div');
+    startLine.className = 'done';
+    startLine.textContent = `Generating ${curProd.toUpperCase()} report for client ${clientId} (${csm} / ${month})...`;
+    log.appendChild(startLine);
+
+    // Start the run
+    try {
+        const resp = await fetch(`/api/run?csm=${csm}&month=${month}&client_id=${clientId}&product=${curProd}`, {method: 'POST'});
+        if (!resp.ok) {
+            const errText = await resp.text();
+            st.textContent = 'Failed to start';
+            const errLine = document.createElement('div');
+            errLine.style.color = '#EB2A2E';
+            errLine.textContent = 'ERROR: ' + (errText || resp.statusText);
+            log.appendChild(errLine);
+            return;
         }
-        if (data.type === 'progress') {
-            bar.style.width = data.value + '%';
-            st.textContent = data.value + '%';
-        }
-        if (data.type === 'done') {
-            evtSource.close();
-            st.textContent = data.status === 'complete' ? 'Complete' : 'Error';
-            bar.style.width = '100%';
-            if (data.status === 'complete') {
-                loadDownloads(csm, month, clientId);
-                loadResultsAfterRun(csm, month, clientId);
-                loadDashboardData();
+        const {run_id} = await resp.json();
+        st.textContent = 'Running...';
+        bar.style.width = '10%';
+
+        // Poll for progress
+        const pollInterval = setInterval(async () => {
+            try {
+                const statusResp = await fetch(`/api/run/${run_id}`);
+                if (!statusResp.ok) return;
+                const run = await statusResp.json();
+
+                // Show new log lines
+                const currentCount = log.children.length - 1;
+                if (run.log && run.log.length > currentCount) {
+                    for (let i = currentCount; i < run.log.length; i++) {
+                        const line = document.createElement('div');
+                        line.className = 'done';
+                        line.textContent = run.log[i];
+                        log.appendChild(line);
+                    }
+                    log.scrollTop = log.scrollHeight;
+                }
+
+                bar.style.width = run.progress + '%';
+                st.textContent = run.current_step || 'Running...';
+
+                if (run.status === 'complete' || run.status === 'error') {
+                    clearInterval(pollInterval);
+                    bar.style.width = '100%';
+                    if (run.status === 'complete') {
+                        st.textContent = 'Complete';
+                        bar.style.background = 'var(--copper)';
+                        loadDownloads(csm, month, clientId);
+                        loadResultsAfterRun(csm, month, clientId);
+                        loadDashboardData();
+                    } else {
+                        st.textContent = 'Error -- check log below';
+                        bar.style.background = '#EB2A2E';
+                    }
+                }
+            } catch(pollErr) {
+                // Network blip, keep polling
             }
-        }
-    };
+        }, 1000);
+    } catch(e) {
+        st.textContent = 'Could not connect to API';
+        const errLine = document.createElement('div');
+        errLine.style.color = '#EB2A2E';
+        errLine.textContent = 'ERROR: ' + e.message;
+        log.appendChild(errLine);
+    }
 }
 
 // ─── REAL DATA LOADERS ───
@@ -1049,43 +1094,89 @@ async function runFormat(force = false) {
     const month = document.getElementById('fMonthSel').value;
     const clientId = document.getElementById('fClientId').value.trim();
 
+    if (!csm || !month) {
+        alert('Please select a CSM and period first.');
+        return;
+    }
+
     const prog = document.getElementById('fProg');
     prog.classList.add('visible');
     const log = document.getElementById('fProgLog');
     const bar = document.getElementById('fProgBar');
     const st = document.getElementById('fProgStatus');
     log.innerHTML = '';
-    bar.style.width = '0%';
+    bar.style.width = '5%';
+    st.textContent = 'Starting...';
+
+    // Show what we're doing immediately
+    const startLine = document.createElement('div');
+    startLine.className = 'done';
+    startLine.textContent = `Formatting ${clientId || 'all clients'} for ${csm} / ${month}...`;
+    log.appendChild(startLine);
 
     try {
         const url = `/api/format?csm=${csm}&month=${month}&client_id=${clientId}&force=${force}`;
+        st.textContent = 'Connecting...';
         const resp = await fetch(url, {method: 'POST'});
-        if (!resp.ok) { st.textContent = 'Failed to start'; return; }
+        if (!resp.ok) {
+            const errText = await resp.text();
+            st.textContent = 'Failed to start';
+            const errLine = document.createElement('div');
+            errLine.style.color = '#EB2A2E';
+            errLine.textContent = 'ERROR: ' + (errText || resp.statusText);
+            log.appendChild(errLine);
+            return;
+        }
         const {run_id} = await resp.json();
+        st.textContent = 'Running...';
+        bar.style.width = '10%';
 
-        const evtSource = new EventSource(`/api/run/${run_id}/stream`);
-        evtSource.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            if (data.type === 'log') {
-                const line = document.createElement('div');
-                line.className = 'done';
-                line.textContent = data.message;
-                log.appendChild(line);
-                log.scrollTop = log.scrollHeight;
+        // Poll for progress instead of SSE (more reliable on Windows)
+        const pollInterval = setInterval(async () => {
+            try {
+                const statusResp = await fetch(`/api/run/${run_id}`);
+                if (!statusResp.ok) return;
+                const run = await statusResp.json();
+
+                // Show new log lines
+                const currentCount = log.children.length - 1; // minus the start line
+                if (run.log && run.log.length > currentCount) {
+                    for (let i = currentCount; i < run.log.length; i++) {
+                        const line = document.createElement('div');
+                        line.className = 'done';
+                        line.textContent = run.log[i];
+                        log.appendChild(line);
+                    }
+                    log.scrollTop = log.scrollHeight;
+                }
+
+                // Update progress bar
+                bar.style.width = run.progress + '%';
+                st.textContent = run.current_step || 'Running...';
+
+                // Done?
+                if (run.status === 'complete' || run.status === 'error') {
+                    clearInterval(pollInterval);
+                    bar.style.width = '100%';
+                    if (run.status === 'complete') {
+                        st.textContent = 'Formatting Complete';
+                        bar.style.background = 'var(--copper)';
+                    } else {
+                        st.textContent = 'Error -- check log below';
+                        bar.style.background = '#EB2A2E';
+                    }
+                }
+            } catch(pollErr) {
+                // Network blip, keep polling
             }
-            if (data.type === 'progress') {
-                bar.style.width = data.value + '%';
-                st.textContent = data.value + '%';
-            }
-            if (data.type === 'done') {
-                evtSource.close();
-                st.textContent = data.status === 'complete' ? 'Formatting Complete' : 'Error';
-                bar.style.width = '100%';
-            }
-        };
+        }, 1000);
+
     } catch(e) {
-        // Fallback: run mock progress
-        st.textContent = 'API not available';
+        st.textContent = 'Could not connect to API';
+        const errLine = document.createElement('div');
+        errLine.style.color = '#EB2A2E';
+        errLine.textContent = 'ERROR: ' + e.message;
+        log.appendChild(errLine);
     }
 }
 
