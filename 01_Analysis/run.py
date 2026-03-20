@@ -139,16 +139,29 @@ def main():
     if not month:
         month = datetime.now().strftime("%Y.%m")
 
-    # Output directory: M:\ARS\01_Analysis\CSM\YYYY.MM\ClientID\
+    # Output directories:
+    #   Excel/charts -> 01_Analysis/01_Completed_Analysis/CSM/month/clientID/
+    #   PPTX         -> 02_Presentations/CSM/month/clientID/
     if args.output_dir:
         output_dir = Path(args.output_dir)
+        pptx_dir = output_dir  # same place if manually specified
     else:
-        analysis_base = Path(r"M:\ARS\01_Analysis\01_Completed_Analysis") if os.name == "nt" else Path("/Volumes/M/ARS/01_Analysis/01_Completed_Analysis")
+        if os.name == "nt":
+            analysis_base = Path(r"M:\ARS\01_Analysis\01_Completed_Analysis")
+            pptx_base = Path(r"M:\ARS\02_Presentations")
+        else:
+            analysis_base = Path("/Volumes/M/ARS/01_Analysis/01_Completed_Analysis")
+            pptx_base = Path("/Volumes/M/ARS/02_Presentations")
+
         if csm_name:
             output_dir = analysis_base / csm_name / month / client_id
+            pptx_dir = pptx_base / csm_name / month / client_id
         else:
             output_dir = analysis_base / month / client_id
+            pptx_dir = pptx_base / month / client_id
+
     output_dir.mkdir(parents=True, exist_ok=True)
+    pptx_dir.mkdir(parents=True, exist_ok=True)
 
     # Config file
     config_path = args.config
@@ -206,18 +219,35 @@ def main():
     try:
         results = run_ars(ctx)
 
+        # Move PPTX files to 02_Presentations
+        import shutil
+        pptx_files = [f for f in output_dir.iterdir() if f.suffix == '.pptx']
+        for pf in pptx_files:
+            dest = pptx_dir / pf.name
+            shutil.copy2(pf, dest)
+            pf.unlink()  # remove from analysis output
+
         print()
         print("=" * 70)
         print("  STEP 2 COMPLETE")
         print("=" * 70)
-        print(f"    Results: {len(results)} slides generated")
-        print(f"    Output:  {output_dir}")
+        print(f"    Results:        {len(results)} slides generated")
+        print(f"    Analysis:       {output_dir}")
+        print(f"    Presentations:  {pptx_dir}")
+        print()
 
         # List output files
+        print("    Excel/Data:")
         for f in output_dir.iterdir():
-            if f.suffix in ('.pptx', '.xlsx', '.json') and client_id in f.name:
+            if f.suffix in ('.xlsx', '.json') and client_id in f.name:
                 size_mb = f.stat().st_size / (1024 * 1024)
-                print(f"    {f.name} ({size_mb:.1f} MB)")
+                print(f"      {f.name} ({size_mb:.1f} MB)")
+
+        print("    PowerPoint:")
+        for f in pptx_dir.iterdir():
+            if f.suffix == '.pptx':
+                size_mb = f.stat().st_size / (1024 * 1024)
+                print(f"      {f.name} ({size_mb:.1f} MB)")
 
         print("=" * 70)
         print()
