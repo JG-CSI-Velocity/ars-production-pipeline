@@ -17,17 +17,17 @@ from datetime import datetime
 from pathlib import Path
 
 # Add step2-analysis to path so ars_analysis imports resolve locally
-sys.path.insert(0, str(Path(__file__).parent))
+# Add 00-Scripts to path so imports work
+_scripts_dir = Path(__file__).parent / "00-Scripts"
+sys.path.insert(0, str(_scripts_dir))
 
 # Rewire imports: the code uses "from ars_analysis.X import Y"
-# but we have the modules flat in this directory. Create the package alias.
+# but we have the modules in 00-Scripts/. Create the package alias.
 import importlib
 import types
 
-# Build a virtual ars_analysis package from our local files
-_step2_dir = Path(__file__).parent
 _ars_pkg = types.ModuleType("ars_analysis")
-_ars_pkg.__path__ = [str(_step2_dir)]
+_ars_pkg.__path__ = [str(_scripts_dir)]
 _ars_pkg.__package__ = "ars_analysis"
 sys.modules["ars_analysis"] = _ars_pkg
 
@@ -100,7 +100,7 @@ def main():
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
-        analysis_base = Path(r"M:\ARS\01_Analysis\02_Completed_Analysis") if os.name == "nt" else Path("/Volumes/M/ARS/01_Analysis/02_Completed_Analysis")
+        analysis_base = Path(r"M:\ARS\01_Analysis\01_Completed_Analysis") if os.name == "nt" else Path("/Volumes/M/ARS/01_Analysis/01_Completed_Analysis")
         if csm_name:
             output_dir = analysis_base / csm_name / month / client_id
         else:

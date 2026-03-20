@@ -19,8 +19,8 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-# Add repo root to path so imports work
-sys.path.insert(0, str(Path(__file__).parent))
+# Add 00-Scripts to path so imports work
+sys.path.insert(0, str(Path(__file__).parent / "00-Scripts"))
 
 import pandas as pd
 from configs.settings import load_settings

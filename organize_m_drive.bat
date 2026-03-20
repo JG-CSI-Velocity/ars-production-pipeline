@@ -9,19 +9,22 @@ echo   This will organize M:\ARS\ into the new structure.
 echo   Nothing is deleted -- old folders are moved to _archive.
 echo ======================================================================
 echo.
-echo   Current structure will become:
+echo   Structure:
 echo.
 echo     M:\ARS\
-echo       _archive\                 (old folders moved here)
+echo       _archive\
 echo       00_Formatting\
-echo         00-Scripts\             (repo with step1 + step2 scripts)
-echo         01-Data-Ready for Formatting\
-echo         02-Data-Ready for Analysis\
+echo         run.py
+echo         00-Scripts\
+echo         01-Data-Ready for Formatting\CSM\month\clientID
+echo         02-Data-Ready for Analysis\CSM\month\clientID
 echo       01_Analysis\
-echo         02_Completed_Analysis\  (all outputs: CSM\month\clientID)
-echo       Config\                   (clients_config.json)
+echo         run.py
+echo         00-Scripts\
+echo         01_Completed_Analysis\CSM\month\clientID
+echo       02_Presentations\CSM\month\clientID
+echo       Config\
 echo       Logs\
-echo       Presentations\            (PPTX templates)
 echo.
 echo   Press any key to proceed, or close this window to cancel.
 pause >nul
@@ -41,40 +44,48 @@ if exist "M:\ARS\Output" (
     echo   Moving "Output" to _archive...
     move "M:\ARS\Output" "M:\ARS\_archive\Output" >nul 2>&1
 )
+if exist "M:\ARS\Presentations" (
+    echo   Moving "Presentations" to _archive...
+    move "M:\ARS\Presentations" "M:\ARS\_archive\Presentations" >nul 2>&1
+)
 
 :: Ensure the new structure exists
 if not exist "M:\ARS\00_Formatting\00-Scripts" mkdir "M:\ARS\00_Formatting\00-Scripts"
 if not exist "M:\ARS\00_Formatting\01-Data-Ready for Formatting" mkdir "M:\ARS\00_Formatting\01-Data-Ready for Formatting"
 if not exist "M:\ARS\00_Formatting\02-Data-Ready for Analysis" mkdir "M:\ARS\00_Formatting\02-Data-Ready for Analysis"
 if not exist "M:\ARS\01_Analysis\00-Scripts" mkdir "M:\ARS\01_Analysis\00-Scripts"
-if not exist "M:\ARS\01_Analysis\02_Completed_Analysis" mkdir "M:\ARS\01_Analysis\02_Completed_Analysis"
+if not exist "M:\ARS\01_Analysis\01_Completed_Analysis" mkdir "M:\ARS\01_Analysis\01_Completed_Analysis"
+if not exist "M:\ARS\02_Presentations" mkdir "M:\ARS\02_Presentations"
 if not exist "M:\ARS\Config" mkdir "M:\ARS\Config"
 if not exist "M:\ARS\Logs" mkdir "M:\ARS\Logs"
-if not exist "M:\ARS\Presentations" mkdir "M:\ARS\Presentations"
 
 :: Create CSM subfolders in each data directory
 for %%C in (JamesG Jordan Aaron Gregg Dan Max) do (
     if not exist "M:\ARS\00_Formatting\01-Data-Ready for Formatting\%%C" mkdir "M:\ARS\00_Formatting\01-Data-Ready for Formatting\%%C"
     if not exist "M:\ARS\00_Formatting\02-Data-Ready for Analysis\%%C" mkdir "M:\ARS\00_Formatting\02-Data-Ready for Analysis\%%C"
-    if not exist "M:\ARS\01_Analysis\02_Completed_Analysis\%%C" mkdir "M:\ARS\01_Analysis\02_Completed_Analysis\%%C"
+    if not exist "M:\ARS\01_Analysis\01_Completed_Analysis\%%C" mkdir "M:\ARS\01_Analysis\01_Completed_Analysis\%%C"
+    if not exist "M:\ARS\02_Presentations\%%C" mkdir "M:\ARS\02_Presentations\%%C"
     echo   Created folders for %%C
 )
 
 echo.
 echo ======================================================================
-echo   DONE. New structure:
+echo   DONE. Structure:
 echo ======================================================================
 echo.
 dir /b /ad "M:\ARS\"
 echo.
-echo   Scripts go in: M:\ARS\00_Formatting\00-Scripts\
-echo   Clone the repo there:
+echo   Clone the repo:
 echo     cd M:\ARS\00_Formatting\00-Scripts
 echo     git clone https://github.com/JG-CSI-Velocity/ars-production-pipeline.git .
 echo.
-echo   Then run:
-echo     python run-step1.py --month 2026.03 --csm JamesG --client 1200
-echo     python run-step2.py "M:\ARS\00_Formatting\02-Data-Ready for Analysis\JamesG\2026.03\1200\1200-ODD.xlsx"
+echo   Step 1 (format):
+echo     cd M:\ARS\00_Formatting
+echo     python run.py --month 2026.03 --csm JamesG --client 1200
+echo.
+echo   Step 2 (analyze):
+echo     cd M:\ARS\01_Analysis
+echo     python run.py "M:\ARS\00_Formatting\02-Data-Ready for Analysis\JamesG\2026.03\1200\1200-ODD.xlsx"
 echo.
 echo ======================================================================
 pause
