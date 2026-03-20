@@ -353,13 +353,26 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         </div>
         <div class="config-row" style="margin-bottom: 0;">
             <div class="config-field"><div class="label">CSM</div>
-                <select class="sel" id="gCsmSel"></select>
+                <select class="sel" id="gCsmSel">
+                    <option value="James Gilmore">James Gilmore</option>
+                    <option value="Jordan">Jordan</option>
+                    <option value="Aaron">Aaron</option>
+                    <option value="Gregg">Gregg</option>
+                    <option value="Dan">Dan</option>
+                    <option value="Max">Max</option>
+                </select>
             </div>
             <div class="config-field"><div class="label">Period</div>
-                <select class="sel" id="gMonthSel"></select>
+                <select class="sel" id="gMonthSel">
+                    <option value="2026.03">2026.03</option>
+                    <option value="2026.02">2026.02</option>
+                    <option value="2026.01">2026.01</option>
+                </select>
             </div>
             <div class="config-field"><div class="label">Client</div>
-                <select class="sel" id="gClientSel" onchange="updateGenClientFromAPI()"></select>
+                <select class="sel" id="gClientSel" onchange="updateGenClientFromAPI()">
+                    <option value="">Select a client...</option>
+                </select>
             </div>
         </div>
     </div>
