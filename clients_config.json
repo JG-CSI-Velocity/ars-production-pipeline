@@ -1,0 +1,1092 @@
+{
+    "1776": {
+  "ClientID": "1776",
+  "ICRate": "0.0062",
+  "NSF_OD_Fee": "32",
+  "EligibleStatusCodes": [
+    "O"
+  ],
+  "IneligibleStatusCodes": [
+    "C", "F", "I", "R", "X"
+  ],
+  "EligibleMailCode": "Yes",
+  "IneligibleMailCode": "No",
+  "EligibleProductCodes": [
+    "182", "186", "211", "212"
+  ],
+  "IneligibleProductCodes": [],
+  "RegEOptInCode": [
+    "Y"
+  ],
+  "BranchMapping": {
+    "10": "Base",
+    "20": "Lompoc",
+    "30": "Santa Maria",
+    "40": "Village",
+    "50": "Orcutt",
+    "60": "San Luis Obispo SLO",
+    "80": "Grand Ave",
+    "100": "Nipomo",
+    "120": "Betteravia",
+    "140": "Atascadero",
+    "150": "Paso Robles",
+    "160": "Oak Park",
+    "170": "Lending Center"
+        }
+    },
+    "1226": {
+  "ClientID": "1226",
+  "ICRate": "0.007",
+  "NSF_OD_Fee": "35",
+  "EligibleStatusCodes": [
+    "ACTIVE", "INACTIVE"
+  ],
+  "IneligibleStatusCodes": [
+    "DORMANT"
+  ],
+  "EligibleMailCode": "Yes",
+  "IneligibleMailCode": "No",
+  "EligibleProductCodes": [
+    "102", "2", "808", "809", "807", "810"
+  ],
+  "IneligibleProductCodes": [
+    "132", "140", "188", "35", "39", "43", "58", "62", "88"
+  ],
+  "RegEOptInCode": [
+    "Yes"
+  ],
+  "BranchMapping": {
+    "1": "Main",
+    "3": "Meriden",
+    "4": "Main",         
+    "5": "Main",         
+    "6": "Main",         
+    "11": "Main",        
+    "40": "Main",        
+    "Cromwell": "Main",
+    "Indirect Lending": "Main",
+    "Main Office": "Main",
+    "Meriden": "Meriden",
+    "Middletown High School": "Main",
+    "Now Faith": "Main",
+    "Online": "Online",
+    "": "Online"         
+    }
+    },
+    "1746": {
+        "ClientID": "1746",
+        "ICRate": "0.0065",
+        "NSF_OD_Fee": "28",
+        "EligibleStatusCodes": [
+            "A"
+        ],
+        "IneligibleStatusCodes": [
+            "C", "D"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "1", "3", "98"
+        ],
+        "IneligibleProductCodes": [
+            "11", "2", "20", "25", "26", "27", "4", "80", "86", "87", "88", "99"
+        ],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {
+            "0": "Main",
+            "1": "Madison",
+            "2": "Broadway",
+            "4": "Wheeling"
+        }
+    },
+    "1217": {
+        "ClientID": "1217",
+        "ICRate": "0.01038",
+        "NSF_OD_Fee": "30",
+        "EligibleStatusCodes": [
+        "A", "D"
+        ],
+        "IneligibleStatusCodes": [
+        "I"
+        ],
+        "EligibleMailCode": ["Yes"
+        ],
+        "IneligibleMailCode": ["No"
+        ],
+        "EligibleProductCodes": [
+        "240", "241", "242", "243", "40", "45", "48", "49"
+        ],
+        "IneligibleProductCodes": [
+        "1", "201", "30", "4", "41", "42", "43", "44", "46", "47", "50", "60", "860", "88"
+        ],
+        "RegEOptInCode": [
+        "Opt-in"
+        ],
+        "BranchMapping": {
+        "0": "Admin-Emerald",
+        "1": "Main",
+        "3": "Glenns Ferry",
+        "4": "Express",
+        "5": "Hailey",
+        "6": "Meridian",
+        "7": "Jerome",
+        "8": "Gooding",
+        "9": "Twin Falls",
+        "11": "Broadway",
+        "12": "Nampa",
+        "14": "Middleton",
+        "15": "Caldwell",
+        "16": "Overland",
+        "17": "State Street",
+        "30": "Admin-Mountain Home"
+        }
+  },
+    "1780": {
+        "ClientID": "1780",
+        "ICRate": ".010593",
+        "NSF_OD_Fee": "29",
+        "EligibleStatusCodes": [
+            "O"
+        ],
+        "IneligibleStatusCodes": [
+            "C",
+            "X"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "20",
+            "7"
+        ],
+        "IneligibleProductCodes": [
+            "16",
+            "4",
+            "98",
+            "99"
+        ],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {
+            "30": "Remote",
+            "2": "Marshall Student Center",
+            "7": "New Tampa",
+            "4": "Sarasota",
+            "9": "Fletcher",
+            "3": "St Pete Campus",
+            "1": "Orlando",
+            "6": "Odessa",
+            "8": "VA Hospital",
+            "11": "Tampa General",
+            "0": "Member Service Center"
+        }
+    },
+    "1766": {
+        "ClientID": "1766",
+        "ICRate": ".00692",
+        "NSF_OD_Fee": "29",
+        "EligibleStatusCodes": [
+            "O"
+        ],
+        "IneligibleStatusCodes": [
+            "C"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "12",
+            "13",
+            "2",
+            "20",
+            "21",
+            "22",
+            "29",
+            "30",
+            "31",
+            "33",
+            "34",
+            "35",
+            "37",
+            "38",
+            "39",
+            "40"
+        ],
+        "IneligibleProductCodes": [],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {
+            "1": "Fort Sill",
+            "3": "East",
+            "4": "Headquarters",
+            "5": "Welcome Center",
+            "6": "South"
+        }
+    },
+    "1759": {
+        "ClientID": "1759",
+        "ICRate": ".008061",
+        "NSF_OD_Fee": "27",
+        "EligibleStatusCodes": [
+            "A"
+        ],
+        "IneligibleStatusCodes": [
+            "C",
+            "I"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "D1",
+            "D2",
+            "D4",
+            "D5",
+            "D7",
+            "D9",
+            "EX",
+            "IC",
+            "KB",
+            "KC",
+            "KY",
+            "KU",
+            "NB"
+        ],
+        "IneligibleProductCodes": [
+            "CA",
+            "MM",
+            "RS"
+        ],
+        "RegEOptInCode": [
+            "Opt-in"
+        ],
+        "BranchMapping": {
+            "1": "Sanger",
+            "2": "Chapel",
+            "3": "Hillsboro",
+            "5": "Brownwood",
+            "6": "Bellmead",
+            "7": "Contact Center"
+        }
+    },
+    "1453": {
+        "ClientID": "1453",
+        "ICRate": ".0065",
+        "NSF_OD_Fee": "35",
+        "EligibleStatusCodes": [
+            "ACT"
+        ],
+        "IneligibleStatusCodes": [
+            "CLS",
+            "DORM",
+            "IACT"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "BC01",
+            "BC02",
+            "BC03",
+            "BC04",
+            "CK02",
+            "CK03",
+            "CK06"
+        ],
+        "IneligibleProductCodes": [
+            "CHOS",
+            "CHSA",
+            "CK04",
+            "CK07",
+            "COS",
+            "DLR",
+            "HCK",
+            "HSC",
+            "INVR",
+            "LHSA"
+        ],
+        "RegEOptInCode": [
+            "Opt-In"
+        ],
+        "BranchMapping": {
+            "1": "NH Ops",
+            "2": "Whitney Ave",
+            "3": "North Haven",
+            "12": "Guilford",
+            "14": "Orange",
+            "15": "Hamden",
+            "16": "Meriden",
+            "25": "Branford",
+            "28": "Monroe",
+            "208": "Branford",
+            "214": "Guilford",
+            "215": "Hamden",
+            "217": "Indirect",
+            "222": "Call Center",
+            "223": "Meriden",
+            "224": "Monroe",
+            "226": "Whitney Ave",
+            "227": "North Haven",
+            "229": "Loan Cons",
+            "230": "Orange",
+            "241": "Digital"
+        }
+    },    
+    "1615": {
+        "ClientID": "1615",
+        "ICRate": "0.0079",
+        "NSF_OD_Fee": "30",
+        "EligibleStatusCodes": [
+        "0", "D", "I", "O"
+        ],
+        "IneligibleStatusCodes": [
+        "C"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+        "20106", "20108", "20110", "20112", "20120", "20131", "20133",
+        "20134", "20165", "20166", "30170", "30171", "20119"
+        ],
+        "IneligibleProductCodes": [
+        "20101", "20104", "20107", "20111", "20114", "20116", "20121", "20122", "20124",
+        "20125", "20126", "20128", "20130", "20132", "20135", "20136", "20175", "20180",
+        "20181", "20182", "20183", "20184", "20185", "20186", "20190", "20191", "20192",
+        "20193", "20194", "20195", "20196"
+        ],
+        "RegEOptInCode": [
+        "Opt In ATM/POS OD Limit"
+        ],
+        "BranchMapping": {
+        "1": "Yarmouth Port",
+        "2": "East Dennis",
+        "3": "West Barnstable",
+        "4": "Sandwich",
+        "6": "Hyannis",
+        "7": "King's Way",
+        "8": "East Harwich",
+        "10": "Commercial",
+        "11": "North Falmouth",
+        "14": "Falmouth",
+        "15": "Heatherwood",
+        "18": "Marstons Mills",
+        "19": "Consumer Online Accounts",
+        "30": "Small Business"
+        }
+    },
+    "1200": {
+        "ClientID": "1200",
+        "ICRate": "0.008712",
+        "NSF_OD_Fee": "32",
+        "EligibleStatusCodes": [
+        "O"
+        ],
+        "IneligibleStatusCodes": [
+        "C", "D"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+        "SD", "SDA", "SDDDA"
+        ],
+        "IneligibleProductCodes": [
+        "SDC", "SDCB", "SDGL", "SDMJ", "SDMRB", "SDS"
+        ],
+        "RegEOptInCode": [
+        "N"
+        ],
+        "BranchMapping": {
+            "1": "West Palm Beach",
+            "2": "Boynton Beach",
+            "3": "Old Royal Palm",
+            "4": "Fort Pierce",
+            "5": "VMRC",
+            "6": "Royal Palm Beach",
+            "7": "Miami",
+            "99": "Admin"
+        }
+    },
+    "1585": {
+        "ClientID": "1585",
+        "ICRate": "0.0065",
+        "NSF_OD_Fee": "27",
+        "EligibleStatusCodes": [
+            "",
+            "1",
+            "2"
+        ],
+        "IneligibleStatusCodes": [
+            "3",
+            "4"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "1",
+            "A1",
+            "A2",
+            "B1",
+            "B2",
+            "C1",
+            "D1"
+        ],
+        "IneligibleProductCodes": [
+            "2",
+            "4",
+            "50",
+            "A",
+            "B3",
+            "C2",
+            "F1",
+            "H",
+            "H1",
+            "P",
+            "R2",
+            "R3",
+            "Z"
+        ],
+        "RegEOptInCode": [
+            "1", "1.0"
+        ],
+        "BranchMapping": {
+
+            "1": "Clinton",
+            "2": "Fancy Farm",
+            "3": "Kevil",
+            "4": "LaCenter",
+            "5": "Wickliffe",
+            "6": "Martin",
+            "7": "Dresden",
+            "8": "Downtown Martin",
+            "9": "Dyersburg Green Village",
+            "10": "South Fulton",
+            "11": "Dyersburg Mall Blvd",
+            "90": "Online"
+        }
+    },
+        "1441": {
+            "ClientID": "1441",
+            "ICRate": "0.0076",
+            "NSF_OD_Fee": "33",
+            "EligibleStatusCodes": [
+                "O", "D", "I"
+            ],
+            "IneligibleStatusCodes": [
+                "C"
+            ],
+            "EligibleMailCode": "Yes",
+            "IneligibleMailCode": "No",
+            "EligibleProductCodes": [
+                "301010110", "301010130", "301010210", "301010211",
+                "301020110", "301020130", "301020210", "301020230",
+                "301030110", "301030130", "301040110", "301050110",
+                "301110110", "301110130", "301140110", "301140130",
+                "301150110", "301150130", "301410150", "301500150",
+                "301500250", "301510130", "301510151", "301510152",
+                "301510153", "301510154", "301510230", "301510251",
+                "301510252", "301510253", "301510254", "301610130",
+                "301610151", "301610152", "301610153", "301610154"
+            ],
+            "IneligibleProductCodes": [
+                "301030210", "301100110", "301120110", "301120130",
+                "301130210", "301130230", "301420150", "301530151",
+                "301540130", "301540151", "301540152", "301540153",
+                "301540154", "301610230", "301620130", "301620151",
+                "301620152", "301620153", "301620154", "301630230",
+                "301630250", "301630251", "301630252", "301630253"
+            ],
+            "RegEOptInCode": [
+                "Y"
+            ],
+            "BranchMapping": {
+            "1": "Metro",
+            "2": "Northern Lights",
+            "3": "Eastchester",
+            "4": "North Star",
+            "5": "Eagle River",
+            "7": "Juneau Regional Branch",
+            "8": "Kodiak",
+            "9": "Kuskokwim",
+            "10": "Seward",
+            "11": "Sitka",
+            "12": "Haines",
+            "15": "South Center",
+            "16": "Valdez",
+            "17": "Cordova",
+            "18": "Palmer",
+            "19": "Kenai",
+            "21": "Valley Centre",
+            "22": "Muldoon",
+            "23": "Dimond",
+            "24": "Soldotna",
+            "26": "Golden Valley",
+            "27": "Homer",
+            "28": "Wasilla",
+            "29": "Johansen",
+            "30": "Glennallen",
+            "31": "Healy",
+            "32": "U-Med"
+        }
+    },
+    "1049": {
+        "ClientID": "1049",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "0",
+            "D",
+            "I",
+            "O",
+            "R"
+        ],
+        "IneligibleStatusCodes": [
+            "C",
+            "X",
+            "Z"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "100",
+            "105",
+            "106",
+            "107",
+            "110",
+            "120",
+            "121",
+            "122",
+            "125"
+        ],
+        "IneligibleProductCodes": [
+            "10102",
+            "10103",
+            "10104",
+            "10105",
+            "10106",
+            "10107",
+            "10108",
+            "10109",
+            "10110",
+            "10112",
+            "10113",
+            "10114",
+            "10118",
+            "10120",
+            "10121",
+            "10122",
+            "10123",
+            "10124",
+            "10125",
+            "10126",
+            "10127",
+            "10128",
+            "10129",
+            "10130",
+            "10131",
+            "10132",
+            "10133",
+            "10134",
+            "10135",
+            "10150",
+            "10151",
+            "10152",
+            "10153",
+            "10154",
+            "10155",
+            "10160",
+            "10161",
+            "10170",
+            "10172",
+            "10173",
+            "10174",
+            "10175",
+            "10176",
+            "10180",
+            "10181",
+            "10182",
+            "10183",
+            "10184",
+            "10185",
+            "10190",
+            "130",
+            "135",
+            "140",
+            "145",
+            "150",
+            "151",
+            "152",
+            "153",
+            "155",
+            "160",
+            "165",
+            "170",
+            "180",
+            "181",
+            "182",
+            "185",
+            "186",
+            "187",
+            "188",
+            "199"
+        ],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    },
+    "1121": {
+        "ClientID": "1121",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "1",
+            "3",
+            "A",
+            "D",
+            "I"
+        ],
+        "IneligibleStatusCodes": [
+            "0",
+            "2",
+            "4",
+            "5",
+            "6",
+            "7",
+            "9",
+            "C",
+            "E",
+            "F",
+            "L",
+            "R",
+            "T",
+            "W"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "1",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "19",
+            "21",
+            "22",
+            "24",
+            "25",
+            "26",
+            "27",
+            "28",
+            "31",
+            "32",
+            "33",
+            "34",
+            "35",
+            "36",
+            "37",
+            "39",
+            "50+ FREE INTEREST CK",
+            "50+ INTEREST CK",
+            "57",
+            "58",
+            "59",
+            "63",
+            "65",
+            "68",
+            "9",
+            "96",
+            "97",
+            "98",
+            "BUSINESS CHECKING",
+            "BUSINESS CK PLUS INT",
+            "CASH BACK CHECKING",
+            "FREE BUSINESS CK",
+            "FRESH START CHECKING",
+            "GREEN BUSINESS CK",
+            "GREEN RELATED CK",
+            "MY CHOICE CHECKING",
+            "NON PROFIT CHECKING",
+            "ONLINE BUSINESS CK",
+            "ONLINE CASH BACK CK",
+            "ONLINE MY CHOICE CK",
+            "PREMIER BUSINESS CK",
+            "PRESTIGE CHECKING",
+            "SMART MONEY CHECKING",
+            "VIP FREE INTEREST",
+            "VIP INTEREST",
+            "WALL STREET CHECKING"
+        ],
+        "IneligibleProductCodes": [
+            "20",
+            "23",
+            "29",
+            "3",
+            "38",
+            "42",
+            "43",
+            "46",
+            "47",
+            "48",
+            "49",
+            "50",
+            "51",
+            "52",
+            "53",
+            "54",
+            "55",
+            "56",
+            "60",
+            "64",
+            "66",
+            "67",
+            "69",
+            "70",
+            "71",
+            "72",
+            "73",
+            "74",
+            "81",
+            "82",
+            "83",
+            "89",
+            "92",
+            "BUS HI YIELD GROWTH",
+            "BUS PLATINUM HI YLD",
+            "BUS PREMIUM GROWTH",
+            "BUS SUPR HI YLD GROW",
+            "BUSINESS ATM CK",
+            "BUSINESS GROWTH",
+            "CASHIER'S CHECKS SSB",
+            "CONTRACT COLLECTIONS",
+            "DEPOSIT IN PROCESS",
+            "FREDDIE MAC CUST P/I",
+            "FREDDIE MAC RESERVES",
+            "GREEN RELATED ATM CK",
+            "GROWTH ACCOUNT",
+            "HEALTH SAVINGS",
+            "HIGH YIELD GROWTH",
+            "ICS DDA SHADOW",
+            "ICS MMKT SHADOW",
+            "INTERNET BANKING ACH",
+            "MARKET RATE BUSINESS",
+            "MARKET RATE PUBLIC",
+            "NON PROFIT MM",
+            "PLATINUM HIGH YIELD",
+            "PREMIUM GROWTH ACCT",
+            "PRIVATE BANKING",
+            "REP PAYEE CHECKING",
+            "SBA P&I",
+            "SUPER HI YLD GROWTH",
+            "WALCB"
+        ],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    },
+    "1192": {
+        "ClientID": "1192",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "D",
+            "O"
+        ],
+        "IneligibleStatusCodes": [
+            "C",
+            "F",
+            "X"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "200",
+            "201",
+            "203",
+            "204",
+            "207",
+            "209",
+            "300",
+            "301"
+        ],
+        "IneligibleProductCodes": [
+            "205",
+            "206",
+            "249",
+            "250",
+            "350",
+            "352"
+        ],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    },
+    "1195": {
+        "ClientID": "1195",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "A",
+            "D"
+        ],
+        "IneligibleStatusCodes": [
+            "C"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "1200",
+            "1205",
+            "1210",
+            "1240",
+            "1250",
+            "1300",
+            "1310"
+        ],
+        "IneligibleProductCodes": [
+            "1400",
+            "1500",
+            "1600"
+        ],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    },
+    "1554": {
+        "ClientID": "1554",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "1"
+        ],
+        "IneligibleStatusCodes": [
+            "0",
+            "2",
+            "3",
+            "5",
+            "6",
+            "7",
+            "8"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "A",
+            "A1",
+            "A3",
+            "AA",
+            "G3",
+            "G4",
+            "G5",
+            "G6",
+            "G7",
+            "G8",
+            "JA",
+            "JB",
+            "JC",
+            "JE",
+            "JF",
+            "JS",
+            "KA",
+            "KB",
+            "KP",
+            "N3",
+            "N5",
+            "N6",
+            "N7",
+            "N8"
+        ],
+        "IneligibleProductCodes": [
+            "CH",
+            "CO",
+            "FA",
+            "GI",
+            "IH",
+            "IO",
+            "JM",
+            "JN",
+            "JZ",
+            "KI",
+            "KN",
+            "LL",
+            "MG",
+            "MM",
+            "MN",
+            "MP",
+            "N4",
+            "NM",
+            "NN",
+            "OD",
+            "PP",
+            "S1",
+            "TM",
+            "TS",
+            "ZY"
+        ],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    },
+    "1681": {
+        "ClientID": "1681",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "A",
+            "D",
+            "I"
+        ],
+        "IneligibleStatusCodes": [
+            "C",
+            "X"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "100",
+            "101",
+            "102",
+            "103",
+            "106",
+            "107",
+            "108",
+            "109"
+        ],
+        "IneligibleProductCodes": [
+            "150",
+            "151",
+            "170",
+            "190",
+            "980"
+        ],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    },
+    "1765": {
+        "ClientID": "1765",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "A"
+        ],
+        "IneligibleStatusCodes": [
+            "C",
+            "I"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "BI",
+            "BT",
+            "BU",
+            "D1",
+            "D2",
+            "ES",
+            "FC",
+            "GN",
+            "NC",
+            "PK",
+            "PP",
+            "YC"
+        ],
+        "IneligibleProductCodes": [
+            "D7",
+            "D8",
+            "DU"
+        ],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    },
+    "1798": {
+        "ClientID": "1798",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "O"
+        ],
+        "IneligibleStatusCodes": [
+            "C",
+            "X"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "1081",
+            "1082",
+            "1083",
+            "71",
+            "72"
+        ],
+        "IneligibleProductCodes": [],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    },
+    "1799": {
+        "ClientID": "1799",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "D",
+            "O"
+        ],
+        "IneligibleStatusCodes": [
+            "C",
+            "F",
+            "R"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "220",
+            "222",
+            "230",
+            "231"
+        ],
+        "IneligibleProductCodes": [],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    },
+    "1807": {
+        "ClientID": "1807",
+        "ICRate": "",
+        "NSF_OD_Fee": "",
+        "EligibleStatusCodes": [
+            "D",
+            "O"
+        ],
+        "IneligibleStatusCodes": [
+            "C",
+            "R"
+        ],
+        "EligibleMailCode": "Yes",
+        "IneligibleMailCode": "No",
+        "EligibleProductCodes": [
+            "25",
+            "26",
+            "27",
+            "28",
+            "29"
+        ],
+        "IneligibleProductCodes": [],
+        "RegEOptInCode": [
+            "Y"
+        ],
+        "BranchMapping": {}
+    }
+}
