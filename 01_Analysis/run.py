@@ -32,6 +32,16 @@ _ars_pkg.__package__ = "ars_analysis"
 sys.modules["ars_analysis"] = _ars_pkg
 
 
+def _resolve_csm_name(csm_input, base_path):
+    """Fuzzy match CSM name: 'James' matches 'JamesG' folder."""
+    if not base_path.exists():
+        return csm_input
+    for d in base_path.iterdir():
+        if d.is_dir() and d.name.lower().startswith(csm_input.lower()):
+            return d.name
+    return csm_input
+
+
 def _find_odd_file(csm, month, client_id):
     """Auto-find the formatted ODD file from the standard path structure."""
     if os.name == "nt":
@@ -39,11 +49,13 @@ def _find_odd_file(csm, month, client_id):
     else:
         base = Path("/Volumes/M/ARS/00_Formatting/02-Data-Ready for Analysis")
 
+    # Fuzzy match CSM name
+    csm = _resolve_csm_name(csm, base)
+
     client_dir = base / csm / month / client_id
     if not client_dir.exists():
         return None
 
-    # Find Excel files in the client folder
     xlsx_files = list(client_dir.glob("*.xlsx"))
     if xlsx_files:
         return xlsx_files[0]

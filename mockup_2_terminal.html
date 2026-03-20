@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velocity | Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: #111113;
+    color: #e4e4e7;
+    min-height: 100vh;
+}
+
+/* ─── TOP BAR ─── */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 32px;
+    height: 52px;
+    background: #18181b;
+    border-bottom: 1px solid #27272a;
+}
+.topbar-brand {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    color: #22d3ee;
+}
+.topbar-tabs {
+    display: flex;
+    gap: 0;
+    height: 100%;
+}
+.topbar-tab {
+    padding: 0 24px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: #71717a;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+}
+.topbar-tab:hover { color: #a1a1aa; }
+.topbar-tab.active {
+    color: #e4e4e7;
+    border-bottom-color: #22d3ee;
+}
+.topbar-user {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #52525b;
+}
+
+/* ─── LAYOUT ─── */
+.layout {
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    min-height: calc(100vh - 52px);
+}
+
+/* ─── LEFT PANEL ─── */
+.panel-left {
+    background: #18181b;
+    border-right: 1px solid #27272a;
+    padding: 24px;
+}
+.panel-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: #52525b;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+.panel-select {
+    width: 100%;
+    padding: 8px 12px;
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    border-radius: 4px;
+    color: #e4e4e7;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    margin-bottom: 20px;
+    appearance: none;
+}
+.panel-select:focus { outline: none; border-color: #22d3ee; }
+
+/* Client info */
+.client-info {
+    background: #27272a;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+.ci-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+}
+.ci-id {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #22d3ee;
+    margin-top: 2px;
+}
+.ci-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #3f3f46;
+}
+.ci-stat { text-align: center; }
+.ci-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+}
+.ci-label {
+    font-size: 10px;
+    color: #52525b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+/* Status rows */
+.status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 13px;
+    color: #a1a1aa;
+}
+.status-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: #22d3ee;
+}
+
+/* ─── CENTER ─── */
+.center {
+    padding: 32px;
+    background: #111113;
+}
+.center h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 24px;
+}
+
+/* Product cards */
+.product-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+}
+.prod-card {
+    flex: 1;
+    background: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 6px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.prod-card:hover { border-color: #3f3f46; }
+.prod-card.active { border-color: #22d3ee; background: #0c1821; }
+.prod-name {
+    font-size: 14px;
+    font-weight: 600;
+}
+.prod-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 32px;
+    font-weight: 600;
+    color: #22d3ee;
+    margin: 8px 0 4px;
+}
+.prod-meta {
+    font-size: 12px;
+    color: #52525b;
+}
+
+/* Module list */
+.mod-group {
+    margin-bottom: 24px;
+}
+.mod-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #27272a;
+    margin-bottom: 8px;
+}
+.mod-group-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #a1a1aa;
+}
+.mod-group-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #22d3ee;
+}
+.mod-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.mod-chip {
+    font-size: 12px;
+    padding: 5px 12px;
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    border-radius: 4px;
+    color: #a1a1aa;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.mod-chip:hover { border-color: #22d3ee; color: #e4e4e7; }
+.mod-chip.on { background: #0c1821; border-color: #22d3ee; color: #22d3ee; }
+
+/* ─── RIGHT PANEL ─── */
+.panel-right {
+    background: #18181b;
+    border-left: 1px solid #27272a;
+    padding: 24px;
+}
+
+/* Run section */
+.run-summary {
+    background: #27272a;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.run-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 12px;
+}
+.run-detail {
+    font-size: 13px;
+    color: #71717a;
+    margin-bottom: 4px;
+}
+.run-detail strong { color: #a1a1aa; }
+
+.run-btn {
+    width: 100%;
+    padding: 14px;
+    background: #22d3ee;
+    color: #111113;
+    border: none;
+    border-radius: 6px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 16px;
+    letter-spacing: 0.5px;
+}
+.run-btn:hover { background: #06b6d4; }
+
+/* Queue */
+.queue-item {
+    background: #27272a;
+    border-radius: 6px;
+    padding: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.qi-name {
+    font-size: 13px;
+    font-weight: 600;
+}
+.qi-meta {
+    font-size: 11px;
+    color: #52525b;
+}
+.qi-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 3px;
+}
+.qi-ready { color: #22d3ee; background: #0c1821; }
+.qi-done { color: #22c55e; background: #052e16; }
+
+/* Downloads */
+.dl-section { margin-top: 24px; }
+.dl-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #27272a;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.dl-item:hover { background: #3f3f46; }
+.dl-ext {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #22d3ee;
+    width: 40px;
+}
+.dl-name { font-size: 13px; }
+.dl-size {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #52525b;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="topbar-brand">velocity</div>
+    <div class="topbar-tabs">
+        <div class="topbar-tab active">Generate</div>
+        <div class="topbar-tab">Dashboard</div>
+        <div class="topbar-tab">History</div>
+        <div class="topbar-tab">Config</div>
+    </div>
+    <div class="topbar-user">james.gilmore &middot; 2026.03</div>
+</div>
+
+<div class="layout">
+    <div class="panel-left">
+        <div class="panel-label">Analyst</div>
+        <select class="panel-select">
+            <option>James Gilmore</option>
+            <option>Jordan</option>
+            <option>Aaron</option>
+        </select>
+
+        <div class="panel-label">Period</div>
+        <select class="panel-select">
+            <option>2026.03</option>
+            <option>2026.02</option>
+        </select>
+
+        <div class="panel-label">Client</div>
+        <select class="panel-select">
+            <option>1200 &mdash; Guardians CU</option>
+            <option>1217 &mdash; Pioneer FCU</option>
+            <option>1453 &mdash; Connex CU</option>
+        </select>
+
+        <div class="client-info">
+            <div class="ci-name">Guardians Credit Union</div>
+            <div class="ci-id">#1200</div>
+            <div class="ci-row">
+                <div class="ci-stat">
+                    <div class="ci-val">24,812</div>
+                    <div class="ci-label">Accounts</div>
+                </div>
+                <div class="ci-stat">
+                    <div class="ci-val">Feb 26</div>
+                    <div class="ci-label">Last Run</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-label">Data Status</div>
+        <div class="status-row"><span>ODD File</span><span class="status-badge">READY</span></div>
+        <div class="status-row"><span>Transactions</span><span class="status-badge">13 FILES</span></div>
+        <div class="status-row"><span>Z Accounts</span><span class="status-badge">2 SNAPS</span></div>
+        <div class="status-row"><span>Config</span><span class="status-badge">FOUND</span></div>
+    </div>
+
+    <div class="center">
+        <h2>Select Analysis</h2>
+
+        <div class="product-row">
+            <div class="prod-card active">
+                <div class="prod-name">ARS Full Suite</div>
+                <div class="prod-count">22</div>
+                <div class="prod-meta">modules &middot; 15-25 min</div>
+            </div>
+            <div class="prod-card">
+                <div class="prod-name">Transaction</div>
+                <div class="prod-count">35</div>
+                <div class="prod-meta">modules &middot; 25-40 min</div>
+            </div>
+            <div class="prod-card">
+                <div class="prod-name">Deposits</div>
+                <div class="prod-count">15</div>
+                <div class="prod-meta">modules &middot; 10-20 min</div>
+            </div>
+            <div class="prod-card">
+                <div class="prod-name">Custom</div>
+                <div class="prod-count">&mdash;</div>
+                <div class="prod-meta">pick individual</div>
+            </div>
+        </div>
+
+        <div class="mod-group">
+            <div class="mod-group-header">
+                <span class="mod-group-name">Overview</span>
+                <span class="mod-group-count">3</span>
+            </div>
+            <div class="mod-list">
+                <div class="mod-chip on">Stat Codes</div>
+                <div class="mod-chip on">Product Codes</div>
+                <div class="mod-chip on">Eligibility</div>
+            </div>
+        </div>
+
+        <div class="mod-group">
+            <div class="mod-group-header">
+                <span class="mod-group-name">Debit Card Throughput</span>
+                <span class="mod-group-count">5</span>
+            </div>
+            <div class="mod-list">
+                <div class="mod-chip on">Penetration</div>
+                <div class="mod-chip on">Trends</div>
+                <div class="mod-chip on">Branches</div>
+                <div class="mod-chip on">Funnel</div>
+                <div class="mod-chip on">Overlays</div>
+            </div>
+        </div>
+
+        <div class="mod-group">
+            <div class="mod-group-header">
+                <span class="mod-group-name">Mailer Campaign</span>
+                <span class="mod-group-count">5</span>
+            </div>
+            <div class="mod-list">
+                <div class="mod-chip on">Insights</div>
+                <div class="mod-chip on">Response</div>
+                <div class="mod-chip on">Impact</div>
+                <div class="mod-chip on">Cohort</div>
+                <div class="mod-chip on">Reach</div>
+            </div>
+        </div>
+
+        <div class="mod-group">
+            <div class="mod-group-header">
+                <span class="mod-group-name">Reg E &middot; Attrition &middot; Value &middot; Insights</span>
+                <span class="mod-group-count">9</span>
+            </div>
+            <div class="mod-list">
+                <div class="mod-chip on">Reg E Status</div>
+                <div class="mod-chip on">Reg E Branches</div>
+                <div class="mod-chip on">Reg E Dimensions</div>
+                <div class="mod-chip on">Attrition Rates</div>
+                <div class="mod-chip on">Attrition Dimensions</div>
+                <div class="mod-chip on">Attrition Impact</div>
+                <div class="mod-chip on">Value Analysis</div>
+                <div class="mod-chip on">Synthesis</div>
+                <div class="mod-chip on">Conclusions</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-right">
+        <div class="panel-label">Run Configuration</div>
+        <div class="run-summary">
+            <div class="run-title">ARS Full Suite</div>
+            <div class="run-detail"><strong>Client:</strong> Guardians CU #1200</div>
+            <div class="run-detail"><strong>Period:</strong> 2026.03</div>
+            <div class="run-detail"><strong>Modules:</strong> 22</div>
+            <div class="run-detail"><strong>Est. Time:</strong> 15-25 min</div>
+            <button class="run-btn">GENERATE REPORT</button>
+        </div>
+
+        <div class="panel-label">Queue</div>
+        <div class="queue-item">
+            <div>
+                <div class="qi-name">Guardians CU</div>
+                <div class="qi-meta">1200 &middot; ARS &middot; 22 modules</div>
+            </div>
+            <span class="qi-status qi-ready">READY</span>
+        </div>
+
+        <div class="dl-section">
+            <div class="panel-label">Previous Downloads</div>
+            <div class="dl-item">
+                <span class="dl-ext">.pptx</span>
+                <span class="dl-name">1453-Connex-ARS</span>
+                <span class="dl-size">8.4 MB</span>
+            </div>
+            <div class="dl-item">
+                <span class="dl-ext">.xlsx</span>
+                <span class="dl-name">1453-Connex-Analysis</span>
+                <span class="dl-size">3.1 MB</span>
+            </div>
+            <div class="dl-item">
+                <span class="dl-ext">.pptx</span>
+                <span class="dl-name">1673-Neighborhood-ARS</span>
+                <span class="dl-size">7.8 MB</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

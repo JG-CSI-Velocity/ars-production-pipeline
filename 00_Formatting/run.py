@@ -194,11 +194,16 @@ def main():
     log_message(f"    Staging:     {staging_base}", log_file)
     log_message(f"    Output:      {output_base}", log_file)
 
-    # Get active CSMs
+    # Get active CSMs (fuzzy match: "James" matches "JamesG", case-insensitive)
+    def _csm_matches(config_name, user_input):
+        if user_input is None:
+            return True
+        return config_name.lower().startswith(user_input.lower())
+
     active_csms = {
         name: path for name, path in settings.csm_sources.sources.items()
         if str(path) != "UPDATE_THIS_PATH"
-        and (args.csm is None or name == args.csm)
+        and _csm_matches(name, args.csm)
     }
 
     log_message(f"    CSMs to process: {', '.join(active_csms.keys())}", log_file)

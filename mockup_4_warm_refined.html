@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velocity | CSI</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Outfit', sans-serif;
+    background: #f5f0eb;
+    color: #2c2c2c;
+    min-height: 100vh;
+}
+
+/* ─── HEADER ─── */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 48px;
+    background: #2c2c2c;
+    color: #f5f0eb;
+}
+.h-brand {
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px;
+    font-style: italic;
+}
+.h-nav { display: flex; gap: 32px; list-style: none; }
+.h-nav a {
+    color: #a39e98;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+.h-nav a:hover, .h-nav a.on { color: #f5f0eb; }
+.h-user {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: #6b6560;
+}
+
+/* ─── PAGE TITLE ─── */
+.page-title {
+    padding: 40px 48px 28px;
+}
+.page-title h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 44px;
+    font-weight: 400;
+    font-style: italic;
+}
+.page-title p { font-size: 16px; color: #8a8480; margin-top: 4px; }
+
+/* ─── CONTAINER ─── */
+.container { padding: 0 48px 48px; max-width: 1440px; }
+
+/* ─── CONFIG ROW ─── */
+.config-row { display: flex; gap: 16px; margin-bottom: 28px; }
+.config-field { flex: 1; }
+.config-label {
+    font-size: 11px; font-weight: 600; color: #8a8480;
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;
+}
+.config-select {
+    width: 100%; padding: 12px 16px;
+    background: #fff; border: 2px solid #e0dbd5; border-radius: 10px;
+    font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 500;
+    color: #2c2c2c; appearance: none; cursor: pointer;
+}
+.config-select:focus { outline: none; border-color: #c67a3c; }
+
+/* ─── CLIENT BANNER ─── */
+.client-banner {
+    background: #fff; border: 2px solid #e0dbd5; border-radius: 12px;
+    padding: 24px 32px; margin-bottom: 28px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.cb-name { font-family: 'Instrument Serif', serif; font-size: 26px; font-style: italic; }
+.cb-id { font-family: 'Space Mono', monospace; font-size: 13px; color: #8a8480; margin-top: 2px; }
+.cb-stats { display: flex; gap: 36px; }
+.cb-val { font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700; }
+.cb-label { font-size: 10px; color: #8a8480; text-transform: uppercase; letter-spacing: 1px; }
+.cb-files { display: flex; gap: 8px; }
+.cb-file {
+    font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+    color: #5a8a6a; background: #e8f5e9; padding: 4px 10px; border-radius: 6px;
+}
+
+/* ─── PRODUCT CARDS ─── */
+.products { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.p-card {
+    background: #fff; border: 2px solid #e0dbd5; border-radius: 12px;
+    padding: 24px; cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+}
+.p-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: transparent; transition: background 0.2s;
+}
+.p-card:hover { border-color: #c67a3c; }
+.p-card.on { border-color: #c67a3c; }
+.p-card.on::before { background: #c67a3c; }
+.p-name { font-size: 15px; font-weight: 600; }
+.p-count {
+    font-family: 'Instrument Serif', serif; font-size: 42px;
+    font-style: italic; color: #c67a3c; line-height: 1; margin: 8px 0 2px;
+}
+.p-card:not(.on) .p-count { color: #c8c3bc; }
+.p-unit { font-size: 13px; color: #8a8480; }
+.p-time { font-family: 'Space Mono', monospace; font-size: 11px; color: #a39e98; margin-top: 6px; }
+
+/* ─── MODULES SECTION ─── */
+.modules-panel {
+    background: #fff; border: 2px solid #e0dbd5; border-radius: 12px;
+    margin-bottom: 28px; overflow: hidden;
+}
+.modules-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 28px; border-bottom: 1px solid #e0dbd5;
+    background: #faf7f4;
+}
+.modules-title {
+    font-family: 'Instrument Serif', serif; font-size: 22px; font-style: italic;
+}
+.modules-summary {
+    font-family: 'Space Mono', monospace; font-size: 12px; color: #8a8480;
+}
+.modules-body { padding: 24px 28px; }
+
+/* Module group */
+.m-group { margin-bottom: 20px; }
+.m-group:last-child { margin-bottom: 0; }
+.m-group-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+}
+.m-group-name { font-size: 13px; font-weight: 600; color: #2c2c2c; }
+.m-group-count {
+    font-family: 'Space Mono', monospace; font-size: 11px; color: #c67a3c;
+}
+.m-group-desc {
+    font-size: 12px; color: #8a8480; margin-bottom: 10px; line-height: 1.4;
+}
+.m-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.m-pill {
+    font-size: 13px; font-weight: 500; padding: 7px 16px;
+    border: 1.5px solid #e0dbd5; border-radius: 100px;
+    color: #8a8480; cursor: pointer; transition: all 0.15s; background: transparent;
+    user-select: none;
+}
+.m-pill:hover { border-color: #c67a3c; color: #c67a3c; }
+.m-pill.on { background: #c67a3c; border-color: #c67a3c; color: #fff; }
+
+/* ─── RUN SECTION ─── */
+.run-section {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #2c2c2c; border-radius: 12px; padding: 24px 32px; color: #f5f0eb;
+}
+.run-what { font-size: 18px; font-weight: 600; }
+.run-meta {
+    font-family: 'Space Mono', monospace; font-size: 12px; color: #6b6560; margin-top: 4px;
+}
+.run-btn {
+    background: #c67a3c; color: #fff; border: none; border-radius: 10px;
+    padding: 14px 44px; font-family: 'Outfit', sans-serif;
+    font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+}
+.run-btn:hover { background: #b06930; }
+
+/* ─── PROGRESS (hidden initially) ─── */
+.progress-section {
+    background: #fff; border: 2px solid #e0dbd5; border-radius: 12px;
+    padding: 28px 32px; margin-top: 24px; display: none;
+}
+.progress-section.visible { display: block; }
+.prog-bar-track {
+    width: 100%; height: 8px; background: #e0dbd5; border-radius: 4px;
+    margin: 16px 0; overflow: hidden;
+}
+.prog-bar-fill {
+    height: 100%; background: #c67a3c; border-radius: 4px;
+    transition: width 0.5s ease;
+}
+.prog-status {
+    font-family: 'Space Mono', monospace; font-size: 13px; color: #8a8480;
+}
+.prog-log {
+    margin-top: 16px; max-height: 200px; overflow-y: auto;
+    font-family: 'Space Mono', monospace; font-size: 12px; color: #6b6560;
+    line-height: 1.8; padding: 12px 16px; background: #faf7f4; border-radius: 8px;
+}
+.prog-log .done { color: #5a8a6a; }
+.prog-log .active { color: #c67a3c; font-weight: 700; }
+
+/* ─── DOWNLOADS (hidden initially) ─── */
+.downloads {
+    display: none; gap: 16px; margin-top: 24px;
+    grid-template-columns: repeat(3, 1fr);
+}
+.downloads.visible { display: grid; }
+.dl-card {
+    background: #fff; border: 2px solid #e0dbd5; border-radius: 12px;
+    padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s;
+}
+.dl-card:hover { border-color: #c67a3c; }
+.dl-ext {
+    font-family: 'Space Mono', monospace; font-size: 14px; font-weight: 700;
+    color: #c67a3c; background: #fdf2e9; padding: 6px 16px;
+    border-radius: 8px; display: inline-block; margin-bottom: 12px;
+}
+.dl-name { font-size: 16px; font-weight: 600; }
+.dl-meta {
+    font-family: 'Space Mono', monospace; font-size: 11px; color: #8a8480; margin-top: 4px;
+}
+.dl-btn {
+    margin-top: 16px; background: #2c2c2c; color: #fff; border: none;
+    border-radius: 8px; padding: 10px 24px; font-family: 'Outfit', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.dl-btn:hover { background: #444; }
+.dl-btn.primary { background: #c67a3c; }
+.dl-btn.primary:hover { background: #b06930; }
+
+/* ─── FOOTER ─── */
+footer {
+    text-align: center; padding: 32px; font-size: 11px; color: #c8c3bc;
+    border-top: 1px solid #e0dbd5; margin-top: 32px;
+}
+</style>
+</head>
+<body>
+
+<header>
+    <div class="h-brand">Velocity</div>
+    <ul class="h-nav">
+        <li><a href="#" class="on">Generate</a></li>
+        <li><a href="#">Dashboard</a></li>
+        <li><a href="#">History</a></li>
+        <li><a href="#">Settings</a></li>
+    </ul>
+    <div class="h-user">james.gilmore // mar.2026</div>
+</header>
+
+<div class="page-title">
+    <h1>Generate Reports</h1>
+    <p>Select a client and analysis product to build a presentation-ready deck.</p>
+</div>
+
+<div class="container">
+    <div class="config-row">
+        <div class="config-field">
+            <div class="config-label">Analyst</div>
+            <select class="config-select">
+                <option>James Gilmore</option><option>Jordan</option><option>Aaron</option>
+                <option>Gregg</option><option>Dan</option><option>Max</option>
+            </select>
+        </div>
+        <div class="config-field">
+            <div class="config-label">Period</div>
+            <select class="config-select">
+                <option>March 2026</option><option>February 2026</option><option>January 2026</option>
+            </select>
+        </div>
+        <div class="config-field">
+            <div class="config-label">Client</div>
+            <select class="config-select" id="clientSelect" onchange="updateClient()">
+                <option value="1200">1200 — Guardians Credit Union</option>
+                <option value="1217">1217 — Pioneer Federal Credit Union</option>
+                <option value="1453">1453 — Connex Credit Union</option>
+                <option value="1673">1673 — Neighborhood Credit Union</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="client-banner" id="clientBanner">
+        <div>
+            <div class="cb-name" id="cbName">Guardians Credit Union</div>
+            <div class="cb-id" id="cbId">#1200 &middot; Tampa, FL</div>
+        </div>
+        <div class="cb-stats">
+            <div><div class="cb-val" id="cbAccounts">24,812</div><div class="cb-label">Accounts</div></div>
+            <div><div class="cb-val" id="cbLastRun">Feb 26</div><div class="cb-label">Last Run</div></div>
+        </div>
+        <div class="cb-files">
+            <span class="cb-file">ODD READY</span>
+            <span class="cb-file">13 TXN</span>
+            <span class="cb-file">2 Z-ACCT</span>
+            <span class="cb-file">CONFIG</span>
+        </div>
+    </div>
+
+    <div class="products" id="productCards">
+        <div class="p-card on" onclick="selectProduct('ars')">
+            <div class="p-name">ARS Full Suite</div>
+            <div class="p-count">22</div>
+            <div class="p-unit">modules</div>
+            <div class="p-time">~ 15-25 min</div>
+        </div>
+        <div class="p-card" onclick="selectProduct('txn')">
+            <div class="p-name">Transaction Analysis</div>
+            <div class="p-count">35</div>
+            <div class="p-unit">modules</div>
+            <div class="p-time">~ 25-40 min</div>
+        </div>
+        <div class="p-card" onclick="selectProduct('dep')">
+            <div class="p-name">Deposits</div>
+            <div class="p-count">15</div>
+            <div class="p-unit">modules</div>
+            <div class="p-time">~ 10-20 min</div>
+        </div>
+        <div class="p-card" onclick="selectProduct('custom')">
+            <div class="p-name">Custom Mix</div>
+            <div class="p-count">&mdash;</div>
+            <div class="p-unit">your pick</div>
+            <div class="p-time">varies</div>
+        </div>
+    </div>
+
+    <div class="modules-panel" id="modulesPanel">
+        <div class="modules-header">
+            <div class="modules-title" id="modulesTitle">ARS Full Suite</div>
+            <div class="modules-summary" id="modulesSummary">22 modules selected</div>
+        </div>
+        <div class="modules-body" id="modulesBody">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <div class="run-section" id="runSection">
+        <div>
+            <div class="run-what" id="runWhat">ARS Full Suite for Guardians Credit Union</div>
+            <div class="run-meta" id="runMeta">22 modules // est. 15-25 min // march 2026</div>
+        </div>
+        <button class="run-btn" onclick="runPipeline()">Generate Report</button>
+    </div>
+
+    <div class="progress-section" id="progressSection">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-family: 'Instrument Serif', serif; font-size: 22px; font-style: italic;">Running Analysis</div>
+            <div class="prog-status" id="progStatus">Initializing...</div>
+        </div>
+        <div class="prog-bar-track">
+            <div class="prog-bar-fill" id="progBar" style="width: 0%"></div>
+        </div>
+        <div class="prog-log" id="progLog"></div>
+    </div>
+
+    <div class="downloads" id="downloads">
+        <div class="dl-card">
+            <div class="dl-ext">.pptx</div>
+            <div class="dl-name">PowerPoint Deck</div>
+            <div class="dl-meta">52 slides &middot; 8.4 MB</div>
+            <button class="dl-btn primary">Download</button>
+        </div>
+        <div class="dl-card">
+            <div class="dl-ext">.xlsx</div>
+            <div class="dl-name">Excel Workbook</div>
+            <div class="dl-meta">22 sheets &middot; 3.1 MB</div>
+            <button class="dl-btn">Download</button>
+        </div>
+        <div class="dl-card">
+            <div class="dl-ext">.zip</div>
+            <div class="dl-name">Complete Package</div>
+            <div class="dl-meta">All outputs &middot; 24 MB</div>
+            <button class="dl-btn">Download</button>
+        </div>
+    </div>
+</div>
+
+<footer>Computer Services, Inc. &middot; Velocity Report Pipeline &middot; 2026</footer>
+
+<script>
+const products = {
+    ars: {
+        name: 'ARS Full Suite',
+        count: 22,
+        time: '15-25 min',
+        groups: [
+            {
+                name: 'Overview',
+                count: 3,
+                desc: 'Foundation metrics: who is eligible, what products they have, account status breakdown.',
+                modules: ['Stat Codes', 'Product Codes', 'Eligibility']
+            },
+            {
+                name: 'Debit Card Throughput',
+                count: 5,
+                desc: 'How actively are members using their debit cards? Penetration, trends, and branch comparison.',
+                modules: ['Penetration', 'Trends', 'Branches', 'Funnel', 'Overlays']
+            },
+            {
+                name: 'Reg E / Overdraft',
+                count: 3,
+                desc: 'Overdraft opt-in rates, branch-level variation, and demographic dimensions.',
+                modules: ['Opt-in Status', 'Branch Rates', 'Dimensions']
+            },
+            {
+                name: 'Attrition',
+                count: 3,
+                desc: 'Account closures: how many, who, and the revenue impact of lost accounts.',
+                modules: ['Closure Rates', 'Demographics', 'Revenue Impact']
+            },
+            {
+                name: 'Mailer Campaign',
+                count: 5,
+                desc: 'ARS program effectiveness: response rates, spend lift, cohort analysis, and reach.',
+                modules: ['Response Rates', 'Spend Impact', 'Cohort Lift', 'Program Reach', 'Campaign Insights']
+            },
+            {
+                name: 'Value & Insights',
+                count: 3,
+                desc: 'Revenue attribution, key findings synthesis, and recommended actions.',
+                modules: ['Revenue Analysis', 'Synthesis', 'Recommendations']
+            }
+        ]
+    },
+    txn: {
+        name: 'Transaction Analysis',
+        count: 35,
+        time: '25-40 min',
+        groups: [
+            {
+                name: 'Portfolio Overview',
+                count: 5,
+                desc: 'Big picture: KPIs, engagement tiers, demographics, seasonal patterns.',
+                modules: ['Portfolio KPIs', 'Engagement Tiers', 'Demographics', 'Seasonal Trends', 'Monthly Summary']
+            },
+            {
+                name: 'Merchant Intelligence',
+                count: 8,
+                desc: 'Where are members spending? Top merchants, MCC categories, business vs personal.',
+                modules: ['Top Merchants', 'Concentration', 'MCC Categories', 'Business Merchants', 'Personal Merchants', 'Merchant Trends', 'MCC by Age', 'Merchant Lifecycle']
+            },
+            {
+                name: 'Competitive Landscape',
+                count: 6,
+                desc: 'Which competitors are capturing your members\' spend? Wallet share and threat analysis.',
+                modules: ['Competitor Detection', 'Wallet Share', 'Threat Quadrant', 'Category Analysis', 'FI Transactions', 'Leakage Analysis']
+            },
+            {
+                name: 'Operations',
+                count: 8,
+                desc: 'Branch performance, transaction types (PIN/SIG), product codes, interchange revenue.',
+                modules: ['Branch Rankings', 'Branch Spend', 'PIN vs SIG', 'Payment Channels', 'Product Distribution', 'Interchange Revenue', 'Interchange Opportunity', 'Payroll Detection']
+            },
+            {
+                name: 'Risk & Retention',
+                count: 5,
+                desc: 'Attrition risk scoring, balance analysis, retention funnels, early warning signals.',
+                modules: ['Attrition Risk', 'Balance Bands', 'PFI Scoring', 'Retention Funnel', 'Early Warning']
+            },
+            {
+                name: 'Executive Summary',
+                count: 3,
+                desc: 'Scorecard across all metrics, strategic priorities, action roadmap.',
+                modules: ['Scorecard', 'Priorities', 'Action Roadmap']
+            }
+        ]
+    },
+    dep: {
+        name: 'Deposits Analysis',
+        count: 15,
+        time: '10-20 min',
+        groups: [
+            {
+                name: 'Deposit Baseline',
+                count: 4,
+                desc: 'Portfolio-level deposit metrics, tier segmentation, and cross-checks with Z account data.',
+                modules: ['Portfolio Baseline', 'Tier Analysis', 'Segmentation', 'Z-Account Cross-check']
+            },
+            {
+                name: 'Campaign Impact',
+                count: 5,
+                desc: 'Did the ARS mailer program affect deposits? Response rates, cohort DID, segment analysis.',
+                modules: ['Response Summary', 'Cohort DID', 'Segment Cohorts', 'Deposit Lift by Offer', 'Deposit Lift by Segment']
+            },
+            {
+                name: 'Evidence & Trajectory',
+                count: 4,
+                desc: 'Distribution analysis, responder trajectories, deposit growth proof.',
+                modules: ['Distribution (Box Plot)', 'Responder Trajectory', 'Deposit Growth Proof', 'NU Conversion']
+            },
+            {
+                name: 'Presentation',
+                count: 2,
+                desc: 'Executive summary visuals and auto-generated presentation slides.',
+                modules: ['Executive Summary', 'Presentation Visuals']
+            }
+        ]
+    },
+    custom: {
+        name: 'Custom Mix',
+        count: 0,
+        time: 'varies',
+        groups: []
+    }
+};
+
+const clients = {
+    '1200': { name: 'Guardians Credit Union', id: '1200', loc: 'Tampa, FL', accounts: '24,812', lastRun: 'Feb 26' },
+    '1217': { name: 'Pioneer Federal Credit Union', id: '1217', loc: 'Idaho Falls, ID', accounts: '31,440', lastRun: 'Feb 26' },
+    '1453': { name: 'Connex Credit Union', id: '1453', loc: 'North Haven, CT', accounts: '18,293', lastRun: 'Jan 26' },
+    '1673': { name: 'Neighborhood Credit Union', id: '1673', loc: 'Dallas, TX', accounts: '45,614', lastRun: 'Feb 26' },
+};
+
+let currentProduct = 'ars';
+let selectedModules = new Set();
+
+function selectProduct(key) {
+    currentProduct = key;
+    const cards = document.querySelectorAll('.p-card');
+    cards.forEach((c, i) => {
+        const keys = ['ars', 'txn', 'dep', 'custom'];
+        c.classList.toggle('on', keys[i] === key);
+    });
+
+    const prod = products[key];
+    document.getElementById('modulesTitle').textContent = prod.name;
+
+    // Build module groups
+    selectedModules.clear();
+    const body = document.getElementById('modulesBody');
+    body.innerHTML = '';
+
+    if (key === 'custom') {
+        // Show ALL products' modules for custom selection
+        body.innerHTML = '<div style="text-align:center;padding:32px;color:#8a8480;font-style:italic;">Click modules from any product above, then switch to Custom to mix and match.</div>';
+        updateRunBar();
+        return;
+    }
+
+    prod.groups.forEach(group => {
+        const div = document.createElement('div');
+        div.className = 'm-group';
+        div.innerHTML = `
+            <div class="m-group-header">
+                <span class="m-group-name">${group.name}</span>
+                <span class="m-group-count">${group.count} modules</span>
+            </div>
+            <div class="m-group-desc">${group.desc}</div>
+            <div class="m-pills">
+                ${group.modules.map(m => {
+                    selectedModules.add(m);
+                    return `<div class="m-pill on" onclick="toggleModule(this, '${m}')">${m}</div>`;
+                }).join('')}
+            </div>
+        `;
+        body.appendChild(div);
+    });
+
+    updateRunBar();
+}
+
+function toggleModule(el, name) {
+    el.classList.toggle('on');
+    if (el.classList.contains('on')) {
+        selectedModules.add(name);
+    } else {
+        selectedModules.delete(name);
+    }
+    updateRunBar();
+}
+
+function updateClient() {
+    const sel = document.getElementById('clientSelect');
+    const id = sel.value;
+    const c = clients[id];
+    document.getElementById('cbName').textContent = c.name;
+    document.getElementById('cbId').textContent = `#${c.id} \u00B7 ${c.loc}`;
+    document.getElementById('cbAccounts').textContent = c.accounts;
+    document.getElementById('cbLastRun').textContent = c.lastRun;
+    updateRunBar();
+}
+
+function updateRunBar() {
+    const sel = document.getElementById('clientSelect');
+    const id = sel.value;
+    const c = clients[id];
+    const prod = products[currentProduct];
+    const count = selectedModules.size;
+    document.getElementById('modulesSummary').textContent = `${count} modules selected`;
+    document.getElementById('runWhat').textContent = `${prod.name} for ${c.name}`;
+    document.getElementById('runMeta').textContent = `${count} modules // est. ${prod.time} // march 2026`;
+}
+
+function runPipeline() {
+    const prog = document.getElementById('progressSection');
+    prog.classList.add('visible');
+    document.getElementById('downloads').classList.remove('visible');
+
+    const log = document.getElementById('progLog');
+    const bar = document.getElementById('progBar');
+    const status = document.getElementById('progStatus');
+    log.innerHTML = '';
+
+    const steps = [
+        'Loading formatted ODD file...',
+        'Validating data columns...',
+        'Creating account subsets...',
+        'Overview: Stat codes',
+        'Overview: Product codes',
+        'Overview: Eligibility',
+        'DCTR: Penetration analysis',
+        'DCTR: Trend analysis',
+        'DCTR: Branch analysis',
+        'DCTR: Funnel analysis',
+        'DCTR: Overlay analysis',
+        'Reg E: Status analysis',
+        'Reg E: Branch analysis',
+        'Reg E: Dimension analysis',
+        'Attrition: Rate analysis',
+        'Attrition: Dimensions',
+        'Attrition: Impact analysis',
+        'Mailer: Campaign insights',
+        'Mailer: Response analysis',
+        'Mailer: Impact measurement',
+        'Mailer: Cohort analysis',
+        'Mailer: Reach analysis',
+        'Value: Revenue analysis',
+        'Insights: Synthesis',
+        'Insights: Conclusions',
+        'Generating Excel workbook...',
+        'Building PowerPoint deck...',
+        'Saving outputs...',
+    ];
+
+    let i = 0;
+    function nextStep() {
+        if (i > 0) {
+            // Mark previous as done
+            const prev = log.lastElementChild;
+            if (prev) { prev.className = 'done'; prev.textContent = '✓ ' + prev.textContent.replace('▸ ', ''); }
+        }
+        if (i >= steps.length) {
+            status.textContent = 'Complete — 22 modules, 0 errors';
+            bar.style.width = '100%';
+            document.getElementById('downloads').classList.add('visible');
+            prog.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
+        const pct = Math.round((i / steps.length) * 100);
+        bar.style.width = pct + '%';
+        status.textContent = `${pct}% — ${steps[i]}`;
+
+        const line = document.createElement('div');
+        line.className = 'active';
+        line.textContent = '▸ ' + steps[i];
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+
+        i++;
+        setTimeout(nextStep, 300 + Math.random() * 400);
+    }
+    nextStep();
+}
+
+// Initialize
+selectProduct('ars');
+</script>
+
+</body>
+</html>
