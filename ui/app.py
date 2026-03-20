@@ -154,7 +154,7 @@ PRODUCTS = {
     },
 }
 
-CSM_LIST = ["James Gilmore", "Jordan", "Aaron", "Gregg", "Dan", "Max"]
+CSM_LIST = ["JamesG", "Jordan", "Aaron", "Gregg", "Dan", "Max"]
 
 # ─── API ROUTES ───────────────────────────────────────────────────────
 
