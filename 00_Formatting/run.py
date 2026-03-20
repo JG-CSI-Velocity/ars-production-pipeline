@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -159,7 +160,6 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
 
             # Save formatted Excel: write to local temp first, then copy to network
             # This prevents corrupted files from interrupted network writes
-            import tempfile
             excel_filename = os.path.splitext(csv_file)[0] + '.xlsx'
             client_output_dir = os.path.join(output_directory, client_id)
             os.makedirs(client_output_dir, exist_ok=True)
@@ -180,7 +180,6 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
 
             # Verify it's a valid Excel file
             try:
-                import zipfile
                 with zipfile.ZipFile(tmp_path, 'r') as zf:
                     zf.testzip()
             except (zipfile.BadZipFile, Exception) as ve:
