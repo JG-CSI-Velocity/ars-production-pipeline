@@ -180,16 +180,15 @@ async def get_clients():
     for cid, data in config.items():
         clients.append({
             "id": cid,
-            "name": data.get("ClientName", data.get("client_name", f"Client {cid}")),
+            "name": data.get("ClientName", f"Client {cid}"),
             "config": {
                 "ic_rate": data.get("ICRate", ""),
                 "nsf_od_fee": data.get("NSF_OD_Fee", ""),
                 "stat_codes": data.get("EligibleStatusCodes", []),
                 "prod_codes": data.get("EligibleProductCodes", []),
-                "dc_indicator": data.get("DCIndicator", ""),
-                "reg_e_column": data.get("RegEColumn", ""),
+                "ineligible_stat": data.get("IneligibleStatusCodes", []),
+                "eligible_mail": data.get("EligibleMailCode", ""),
                 "reg_e_opt_in": data.get("RegEOptInCode", []),
-                "data_start": data.get("DataStartDate", ""),
                 "branch_mapping": data.get("BranchMapping", {}),
             },
         })

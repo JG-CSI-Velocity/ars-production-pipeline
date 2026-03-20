@@ -398,13 +398,13 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
 
     <div class="config-detail" id="gConfigDetail">
         <div class="cd-item"><div class="cd-label">IC Rate</div><div class="cd-value" id="cdIcRate">--</div></div>
-        <div class="cd-item"><div class="cd-label">Eligible Stat Codes</div><div class="cd-value" id="cdStatCodes">--</div></div>
-        <div class="cd-item"><div class="cd-label">Product Codes</div><div class="cd-value" id="cdProdCodes">--</div></div>
         <div class="cd-item"><div class="cd-label">NSF/OD Fee</div><div class="cd-value" id="cdNsfFee">--</div></div>
-        <div class="cd-item"><div class="cd-label">DC Indicator</div><div class="cd-value" id="cdDcInd">--</div></div>
-        <div class="cd-item"><div class="cd-label">Reg E Column</div><div class="cd-value" id="cdRegeCol">--</div></div>
+        <div class="cd-item"><div class="cd-label">Eligible Stat Codes</div><div class="cd-value" id="cdStatCodes">--</div></div>
+        <div class="cd-item"><div class="cd-label">Eligible Product Codes</div><div class="cd-value" id="cdProdCodes">--</div></div>
+        <div class="cd-item"><div class="cd-label">Reg E Opt-In Code</div><div class="cd-value" id="cdRegeOptIn">--</div></div>
+        <div class="cd-item"><div class="cd-label">Eligible Mail Code</div><div class="cd-value" id="cdMailCode">--</div></div>
         <div class="cd-item"><div class="cd-label">Branch Mapping</div><div class="cd-value" id="cdBranch">--</div></div>
-        <div class="cd-item"><div class="cd-label">Data Start</div><div class="cd-value" id="cdStart">--</div></div>
+        <div class="cd-item"><div class="cd-label">Client ID</div><div class="cd-value" id="cdClientId">--</div></div>
     </div>
 
     <!-- Step 2: Generate -->
@@ -754,19 +754,20 @@ function updateGenClientFromAPI() {
     document.getElementById('gCbId').textContent = `#${sel.value}`;
 
     // Update config display
-    if (cfg.ic_rate) document.getElementById('cdIcRate').textContent = cfg.ic_rate + '%';
-    if (cfg.stat_codes) document.getElementById('cdStatCodes').textContent =
-        Array.isArray(cfg.stat_codes) ? cfg.stat_codes.join(', ') : cfg.stat_codes;
-    if (cfg.prod_codes) document.getElementById('cdProdCodes').textContent =
-        Array.isArray(cfg.prod_codes) ? cfg.prod_codes.join(', ') : cfg.prod_codes;
-    if (cfg.nsf_od_fee) document.getElementById('cdNsfFee').textContent = '$' + cfg.nsf_od_fee;
-    if (cfg.dc_indicator) document.getElementById('cdDcInd').textContent = cfg.dc_indicator;
-    if (cfg.reg_e_column) document.getElementById('cdRegeCol').textContent = cfg.reg_e_column;
+    document.getElementById('cdIcRate').textContent = cfg.ic_rate ? (parseFloat(cfg.ic_rate) * 100).toFixed(2) + '%' : '--';
+    document.getElementById('cdNsfFee').textContent = cfg.nsf_od_fee ? '$' + cfg.nsf_od_fee : '--';
+    document.getElementById('cdStatCodes').textContent =
+        cfg.stat_codes && cfg.stat_codes.length ? cfg.stat_codes.join(', ') : '--';
+    document.getElementById('cdProdCodes').textContent =
+        cfg.prod_codes && cfg.prod_codes.length ? cfg.prod_codes.join(', ') : '--';
+    document.getElementById('cdRegeOptIn').textContent =
+        cfg.reg_e_opt_in && cfg.reg_e_opt_in.length ? cfg.reg_e_opt_in.join(', ') : '--';
+    document.getElementById('cdMailCode').textContent = cfg.eligible_mail || '--';
+    document.getElementById('cdClientId').textContent = sel.value;
     if (cfg.branch_mapping) {
         const count = typeof cfg.branch_mapping === 'object' ? Object.keys(cfg.branch_mapping).length : 0;
-        document.getElementById('cdBranch').textContent = count + ' branches';
+        document.getElementById('cdBranch').textContent = count > 0 ? count + ' branches' : '--';
     }
-    if (cfg.data_start) document.getElementById('cdStart').textContent = cfg.data_start;
 
     updRunBar();
 }
