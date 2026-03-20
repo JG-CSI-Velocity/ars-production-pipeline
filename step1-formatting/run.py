@@ -65,38 +65,57 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
 
     for item in zip_files:
         item_path = os.path.join(src_directory, item)
-        staged_zip = os.path.join(staging_directory, item)
+        # Extract client ID from ZIP filename (e.g., 1200 from 1200_ODDD.zip)
+        zip_client = re.match(r'^(\d+)', item)
+        zip_client_id = zip_client.group(1) if zip_client else 'unknown'
+        client_staging = os.path.join(staging_directory, zip_client_id)
+        os.makedirs(client_staging, exist_ok=True)
+
+        staged_zip = os.path.join(client_staging, item)
         if zipfile.is_zipfile(item_path):
             shutil.copy2(item_path, staged_zip)
             with zipfile.ZipFile(staged_zip, 'r') as zip_ref:
-                zip_ref.extractall(staging_directory)
+                # Only extract ODD files from the ZIP
+                odd_entries = [n for n in zip_ref.namelist()
+                               if 'odd' in n.lower() and not n.startswith('__MACOSX')]
+                for entry in odd_entries:
+                    zip_ref.extract(entry, client_staging)
             os.remove(staged_zip)
-            log_message(f"    Copied + extracted: {item}", log_file)
+            log_message(f"    Copied + extracted: {item} -> {client_staging}", log_file)
 
-    # Step 2: Find ODD CSVs in staging, rename (truncate after 'ODD')
-    csv_files = [f for f in os.listdir(staging_directory) if f.endswith('.csv')
-                 and 'odd' in f.lower()
-                 and (client_filter is None or f.startswith(client_filter))]
+    # Step 2: Find ODD CSVs across all client subfolders in staging
+    csv_files = []
+    for client_dir in os.listdir(staging_directory):
+        client_path = os.path.join(staging_directory, client_dir)
+        if not os.path.isdir(client_path):
+            continue
+        if client_filter and client_dir != client_filter:
+            continue
+        for f in os.listdir(client_path):
+            if f.endswith('.csv') and 'odd' in f.lower():
+                csv_files.append((client_dir, f))
     renamed_csv_files = []
-    for csv_file in csv_files:
+    for client_id, csv_file in csv_files:
+        client_path = os.path.join(staging_directory, client_id)
         odd_position = csv_file.upper().find('ODD')
         if odd_position != -1:
             new_name = csv_file[:odd_position + 3] + '.csv'
-            new_path = os.path.join(staging_directory, new_name)
-            original_path = os.path.join(staging_directory, csv_file)
+            new_path = os.path.join(client_path, new_name)
+            original_path = os.path.join(client_path, csv_file)
             if original_path != new_path:
                 if os.path.exists(new_path):
                     os.remove(new_path)
                 os.rename(original_path, new_path)
                 log_message(f"    Renamed: {csv_file} -> {new_name}", log_file)
-            renamed_csv_files.append(new_name)
+            renamed_csv_files.append((client_id, new_name))
         else:
-            renamed_csv_files.append(csv_file)
+            renamed_csv_files.append((client_id, csv_file))
 
-    # Step 3: Convert CSVs to Excel (save raw Excel in staging)
-    for csv_file in renamed_csv_files:
+    # Step 3: Convert CSVs to Excel (save in staging client subfolder)
+    for client_id, csv_file in renamed_csv_files:
         try:
-            csv_path = os.path.join(staging_directory, csv_file)
+            client_path = os.path.join(staging_directory, client_id)
+            csv_path = os.path.join(client_path, csv_file)
             df = pd.read_csv(csv_path, skiprows=4, low_memory=False)
 
             if df.empty:
@@ -108,7 +127,7 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
                 df = df.drop(columns=[df.columns[0]])
 
             excel_filename = os.path.splitext(csv_file)[0] + '.xlsx'
-            excel_path = os.path.join(staging_directory, excel_filename)
+            excel_path = os.path.join(client_path, excel_filename)
             df.to_excel(excel_path, index=False, engine='openpyxl')
 
             log_message(f"    Converted: {csv_file} -> {excel_filename}", log_file)
@@ -117,16 +136,25 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
             log_message(f"    ERROR converting {csv_file}: {e}", log_file)
             error_count += 1
 
-    # Step 4: Format Excel files from staging, save to output (02-Data-Ready for Analysis)
-    excel_files = [f for f in os.listdir(staging_directory)
-                   if f.endswith('.xlsx') and 'formatted' not in f.lower()
-                   and (client_filter is None or f.startswith(client_filter))]
-    if excel_files:
-        log_message(f"  {csm_name}: Formatting {len(excel_files)} Excel file(s)", log_file)
+    # Step 4: Format Excel files from staging client subfolders,
+    #         save to output (02-Data-Ready for Analysis/CSM/YYYY.MM/ClientID/)
+    excel_items = []
+    for client_dir in os.listdir(staging_directory):
+        client_path = os.path.join(staging_directory, client_dir)
+        if not os.path.isdir(client_path):
+            continue
+        if client_filter and client_dir != client_filter:
+            continue
+        for f in os.listdir(client_path):
+            if f.endswith('.xlsx') and 'formatted' not in f.lower():
+                excel_items.append((client_dir, f))
 
-    for item in excel_files:
+    if excel_items:
+        log_message(f"  {csm_name}: Formatting {len(excel_items)} Excel file(s)", log_file)
+
+    for client_id, item in excel_items:
         try:
-            file_path = os.path.join(staging_directory, item)
+            file_path = os.path.join(staging_directory, client_id, item)
             df = pd.read_excel(file_path)
 
             if df.empty:
@@ -138,11 +166,13 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
             # Run the canonical 7-step formatting
             df = format_odd(df)
 
-            # Save formatted file to output directory (02-Data-Ready for Analysis)
-            output_path = os.path.join(output_directory, item)
+            # Save formatted file to output: CSM/YYYY.MM/ClientID/filename.xlsx
+            client_output_dir = os.path.join(output_directory, client_id)
+            os.makedirs(client_output_dir, exist_ok=True)
+            output_path = os.path.join(client_output_dir, item)
             df.to_excel(output_path, index=False, engine='openpyxl')
 
-            log_message(f"    Done: {item} -> {output_directory}", log_file)
+            log_message(f"    Done: {item} -> {client_output_dir}", log_file)
             success_count += 1
 
         except Exception as e:
@@ -210,10 +240,10 @@ def main():
     for csm_name, csm_source in active_csms.items():
         # Source: CSM's M: drive folder with the month subfolder
         src = Path(csm_source) / month
-        # Staging: 01-Data-Ready for Formatting/YYYY.MM
-        staging = staging_base / month
-        # Output: 02-Data-Ready for Analysis/YYYY.MM
-        output = output_base / month
+        # Staging: 01-Data-Ready for Formatting/CSM/YYYY.MM
+        staging = staging_base / csm_name / month
+        # Output: 02-Data-Ready for Analysis/CSM/YYYY.MM
+        output = output_base / csm_name / month
 
         log_message(f"  {csm_name}:", log_file)
         log_message(f"    Source:  {src}", log_file)
