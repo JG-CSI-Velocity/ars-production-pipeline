@@ -544,10 +544,31 @@ async def download_file(path: str):
 
 
 if __name__ == "__main__":
+    import socket
+
+    # Check for port conflict
+    port = 8000
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if s.connect_ex(("127.0.0.1", port)) == 0:
+            print(f"\n  ERROR: Port {port} is already in use.")
+            print(f"  Kill the other process or use a different port:")
+            print(f"    netstat -ano | findstr :{port}")
+            print(f"    taskkill /PID <pid> /F")
+            sys.exit(1)
+
+    # Verify paths
     print()
     print("=" * 60)
     print("  Velocity Report Pipeline")
-    print("  http://localhost:8000")
+    print(f"  ARS Base:    {ARS_BASE} {'[OK]' if ARS_BASE.exists() else '[NOT FOUND]'}")
+    print(f"  Config:      {CONFIG_PATH} {'[OK]' if CONFIG_PATH.exists() else '[NOT FOUND]'}")
+    print(f"  index.html:  {Path(__file__).parent / 'index.html'} {'[OK]' if (Path(__file__).parent / 'index.html').exists() else '[NOT FOUND]'}")
+    print(f"  http://localhost:{port}")
     print("=" * 60)
     print()
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    if not ARS_BASE.exists():
+        print(f"  WARNING: {ARS_BASE} not found. Is the M: drive mapped?")
+        print()
+
+    uvicorn.run(app, host="0.0.0.0", port=port)
