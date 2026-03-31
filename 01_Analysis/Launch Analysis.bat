@@ -1,41 +1,30 @@
 @echo off
-title CSI Velocity - ARS Analysis
+title CSI Velocity - ARS Pipeline
 color 0A
 
-:: Go to repo root (one level up from 01_Analysis)
-cd /d "%~dp0.."
+:: Go to M:\ARS (the pipeline root on the work PC)
+cd /d M:\ARS
 
 echo.
 echo ======================================================================
-echo   CSI VELOCITY - ARS Analysis Pipeline
-echo   Starting UI at http://localhost:8000
+echo   CSI VELOCITY - ARS Pipeline
+echo   Starting server at http://localhost:8000
 echo ======================================================================
 echo.
 
-:: Find app.py in whichever UI folder exists
-if exist "05_UI\app.py" (
-    set UI_PATH=05_UI\app.py
-) else if exist "ui\app.py" (
-    set UI_PATH=ui\app.py
-) else (
-    echo   ERROR: Cannot find app.py
-    echo   Looked in: 05_UI\app.py and ui\app.py
-    echo   Current directory: %cd%
-    echo.
-    dir /b
+:: Verify 05_UI exists
+if not exist "05_UI\app.py" (
+    echo   ERROR: M:\ARS\05_UI\app.py not found.
     echo.
     pause
     exit /b 1
 )
 
-echo   Found: %UI_PATH%
-echo.
-
-:: Launch browser first, then start server
+:: Open browser (will load once server is ready)
 start http://localhost:8000
 
-:: Start the FastAPI server (blocks until closed)
-python %UI_PATH%
+:: Start the FastAPI server
+python 05_UI\app.py
 
 echo.
 pause
