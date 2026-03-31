@@ -124,6 +124,9 @@ def main():
                         help="Path to PPTX template")
     parser.add_argument("--skip-pptx", action="store_true",
                         help="Skip PowerPoint generation (Excel only)")
+    parser.add_argument("--sections", type=str, default=None,
+                        help="Comma-separated sections to run (e.g. 'mailer,dctr'). "
+                             "Options: overview,dctr,rege,attrition,value,mailer,insights")
     args = parser.parse_args()
 
     # Resolve fuzzy CSM name early so logs and paths all use the same name
@@ -287,6 +290,30 @@ def main():
     # Build the shared PipelineContext
     from shared.context import PipelineContext
 
+    # Map --sections to UI module keys for the runner
+    _section_to_ui_keys = {
+        "overview": [],  # always runs
+        "dctr": ["ars_dctr"],
+        "rege": ["ars_reg_e"],
+        "attrition": ["ars_attrition"],
+        "value": ["ars_value"],
+        "mailer": ["ars_mailer_insights", "ars_mailer_response", "ars_mailer_impact"],
+        "insights": ["ars_insights"],
+    }
+    _module_ids = None
+    if args.sections:
+        _module_ids = []
+        for sec in args.sections.split(","):
+            sec = sec.strip().lower()
+            if sec in _section_to_ui_keys:
+                _module_ids.extend(_section_to_ui_keys[sec])
+            else:
+                print(f"  WARNING: Unknown section '{sec}', skipping")
+        if _module_ids:
+            print(f"  Sections: {args.sections}")
+            print(f"  Modules:  {_module_ids}")
+            print()
+
     ctx = PipelineContext(
         client_id=client_id,
         client_name=client_name,
@@ -296,6 +323,7 @@ def main():
         client_config={
             "config_path": config_path,
             "client_id": client_id,
+            **({"module_ids": _module_ids} if _module_ids else {}),
         },
     )
 
