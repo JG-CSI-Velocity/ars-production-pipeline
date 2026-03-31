@@ -88,7 +88,7 @@ def _render_donut_chart(seg_details: dict, save_path, title: str) -> bool:
                 transform=ax.transAxes,
             )
             ax.axis("off")
-        ax.set_title(title, fontsize=18, fontweight="bold", pad=15)
+        # Title omitted -- slide-level title handles this to avoid duplication
     return True
 
 
@@ -146,7 +146,7 @@ def _render_hbar_chart(seg_details: dict, save_path, title: str) -> bool:
         ax.invert_yaxis()
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.set_title(title, fontsize=18, fontweight="bold", pad=15)
+        # Title omitted -- slide-level title handles this to avoid duplication
     return True
 
 

@@ -406,10 +406,13 @@ def compute_inside_numbers(
     if n_resp == 0:
         return metrics
 
-    # 1. Account age <2yr (existing)
+    # 1. Account age <2yr relative to the mailer date (not today)
     if "Date Opened" in data.columns:
+        mail_date = parse_month(resp_col)
+        if pd.isna(mail_date):
+            mail_date = pd.Timestamp.now()
         do = pd.to_datetime(responders["Date Opened"], errors="coerce", format="mixed")
-        age_years = (pd.Timestamp.now() - do).dt.days / 365.25
+        age_years = (mail_date - do).dt.days / 365.25
         under_2 = int((age_years < 2).sum())
         pct = under_2 / n_resp * 100
         metrics.append((f"{pct:.0f}%", "of Responders were accounts opened fewer than 2 years ago"))
