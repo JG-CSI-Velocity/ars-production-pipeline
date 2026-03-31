@@ -278,9 +278,7 @@ def build_deck(ctx) -> Path | None:
     # Build preamble
     preamble_dicts = build_preamble_slides(client_name, month)
 
-    # Replace P02 (Agenda) with executive KPI dashboard
-    if len(preamble_dicts) > 1:
-        preamble_dicts[1] = build_executive_kpi(ctx_results, title_date=section_subtitle)
+    # P02 stays as Agenda (no dashboard replacement)
 
     # Wire preamble placeholders to actual mailer results
     mailer_results = grouped.get("mailer", [])

@@ -352,50 +352,41 @@ class DeckBuilder:
             title_lines = content.title.split("\n") if "\n" in content.title else [content.title]
             subtitle = content.kpis.get("subtitle", "") if content.kpis else ""
 
-            # Product title slides use ph[0] center_title + ph[1] subtitle (footer)
+            # Product title slides: ph[0] = client name (40pt), ph[1] = subtitle (24pt)
             if content.layout_index in {LAYOUT_TITLE_RPE, LAYOUT_TITLE_ARS, LAYOUT_TITLE_ICS}:
                 try:
                     slide.placeholders[0].text = title_lines[0]
-                    # Left-align the main title
                     for p in slide.placeholders[0].text_frame.paragraphs:
                         p.alignment = PP_ALIGN.LEFT
-                    if len(title_lines) > 1:
-                        tf = slide.placeholders[0].text_frame
-                        for extra in title_lines[1:]:
-                            p = tf.add_paragraph()
-                            p.text = extra
-                            p.alignment = PP_ALIGN.LEFT
-                            p.font.size = Pt(20)
-                            p.font.color.rgb = RGBColor(255, 255, 255)
+                        p.font.size = Pt(40)
                 except (KeyError, IndexError):
                     pass
-                # ph[1] = subtitle/confidential footer -- leave as template default
+                # Subtitle goes in ph[1] at template default size (24pt)
+                if len(title_lines) > 1:
+                    try:
+                        slide.placeholders[1].text = title_lines[1]
+                    except (KeyError, IndexError):
+                        pass
                 return
 
-            # LAYOUT_TITLE (light/reverse)
-            full_text = title_lines[0]
+            # LAYOUT_TITLE (light/reverse): ph[0] = client name 40pt, ph[1] = subtitle 24pt
+            try:
+                slide.placeholders[0].text = title_lines[0]
+                for p in slide.placeholders[0].text_frame.paragraphs:
+                    p.alignment = PP_ALIGN.LEFT
+                    p.font.size = Pt(40)
+            except (KeyError, IndexError):
+                pass
             if len(title_lines) > 1:
-                full_text += f"\n{title_lines[1]}"
-            if len(title_lines) > 2:
-                full_text += f"\n{title_lines[2]}"
+                try:
+                    slide.placeholders[1].text = title_lines[1]
+                except (KeyError, IndexError):
+                    pass
             elif subtitle:
-                full_text += f"\n{'─' * 20}\n{subtitle}"
-
-            text_box = slide.shapes.add_textbox(Inches(1.0), Inches(3.0), Inches(6.0), Inches(2.0))
-            tf = text_box.text_frame
-            tf.word_wrap = True
-
-            lines = full_text.split("\n")
-            for i, line in enumerate(lines):
-                p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-                p.text = line
-                p.alignment = PP_ALIGN.LEFT
-                p.font.color.rgb = RGBColor(255, 255, 255)
-                if i == 0:
-                    p.font.size = Pt(34)
-                    p.font.bold = True
-                else:
-                    p.font.size = Pt(20)
+                try:
+                    slide.placeholders[1].text = subtitle
+                except (KeyError, IndexError):
+                    pass
             return
 
         title_lines = content.title.split("\n") if "\n" in content.title else [content.title]
@@ -1369,11 +1360,11 @@ def _build_preamble_slides(client_name: str, month: str) -> list[SlideContent]:
             title=f"{client_name}\nProgram Performance | {title_date}",
             layout_index=LAYOUT_TITLE,
         ),
-        # P04: Executive Summary -- blank for manual table
+        # P04: Executive Summary (title at top, same style as P05/P06)
         SlideContent(
             slide_type="blank",
             title="Executive Summary",
-            layout_index=LAYOUT_TITLE_DARK,
+            layout_index=LAYOUT_CUSTOM,
         ),
         # P05: Monthly Revenue -- blank
         SlideContent(
@@ -1829,9 +1820,7 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     # Build preamble
     preamble = _build_preamble_slides(client_name, month)
 
-    # Replace P02 (Agenda) with executive KPI dashboard
-    if len(preamble) > 1:
-        preamble[1] = _build_executive_kpi(_ctx_results, title_date=section_subtitle)
+    # P02 stays as Agenda (no dashboard replacement)
 
     # Wire preamble placeholders to actual results:
     # P08 (index 7) -> most recent A12.*.Swipes

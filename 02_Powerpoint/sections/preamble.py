@@ -51,13 +51,13 @@ def build_preamble_slides(client_name: str, month: str) -> list[dict]:
         # P01: Master title
         _slide_content("title", f"{client_name}\nAccount Revenue Solution | {title_date}",
                         LAYOUT_TITLE_RPE),
-        # P02: Executive Dashboard (replaced at runtime with KPI dashboard)
+        # P02: Agenda slide
         _slide_content("blank", "Agenda", LAYOUT_CONTENT),
         # P03: Program Performance divider
         _slide_content("title", f"{client_name}\nProgram Performance | {title_date}",
                         LAYOUT_TITLE),
-        # P04: Executive Summary
-        _slide_content("blank", "Executive Summary", LAYOUT_TITLE_DARK),
+        # P04: Executive Summary (title at top, same style as P05/P06)
+        _slide_content("blank", "Executive Summary", LAYOUT_CUSTOM),
         # P05: Monthly Revenue
         _slide_content("blank", "Monthly Revenue \u2013 Last 12 Months", LAYOUT_CUSTOM),
         # P06: ARS Lift Matrix
