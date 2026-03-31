@@ -55,7 +55,7 @@ def build_preamble_slides(client_name: str, month: str) -> list[dict]:
         _slide_content("blank", "Agenda", LAYOUT_CONTENT),
         # P03: Program Performance divider
         _slide_content("title", f"{client_name}\nProgram Performance | {title_date}",
-                        LAYOUT_TITLE),
+                        LAYOUT_SECTION_ALT),
         # P04: Executive Summary (title at top, same style as P05/P06)
         _slide_content("blank", "Executive Summary", LAYOUT_CUSTOM),
         # P05: Monthly Revenue
@@ -64,14 +64,14 @@ def build_preamble_slides(client_name: str, month: str) -> list[dict]:
         _slide_content("blank", "ARS Lift Matrix", LAYOUT_CUSTOM),
         # P07: ARS Mailer Revisit divider
         _slide_content("title", f"{client_name}\nARS Mailer Revisit | {title_date}",
-                        LAYOUT_TITLE),
+                        LAYOUT_SECTION_ALT),
         # P08: Swipes placeholder (wired to most recent A12 Swipes at runtime)
         _slide_content("blank", "ARS Mailer Revisit \u2013 Swipes", LAYOUT_CUSTOM),
         # P09: Spend placeholder (wired to most recent A12 Spend at runtime)
         _slide_content("blank", "ARS Mailer Revisit \u2013 Spend", LAYOUT_CUSTOM),
-        # P10: Mailer Summaries divider (same format as P01/P03/P07)
+        # P10: Mailer Summaries divider
         _slide_content("title", f"Mailer Summaries\n{client_name} | {title_date}",
-                        LAYOUT_TITLE),
+                        LAYOUT_SECTION_ALT),
         # P11: All Program Results (title at top, open canvas for pasted image)
         _slide_content("blank", f"All Program Results\n{client_name} | {title_date}",
                         LAYOUT_CUSTOM),

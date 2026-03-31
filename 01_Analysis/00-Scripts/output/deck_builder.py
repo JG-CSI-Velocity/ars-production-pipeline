@@ -1294,7 +1294,7 @@ _SECTION_LABELS = {
 }
 
 # Section divider layout (all sections use LAYOUT_TITLE)
-_DEFAULT_DIVIDER_LAYOUT = LAYOUT_TITLE
+_DEFAULT_DIVIDER_LAYOUT = LAYOUT_SECTION_ALT
 
 # SCR narrative arc: Situation -> Complication -> Resolution
 SECTION_ORDER = [
@@ -1360,7 +1360,7 @@ def _build_preamble_slides(client_name: str, month: str) -> list[SlideContent]:
         SlideContent(
             slide_type="title",
             title=f"{client_name}\nProgram Performance | {title_date}",
-            layout_index=LAYOUT_TITLE,
+            layout_index=LAYOUT_SECTION_ALT,
         ),
         # P04: Executive Summary (title at top, same style as P05/P06)
         SlideContent(
@@ -1384,7 +1384,7 @@ def _build_preamble_slides(client_name: str, month: str) -> list[SlideContent]:
         SlideContent(
             slide_type="title",
             title=f"{client_name}\nARS Mailer Revisit | {title_date}",
-            layout_index=LAYOUT_TITLE,
+            layout_index=LAYOUT_SECTION_ALT,
         ),
         # P08: Swipes placeholder (will be wired to most recent A12 Swipes)
         SlideContent(
@@ -1398,11 +1398,11 @@ def _build_preamble_slides(client_name: str, month: str) -> list[SlideContent]:
             title="ARS Mailer Revisit \u2013 Spend",
             layout_index=LAYOUT_CUSTOM,
         ),
-        # P10: Mailer Summaries divider (same format as P01/P03/P07)
+        # P10: Mailer Summaries divider
         SlideContent(
             slide_type="title",
             title=f"Mailer Summaries\n{client_name} | {title_date}",
-            layout_index=LAYOUT_TITLE,
+            layout_index=LAYOUT_SECTION_ALT,
         ),
         # P11: All Program Results (title at top, open canvas for pasted image)
         SlideContent(

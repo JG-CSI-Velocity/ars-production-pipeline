@@ -42,7 +42,7 @@ class SectionSpec:
     # Identity
     key: str                          # e.g. "dctr" -- matches analytics folder
     label: str                        # e.g. "How Active Are Debit Cards?"
-    divider_layout: int = LAYOUT_TITLE
+    divider_layout: int = LAYOUT_SECTION_ALT
 
     # Ownership: which slide ID prefixes belong to this section
     prefixes: list[str] = field(default_factory=list)
