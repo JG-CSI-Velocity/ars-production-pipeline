@@ -281,25 +281,33 @@ def build_deck(ctx) -> Path | None:
     # P02 stays as Agenda (no dashboard replacement)
 
     # Wire preamble placeholders to actual mailer results
+    # Use FIRST mailer (sorted ascending) not most recent
     mailer_results = grouped.get("mailer", [])
     mailer_by_id = {getattr(r, "slide_id", ""): r for r in mailer_results}
 
     _swipes = next(
-        (mailer_by_id[k] for k in sorted(mailer_by_id, reverse=True)
+        (mailer_by_id[k] for k in sorted(mailer_by_id)
          if k.startswith("A12.") and "swipe" in k.lower()),
         None,
     )
     _spend = next(
-        (mailer_by_id[k] for k in sorted(mailer_by_id, reverse=True)
+        (mailer_by_id[k] for k in sorted(mailer_by_id)
          if k.startswith("A12.") and "spend" in k.lower()),
         None,
     )
     _count_trend = mailer_by_id.get("A13.5")
 
+    # Wire results but preserve preamble slide titles
+    _preamble_titles = {
+        7: "ARS Mailer Revisit \u2013 Swipes",
+        8: "ARS Mailer Revisit \u2013 Spend",
+        11: "Program Responses to Date",
+    }
     for idx, result in [(7, _swipes), (8, _spend), (11, _count_trend)]:
         if result and idx < len(preamble_dicts):
             sc = _result_to_slide(result, ctx_results, layout_map, SECTION_REGISTRY)
             if sc:
+                sc.title = _preamble_titles.get(idx, sc.title)
                 preamble_dicts[idx] = sc
 
     # Convert preamble dicts to SlideContent

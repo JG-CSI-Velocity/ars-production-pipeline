@@ -1396,17 +1396,17 @@ def _build_preamble_slides(client_name: str, month: str) -> list[SlideContent]:
             title="ARS Mailer Revisit \u2013 Spend",
             layout_index=LAYOUT_CUSTOM,
         ),
-        # P10: Mailer Summaries divider (was P11)
+        # P10: Mailer Summaries divider (same format as P01/P03/P07)
         SlideContent(
             slide_type="title",
             title=f"Mailer Summaries\n{client_name} | {title_date}",
-            layout_index=LAYOUT_SECTION_ALT,
+            layout_index=LAYOUT_TITLE,
         ),
-        # P11: All Program Results (was P12)
+        # P11: All Program Results (title at top, open canvas for pasted image)
         SlideContent(
             slide_type="blank",
             title=f"All Program Results\n{client_name} | {title_date}",
-            layout_index=LAYOUT_CONTENT,
+            layout_index=LAYOUT_CUSTOM,
         ),
         # P12: Program Responses to Date (was P13, will be wired to A13.5)
         SlideContent(
@@ -1823,16 +1823,16 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     # P02 stays as Agenda (no dashboard replacement)
 
     # Wire preamble placeholders to actual results:
-    # P08 (index 7) -> most recent A12.*.Swipes
-    # P09 (index 8) -> most recent A12.*.Spend
+    # P08 (index 7) -> FIRST A12.*.Swipes (earliest mailer)
+    # P09 (index 8) -> FIRST A12.*.Spend (earliest mailer)
     # P12 (index 11) -> A13.5 (count trend)
     _mailer_by_id = {getattr(r, "slide_id", ""): r for r in mailer_results}
 
-    # Find most recent Swipes and Spend from A12 results
+    # Find FIRST mailer Swipes and Spend (sorted ascending = oldest first)
     _swipes = next(
         (
             _mailer_by_id[k]
-            for k in sorted(_mailer_by_id, reverse=True)
+            for k in sorted(_mailer_by_id)
             if k.startswith("A12.") and "swipe" in k.lower()
         ),
         None,
@@ -1840,17 +1840,24 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     _spend = next(
         (
             _mailer_by_id[k]
-            for k in sorted(_mailer_by_id, reverse=True)
+            for k in sorted(_mailer_by_id)
             if k.startswith("A12.") and "spend" in k.lower()
         ),
         None,
     )
     _count_trend = _mailer_by_id.get("A13.5")
 
+    # Wire results but preserve preamble slide titles
+    _preamble_titles = {
+        7: "ARS Mailer Revisit \u2013 Swipes",
+        8: "ARS Mailer Revisit \u2013 Spend",
+        11: "Program Responses to Date",
+    }
     for idx, result in [(7, _swipes), (8, _spend), (11, _count_trend)]:
         if result and idx < len(preamble):
             sc = _result_to_slide(result, ctx_results=_ctx_results)
             if sc:
+                sc.title = _preamble_titles.get(idx, sc.title)
                 preamble[idx] = sc
 
     # Combine

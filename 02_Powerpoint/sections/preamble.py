@@ -69,12 +69,12 @@ def build_preamble_slides(client_name: str, month: str) -> list[dict]:
         _slide_content("blank", "ARS Mailer Revisit \u2013 Swipes", LAYOUT_CUSTOM),
         # P09: Spend placeholder (wired to most recent A12 Spend at runtime)
         _slide_content("blank", "ARS Mailer Revisit \u2013 Spend", LAYOUT_CUSTOM),
-        # P10: Mailer Summaries divider
+        # P10: Mailer Summaries divider (same format as P01/P03/P07)
         _slide_content("title", f"Mailer Summaries\n{client_name} | {title_date}",
-                        LAYOUT_SECTION_ALT),
-        # P11: All Program Results
+                        LAYOUT_TITLE),
+        # P11: All Program Results (title at top, open canvas for pasted image)
         _slide_content("blank", f"All Program Results\n{client_name} | {title_date}",
-                        LAYOUT_CONTENT),
+                        LAYOUT_CUSTOM),
         # P12: Program Responses to Date (wired to A13.5 at runtime)
         _slide_content("blank", "Program Responses to Date", LAYOUT_CUSTOM),
         # P13: Data Check Overview
