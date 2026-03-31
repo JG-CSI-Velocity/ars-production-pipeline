@@ -52,6 +52,7 @@ LAYOUT_WIDE_TITLE = 16        # 1_Title and Content (wide title, open canvas)
 LAYOUT_TITLE_RPE = 17         # 1_Title Slide_RPE -- master title (slide 1)
 LAYOUT_TITLE_ARS = 18         # 4_Title Slide_ARS -- ARS section title
 LAYOUT_TITLE_ICS = 19         # 5_Title Slide_ICS -- ICS section title
+LAYOUT_MAIL_SUMMARY = 20     # 01_mail_summary -- mailer response + spend/swipe slides
 
 
 # =============================================================================
@@ -637,8 +638,8 @@ class DeckBuilder:
         ROW1_TOP = Inches(1.4)
         KPI_VAL_TOP = Inches(1.9)
         KPI_LBL_TOP = Inches(2.35)
-        SECT_TOP = Inches(2.9)
-        CHART_TOP = Inches(3.1)
+        SECT_TOP = Inches(3.0)
+        CHART_TOP = Inches(3.3)
 
         # Title -- use template placeholder (same format as P13 / LAYOUT_CUSTOM)
         if slide.shapes.title:
@@ -1096,9 +1097,9 @@ def _match_prefix(slide_id: str) -> tuple[int, str]:
     """Match slide_id by prefix for dynamic entries (e.g. A12.Nov25.Swipes)."""
     sid = slide_id.lower()
     if sid.startswith("a12"):
-        return (LAYOUT_CUSTOM, "screenshot")
+        return (LAYOUT_MAIL_SUMMARY, "screenshot")
     if sid.startswith("a13") and sid not in ("a13.5", "a13.6"):
-        return (LAYOUT_CUSTOM, "mailer_summary")
+        return (LAYOUT_MAIL_SUMMARY, "mailer_summary")
     if sid.startswith("a16"):
         return (LAYOUT_CUSTOM, "screenshot")
     if sid.startswith("a17"):

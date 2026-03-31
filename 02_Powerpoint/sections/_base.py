@@ -27,6 +27,7 @@ LAYOUT_WIDE_TITLE = 16
 LAYOUT_TITLE_RPE = 17
 LAYOUT_TITLE_ARS = 18
 LAYOUT_TITLE_ICS = 19
+LAYOUT_MAIL_SUMMARY = 20     # 01_mail_summary -- mailer response + spend/swipe slides
 
 
 @dataclass

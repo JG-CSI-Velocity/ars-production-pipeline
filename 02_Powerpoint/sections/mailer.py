@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 
-from ._base import LAYOUT_CUSTOM, SectionSpec
+from ._base import LAYOUT_CUSTOM, LAYOUT_MAIL_SUMMARY, SectionSpec
 
 _PREFIXES = ["a12", "a13", "a14", "a15", "a16", "a17", "mail"]
 
@@ -47,9 +47,9 @@ def _prefix_fallback(slide_id: str) -> tuple[int, str] | None:
     """Match dynamic slide IDs like A12.Nov25.Swipes, A13.Jan26."""
     sid = slide_id.lower()
     if sid.startswith("a12"):
-        return (LAYOUT_CUSTOM, "screenshot")
+        return (LAYOUT_MAIL_SUMMARY, "screenshot")
     if sid.startswith("a13") and sid not in ("a13.5", "a13.6"):
-        return (LAYOUT_CUSTOM, "mailer_summary")
+        return (LAYOUT_MAIL_SUMMARY, "mailer_summary")
     if sid.startswith("a16"):
         return (LAYOUT_CUSTOM, "screenshot")
     if sid.startswith("a17"):
