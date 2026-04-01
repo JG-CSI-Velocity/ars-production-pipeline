@@ -191,7 +191,7 @@ def _monthly_summaries(ctx: PipelineContext) -> list[AnalysisResult]:
             )
             continue
 
-        month_title = f"ARS Response -- {format_title(month)} Mailer Summary"
+        month_title = f"{format_title(month)} Mailer Summary"
         ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
 
         # Save donut and hbar as SEPARATE PNGs for 3-column mailer_summary layout

@@ -1097,7 +1097,7 @@ def _match_prefix(slide_id: str) -> tuple[int, str]:
     """Match slide_id by prefix for dynamic entries (e.g. A12.Nov25.Swipes)."""
     sid = slide_id.lower()
     if sid.startswith("a12"):
-        return (LAYOUT_MAIL_SUMMARY, "screenshot")
+        return (LAYOUT_CUSTOM, "screenshot")
     if sid.startswith("a13") and sid not in ("a13.5", "a13.6"):
         return (LAYOUT_MAIL_SUMMARY, "mailer_summary")
     if sid.startswith("a16"):
@@ -1287,7 +1287,7 @@ _SECTION_LABELS = {
     "rege": "Are Members Opting In to Overdraft Protection?",
     "attrition": "Are We Losing Accounts?",
     "value": "What Is the Revenue Impact?",
-    "mailer": "How Effective Are the Mailer Campaigns?",
+    "mailer": "Mailer Campaign Performance",
     "transaction": "What Do Spending Patterns Reveal?",
     "ics": "Are ICS Accounts Performing?",
     "insights": "What Should We Do Next?",

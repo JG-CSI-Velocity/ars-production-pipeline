@@ -47,7 +47,7 @@ def _prefix_fallback(slide_id: str) -> tuple[int, str] | None:
     """Match dynamic slide IDs like A12.Nov25.Swipes, A13.Jan26."""
     sid = slide_id.lower()
     if sid.startswith("a12"):
-        return (LAYOUT_MAIL_SUMMARY, "screenshot")
+        return (LAYOUT_CUSTOM, "screenshot")
     if sid.startswith("a13") and sid not in ("a13.5", "a13.6"):
         return (LAYOUT_MAIL_SUMMARY, "mailer_summary")
     if sid.startswith("a16"):
@@ -139,7 +139,7 @@ def register() -> SectionSpec:
     """Return the Mailer section specification."""
     return SectionSpec(
         key="mailer",
-        label="How Effective Are the Mailer Campaigns?",
+        label="Mailer Campaign Performance",
         prefixes=_PREFIXES,
         layout_map=_LAYOUT_MAP,
         prefix_fallback=_prefix_fallback,

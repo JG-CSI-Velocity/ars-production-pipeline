@@ -112,10 +112,10 @@ def _preamble(chart):
 def _mailer(chart):
     return [
         SlideContent(slide_type="section",
-                     title=f"How Effective Are the Mailer Campaigns?\n{SUB}",
+                     title=f"Mailer Campaign Performance\n{SUB}",
                      layout_index=LAYOUT_SECTION_ALT),
         SlideContent(slide_type="mailer_summary",
-                     title="ARS Response -- January 2026 Mailer Summary",
+                     title="January 2026 Mailer Summary",
                      images=[chart] if chart else None,
                      kpis={"Mailed": "5,661", "Responded": "383", "Rate": "6.8%"},
                      bullets=[
@@ -127,7 +127,7 @@ def _mailer(chart):
                      ],
                      layout_index=LAYOUT_MAIL_SUMMARY),
         SlideContent(slide_type="mailer_summary",
-                     title="ARS Response -- November 2025 Mailer Summary",
+                     title="November 2025 Mailer Summary",
                      images=[chart] if chart else None,
                      kpis={"Mailed": "5,430", "Responded": "614", "Rate": "11.3%"},
                      bullets=[
@@ -141,11 +141,11 @@ def _mailer(chart):
         SlideContent(slide_type="screenshot",
                      title="Jan26 Responder Swipes",
                      images=[chart] if chart else None,
-                     layout_index=LAYOUT_MAIL_SUMMARY),
+                     layout_index=LAYOUT_CUSTOM),
         SlideContent(slide_type="screenshot",
                      title="Jan26 Responder Spend",
                      images=[chart] if chart else None,
-                     layout_index=LAYOUT_MAIL_SUMMARY),
+                     layout_index=LAYOUT_CUSTOM),
     ]
 
 
