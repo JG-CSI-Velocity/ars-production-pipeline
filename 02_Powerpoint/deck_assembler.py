@@ -307,17 +307,19 @@ def build_deck(ctx) -> Path | None:
     )
     _count_trend = mailer_by_id.get("A13.5")
 
-    # Wire results but preserve preamble slide titles
-    _preamble_titles = {
-        7: "ARS Mailer Revisit \u2013 Swipes",
-        8: "ARS Mailer Revisit \u2013 Spend",
-        11: "Program Responses to Date",
+    # Wire results but preserve preamble slide titles and layout (LAYOUT_CUSTOM)
+    _preamble_overrides = {
+        7: ("ARS Mailer Revisit \u2013 Swipes", LAYOUT_CUSTOM),
+        8: ("ARS Mailer Revisit \u2013 Spend", LAYOUT_CUSTOM),
+        11: ("Program Responses to Date", LAYOUT_CUSTOM),
     }
     for idx, result in [(7, _swipes), (8, _spend), (11, _count_trend)]:
         if result and idx < len(preamble_dicts):
             sc = _result_to_slide(result, ctx_results, layout_map, SECTION_REGISTRY)
             if sc:
-                sc.title = _preamble_titles.get(idx, sc.title)
+                title, layout = _preamble_overrides[idx]
+                sc.title = title
+                sc.layout_index = layout
                 preamble_dicts[idx] = sc
 
     # Convert preamble dicts to SlideContent
