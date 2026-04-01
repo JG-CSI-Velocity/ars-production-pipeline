@@ -90,11 +90,14 @@ def step_subsets(ctx: PipelineContext) -> None:
     if eligible_stats and _stat_col:
         # Case-insensitive matching: uppercase both config values and data
         _cfg_upper = [s.strip().upper() for s in eligible_stats]
-        mask = _stat_upper.isin(_cfg_upper)
+        # Normalize: numeric values come through as "2.0" from Excel, strip trailing .0
+        _stat_normalized = _stat_upper.str.replace(r'\.0$', '', regex=True)
+        mask = _stat_normalized.isin(_cfg_upper)
         _match_count = mask.sum()
         logger.info(
-            "Eligible stat filter: config={cfg} -> {n:,} matches out of {total:,}",
-            cfg=eligible_stats,
+            "Eligible stat filter: config={cfg}, data top values={vals} -> {n:,} matches out of {total:,}",
+            cfg=_cfg_upper,
+            vals=dict(_stat_normalized.value_counts().head(10)),
             n=_match_count,
             total=len(df),
         )
