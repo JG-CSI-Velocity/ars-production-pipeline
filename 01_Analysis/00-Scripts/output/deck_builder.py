@@ -489,32 +489,33 @@ class DeckBuilder:
                     slide.shapes.title.text = content.title
 
     def _build_screenshot_slide(self, slide, content: SlideContent) -> None:
-        """Build slide with a single chart image.
+        """Build slide with title and single chart image below."""
+        title_text = content.title
+        subtitle_text = None
 
-        Charts already have titles rendered by matplotlib, so we skip
-        the slide title placeholder to avoid duplication. The chart
-        fills most of the slide with a small margin.
-        """
-        # Remove all placeholders -- chart image IS the content
+        if "\n" in content.title:
+            parts = content.title.split("\n", 1)
+            title_text = parts[0]
+            subtitle_text = parts[1] if len(parts) > 1 else None
+
+        # Keep ph[0] (title), remove other placeholders
         for ph in slide.placeholders:
-            try:
-                ph.element.getparent().remove(ph.element)
-            except Exception:
-                pass
+            if ph.placeholder_format.idx != 0:
+                try:
+                    ph.element.getparent().remove(ph.element)
+                except Exception:
+                    pass
 
-        # Position chart to fill the slide with small margins
-        left = Inches(0.4)
-        top = Inches(0.3)
-        width = Inches(12.5)
-        max_height = Inches(6.8)
+        # Set title using template placeholder
+        if slide.shapes.title:
+            slide.shapes.title.text = title_text
+
+        # Position chart below title
+        left, top, width = self._get_single_positioning(content.layout_index)
+        extra_h = Inches(4.8) if content.layout_index in (LAYOUT_CUSTOM, LAYOUT_BLANK, LAYOUT_PICTURE) else None
 
         if content.images and Path(content.images[0]).exists():
-            self._add_fitted_picture(slide, content.images[0], left, top, width, max_height=max_height)
-
-        # Add speaker notes with the title text for reference
-        if content.notes_text or content.title:
-            notes = slide.notes_slide
-            notes.notes_text_frame.text = content.notes_text or content.title
+            self._add_fitted_picture(slide, content.images[0], left, top, width, max_height=extra_h)
 
     def _build_screenshot_kpi_slide(self, slide, content: SlideContent) -> None:
         """Build slide with image and KPI callouts.
