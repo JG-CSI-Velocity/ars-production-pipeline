@@ -77,6 +77,20 @@ def format_odd(df: pd.DataFrame) -> pd.DataFrame:
     df = _step5_age_calculations(df)
     df = _step6_mail_response_grouping(df)
     df = _step7_control_segmentation(df)
+
+    # Force identifier columns to clean strings (strip trailing .0 from floats)
+    # This prevents downstream filters from failing on '2' vs '2.0' mismatches
+    _str_cols = ["Stat Code", "Status Code", "Product Code", "Prod Code"]
+    for col in _str_cols:
+        if col in df.columns:
+            df[col] = (
+                df[col]
+                .astype(str)
+                .str.strip()
+                .str.replace(r'\.0$', '', regex=True)
+                .replace('nan', '')
+            )
+
     return df
 
 
