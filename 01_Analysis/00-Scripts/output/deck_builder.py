@@ -1898,6 +1898,43 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         )
         if _notify:
             _notify(f"Deck saved: {output_path.name} ({len(final_slides)} slides)")
+
+        # Generate slide manifest Excel
+        _layout_names = {
+            0: "Title Slide", 1: "Title Slide_Reverse", 2: "Title and Content",
+            3: "Title and Content_Reverse", 4: "2_Section Header",
+            5: "5_Section Header", 6: "Agenda", 7: "2_Title Slide",
+            8: "Custom Layout", 9: "Two Content", 10: "Comparison",
+            11: "Blank", 12: "Bullet Points", 13: "Picture with Content",
+            14: "2 Pictures", 15: "3 Pictures", 16: "1_Title and Content",
+            17: "1_Title Slide_RPE", 18: "4_Title Slide_ARS",
+            19: "5_Title Slide_ICS", 20: "20_mail_summary",
+        }
+        try:
+            import pandas as _pd
+            manifest_rows = []
+            for i, sc in enumerate(final_slides, 1):
+                # Determine section from slide context
+                _title_clean = sc.title.split("\n")[0] if sc.title else ""
+                manifest_rows.append({
+                    "Slide #": i,
+                    "Slide Type": sc.slide_type,
+                    "Layout Index": sc.layout_index,
+                    "Layout Name": _layout_names.get(sc.layout_index, f"Unknown ({sc.layout_index})"),
+                    "Title": _title_clean,
+                    "Full Title": sc.title or "",
+                    "Has Image": bool(sc.images),
+                    "Has KPIs": bool(sc.kpis),
+                })
+            manifest_df = _pd.DataFrame(manifest_rows)
+            manifest_path = output_path.parent / f"{ctx.client.client_id}_{ctx.client.month}_slide_manifest.xlsx"
+            manifest_df.to_excel(str(manifest_path), index=False)
+            logger.info("Slide manifest: {path}", path=manifest_path.name)
+            if _notify:
+                _notify(f"Slide manifest: {manifest_path.name}")
+        except Exception as _exc:
+            logger.warning("Slide manifest failed: {err}", err=_exc)
+
         return output_path
     except Exception as exc:
         logger.error("Deck build failed: {err}", err=exc)
