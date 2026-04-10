@@ -4,28 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Velocity | CSI</title>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
-    --bg: #f5f0eb;
+    --bg: #EFEFEF;
     --card: #ffffff;
-    --border: #e0dbd5;
-    --text: #2c2c2c;
-    --muted: #8a8480;
-    --faint: #c8c3bc;
-    --accent: #c67a3c;
-    --accent-light: #fdf2e9;
-    --accent-dark: #b06930;
-    --green: #5a8a6a;
+    --border: #d6d6d6;
+    --text: #000000;
+    --muted: #9F9EA2;
+    --faint: #c8c8c8;
+    --accent: #F15D22;
+    --accent-light: #fef0e8;
+    --accent-dark: #d14e1a;
+    --gold: #FBAE40;
+    --green: #2e7d32;
     --green-bg: #e8f5e9;
     --red: #c0392b;
     --red-bg: #fdecea;
-    --dark: #2c2c2c;
-    --dark-muted: #6b6560;
+    --dark: #00274C;
+    --dark-muted: #9F9EA2;
 }
-body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+body { font-family: 'Montserrat', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
 /* ─── HEADER ─── */
 header {
@@ -33,7 +34,7 @@ header {
     padding: 18px 40px; background: var(--dark); color: var(--bg);
     position: sticky; top: 0; z-index: 100;
 }
-.h-brand { font-family: 'Instrument Serif', serif; font-size: 26px; font-style: italic; }
+.h-brand { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 26px; font-style: normal; }
 .h-nav { display: flex; gap: 0; list-style: none; }
 .h-nav li {
     padding: 8px 20px; font-size: 14px; font-weight: 500; color: #a39e98;
@@ -47,8 +48,8 @@ header {
 .page { display: none; padding: 32px 40px; }
 .page.active { display: block; }
 .page-title {
-    font-family: 'Instrument Serif', serif; font-size: 40px;
-    font-weight: 400; font-style: italic; margin-bottom: 4px;
+    font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 40px;
+    font-weight: 400; font-style: normal; margin-bottom: 4px;
 }
 .page-sub { font-size: 15px; color: var(--muted); margin-bottom: 28px; }
 
@@ -61,7 +62,7 @@ header {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
 }
-.card-title { font-family: 'Instrument Serif', serif; font-size: 20px; font-style: italic; }
+.card-title { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 20px; font-style: normal; }
 .card-meta { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
 .label {
     font-size: 10px; font-weight: 700; color: var(--muted);
@@ -69,7 +70,7 @@ header {
 }
 .sel {
     width: 100%; padding: 10px 14px; background: var(--bg); border: 2px solid var(--border);
-    border-radius: 8px; font-family: 'Outfit', sans-serif; font-size: 14px;
+    border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px;
     color: var(--text); appearance: none; cursor: pointer;
 }
 .sel:focus { outline: none; border-color: var(--accent); }
@@ -82,7 +83,7 @@ header {
 .badge-accent { color: var(--accent); background: var(--accent-light); }
 .btn {
     background: var(--accent); color: #fff; border: none; border-radius: 8px;
-    padding: 12px 32px; font-family: 'Outfit', sans-serif; font-size: 14px;
+    padding: 12px 32px; font-family: 'Montserrat', sans-serif; font-size: 14px;
     font-weight: 600; cursor: pointer; transition: background 0.2s;
 }
 .btn:hover { background: var(--accent-dark); }
@@ -110,7 +111,7 @@ header {
     border-bottom: 2px solid var(--border);
 }
 .recent-table td {
-    padding: 10px 12px; border-bottom: 1px solid #f3f2ef; font-size: 13px;
+    padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px;
 }
 .recent-table tr:hover td { background: var(--bg); }
 
@@ -123,7 +124,7 @@ header {
     padding: 22px 28px; margin-bottom: 24px;
     display: flex; justify-content: space-between; align-items: center;
 }
-.cb-name { font-family: 'Instrument Serif', serif; font-size: 24px; font-style: italic; }
+.cb-name { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 24px; font-style: normal; }
 .cb-id { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 2px; }
 .cb-stats { display: flex; gap: 32px; }
 .cb-val { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; }
@@ -148,7 +149,7 @@ header {
 .p-card.on { border-color: var(--accent); }
 .p-card.on::before { background: var(--accent); }
 .p-name { font-size: 14px; font-weight: 600; }
-.p-count { font-family: 'Instrument Serif', serif; font-size: 38px; font-style: italic; color: var(--accent); line-height: 1; margin: 6px 0 2px; }
+.p-count { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 38px; font-style: normal; color: var(--accent); line-height: 1; margin: 6px 0 2px; }
 .p-card:not(.on) .p-count { color: var(--faint); }
 .p-unit { font-size: 12px; color: var(--muted); }
 .p-time { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--faint); margin-top: 4px; }
@@ -157,7 +158,7 @@ header {
 .modules-panel { background: var(--card); border: 2px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
 .modules-head {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 16px 24px; background: #faf7f4; border-bottom: 1px solid var(--border);
+    padding: 16px 24px; background: #f5f5f5; border-bottom: 1px solid var(--border);
 }
 .modules-body { padding: 20px 24px; }
 .m-group { margin-bottom: 16px; }
@@ -191,7 +192,7 @@ header {
 .prog-log {
     margin-top: 12px; max-height: 220px; overflow-y: auto;
     font-family: 'Space Mono', monospace; font-size: 11px; color: var(--dark-muted);
-    line-height: 1.9; padding: 12px 16px; background: #faf7f4; border-radius: 8px;
+    line-height: 1.9; padding: 12px 16px; background: #f5f5f5; border-radius: 8px;
 }
 .prog-log .done { color: var(--green); }
 .prog-log .active { color: var(--accent); font-weight: 700; }
@@ -212,7 +213,7 @@ header {
     overflow: hidden; cursor: pointer; transition: all 0.2s;
 }
 .result-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-.result-img { width: 100%; height: 180px; background: #faf7f4; display: flex; align-items: center; justify-content: center; }
+.result-img { width: 100%; height: 180px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; }
 .result-info { padding: 14px 16px; }
 .result-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
 .result-module { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--accent); margin-top: 4px; }
@@ -231,7 +232,7 @@ header {
 .rthumb {
     width: 100px; height: 60px; border: 2px solid var(--border); border-radius: 6px;
     overflow: hidden; cursor: pointer; flex-shrink: 0; transition: border-color 0.15s;
-    background: #faf7f4; display: flex; align-items: center; justify-content: center;
+    background: #f5f5f5; display: flex; align-items: center; justify-content: center;
 }
 .rthumb:hover { border-color: var(--accent); }
 .rthumb.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
@@ -263,7 +264,7 @@ header {
     position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,0.6); color: #fff; padding: 12px 24px;
     border-radius: 8px; text-align: center; max-width: 600px;
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Montserrat', sans-serif;
 }
 .lightbox-info-title { font-size: 15px; font-weight: 600; }
 .lightbox-info-module { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); margin-top: 4px; }
@@ -548,7 +549,7 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         <div style="display:grid;grid-template-columns:240px 1fr;gap:0;background:var(--card);border:2px solid var(--border);border-radius:12px;overflow:hidden;min-height:600px;">
 
             <!-- Section nav (left) -->
-            <div id="resultsSidebar" style="background:#faf7f4;border-right:1px solid var(--border);padding:16px 0;overflow-y:auto;max-height:700px;">
+            <div id="resultsSidebar" style="background:#f5f5f5;border-right:1px solid var(--border);padding:16px 0;overflow-y:auto;max-height:700px;">
                 <div style="padding:0 16px 12px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px;">Sections</div>
                 <div id="resultsSections"></div>
             </div>
@@ -569,7 +570,7 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                 </div>
 
                 <!-- Slide image -->
-                <div id="rSlideContainer" style="flex:1;background:#faf7f4;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;min-height:450px;position:relative;overflow:hidden;cursor:pointer;" onclick="nextSlide()">
+                <div id="rSlideContainer" style="flex:1;background:#f5f5f5;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;min-height:450px;position:relative;overflow:hidden;cursor:pointer;" onclick="nextSlide()">
                     <div id="rSlideEmpty" style="text-align:center;color:var(--muted);padding:48px;">
                         <div style="font-size:48px;margin-bottom:16px;opacity:0.3;">&#9654;</div>
                         <div style="font-size:16px;">Select a client above to view their analysis slides.</div>
