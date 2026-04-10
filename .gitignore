@@ -1,2 +1,15 @@
-step2-analysis/**/__pycache__/
+# Python cache
+__pycache__/
 **/*.pyc
+
+# Pipeline output directories (contain client data)
+02_Presentations/
+!02_Presentations/.gitkeep
+04_Logs/
+!04_Logs/.gitkeep
+
+# Virtual environment
+.venv/
+
+# OS files
+.DS_Store
