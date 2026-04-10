@@ -1,19 +1,79 @@
 from pathlib import Path
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import json
+import os
 import re
+import sys
 
 # ------------------------------------------------------------
-# Configuration
+# Configuration — loaded from clients_config.json
 # ------------------------------------------------------------
-CLIENT_ID = '1776'
-CLIENT_NAME = 'CoastHills'
+# CLIENT_ID must be set before this script runs.
+# Options: environment variable, or passed by the pipeline runner.
+CLIENT_ID = os.environ.get('CLIENT_ID', '')
+if not CLIENT_ID:
+    raise ValueError(
+        "CLIENT_ID not set. Set the CLIENT_ID environment variable "
+        "or pass it via the pipeline runner."
+    )
+
 FILE_EXTENSION = 'txt'  # Set to 'txt' or 'csv' based on actual files
 
-# Base paths
-BASE_PATH = Path(r"M:\ARS\Incoming\Transaction Files")
-RAW_DATA_PATH = BASE_PATH
-CLIENT_PATH = RAW_DATA_PATH / f"{CLIENT_ID} - {CLIENT_NAME}"
+# Load client config to validate CLIENT_ID exists
+_config_candidates = [
+    Path(__file__).resolve().parents[4] / "03_Config" / "clients_config.json",
+    Path(r"M:\ARS\03_Config\clients_config.json"),
+    Path("/Volumes/M/ARS/03_Config/clients_config.json"),
+]
+_clients_config = None
+for _cp in _config_candidates:
+    if _cp.exists():
+        _clients_config = json.loads(_cp.read_text())
+        break
+
+if _clients_config and CLIENT_ID not in _clients_config:
+    raise ValueError(
+        f"CLIENT_ID '{CLIENT_ID}' not found in clients_config.json. "
+        f"Available: {list(_clients_config.keys())[:5]}..."
+    )
+
+# Base paths — TXN files live alongside ODD files
+# Structure: 00_Formatting/02-Data-Ready for Analysis/{CSM}/{YYYY.MM}/{client_id}/
+_ars_base_candidates = [
+    Path(r"M:\ARS"),
+    Path("/Volumes/M/ARS"),
+    Path(__file__).resolve().parents[4],
+]
+ARS_BASE = next((p for p in _ars_base_candidates if p.exists()), _ars_base_candidates[0])
+BASE_PATH = ARS_BASE / "00_Formatting" / "02-Data-Ready for Analysis"
+
+# CSM and month must be provided or discovered
+CSM = os.environ.get('CSM', '')
+MONTH = os.environ.get('MONTH', '')  # Format: YYYY.MM
+
+if CSM and MONTH:
+    CLIENT_PATH = BASE_PATH / CSM / MONTH / CLIENT_ID
+else:
+    # Fallback: scan for client folder across all CSM/month combos
+    CLIENT_PATH = None
+    if BASE_PATH.exists():
+        for csm_dir in BASE_PATH.iterdir():
+            if not csm_dir.is_dir():
+                continue
+            for month_dir in csm_dir.iterdir():
+                if not month_dir.is_dir():
+                    continue
+                candidate = month_dir / CLIENT_ID
+                if candidate.exists():
+                    CLIENT_PATH = candidate
+                    CSM = csm_dir.name
+                    MONTH = month_dir.name
+                    break
+            if CLIENT_PATH:
+                break
+    if CLIENT_PATH is None:
+        CLIENT_PATH = BASE_PATH  # will fail gracefully downstream
 
 # Number of recent months to consider
 RECENT_MONTHS = 13
