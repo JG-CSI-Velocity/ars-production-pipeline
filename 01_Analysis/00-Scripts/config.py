@@ -149,7 +149,7 @@ def migrate_config(old_path: str | Path, target_path: str | Path | None = None) 
     if target_path:
         dest = Path(target_path)
     else:
-        dest = Path("configs/clients_config.json")
+        dest = Path("03_Config/clients_config.json")
 
     if dest.exists():
         with open(dest, encoding="utf-8") as f:

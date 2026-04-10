@@ -251,7 +251,6 @@ def main():
             Path(r"M:\ARS\Config\clients_config.json"),
             Path(__file__).parent.parent / "03_Config" / "clients_config.json",
             Path(__file__).parent.parent / "Config" / "clients_config.json",
-            Path(__file__).parent.parent / "00_Formatting" / "configs" / "clients_config.json",
         ]
         for candidate in candidates:
             try:

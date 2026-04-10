@@ -109,6 +109,11 @@ def _resolve_config_fallback() -> str | None:
             Path("/Volumes/M/ARS/Config/clients_config.json"),
         ]
     )
+    # Repo-relative fallback: runner.py -> parent(00-Scripts) -> parent(01_Analysis) -> parent(repo root) -> 03_Config/
+    _fallback_paths.append(
+        Path(__file__).resolve().parent.parent.parent / "03_Config" / "clients_config.json"
+    )
+
     for p in _fallback_paths:
         if p.exists():
             return str(p)

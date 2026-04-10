@@ -18,11 +18,15 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-# Add 00-Scripts to path so imports work
+# Add 00-Scripts to path for shared modules
 sys.path.insert(0, str(Path(__file__).parent / "00-Scripts"))
 
+# Config files moved to 03_Config/ (mirrors M:\ARS\ layout)
+_config_dir = Path(__file__).resolve().parent.parent / "03_Config"
+sys.path.insert(0, str(_config_dir))
+
 import pandas as pd
-from configs.settings import load_settings
+from settings import load_settings
 from shared.format_odd import format_odd
 
 
