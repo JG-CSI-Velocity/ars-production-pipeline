@@ -254,7 +254,9 @@ async def get_months(csm: str = "", source: str = "all"):
                     if month_dir.is_dir() and "." in month_dir.name:
                         months.add(month_dir.name)
 
-    return sorted(months, reverse=True) or [datetime.now().strftime("%Y.%m")]
+    # Cap to most recent 6 months
+    sorted_months = sorted(months, reverse=True)
+    return sorted_months[:6] or [datetime.now().strftime("%Y.%m")]
 
 
 @app.get("/api/files/{csm}/{month}/{client_id}")
