@@ -201,15 +201,38 @@ async def get_products():
 
 
 @app.get("/api/months")
-async def get_months():
-    """Return available months from the formatted data directory."""
+async def get_months(csm: str = "", source: str = "all"):
+    """Return available months.
+
+    source=raw: scan CSM source folders (raw data dumps -- for formatting step)
+    source=formatted: scan 02-Data-Ready for Analysis (already formatted -- for analysis step)
+    source=all: combine both
+    """
     months = set()
-    if READY_FOR_ANALYSIS.exists():
+
+    # Scan formatted output directory
+    if source in ("all", "formatted") and READY_FOR_ANALYSIS.exists():
         for csm_dir in READY_FOR_ANALYSIS.iterdir():
-            if csm_dir.is_dir():
+            if csm_dir.is_dir() and (not csm or csm_dir.name.lower().startswith(csm.lower())):
                 for month_dir in csm_dir.iterdir():
                     if month_dir.is_dir() and "." in month_dir.name:
                         months.add(month_dir.name)
+
+    # Scan raw CSM source folders (where ZIPs come from)
+    if source in ("all", "raw"):
+        config_path = ARS_BASE / "03_Config" / "ars_config.json"
+        if config_path.exists():
+            ars_cfg = json.loads(config_path.read_text(encoding="utf-8"))
+            csm_sources = ars_cfg.get("csm_sources", {}).get("sources", {})
+            for csm_name, csm_path in csm_sources.items():
+                if csm and not csm_name.lower().startswith(csm.lower()):
+                    continue
+                src = Path(csm_path)
+                if src.exists():
+                    for month_dir in src.iterdir():
+                        if month_dir.is_dir() and "." in month_dir.name:
+                            months.add(month_dir.name)
+
     return sorted(months, reverse=True) or [datetime.now().strftime("%Y.%m")]
 
 
