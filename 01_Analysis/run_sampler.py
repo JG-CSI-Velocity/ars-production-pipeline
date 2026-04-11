@@ -65,7 +65,7 @@ def main():
     from ars_analysis.pipeline.context import PipelineContext
 
     ctx = PipelineContext(
-        client_id=args.client,
+        client=args.client,
         month=args.month,
         csm=args.csm,
     )
