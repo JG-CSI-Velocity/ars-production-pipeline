@@ -1,18 +1,27 @@
-"""Step 1: Format ODD files from CSM source folder.
+"""Step 1: Format ODD files and gather supporting files.
 
-Reads raw ZIPs/CSVs from the CSM's M: drive folder, unzips, converts
+Reads raw ZIPs/CSVs from the CSM's data dump folder, unzips, converts
 to Excel, runs the 7-step formatting, and saves the formatted output
 to 02-Data-Ready for Analysis.
+
+Optionally gathers:
+- Transaction files from the CSM data dump folder
+- Deferred revenue files from the billing folder
+- Workbook files from the R: drive
 
 Usage:
     python run.py                                    # current month, all CSMs
     python run.py --month 2026.03                    # specific month
     python run.py --month 2026.03 --csm JamesG       # single CSM only
+    python run.py --month 2026.04 --csm JamesG --client 1680
+    python run.py --month 2026.04 --csm JamesG --with-trans --with-deferred --with-workbook
 """
 
 import argparse
+import json
 import os
 import re
+import shutil
 import sys
 import zipfile
 from datetime import datetime
@@ -35,6 +44,18 @@ def log_message(message, log_file=None):
     if log_file:
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(message + "\n")
+
+
+def load_ars_config():
+    """Load ars_config.json from 03_Config/."""
+    candidates = [
+        Path(__file__).resolve().parent.parent / "03_Config" / "ars_config.json",
+        Path(r"M:\ARS\03_Config\ars_config.json"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return json.loads(p.read_text(encoding="utf-8"))
+    return {}
 
 
 def process_csm(csm_name, src_directory, staging_directory, output_directory, log_file=None, client_filter=None, force=False):
@@ -65,6 +86,8 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
                  and (client_filter is None or f.startswith(client_filter))]
     if zip_files:
         log_message(f"  {csm_name}: Found {len(zip_files)} ZIP file(s)", log_file)
+    else:
+        log_message(f"  {csm_name}: No ODD ZIP files found in {src_directory}", log_file)
 
     for item in zip_files:
         item_path = os.path.join(src_directory, item)
@@ -170,8 +193,148 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
     return success_count, error_count
 
 
+# ─── EXTRA FILE GATHERING ──────────────────────────────────────────────
+
+def gather_trans_files(src_directory, output_directory, client_filter=None, log_file=None):
+    """Copy transaction files from CSM data dump into per-client output folders.
+
+    Looks for .txt and .csv files containing 'trans' or 'tran' in the name.
+    Matches client ID from the start of the filename.
+    """
+    if not os.path.exists(src_directory):
+        return 0, 0
+
+    # Find transaction files
+    trans_patterns = ['trans', 'tran', 'transaction']
+    trans_files = []
+    for f in os.listdir(src_directory):
+        if os.path.isdir(os.path.join(src_directory, f)):
+            continue
+        f_lower = f.lower()
+        if any(p in f_lower for p in trans_patterns) and f_lower.endswith(('.txt', '.csv')):
+            client_match = re.match(r'^(\d+)', f)
+            if client_match:
+                cid = client_match.group(1)
+                if client_filter is None or cid == client_filter:
+                    trans_files.append((cid, f))
+
+    if not trans_files:
+        log_message(f"    No transaction files found", log_file)
+        return 0, 0
+
+    success = 0
+    errors = 0
+    for client_id, filename in trans_files:
+        try:
+            src_path = os.path.join(src_directory, filename)
+            dest_dir = os.path.join(output_directory, client_id)
+            os.makedirs(dest_dir, exist_ok=True)
+            dest_path = os.path.join(dest_dir, filename)
+
+            if os.path.exists(dest_path):
+                log_message(f"    Trans: {filename} -- already exists, skipping", log_file)
+                continue
+
+            shutil.copy2(src_path, dest_path)
+            log_message(f"    Trans: {filename} -> {dest_dir}", log_file)
+            success += 1
+        except Exception as e:
+            log_message(f"    Trans ERROR: {filename}: {e}", log_file)
+            errors += 1
+
+    return success, errors
+
+
+def gather_deferred_files(client_ids, deferred_base, output_directory, log_file=None):
+    """Copy deferred revenue files for each client.
+
+    Looks in: {deferred_base}/{client_id}*/ARS deferred billing/
+    For files containing 'deferred' in the name.
+    """
+    if not deferred_base or not os.path.exists(deferred_base):
+        log_message(f"    Deferred base not found: {deferred_base}", log_file)
+        return 0, 0
+
+    success = 0
+    errors = 0
+    for client_id in client_ids:
+        try:
+            # Find client folder (format: #### Client Name)
+            client_folders = [f for f in os.listdir(deferred_base) if f.startswith(client_id)]
+            if not client_folders:
+                continue
+
+            deferred_path = os.path.join(deferred_base, client_folders[0], "ARS deferred billing")
+            if not os.path.exists(deferred_path):
+                continue
+
+            deferred_files = [f for f in os.listdir(deferred_path)
+                              if 'deferred' in f.lower() and f.endswith(('.xlsx', '.xls'))]
+            if not deferred_files:
+                continue
+
+            dest_dir = os.path.join(output_directory, client_id)
+            os.makedirs(dest_dir, exist_ok=True)
+            src_file = os.path.join(deferred_path, deferred_files[0])
+            dest_file = os.path.join(dest_dir, deferred_files[0])
+
+            if os.path.exists(dest_file):
+                log_message(f"    Deferred: {client_id} -- already exists, skipping", log_file)
+                continue
+
+            shutil.copy2(src_file, dest_file)
+            log_message(f"    Deferred: {deferred_files[0]} -> {dest_dir}", log_file)
+            success += 1
+        except Exception as e:
+            log_message(f"    Deferred ERROR {client_id}: {e}", log_file)
+            errors += 1
+
+    return success, errors
+
+
+def gather_workbook_files(client_ids, workbook_base, csm_folder_name, month, output_directory, log_file=None):
+    """Copy workbook files from R: drive for each client.
+
+    Looks in: {workbook_base}/{month}/{csm_folder_name}/
+    For files matching: {client_id}-*workbook*.xlsx
+    """
+    workbook_source = os.path.join(workbook_base, month, csm_folder_name)
+    if not os.path.exists(workbook_source):
+        log_message(f"    Workbook source not found: {workbook_source}", log_file)
+        return 0, 0
+
+    success = 0
+    errors = 0
+    for client_id in client_ids:
+        try:
+            workbook_files = [f for f in os.listdir(workbook_source)
+                              if f.startswith(f"{client_id}-") and 'workbook' in f.lower() and f.endswith('.xlsx')]
+            if not workbook_files:
+                continue
+
+            dest_dir = os.path.join(output_directory, client_id)
+            os.makedirs(dest_dir, exist_ok=True)
+            src_file = os.path.join(workbook_source, workbook_files[0])
+            dest_file = os.path.join(dest_dir, workbook_files[0])
+
+            if os.path.exists(dest_file):
+                log_message(f"    Workbook: {client_id} -- already exists, skipping", log_file)
+                continue
+
+            shutil.copy2(src_file, dest_file)
+            log_message(f"    Workbook: {workbook_files[0]} -> {dest_dir}", log_file)
+            success += 1
+        except Exception as e:
+            log_message(f"    Workbook ERROR {client_id}: {e}", log_file)
+            errors += 1
+
+    return success, errors
+
+
+# ─── MAIN ──────────────────────────────────────────────────────────────
+
 def main():
-    parser = argparse.ArgumentParser(description="Step 1: Format ODD files")
+    parser = argparse.ArgumentParser(description="Step 1: Format ODD files and gather supporting files")
     parser.add_argument("--month", type=str, default=None,
                         help="Target month in YYYY.MM format (default: current month)")
     parser.add_argument("--csm", type=str, default=None,
@@ -182,9 +345,23 @@ def main():
                         help="Re-process even if output already exists")
     parser.add_argument("--config", type=str, default=None,
                         help="Path to ars_config.json")
+    parser.add_argument("--with-trans", action="store_true",
+                        help="Also copy transaction files from data dump into client folders")
+    parser.add_argument("--with-deferred", action="store_true",
+                        help="Also copy deferred revenue files into client folders")
+    parser.add_argument("--with-workbook", action="store_true",
+                        help="Also copy workbook files from R: drive into client folders")
+    parser.add_argument("--with-all", action="store_true",
+                        help="Gather all extra files (trans + deferred + workbook)")
     args = parser.parse_args()
 
     month = args.month or datetime.now().strftime("%Y.%m")
+
+    # Shortcut: --with-all enables all three
+    if args.with_all:
+        args.with_trans = True
+        args.with_deferred = True
+        args.with_workbook = True
 
     print()
     print("=" * 70)
@@ -194,11 +371,21 @@ def main():
         print(f"  CSM:    {args.csm}")
     if args.client:
         print(f"  Client: {args.client}")
+    extras = []
+    if args.with_trans:
+        extras.append("trans")
+    if args.with_deferred:
+        extras.append("deferred")
+    if args.with_workbook:
+        extras.append("workbook")
+    if extras:
+        print(f"  Extras: {', '.join(extras)}")
     print("=" * 70)
     print()
 
     # Load settings
     settings = load_settings(args.config)
+    ars_config = load_ars_config()
 
     # Staging: 01-Data-Ready for Formatting (raw files land here)
     staging_base = settings.paths.retrieve_dir
@@ -232,6 +419,13 @@ def main():
     total_success = 0
     total_errors = 0
 
+    # Load clients config for extra file gathering
+    clients_config = {}
+    if args.with_deferred or args.with_workbook:
+        config_path = Path(__file__).resolve().parent.parent / "03_Config" / "clients_config.json"
+        if config_path.exists():
+            clients_config = json.loads(config_path.read_text(encoding="utf-8"))
+
     for csm_name, csm_source in active_csms.items():
         # Source: CSM's M: drive folder with the month subfolder
         src = Path(csm_source) / month
@@ -248,6 +442,34 @@ def main():
         success, errors = process_csm(csm_name, str(src), str(staging), str(output), log_file, args.client, args.force)
         total_success += success
         total_errors += errors
+
+        # ─── EXTRA FILE GATHERING ───
+        output_str = str(output)
+
+        if args.with_trans and src.exists():
+            log_message(f"  {csm_name}: Gathering transaction files...", log_file)
+            t_ok, t_err = gather_trans_files(str(src), output_str, args.client, log_file)
+            log_message(f"    Trans: {t_ok} copied, {t_err} errors", log_file)
+
+        if args.with_deferred:
+            extra_cfg = ars_config.get("extra_files", {})
+            deferred_base = extra_cfg.get("deferred_base", "")
+            if deferred_base:
+                client_ids = [args.client] if args.client else list(clients_config.keys())
+                log_message(f"  {csm_name}: Gathering deferred files...", log_file)
+                d_ok, d_err = gather_deferred_files(client_ids, deferred_base, output_str, log_file)
+                log_message(f"    Deferred: {d_ok} copied, {d_err} errors", log_file)
+
+        if args.with_workbook:
+            extra_cfg = ars_config.get("extra_files", {})
+            workbook_base = extra_cfg.get("workbook_base", "")
+            csm_folder_map = extra_cfg.get("workbook_csm_folder", {})
+            csm_folder_name = csm_folder_map.get(csm_name, csm_name)
+            if workbook_base:
+                client_ids = [args.client] if args.client else list(clients_config.keys())
+                log_message(f"  {csm_name}: Gathering workbook files...", log_file)
+                w_ok, w_err = gather_workbook_files(client_ids, workbook_base, csm_folder_name, month, output_str, log_file)
+                log_message(f"    Workbooks: {w_ok} copied, {w_err} errors", log_file)
 
     # Summary
     print()

@@ -4,12 +4,12 @@
         "retrieve_dir": "00_Formatting\\01-Data-Ready for Formatting",
         "watch_root": "00_Formatting\\02-Data-Ready for Analysis",
         "incoming_dir": "00_Formatting",
-        "presentations_dir": "Presentations\\Presentation Excels",
-        "archive_dir": "Presentations\\Presentation Excels\\Archive",
-        "config_dir": "Config",
-        "log_dir": "Logs",
-        "template_path": "Presentations\\2025-CSI-PPT-Template.pptx",
-        "tracker_path": "Config\\run_tracker.json"
+        "presentations_dir": "02_Presentations",
+        "archive_dir": "02_Presentations\\Archive",
+        "config_dir": "03_Config",
+        "log_dir": "04_Logs",
+        "template_path": "02_Presentations\\2025-CSI-PPT-Template.pptx",
+        "tracker_path": "03_Config\\run_tracker.json"
     },
     "csm_sources": {
         "sources": {
@@ -21,6 +21,18 @@
             "Max": "M:\\Max\\OD Data Dumps"
         }
     },
+    "extra_files": {
+        "deferred_base": "M:\\My Rewards Logistics\\Financial Industry\\Rewards ARS Clients (Banks & Credit Unions)",
+        "workbook_base": "R:",
+        "workbook_csm_folder": {
+            "JamesG": "James Gilmore",
+            "Jordan": "Jordan",
+            "Aaron": "Aaron",
+            "Gregg": "Gregg",
+            "Dan": "Dan",
+            "Max": "Max"
+        }
+    },
     "pipeline": {
         "skip_pptx": false,
         "skip_excel_archive": false,
@@ -30,7 +42,7 @@
     },
     "logging": {
         "level": "INFO",
-        "log_dir": "Logs",
+        "log_dir": "04_Logs",
         "rotation": "10 MB",
         "retention_days": 30
     }
