@@ -79,10 +79,16 @@ def build_sample_deck(ctx: PipelineContext, section_filter: str | None = None) -
         return None
 
     sections = _group_by_section(ctx.all_slides)
-    _ctx_results = ctx.results if ctx else {}
+    _ctx_results = getattr(ctx, 'results', {}) or {}
 
-    client_name = ctx.client.client_name
-    month = ctx.client.month
+    # Handle both shared context (client_name attr) and ARS context (client.client_name)
+    client_name = getattr(ctx, 'client_name', None) or getattr(getattr(ctx, 'client', None), 'client_name', 'Unknown')
+    _month_raw = getattr(ctx, 'analysis_date', None)
+    if _month_raw:
+        month = _month_raw.strftime("%Y.%m")
+    else:
+        month = getattr(getattr(ctx, 'client', None), 'month', '')
+
     try:
         month_num = int(month.split(".")[1]) if "." in month else 1
         year = month.split(".")[0] if "." in month else ""
@@ -169,11 +175,25 @@ def build_sample_deck(ctx: PipelineContext, section_filter: str | None = None) -
                     sc.title = _stamp_title(sc.title, "other", i, len(other), result)
                     all_slides.append(sc)
 
-    # Build PPTX
-    output_dir = ctx.paths.pptx_dir
+    # Build PPTX -- handle both ARS internal context and shared context
+    if hasattr(ctx, 'pptx_dir'):
+        output_dir = ctx.pptx_dir
+    elif hasattr(ctx, 'paths') and hasattr(ctx.paths, 'pptx_dir'):
+        output_dir = ctx.paths.pptx_dir
+    else:
+        output_dir = Path(getattr(ctx, 'output_dir', Path('output')))
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Get client ID and month from whichever context type we have
+    _cid = getattr(ctx, 'client_id', None) or getattr(getattr(ctx, 'client', None), 'client_id', 'unknown')
+    _month = getattr(ctx, 'analysis_date', None)
+    if _month:
+        _month = _month.strftime("%Y.%m")
+    else:
+        _month = getattr(getattr(ctx, 'client', None), 'month', 'unknown')
+
     suffix = f"_{section_filter.upper()}" if section_filter else ""
-    output_path = output_dir / f"{ctx.client.client_id}_{ctx.client.month}_SAMPLER{suffix}.pptx"
+    output_path = output_dir / f"{_cid}_{_month}_SAMPLER{suffix}.pptx"
 
     try:
         builder = DeckBuilder(str(template))
