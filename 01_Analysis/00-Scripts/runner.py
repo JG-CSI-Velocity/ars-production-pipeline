@@ -338,6 +338,134 @@ def _convert_results(ars_ctx: Any) -> dict[str, SharedResult]:
     return results
 
 
+def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
+    """Run TXN analysis via TXN section wrappers.
+
+    Discovers all TXN section folders, executes their scripts in a shared
+    namespace, captures charts, and appends results to ctx.all_slides.
+    """
+    from ars_analysis.analytics.txn_wrapper import discover_txn_sections
+    from ars_analysis.pipeline.context import (
+        ClientInfo,
+        OutputPaths,
+    )
+    from ars_analysis.pipeline.context import (
+        PipelineContext as ARSContext,
+    )
+
+    ccfg = _load_client_config({**(ctx.client_config or {}), "client_id": ctx.client_id})
+    month = ctx.analysis_date.strftime("%Y.%m") if ctx.analysis_date else ""
+
+    client_info = ClientInfo(
+        client_id=ctx.client_id,
+        client_name=ctx.client_name or ctx.client_id,
+        month=month,
+        assigned_csm=ctx.csm,
+        eligible_stat_codes=_ensure_list(ccfg.get("EligibleStatusCodes", [])),
+        eligible_prod_codes=_ensure_list(ccfg.get("EligibleProductCodes", [])),
+        eligible_mailable=_ensure_list(ccfg.get("EligibleMailCode", [])),
+        nsf_od_fee=_safe_float(ccfg.get("NSF_OD_Fee", 0)),
+        ic_rate=_safe_float(ccfg.get("ICRate", 0)),
+        dc_indicator=ccfg.get("DCIndicator", "DC Indicator"),
+        reg_e_opt_in=_ensure_list(ccfg.get("RegEOptInCode", [])),
+        reg_e_column=ccfg.get("RegEColumn", ""),
+        data_start_date=ccfg.get("DataStartDate"),
+    )
+
+    paths = OutputPaths.from_dir(ctx.output_dir)
+
+    ars_ctx = ARSContext(
+        client=client_info,
+        paths=paths,
+        progress_callback=ctx.progress_callback,
+    )
+
+    # Resolve template
+    _tpl = ccfg.get("TemplatePath")
+    if _tpl and Path(_tpl).exists():
+        tpl_path = Path(_tpl)
+    else:
+        tpl_path = _resolve_template_path()
+    _branch_map = ccfg.get("BranchMapping") or ccfg.get("branch_mapping")
+    ars_ctx.settings = SimpleNamespace(
+        paths=SimpleNamespace(template_path=tpl_path) if tpl_path else SimpleNamespace(template_path=None),
+        branch_mapping=_branch_map if isinstance(_branch_map, dict) else None,
+    )
+
+    # Load ODD data if available (TXN scripts may need it)
+    oddd_path = ctx.input_files.get("oddd")
+    if oddd_path and Path(oddd_path).exists():
+        from ars_analysis.pipeline.steps.load import step_load_file
+        step_load_file(ars_ctx, Path(oddd_path))
+
+    if ctx.progress_callback:
+        ctx.progress_callback("Starting TXN analysis...")
+
+    # Discover and run TXN sections
+    wrappers = discover_txn_sections()
+    success_count = 0
+    fail_count = 0
+    total = len(wrappers)
+
+    for i, wrapper in enumerate(wrappers, 1):
+        if ctx.progress_callback:
+            ctx.progress_callback(f"  TXN module {i}/{total}: {wrapper.display_name}")
+
+        errors = wrapper.validate(ars_ctx)
+        if errors:
+            logger.warning("TXN section %s skipped: %s", wrapper.section_name, errors)
+            fail_count += 1
+            continue
+
+        try:
+            results = wrapper.run(ars_ctx)
+            ars_ctx.results[wrapper.module_id] = results
+            ars_ctx.all_slides.extend(results)
+            success_count += 1
+            logger.info("TXN section %s: %d slides", wrapper.section_name, len(results))
+        except Exception as exc:
+            logger.error("TXN section %s failed: %s", wrapper.section_name, exc)
+            fail_count += 1
+
+    if ctx.progress_callback:
+        ctx.progress_callback(
+            f"TXN complete: {success_count} sections OK, {fail_count} failed, "
+            f"{len(ars_ctx.all_slides)} slides"
+        )
+
+    # Generate output (deck + excel) if slides exist
+    if ars_ctx.all_slides:
+        from ars_analysis.pipeline.steps.generate import step_generate
+        step_generate(ars_ctx)
+
+    # Convert back to shared context
+    results = _convert_results(ars_ctx)
+    ctx.results.update(results)
+
+    # Copy all_slides to shared context
+    for slide in ars_ctx.all_slides:
+        if slide not in ctx.all_slides:
+            ctx.all_slides.append(slide)
+
+    return results
+
+
+def run_combined(ctx: SharedContext) -> dict[str, SharedResult]:
+    """Run both ARS and TXN analysis, producing a combined deck."""
+    if ctx.progress_callback:
+        ctx.progress_callback("Running combined ARS + TXN pipeline...")
+
+    # Run ARS first (it handles load/subsets/analyze/generate)
+    ars_results = run_ars(ctx)
+
+    # Run TXN (uses the same loaded data, appends slides)
+    txn_results = run_txn(ctx)
+
+    # Merge results
+    ars_results.update(txn_results)
+    return ars_results
+
+
 def _ensure_list(value: object) -> list[str]:
     """Wrap a scalar string as a single-element list; pass through lists."""
     if isinstance(value, list):

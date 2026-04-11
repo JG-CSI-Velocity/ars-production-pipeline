@@ -124,6 +124,9 @@ def main():
                         help="Path to PPTX template")
     parser.add_argument("--skip-pptx", action="store_true",
                         help="Skip PowerPoint generation (Excel only)")
+    parser.add_argument("--product", type=str, default="ars",
+                        choices=["ars", "txn", "combined"],
+                        help="Analysis product: ars (default), txn (transaction only), combined (both)")
     args = parser.parse_args()
 
     # Resolve fuzzy CSM name early so logs and paths all use the same name
@@ -304,14 +307,27 @@ def main():
 
     ctx.progress_callback = on_progress
 
-    # Run the ARS pipeline
-    from runner import run_ars
+    # Run the pipeline based on --product flag
+    product = args.product
 
-    print("  Starting ARS pipeline...")
-    print()
+    if product == "txn":
+        from runner import run_txn
+        print("  Starting TXN pipeline...")
+        print()
+        runner_fn = run_txn
+    elif product == "combined":
+        from runner import run_combined
+        print("  Starting combined ARS + TXN pipeline...")
+        print()
+        runner_fn = run_combined
+    else:
+        from runner import run_ars
+        print("  Starting ARS pipeline...")
+        print()
+        runner_fn = run_ars
 
     try:
-        results = run_ars(ctx)
+        results = runner_fn(ctx)
 
         # Move PPTX files to 02_Presentations
         import gc
