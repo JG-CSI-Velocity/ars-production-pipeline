@@ -667,6 +667,139 @@ async def download_file(path: str):
     return FileResponse(file_path, filename=file_path.name)
 
 
+# ─── SCHEDULES ──────────────────────────────────────────────────────
+
+SCHEDULES_FILE = ARS_BASE / "03_Config" / "schedules.json"
+
+
+def _load_schedules() -> list[dict]:
+    if SCHEDULES_FILE.exists():
+        return json.loads(SCHEDULES_FILE.read_text(encoding="utf-8"))
+    return []
+
+
+def _save_schedules(schedules: list[dict]):
+    SCHEDULES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SCHEDULES_FILE.write_text(json.dumps(schedules, indent=2), encoding="utf-8")
+
+
+@app.get("/api/schedules")
+async def list_schedules():
+    return _load_schedules()
+
+
+@app.post("/api/schedules")
+async def create_schedule(schedule: dict):
+    schedules = _load_schedules()
+    schedule["id"] = f"sched_{uuid.uuid4().hex[:8]}"
+    schedule["enabled"] = True
+    schedule["created"] = datetime.now().isoformat()
+    schedule["last_run"] = None
+    schedules.append(schedule)
+    _save_schedules(schedules)
+    return schedule
+
+
+@app.delete("/api/schedules/{schedule_id}")
+async def delete_schedule(schedule_id: str):
+    schedules = _load_schedules()
+    schedules = [s for s in schedules if s.get("id") != schedule_id]
+    _save_schedules(schedules)
+    return {"deleted": schedule_id}
+
+
+@app.post("/api/schedules/{schedule_id}/run")
+async def run_schedule_now(schedule_id: str):
+    """Manually trigger a scheduled run."""
+    schedules = _load_schedules()
+    sched = next((s for s in schedules if s.get("id") == schedule_id), None)
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    # Build the run parameters from the schedule
+    month = datetime.now().strftime("%Y.%m")
+    product = sched.get("product", "ars")
+
+    # Trigger the run via the existing /api/run logic
+    run_id = f"{sched['client_id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
+
+    analysis_run = ARS_BASE / "01_Analysis" / "run.py"
+    formatting_run = ARS_BASE / "00_Formatting" / "run.py"
+
+    runs[run_id] = {
+        "status": "running",
+        "client_id": sched["client_id"],
+        "csm": sched["csm"],
+        "month": month,
+        "product": product,
+        "started": datetime.now().isoformat(),
+        "progress": 0,
+        "current_step": f"Scheduled run: {sched['client_id']}",
+        "log": [],
+    }
+
+    def _run():
+        try:
+            # Format first
+            if formatting_run.exists():
+                fmt_cmd = [sys.executable, "-u", str(formatting_run),
+                           "--month", month, "--csm", sched["csm"],
+                           "--client", sched["client_id"]]
+                extras = sched.get("extras", "none")
+                if extras == "trans":
+                    fmt_cmd.append("--with-trans")
+                elif extras == "all":
+                    fmt_cmd.append("--with-all")
+
+                proc = subprocess.Popen(
+                    fmt_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, encoding="utf-8", errors="replace", bufsize=1,
+                    cwd=str(formatting_run.parent),
+                )
+                for line in proc.stdout:
+                    if run_id in runs:
+                        runs[run_id]["log"].append(line.rstrip())
+                proc.wait()
+
+            # Run analysis
+            cmd = [sys.executable, "-u", str(analysis_run),
+                   "--month", month, "--csm", sched["csm"],
+                   "--client", sched["client_id"], "--product", product]
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, encoding="utf-8", errors="replace", bufsize=1,
+                cwd=str(analysis_run.parent),
+            )
+            for line in proc.stdout:
+                if run_id in runs:
+                    runs[run_id]["log"].append(line.rstrip())
+                    runs[run_id]["current_step"] = line.strip()
+                    runs[run_id]["progress"] = min(95, len(runs[run_id]["log"]) * 2)
+            proc.wait()
+
+            if run_id in runs:
+                runs[run_id]["status"] = "complete" if proc.returncode == 0 else "error"
+                runs[run_id]["progress"] = 100 if proc.returncode == 0 else runs[run_id]["progress"]
+                runs[run_id]["finished"] = datetime.now().isoformat()
+
+            # Update schedule last_run
+            schedules = _load_schedules()
+            for s in schedules:
+                if s["id"] == schedule_id:
+                    s["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    break
+            _save_schedules(schedules)
+
+        except Exception as e:
+            if run_id in runs:
+                runs[run_id]["status"] = "error"
+                runs[run_id]["log"].append(f"ERROR: {e}")
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    return {"run_id": run_id}
+
+
 if __name__ == "__main__":
     import socket
 

@@ -283,8 +283,9 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         <li onclick="showPage('generate')">Generate</li>
         <li onclick="showPage('results')">Results</li>
         <li onclick="showPage('history')">History</li>
+        <li onclick="showPage('schedules')">Schedules</li>
     </ul>
-    <div class="h-user">james.gilmore // mar.2026</div>
+    <div class="h-user">james.gilmore</div>
 </header>
 
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
@@ -584,6 +585,69 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             <thead><tr><th>Client</th><th>Product</th><th>Modules</th><th>CSM</th><th>Date</th><th>Duration</th><th>Slides</th><th>Status</th></tr></thead>
             <tbody id="historyBody">
                 <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">Run history will appear here after reports are generated.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══════════════ SCHEDULES ═══════════════ -->
+<div class="page" id="page-schedules">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px;">
+        <div>
+            <div class="page-title">Schedules</div>
+            <div class="page-sub">Set up recurring monthly report generation. Schedules run automatically on the specified day.</div>
+        </div>
+        <button class="btn" onclick="showAddSchedule()">+ New Schedule</button>
+    </div>
+
+    <!-- Add/Edit form (hidden by default) -->
+    <div class="card" id="scheduleForm" style="display:none;margin-bottom:24px;">
+        <div class="card-header">
+            <div class="card-title" id="schedFormTitle">New Schedule</div>
+            <button onclick="hideAddSchedule()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">&times;</button>
+        </div>
+        <div class="config-row" style="margin-bottom:16px;">
+            <div class="config-field"><div class="label">CSM</div>
+                <select class="sel" id="schedCsm"><option value="">Loading...</option></select>
+            </div>
+            <div class="config-field"><div class="label">Client</div>
+                <select class="sel" id="schedClient"><option value="">Loading...</option></select>
+            </div>
+            <div class="config-field"><div class="label">Product</div>
+                <select class="sel" id="schedProduct">
+                    <option value="ars">ARS Full Suite</option>
+                    <option value="txn">Transaction</option>
+                    <option value="combined">Combined (ARS + TXN)</option>
+                </select>
+            </div>
+        </div>
+        <div class="config-row" style="margin-bottom:16px;">
+            <div class="config-field"><div class="label">Run on Day of Month</div>
+                <select class="sel" id="schedDay">
+                    <option value="1">1st</option><option value="5">5th</option>
+                    <option value="10">10th</option><option value="15">15th</option>
+                    <option value="20">20th</option><option value="25">25th</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Include Extras</div>
+                <select class="sel" id="schedExtras">
+                    <option value="none">None</option>
+                    <option value="trans">Transaction files</option>
+                    <option value="all">All (trans + deferred + workbook)</option>
+                </select>
+            </div>
+            <div class="config-field" style="display:flex;align-items:flex-end;">
+                <button class="btn" onclick="saveSchedule()" style="width:100%;">Save Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedules table -->
+    <div class="card">
+        <table class="recent-table">
+            <thead><tr><th>Client</th><th>CSM</th><th>Product</th><th>Day</th><th>Extras</th><th>Last Run</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="schedulesBody">
+                <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">No schedules configured. Click "+ New Schedule" to add one.</td></tr>
             </tbody>
         </table>
     </div>
@@ -1480,6 +1544,111 @@ async function smartRunGen() {
     // No mock fallback -- show real error
     alert('Cannot connect to the pipeline server. Make sure app.py is running.');
 }
+
+// ─── SCHEDULES ───
+function showAddSchedule() {
+    document.getElementById('scheduleForm').style.display = 'block';
+    document.getElementById('schedFormTitle').textContent = 'New Schedule';
+    // Populate CSM dropdown
+    fetch('/api/csms').then(r => r.json()).then(csms => {
+        const sel = document.getElementById('schedCsm');
+        sel.innerHTML = csms.map(c => `<option value="${c}">${c}</option>`).join('');
+    }).catch(() => {});
+    // Populate client dropdown
+    fetch('/api/clients').then(r => r.json()).then(clients => {
+        const sel = document.getElementById('schedClient');
+        sel.innerHTML = clients.map(c => `<option value="${c.id}">${c.id} - ${c.name}</option>`).join('');
+    }).catch(() => {});
+}
+
+function hideAddSchedule() {
+    document.getElementById('scheduleForm').style.display = 'none';
+}
+
+async function saveSchedule() {
+    const sched = {
+        csm: document.getElementById('schedCsm').value,
+        client_id: document.getElementById('schedClient').value,
+        product: document.getElementById('schedProduct').value,
+        day: parseInt(document.getElementById('schedDay').value),
+        extras: document.getElementById('schedExtras').value,
+    };
+    if (!sched.csm || !sched.client_id) {
+        alert('Please select a CSM and client.');
+        return;
+    }
+    try {
+        const resp = await fetch('/api/schedules', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(sched),
+        });
+        if (resp.ok) {
+            hideAddSchedule();
+            loadSchedules();
+        } else {
+            alert('Failed to save schedule.');
+        }
+    } catch(e) {
+        alert('Error saving schedule: ' + e);
+    }
+}
+
+async function deleteSchedule(id) {
+    if (!confirm('Delete this schedule?')) return;
+    try {
+        await fetch(`/api/schedules/${id}`, {method: 'DELETE'});
+        loadSchedules();
+    } catch(e) {}
+}
+
+async function runScheduleNow(id) {
+    try {
+        const resp = await fetch(`/api/schedules/${id}/run`, {method: 'POST'});
+        if (resp.ok) {
+            const {run_id} = await resp.json();
+            alert(`Run started: ${run_id}`);
+            loadSchedules();
+        }
+    } catch(e) {}
+}
+
+async function loadSchedules() {
+    try {
+        const resp = await fetch('/api/schedules');
+        if (!resp.ok) return;
+        const schedules = await resp.json();
+        const tbody = document.getElementById('schedulesBody');
+        if (!schedules.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">No schedules configured. Click "+ New Schedule" to add one.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
+        schedules.forEach(s => {
+            const statusBadge = s.enabled
+                ? '<span class="badge badge-green">Active</span>'
+                : '<span class="badge badge-accent">Paused</span>';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${s.client_id}</strong></td>
+                <td>${s.csm}</td>
+                <td>${s.product.toUpperCase()}</td>
+                <td class="mono">${s.day}${['th','st','nd','rd'][s.day%10>3?0:(s.day%100-s.day%10!=10)*s.day%10] || 'th'}</td>
+                <td>${s.extras || 'none'}</td>
+                <td class="mono">${s.last_run || '--'}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <button onclick="runScheduleNow('${s.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;margin-right:4px;">Run Now</button>
+                    <button onclick="deleteSchedule('${s.id}')" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {}
+}
+
+// Load schedules on page load
+loadSchedules();
 </script>
 </body>
 </html>
