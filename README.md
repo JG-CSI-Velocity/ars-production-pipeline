@@ -82,6 +82,18 @@ Flags:
 ```
 cd M:\ARS\01_Analysis
 python run.py --month 2026.04 --csm JamesG --client 1615
+python run.py --month 2026.04 --csm JamesG --client 1615 --product txn
+python run.py --month 2026.04 --csm JamesG --client 1615 --product combined
+```
+
+Products:
+- `--product ars` -- ARS analysis only (default)
+- `--product txn` -- Transaction analysis only
+- `--product combined` -- Both ARS and TXN in one run
+
+**Format with parallel processing:**
+```
+python run.py --month 2026.04 --parallel 4
 ```
 
 **Run slide sampler (review all slide variants):**
@@ -191,22 +203,41 @@ Per-client settings: IC rates, NSF fees, status codes, product codes, branch map
 | Executive | 5 | KPI scorecard |
 | TXN Setup | 10 | Shared utilities, file config |
 
-**Note:** TXN scripts are merged but not yet wired into the pipeline runner (v2.0 work).
+TXN scripts are wired into the pipeline via `txn_wrapper.py`. Run with `--product txn` or `--product combined`.
+
+## Web UI
+
+Launch with `Start Here.bat`. Six tabs:
+
+| Tab | What it does |
+|-----|-------------|
+| **Dashboard** | KPIs (clients, reports, avg time, success rate), reports by CSM chart, recent runs |
+| **Format** | Select CSM + month + client, format ODD files. Months populated from raw data dumps. |
+| **Generate** | Select product (ARS, TXN, Combined, Deposits), pick client, run analysis + PPTX |
+| **Results** | Browse chart images from completed analysis, download Excel/PPTX |
+| **History** | All runs with duration, slide count, status parsed from log files |
+| **Schedules** | Create recurring monthly schedules per client. Run Now or auto-run on day of month. |
+
+All dropdowns populated dynamically from `ars_config.json` and `clients_config.json`. No hardcoded values.
 
 ## Slide Sampler
 
-The slide sampler generates a review PPTX showing every slide variant the analysis produces, each stamped with metadata:
+Generates one PPTX per section from existing analysis results. Each chart shown in 4 layout options (CUSTOM, CONTENT, TWO_CONTENT, WIDE_TITLE) so you can compare and pick.
 
 ```
-[MAILER 3/33] id:A12.Jan26.Swipes | layout:8 (CUSTOM) | type:screenshot
-```
-
-Use it to review and pick which slides to keep per section, then lock those into the production deck builder.
-
-```
+cd M:\ARS\01_Analysis
 python run_sampler.py --month 2026.04 --csm JamesG --client 1615
 python run_sampler.py --month 2026.04 --csm JamesG --client 1615 --section mailer
+python run_sampler.py --list-sections
 ```
+
+Output: one PPTX per section (`1615_2026.04_SAMPLER_MAILER.pptx`, etc.)
+
+Does NOT re-run analysis. Reads from existing chart PNGs in `01_Completed_Analysis/`.
+
+## Slide Manifest
+
+`SLIDE_MANIFEST.xlsx` -- complete inventory of every slide across all modules. 28 tabs (7 ARS + 18 TXN + Preamble + Layout Reference). Fill in Keep? (Y/N) and Layout Choice columns to define the production deck.
 
 ## Development
 
