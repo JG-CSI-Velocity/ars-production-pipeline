@@ -12,11 +12,11 @@
 - Decimal phases (11.1, 11.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 11: Repo Reset and Cleanup** - Reset local repo to clean GitHub state (a314c50), remove all v1.0 artifacts ✓ 2026-04-10
-- [x] **Phase 12: Folder Structure** - Create 02-05 directories, move config and UI files, mirror M:\ARS\ layout (completed 2026-04-10)
-- [ ] **Phase 13: TXN Merge Batch 1** - Merge first 11 TXN folders (general through transaction_type) with overlap handling
-- [ ] **Phase 14: TXN Merge Batch 2** - Merge remaining 11 TXN folders (product through executive), completing all 22 folders
-- [ ] **Phase 15: Setup Parameterization** - Convert hardcoded client 1776 references to configurable client ID
-- [ ] **Phase 16: Verification** - Confirm existing ARS pipeline works after merge, validate folder-by-folder pull
+- [x] **Phase 12: Folder Structure** - Create 02-05 directories, move config and UI files, mirror M:\ARS\ layout ✓ 2026-04-10
+- [x] **Phase 13: TXN Merge Batch 1** - Merge first 11 TXN folders (general through transaction_type) with overlap handling ✓ 2026-04-11
+- [x] **Phase 14: TXN Merge Batch 2** - Merge remaining 11 TXN folders (product through executive), completing all 22 folders ✓ 2026-04-11
+- [x] **Phase 15: Setup Parameterization** - TXN setup scripts parameterized (CLIENT_ID from env), TXN files separated to TXN Files/{CSM}/{client_id}/, trailing 12-month window ✓ 2026-04-13
+- [ ] **Phase 16: Verification** - Confirm existing ARS pipeline works after merge, validate folder-by-folder pull on work PC
 
 ## Phase Details
 
@@ -99,14 +99,14 @@ Plans:
 Phases execute in numeric order: 11 -> 12 -> 13 -> 14 -> 15 -> 16
 Note: Phase 15 can proceed in parallel with Phase 14 (both depend on Phase 13). Phase 16 depends on both 14 and 15.
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 11. Repo Reset | v1.1 | 1/1 | Complete | 2026-04-10 |
-| 12. Folder Structure | v1.1 | 2/2 | Complete    | 2026-04-10 |
-| 13. TXN Merge Batch 1 | v1.1 | 0/1 | Planning complete | - |
-| 14. TXN Merge Batch 2 | v1.1 | 0/0 | Not started | - |
-| 15. Setup Parameterization | v1.1 | 0/0 | Not started | - |
-| 16. Verification | v1.1 | 0/0 | Not started | - |
+| Phase | Milestone | Status | Completed |
+|-------|-----------|--------|-----------|
+| 11. Repo Reset | v1.1 | Complete | 2026-04-10 |
+| 12. Folder Structure | v1.1 | Complete | 2026-04-10 |
+| 13. TXN Merge Batch 1 | v1.1 | Complete | 2026-04-11 |
+| 14. TXN Merge Batch 2 | v1.1 | Complete | 2026-04-11 |
+| 15. Setup Parameterization | v1.1 | Complete | 2026-04-13 |
+| 16. Verification | v1.1 | Pending -- needs work PC test | - |
 
 ## Backlog
 
