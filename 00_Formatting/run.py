@@ -436,8 +436,11 @@ def main():
     # Output: 02-Data-Ready for Analysis (formatted files go here)
     output_base = settings.paths.watch_root
 
-    # Log file
-    log_dir = output_base / month
+    # Log file -- saved per CSM if filtering, otherwise at month level
+    if args.csm:
+        log_dir = output_base / args.csm / month
+    else:
+        log_dir = output_base / month
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = str(log_dir / "formatting_log.txt")
 

@@ -53,6 +53,8 @@ def step_subsets(ctx: PipelineContext) -> None:
 
     if _stat_col:
         _stat_values = df[_stat_col].astype(str).str.strip()
+        # Strip trailing .0 -- Excel loads numeric stat codes as floats (2.0 instead of 2)
+        _stat_values = _stat_values.str.replace(r'\.0$', '', regex=True)
         _stat_upper = _stat_values.str.upper()
         _unique_stats = _stat_values.value_counts().head(10)
         logger.info(
