@@ -216,11 +216,11 @@ class TXNSectionWrapper(AnalysisModule):
             setup_dir = self.section_dir.parent / "txn_setup"
             if setup_dir.exists() and "_txn_setup_done" not in namespace:
                 logger.info("  Running txn_setup...")
-                _execute_scripts(setup_dir, namespace, ctx.paths.chart_dir, "txn_setup")
+                _execute_scripts(setup_dir, namespace, ctx.paths.charts_dir, "txn_setup")
                 namespace["_txn_setup_done"] = True
 
         # Run section scripts
-        chart_dir = ctx.paths.chart_dir / self.section_name
+        chart_dir = ctx.paths.charts_dir / self.section_name
         charts = _execute_scripts(self.section_dir, namespace, chart_dir, self.section_name)
 
         # Convert captured charts to AnalysisResult objects
@@ -342,7 +342,7 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
         return namespace
 
     logger.info("Running txn_setup once for all sections...")
-    _execute_scripts(setup_dir, namespace, ctx.paths.chart_dir, "txn_setup")
+    _execute_scripts(setup_dir, namespace, ctx.paths.charts_dir, "txn_setup")
     namespace["_txn_setup_done"] = True
 
     # Optimize memory after the heavy data loading
