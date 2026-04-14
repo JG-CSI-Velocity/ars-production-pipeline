@@ -301,10 +301,15 @@ def main():
     # Build the shared PipelineContext
     from shared.context import PipelineContext
 
+    # Parse month arg into a date for the pipeline context
+    _month_parts = month.split(".")
+    _analysis_date = datetime(int(_month_parts[0]), int(_month_parts[1]), 1).date()
+
     ctx = PipelineContext(
         client_id=client_id,
         client_name=client_name,
         csm=csm_name,
+        analysis_date=_analysis_date,
         output_dir=output_dir,
         input_files={"oddd": str(odd_path)},
         client_config={
