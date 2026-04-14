@@ -304,7 +304,7 @@ def main():
     ctx = PipelineContext(
         client_id=client_id,
         client_name=client_name,
-        csm="",
+        csm=csm_name,
         output_dir=output_dir,
         input_files={"oddd": str(odd_path)},
         client_config={
