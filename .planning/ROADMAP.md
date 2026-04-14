@@ -116,7 +116,7 @@ v1.1 → v2.0: 17 -> 18 (slide refinement is iterative, section by section)
 ---
 
 ### Phase 17: End-to-End Orchestration & Scheduling
-**Goal:** Single-command or single-button pipeline that chains formatting -> analysis (ARS + TXN) -> PowerPoint generation for one client/month. Include scheduling support so CSMs can set up recurring runs (e.g., monthly auto-generate for their clients). Also: cache API responses (CSM list, months, clients) so UI loads instantly instead of scanning M: drive on every request -- critical for remote/slow connections.
+**Goal:** Single-command or single-button pipeline that chains formatting -> analysis (ARS + TXN) -> PowerPoint generation for one client/month. Include scheduling support so CSMs can set up recurring runs (e.g., monthly auto-generate for their clients). Also: cache API responses (CSM list, months, clients) so UI loads instantly instead of scanning M: drive on every request -- critical for remote/slow connections. UI improvements: split-panel log view (full log on left, errors-only on right with copy button), emergency stop button for running jobs.
 **Depends on:** Phase 16
 **Requirements:** TBD
 **Plans:** TBD
