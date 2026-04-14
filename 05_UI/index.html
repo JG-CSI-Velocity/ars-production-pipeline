@@ -474,7 +474,7 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                 <div class="run-what" id="gRunWhat">Select a client and product</div>
                 <div class="run-meta" id="gRunMeta">--</div>
             </div>
-            <button class="btn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
+            <button class="btn" id="genRunBtn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
         </div>
 
         <div class="grid-4" style="margin-bottom: 0;">
@@ -967,6 +967,13 @@ async function runGenReal() {
         return;
     }
 
+    // Disable button immediately -- prevent duplicate clicks
+    const runBtn = document.getElementById('genRunBtn');
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running...';
+    runBtn.style.opacity = '0.6';
+    runBtn.style.cursor = 'not-allowed';
+
     // Show progress immediately
     const prog = document.getElementById('gProg');
     prog.classList.add('visible');
@@ -1025,6 +1032,11 @@ async function runGenReal() {
                 if (run.status === 'complete' || run.status === 'error') {
                     clearInterval(pollInterval);
                     bar.style.width = '100%';
+                    // Re-enable the run button
+                    runBtn.disabled = false;
+                    runBtn.textContent = 'Format + Analyze + Build PPTX';
+                    runBtn.style.opacity = '';
+                    runBtn.style.cursor = '';
                     if (run.status === 'complete') {
                         st.textContent = 'Complete';
                         bar.style.background = 'var(--accent)';
@@ -1046,6 +1058,11 @@ async function runGenReal() {
         errLine.style.color = '#EB2A2E';
         errLine.textContent = 'ERROR: ' + e.message;
         log.appendChild(errLine);
+        // Re-enable the run button on error
+        runBtn.disabled = false;
+        runBtn.textContent = 'Format + Analyze + Build PPTX';
+        runBtn.style.opacity = '';
+        runBtn.style.cursor = '';
     }
 }
 
