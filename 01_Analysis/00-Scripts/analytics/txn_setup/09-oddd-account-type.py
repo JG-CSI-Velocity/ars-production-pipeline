@@ -115,15 +115,23 @@ else:
 
 # ===========================================================================
 # SAVE PARQUET CACHE (speeds up subsequent runs from ~25 min to ~10 sec)
+# Saves in a background thread so it doesn't block the analysis from starting.
 # ===========================================================================
 if not SKIP_COMBINE:
-    try:
-        print(f"\nSaving Parquet cache for next run...")
-        combined_df.to_parquet(PARQUET_CACHE, index=False, engine='pyarrow')
-        _cache_mb = PARQUET_CACHE.stat().st_size / 1024 / 1024
-        print(f"  Saved: {PARQUET_CACHE.name} ({_cache_mb:.0f} MB)")
-        print(f"  Next run will load from cache instead of reading {len(files_to_load)} files")
-    except Exception as _e:
-        print(f"  WARNING: Could not save Parquet cache: {_e}")
-        print(f"  (Not fatal -- next run will rebuild from source files)")
+    import threading
+
+    def _save_cache():
+        try:
+            # Save to local temp first (fast), then move to network
+            _tmp = Path(tempfile.mktemp(suffix='.parquet'))
+            combined_df.to_parquet(_tmp, index=False, engine='pyarrow')
+            shutil.move(str(_tmp), str(PARQUET_CACHE))
+            _cache_mb = PARQUET_CACHE.stat().st_size / 1024 / 1024
+            print(f"  Parquet cache saved: {PARQUET_CACHE.name} ({_cache_mb:.0f} MB)")
+        except Exception as _e:
+            print(f"  WARNING: Could not save Parquet cache: {_e}")
+
+    print(f"\nSaving Parquet cache in background (analysis continues)...")
+    _cache_thread = threading.Thread(target=_save_cache, daemon=True)
+    _cache_thread.start()
 
