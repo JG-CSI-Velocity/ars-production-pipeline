@@ -5,6 +5,7 @@
 - (completed) **v1.0 Framework** - Phases 1-10 (shipped 2026-04-10, then reverted)
 - (active) **v1.1 TXN Merge** - Phases 11-16 (15/19 requirements complete, verification pending)
 - (planned) **v2.0 Production Polish** - Phases 17-18 (E2E orchestration + slide layout refinement)
+- (planned) **v3.0 Automation** - Phase 19+ (overnight formatting sweep, CSM whitelist rollout)
 
 ## Phases
 
@@ -110,6 +111,7 @@ v1.1 → v2.0: 17 -> 18 (slide refinement is iterative, section by section)
 | 16. Verification | v1.1 | Pending -- needs work PC test | - |
 | 17. E2E Orchestration | v2.0 | Not started | - |
 | 18. Slide Layout Refinement | v2.0 | Not started | - |
+| 19. Overnight Formatting Sweep | v3.0 | Not started | - |
 
 ---
 
@@ -125,13 +127,8 @@ v1.1 → v2.0: 17 -> 18 (slide refinement is iterative, section by section)
 **Requirements:** TBD
 **Plans:** TBD
 
-## Backlog
-
-### Phase 999.1: Overnight Formatting Sweep (BACKLOG)
-
+### Phase 19: Overnight Formatting Sweep
 **Goal:** Background thread in app.py that auto-runs formatting on the 7th, 9th, and 11th of each month at midnight. Processes all CSMs/clients that haven't been formatted yet this month -- skips what's already done. Includes TXN file gathering. Start with a whitelist of CSMs (opt-in) before enabling for everyone.
+**Depends on:** Phase 17
 **Requirements:** TBD
 **Plans:** TBD
-
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
