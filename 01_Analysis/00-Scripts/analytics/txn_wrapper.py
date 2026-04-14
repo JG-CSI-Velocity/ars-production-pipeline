@@ -268,9 +268,19 @@ def _build_namespace(ctx: PipelineContext) -> dict[str, Any]:
             else:
                 print(a)
 
+    from collections import OrderedDict
+    from matplotlib.colors import LinearSegmentedColormap
     from matplotlib.gridspec import GridSpec
+    from matplotlib.patches import FancyBboxPatch
+    import matplotlib.dates as mdates
+    import matplotlib.patheffects as pe
+    import matplotlib.ticker as mticker
+    import re as _re
+    import json as _json
+    import gc as _gc
     import seaborn as sns
     import warnings
+    import time as _time
     warnings.filterwarnings('ignore')
 
     ns: dict[str, Any] = {
@@ -280,6 +290,16 @@ def _build_namespace(ctx: PipelineContext) -> dict[str, Any]:
         "plt": plt,
         "sns": sns,
         "GridSpec": GridSpec,
+        "FancyBboxPatch": FancyBboxPatch,
+        "LinearSegmentedColormap": LinearSegmentedColormap,
+        "OrderedDict": OrderedDict,
+        "mdates": mdates,
+        "pe": pe,
+        "mticker": mticker,
+        "re": _re,
+        "json": _json,
+        "gc": _gc,
+        "time": _time,
         "Path": Path,
         "os": os,
         "sys": sys,
