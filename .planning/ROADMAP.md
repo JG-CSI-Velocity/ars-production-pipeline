@@ -3,7 +3,8 @@
 ## Milestones
 
 - (completed) **v1.0 Framework** - Phases 1-10 (shipped 2026-04-10, then reverted)
-- (active) **v1.1 TXN Merge** - Phases 11-16 (in progress)
+- (active) **v1.1 TXN Merge** - Phases 11-16 (15/19 requirements complete, verification pending)
+- (planned) **v2.0 Production Polish** - Phases 17-18 (E2E orchestration + slide layout refinement)
 
 ## Phases
 
@@ -96,8 +97,8 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 11 -> 12 -> 13 -> 14 -> 15 -> 16
-Note: Phase 15 can proceed in parallel with Phase 14 (both depend on Phase 13). Phase 16 depends on both 14 and 15.
+v1.1: 11 -> 12 -> 13 -> 14 -> 15 -> 16
+v1.1 → v2.0: 17 -> 18 (slide refinement is iterative, section by section)
 
 | Phase | Milestone | Status | Completed |
 |-------|-----------|--------|-----------|
@@ -107,14 +108,19 @@ Note: Phase 15 can proceed in parallel with Phase 14 (both depend on Phase 13). 
 | 14. TXN Merge Batch 2 | v1.1 | Complete | 2026-04-11 |
 | 15. Setup Parameterization | v1.1 | Complete | 2026-04-13 |
 | 16. Verification | v1.1 | Pending -- needs work PC test | - |
+| 17. E2E Orchestration | v2.0 | Not started | - |
+| 18. Slide Layout Refinement | v2.0 | Not started | - |
 
-## Backlog
+---
 
-### Phase 999.1: End-to-End Orchestration & Scheduling (BACKLOG)
-
+### Phase 17: End-to-End Orchestration & Scheduling
 **Goal:** Single-command or single-button pipeline that chains formatting -> analysis (ARS + TXN) -> PowerPoint generation for one client/month. Include scheduling support so CSMs can set up recurring runs (e.g., monthly auto-generate for their clients).
+**Depends on:** Phase 16
 **Requirements:** TBD
-**Plans:** 0 plans
+**Plans:** TBD
 
-Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
+### Phase 18: Slide Layout Refinement (All Sections)
+**Goal:** Go section by section through SLIDE_MANIFEST.xlsx and refine chart sizing, positioning, text, and styling for all slides -- both ARS and TXN. Iterative process with JG review per section.
+**Depends on:** Phase 16
+**Requirements:** TBD
+**Plans:** TBD
