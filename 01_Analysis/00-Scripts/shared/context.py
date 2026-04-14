@@ -52,6 +52,29 @@ class PipelineContext:
     end_date: pd.Timestamp | None = None
     last_12_months: list[str] = field(default_factory=list)
 
+    # --- L12M window (set once, used everywhere) ---
+    # If analysis_date is April 2026, L12M = Apr 2025 through Mar 2026
+    # l12m_start = first day of month 12 months before analysis_date
+    # l12m_end = last day of month before analysis_date
+    l12m_start: pd.Timestamp | None = None
+    l12m_end: pd.Timestamp | None = None
+
+    def compute_l12m_window(self) -> None:
+        """Set l12m_start and l12m_end from analysis_date. Call once at pipeline start."""
+        ref = pd.Timestamp(self.analysis_date)
+        # First day of current month
+        first_of_month = ref.replace(day=1)
+        # L12M end = last day of previous month
+        self.l12m_end = first_of_month - pd.Timedelta(days=1)
+        # L12M start = first day, 12 months back
+        self.l12m_start = (first_of_month - pd.DateOffset(months=12))
+
+    def in_l12m(self, dt_series: pd.Series) -> pd.Series:
+        """Boolean mask: True for dates within the L12M window."""
+        if self.l12m_start is None:
+            self.compute_l12m_window()
+        return (dt_series >= self.l12m_start) & (dt_series <= self.l12m_end)
+
     # --- Results ---
     results: dict[str, AnalysisResult] = field(default_factory=dict)
     all_slides: list[dict[str, Any]] = field(default_factory=list)

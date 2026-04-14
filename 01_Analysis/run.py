@@ -318,6 +318,11 @@ def main():
         },
     )
 
+    # Compute L12M window once -- used by ARS, TXN, ICS, everything
+    ctx.compute_l12m_window()
+    print(f"  L12M Window: {ctx.l12m_start.strftime('%b %Y')} - {ctx.l12m_end.strftime('%b %Y')}")
+    print()
+
     # Progress callback with elapsed time
     import time as _time_mod
     _run_start = _time_mod.time()

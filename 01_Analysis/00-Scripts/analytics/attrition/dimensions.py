@@ -44,28 +44,42 @@ from ars_analysis.pipeline.context import PipelineContext
 # ---------------------------------------------------------------------------
 
 
+def _apply_branch_map(df: pd.DataFrame, bmap: dict) -> pd.DataFrame:
+    """Apply branch mapping to a DataFrame with a Branch column."""
+    if bmap and "Branch" in df.columns:
+        df = df.copy()
+        df["Branch"] = df["Branch"].astype(str).map(lambda b: bmap.get(b, b))
+    return df
+
+
 def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
-    """Attrition rates by branch."""
-    all_data, _, closed = prepare_attrition_data(ctx)
+    """L12M attrition rates by branch (annual attrition rate)."""
+    all_data, open_accts, closed = prepare_attrition_data(ctx)
     if closed.empty or "Branch" not in all_data.columns:
         return [
             AnalysisResult(
                 slide_id="A9.4",
-                title="Attrition by Branch",
+                title="L12M Attrition by Branch",
                 success=False,
                 error="No closed accounts or no Branch column",
             )
         ]
 
     bmap = getattr(ctx.settings, "branch_mapping", None) or {}
-    if bmap:
-        all_data = all_data.copy()
-        all_data["Branch"] = all_data["Branch"].astype(str).map(lambda b: bmap.get(b, b))
-        closed = closed.copy()
-        closed["Branch"] = closed["Branch"].astype(str).map(lambda b: bmap.get(b, b))
 
-    total_by = all_data.groupby("Branch").size()
-    closed_by = closed.groupby("Branch").size()
+    # Use the system-wide L12M window
+    ctx.compute_l12m_window()
+    l12m_closed = closed[ctx.in_l12m(closed["Date Closed"])].copy()
+
+    # Denominator: accounts open at start of L12M window
+    # Approximation: currently open + closed in L12M
+    l12m_base = pd.concat([open_accts, l12m_closed], ignore_index=True)
+
+    l12m_base = _apply_branch_map(l12m_base, bmap)
+    l12m_closed = _apply_branch_map(l12m_closed, bmap)
+
+    total_by = l12m_base.groupby("Branch").size()
+    closed_by = l12m_closed.groupby("Branch").size()
     branch_df = (
         pd.DataFrame(
             {"Total": total_by, "Closed": closed_by},
@@ -110,8 +124,9 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
                 va="center",
                 fontsize=DATA_LABEL_SIZE - 4,
             )
+        _l12m_label = f"{ctx.l12m_start.strftime('%b %Y')} - {ctx.l12m_end.strftime('%b %Y')}"
         ax.set_title(
-            "Attrition Rate by Branch",
+            f"L12M Attrition Rate by Branch\n({_l12m_label})",
             fontsize=24,
             fontweight="bold",
             pad=15,
@@ -125,7 +140,7 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
         ax.text(
             0.98,
             0.95,
-            f"Overall: {overall_rate:.1%}",
+            f"L12M Overall: {overall_rate:.1%}",
             transform=ax.transAxes,
             ha="right",
             va="top",
@@ -136,16 +151,116 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
         )
         fig.tight_layout()
 
-    ctx.results["attrition_4"] = {"n_branches": len(branch_df)}
+    ctx.results["attrition_4"] = {
+        "n_branches": len(branch_df),
+        "l12m_overall_rate": overall_rate,
+        "l12m_closed": len(l12m_closed),
+    }
 
-    return [
+    results = [
         AnalysisResult(
             slide_id="A9.4",
-            title="Attrition by Branch",
+            title="L12M Attrition by Branch",
             chart_path=save_to,
-            notes=f"{len(branch_df)} branches, avg {overall_rate:.1%}",
+            notes=f"{len(branch_df)} branches, L12M avg {overall_rate:.1%}",
         )
     ]
+
+    # --- A9.4b: First-Year Close Rate by Branch ---
+    # Accounts opened in L12M that also closed in L12M
+    l12m_opened = all_data[ctx.in_l12m(all_data["Date Opened"])].copy()
+    l12m_opened = _apply_branch_map(l12m_opened, bmap)
+
+    if not l12m_opened.empty:
+        l12m_opened_and_closed = l12m_opened[l12m_opened["Date Closed"].notna()].copy()
+
+        opened_by = l12m_opened.groupby("Branch").size()
+        opened_closed_by = l12m_opened_and_closed.groupby("Branch").size() if not l12m_opened_and_closed.empty else pd.Series(dtype=int)
+
+        fy_df = pd.DataFrame({"Opened": opened_by, "Closed": opened_closed_by}).fillna(0).astype(int)
+        fy_df["First-Year Close Rate"] = fy_df["Closed"] / fy_df["Opened"].replace(0, 1)
+        fy_df = fy_df.sort_values("First-Year Close Rate").reset_index()
+        fy_plot = fy_df[fy_df["Opened"] >= 10].copy()
+        if fy_plot.empty:
+            fy_plot = fy_df.copy()
+
+        fy_overall = fy_df["Closed"].sum() / max(fy_df["Opened"].sum(), 1)
+
+        save_fy = ctx.paths.charts_dir / "a9_4b_first_year_close_rate.png"
+        with chart_figure(figsize=(14, 7), save_path=save_fy) as (fig, ax):
+            ax.barh(
+                fy_plot["Branch"].astype(str),
+                fy_plot["First-Year Close Rate"] * 100,
+                color=NEGATIVE,
+                edgecolor=BAR_EDGE,
+                alpha=BAR_ALPHA,
+            )
+            ax.axvline(fy_overall * 100, color=TEAL, ls="--", lw=2, label=f"Average: {fy_overall:.1%}")
+            for i, (rate, ct) in enumerate(zip(fy_plot["First-Year Close Rate"], fy_plot["Opened"])):
+                ax.text(rate * 100 + 0.5, i, f"{rate:.1%} (n={ct:,})", va="center", fontsize=DATA_LABEL_SIZE - 4)
+            ax.set_title(f"First-Year Close Rate by Branch\n(Opened & Closed in {_l12m_label})", fontsize=24, fontweight="bold", pad=15)
+            ax.set_xlabel("Close Rate (%)", fontsize=20)
+            ax.xaxis.set_major_formatter(PCT_FORMATTER)
+            ax.legend(fontsize=16)
+            ax.tick_params(labelsize=TICK_SIZE - 2)
+            ax.grid(axis="x", alpha=0.2, linestyle="--")
+            ax.set_axisbelow(True)
+            fig.tight_layout()
+
+        results.append(AnalysisResult(
+            slide_id="A9.4b",
+            title="First-Year Close Rate by Branch",
+            chart_path=save_fy,
+            notes=f"Overall: {fy_overall:.1%} ({fy_df['Closed'].sum():,} of {fy_df['Opened'].sum():,} new accounts closed)",
+        ))
+
+    # --- A9.4c: First-Year Share by Branch ---
+    # What % of L12M closures are accounts opened in L12M?
+    if not l12m_closed.empty and not l12m_opened.empty:
+        l12m_opened_ids = set(l12m_opened.index)
+        l12m_closed_new = l12m_closed[l12m_closed.index.isin(l12m_opened_ids)].copy()
+
+        closed_by_branch = l12m_closed.groupby("Branch").size()
+        new_closed_by = l12m_closed_new.groupby("Branch").size() if not l12m_closed_new.empty else pd.Series(dtype=int)
+
+        share_df = pd.DataFrame({"All Closed": closed_by_branch, "First-Year Closed": new_closed_by}).fillna(0).astype(int)
+        share_df["First-Year Share"] = share_df["First-Year Closed"] / share_df["All Closed"].replace(0, 1)
+        share_df = share_df.sort_values("First-Year Share").reset_index()
+        share_plot = share_df[share_df["All Closed"] >= 5].copy()
+        if share_plot.empty:
+            share_plot = share_df.copy()
+
+        share_overall = share_df["First-Year Closed"].sum() / max(share_df["All Closed"].sum(), 1)
+
+        save_share = ctx.paths.charts_dir / "a9_4c_first_year_share.png"
+        with chart_figure(figsize=(14, 7), save_path=save_share) as (fig, ax):
+            ax.barh(
+                share_plot["Branch"].astype(str),
+                share_plot["First-Year Share"] * 100,
+                color="#FF9F1C",
+                edgecolor=BAR_EDGE,
+                alpha=BAR_ALPHA,
+            )
+            ax.axvline(share_overall * 100, color=TEAL, ls="--", lw=2, label=f"Average: {share_overall:.1%}")
+            for i, (rate, ct) in enumerate(zip(share_plot["First-Year Share"], share_plot["All Closed"])):
+                ax.text(rate * 100 + 0.5, i, f"{rate:.1%} (n={ct:,})", va="center", fontsize=DATA_LABEL_SIZE - 4)
+            ax.set_title(f"First-Year Share of Closures by Branch\n(New accounts as % of all closures, {_l12m_label})", fontsize=22, fontweight="bold", pad=15)
+            ax.set_xlabel("Share of Closures (%)", fontsize=20)
+            ax.xaxis.set_major_formatter(PCT_FORMATTER)
+            ax.legend(fontsize=16)
+            ax.tick_params(labelsize=TICK_SIZE - 2)
+            ax.grid(axis="x", alpha=0.2, linestyle="--")
+            ax.set_axisbelow(True)
+            fig.tight_layout()
+
+        results.append(AnalysisResult(
+            slide_id="A9.4c",
+            title="First-Year Share of Closures",
+            chart_path=save_share,
+            notes=f"Overall: {share_overall:.1%} of closures are first-year accounts",
+        ))
+
+    return results
 
 
 # ---------------------------------------------------------------------------
