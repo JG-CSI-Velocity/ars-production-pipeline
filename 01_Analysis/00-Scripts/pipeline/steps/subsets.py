@@ -90,21 +90,26 @@ def step_subsets(ctx: PipelineContext) -> None:
         )
 
     if eligible_stats and _stat_col:
+        # Filter from OPEN accounts only -- closed accounts should not inflate
+        # the denominator (e.g., DCTR goes from 80% to 30% if closed are included)
+        _open_df = subs.open_accounts if subs.open_accounts is not None and len(subs.open_accounts) > 0 else df
+        _open_stat = _open_df[_stat_col].astype(str).str.strip().str.replace(r'\.0$', '', regex=True).str.upper()
+
         # Case-insensitive matching: uppercase both config values and data
         _cfg_upper = [s.strip().upper() for s in eligible_stats]
-        mask = _stat_upper.isin(_cfg_upper)
+        mask = _open_stat.isin(_cfg_upper)
         _match_count = mask.sum()
         logger.info(
-            "Eligible stat filter: config={cfg} -> {n:,} matches out of {total:,}",
+            "Eligible stat filter: config={cfg} -> {n:,} matches out of {total:,} open accounts",
             cfg=eligible_stats,
             n=_match_count,
-            total=len(df),
+            total=len(_open_df),
         )
 
-        if eligible_prods and "Product Code" in df.columns:
+        if eligible_prods and "Product Code" in _open_df.columns:
             _prod_upper = [s.strip().upper() for s in eligible_prods]
             # Normalize: numeric values come through as "7.0" from Excel, strip trailing .0
-            _prod_series = df["Product Code"].astype(str).str.strip().str.upper()
+            _prod_series = _open_df["Product Code"].astype(str).str.strip().str.upper()
             _prod_series = _prod_series.str.replace(r'\.0$', '', regex=True)
             _prod_mask = _prod_series.isin(_prod_upper)
             mask = mask & _prod_mask
@@ -116,8 +121,8 @@ def step_subsets(ctx: PipelineContext) -> None:
                 n=mask.sum(),
             )
 
-        subs.eligible_data = df[mask]
-        logger.info("Eligible data: {n:,} rows", n=len(subs.eligible_data))
+        subs.eligible_data = _open_df[mask]
+        logger.info("Eligible data: {n:,} rows (from {o:,} open accounts)", n=len(subs.eligible_data), o=len(_open_df))
 
         # Personal/Business splits
         if "Business?" in df.columns and subs.eligible_data is not None:
