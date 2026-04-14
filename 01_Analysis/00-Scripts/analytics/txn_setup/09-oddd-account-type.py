@@ -127,11 +127,3 @@ if not SKIP_COMBINE:
         print(f"  WARNING: Could not save Parquet cache: {_e}")
         print(f"  (Not fatal -- next run will rebuild from source files)")
 
-# Clean up local temp directory
-if LOCAL_TXN_DIR is not None:
-    try:
-        import shutil
-        shutil.rmtree(LOCAL_TXN_DIR, ignore_errors=True)
-        print(f"  Cleaned up local temp: {LOCAL_TXN_DIR}")
-    except Exception:
-        pass

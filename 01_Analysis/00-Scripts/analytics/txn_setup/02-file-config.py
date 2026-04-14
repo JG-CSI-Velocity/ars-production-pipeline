@@ -192,20 +192,10 @@ if PARQUET_CACHE.exists() and files_to_load:
     else:
         print(f"CACHE MISS: New TXN files detected, rebuilding from source")
 
-# 7) If no cache, copy TXN files to local temp for faster reads
-#    Network share random I/O is brutal -- sequential copy + local read is 5x faster
+# TXN files are read directly from the network share.
+# The Parquet cache (above) is the real speed optimization -- after the first
+# run, subsequent runs load from cache in seconds instead of re-reading.
 LOCAL_TXN_DIR = None
-if USE_PARQUET_CACHE is None and files_to_load:
-    LOCAL_TXN_DIR = Path(tempfile.mkdtemp(prefix="txn_local_"))
-    print(f"Copying {len(files_to_load)} TXN files to local temp for faster reads...")
-    _local_files = []
-    for f in files_to_load:
-        dest = LOCAL_TXN_DIR / f.name
-        shutil.copy2(f, dest)
-        _local_files.append(dest)
-    print(f"  Copied {sum(f.stat().st_size for f in _local_files) / 1024 / 1024:.0f} MB to {LOCAL_TXN_DIR}")
-    # Replace files_to_load with local copies
-    files_to_load = _local_files
 
 # ------------------------------------------------------------
 # Summary output
