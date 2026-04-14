@@ -86,8 +86,8 @@ class ChartCapture:
                 fig.savefig(path, dpi=150, bbox_inches="tight",
                             facecolor="white", edgecolor="none")
                 self.captured.append(path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to save chart {name}: {err}", name=name, err=exc)
         plt.close("all")
 
         # Restore original plt.show
@@ -209,6 +209,15 @@ class TXNSectionWrapper(AnalysisModule):
             # affecting other sections, but large DataFrames (combined_df,
             # rewards_df) are NOT duplicated -- they share the same memory.
             namespace = shared_namespace.copy()
+            # Snapshot DataFrame columns so we can undo in-place mutations.
+            # Some sections add columns (e.g., branch_txn adds 'branch',
+            # general adds 'amount_bracket') which would leak to later sections.
+            import pandas as pd
+            _df_snapshots = {}
+            for _key in ("combined_df", "rewards_df"):
+                _obj = namespace.get(_key)
+                if isinstance(_obj, pd.DataFrame):
+                    _df_snapshots[_key] = list(_obj.columns)
         else:
             # Legacy path: build namespace + run setup per section.
             # Only used if caller doesn't provide shared_namespace.
@@ -222,6 +231,18 @@ class TXNSectionWrapper(AnalysisModule):
         # Run section scripts
         chart_dir = ctx.paths.charts_dir / self.section_name
         charts = _execute_scripts(self.section_dir, namespace, chart_dir, self.section_name)
+
+        # Undo in-place DataFrame mutations from this section.
+        # Sections like branch_txn add columns to the shared combined_df.
+        # Drop them so the next section sees the original schema.
+        if shared_namespace is not None:
+            import pandas as pd
+            for _key, _original_cols in _df_snapshots.items():
+                _obj = shared_namespace.get(_key)
+                if isinstance(_obj, pd.DataFrame):
+                    _added = [c for c in _obj.columns if c not in _original_cols]
+                    if _added:
+                        _obj.drop(columns=_added, inplace=True)
 
         # Convert captured charts to AnalysisResult objects
         results = []

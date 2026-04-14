@@ -18,8 +18,6 @@ if not CLIENT_ID:
         "or pass it via the pipeline runner."
     )
 
-FILE_EXTENSION = 'txt'  # Set to 'txt' or 'csv' based on actual files
-
 # Load client config to validate CLIENT_ID exists
 _config_candidates = [
     Path(__file__).resolve().parents[4] / "03_Config" / "clients_config.json",

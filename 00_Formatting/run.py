@@ -241,6 +241,8 @@ def gather_trans_files(src_directory, txn_output_base, csm_name, client_filter=N
                     continue
                 if client_filter is None or cid == client_filter:
                     trans_files.append((cid, f))
+            else:
+                log_message(f"    Trans SKIPPED (no client ID in filename): {f}", log_file)
 
     if not trans_files:
         log_message(f"    No transaction files found", log_file)
