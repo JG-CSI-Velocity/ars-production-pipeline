@@ -488,11 +488,22 @@ def main():
         # ─── EXTRA FILE GATHERING ───
         output_str = str(output)
 
-        if args.with_trans and src.exists():
+        if args.with_trans:
             log_message(f"  {csm_name}: Gathering transaction files...", log_file)
             txn_base = str(output_base / "TXN Files")
-            t_ok, t_err = gather_trans_files(str(src), txn_base, csm_name, args.client, log_file, clients_config)
-            log_message(f"    Trans: {t_ok} copied, {t_err} errors", log_file)
+            t_ok_total, t_err_total = 0, 0
+            # Search month subfolder (e.g., .../JamesG/OD Data Dumps/2026.04/)
+            if src.exists():
+                t_ok, t_err = gather_trans_files(str(src), txn_base, csm_name, args.client, log_file, clients_config)
+                t_ok_total += t_ok
+                t_err_total += t_err
+            # Also search CSM root (some clients drop TXN files at the top level)
+            csm_root = Path(csm_source)
+            if csm_root.exists() and csm_root != src:
+                t_ok, t_err = gather_trans_files(str(csm_root), txn_base, csm_name, args.client, log_file, clients_config)
+                t_ok_total += t_ok
+                t_err_total += t_err
+            log_message(f"    Trans: {t_ok_total} copied, {t_err_total} errors", log_file)
 
         if args.with_deferred:
             extra_cfg = ars_config.get("extra_files", {})

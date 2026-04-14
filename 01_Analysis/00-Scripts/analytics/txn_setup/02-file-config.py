@@ -70,7 +70,10 @@ else:
                 CSM = csm_dir.name
                 break
     if CLIENT_PATH is None:
-        CLIENT_PATH = TXN_BASE  # will fail gracefully downstream
+        raise FileNotFoundError(
+            f"No TXN folder found for client {CLIENT_ID} under {TXN_BASE}. "
+            f"Run formatting with --with-trans first to copy TXN files."
+        )
 
 # Number of recent months to consider
 RECENT_MONTHS = 13
