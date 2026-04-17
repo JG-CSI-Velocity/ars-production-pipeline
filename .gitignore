@@ -17,6 +17,7 @@ __pycache__/
 !02_Presentations/polish_windows.bat
 !02_Presentations/polish_mac.command
 !02_Presentations/update_polish.bat
+!02_Presentations/update_polish_via_git.bat
 !02_Presentations/decks_to_polish/
 !02_Presentations/polished/
 02_Presentations/tests/fixtures/*

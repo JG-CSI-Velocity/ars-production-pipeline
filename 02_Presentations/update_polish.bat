@@ -11,7 +11,9 @@ REM folder with the new version. Nothing else in M:\ARS\ is
 REM touched.
 REM ============================================================
 
-set ZIP_URL=https://github.com/JG-CSI-Velocity/ars-production-pipeline/releases/latest/download/deck-polish-drop-in.zip
+REM Pinned tag URL (latest/download/ only works for releases on the default branch;
+REM this release is on feature/deck-polish, so we hit the tag URL directly).
+set ZIP_URL=https://github.com/JG-CSI-Velocity/ars-production-pipeline/releases/download/deck-polish-v0.1.0-pre/deck-polish-drop-in.zip
 set TEMP_ZIP=%TEMP%\deck-polish-drop-in.zip
 set TARGET=M:\ARS\
 
@@ -48,7 +50,7 @@ if errorlevel 1 (
 )
 
 echo [3/3] Cleaning up...
-del "%TEMP_ZIP%" >/dev/null 2>&1
+del "%TEMP_ZIP%" >nul 2>&1
 
 echo.
 echo Done. Updated: %TARGET%02_Presentations\
