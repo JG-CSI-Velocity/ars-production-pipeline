@@ -6,7 +6,6 @@ One focal color per chart; everything else muted to MUTED_ALPHA.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 
 from pptx.dml.color import RGBColor
 
@@ -54,3 +53,25 @@ def nearest_palette(
     if best is not None and best_d <= threshold:
         return best
     return None
+
+
+_BY_NAME: dict[str, RGBColor] = {
+    "navy": NAVY, "teal": TEAL, "coral": CORAL, "amber": AMBER,
+    "gray": GRAY, "slate": SLATE, "white": WHITE,
+}
+
+
+def focal(name: str) -> dict[str, RGBColor | list[RGBColor]]:
+    """Return {'focal': <color>, 'muted': [other palette colors]}.
+
+    For charts that emphasize one series: use focal for the highlight,
+    render others in muted with MUTED_ALPHA applied by the caller.
+    """
+    key = name.lower()
+    if key not in _BY_NAME:
+        raise KeyError(f"Unknown palette color: {name}")
+    emphasis = _BY_NAME[key]
+    return {
+        "focal": emphasis,
+        "muted": [c for c in PALETTE if c != emphasis and c != WHITE],
+    }

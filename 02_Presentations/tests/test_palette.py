@@ -50,3 +50,19 @@ def test_nearest_palette_respects_threshold():
     # Exactly 5 away -- within threshold of 5.0
     just_inside = RGBColor(0x1E, 0x39, 0x5D)  # navy with (+3,+3,0) -> d=~4.24
     assert nearest_palette(just_inside) == NAVY
+
+
+from style.palette import focal
+
+
+def test_focal_returns_named_color_with_muted_set():
+    result = focal("teal")
+    assert result["focal"] == TEAL
+    assert NAVY in result["muted"]
+    assert TEAL not in result["muted"]  # focal excluded from muted
+
+
+def test_focal_raises_for_unknown_name():
+    import pytest
+    with pytest.raises(KeyError):
+        focal("chartreuse")
