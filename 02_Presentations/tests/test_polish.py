@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pptx import Presentation
 
-from polish import apply_fixes, audit_deck, write_report
+from polish import apply_fixes, audit_deck, write_diff_report, write_report
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -77,3 +77,15 @@ def test_apply_fixes_snaps_near_palette_color_on_moderately_broken(tmp_path):
                 except AttributeError:
                     pass
     assert found_coral, "Expected near-coral color to snap to exact CORAL"
+
+
+def test_diff_report_shows_before_after_text_per_slide(tmp_path):
+    report_path = tmp_path / "polish_diff.md"
+    write_diff_report(
+        before_path=FIXTURES / "pristine.pptx",
+        after_path=FIXTURES / "pristine.pptx",  # self-compare: no text changes
+        out_path=report_path,
+    )
+    text = report_path.read_text()
+    assert text.startswith("# Polish Diff")
+    assert "Slide 1" in text

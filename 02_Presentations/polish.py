@@ -156,6 +156,40 @@ def write_report(audit: DeckAudit, path: Path) -> None:
     path.write_text("\n".join(lines))
 
 
+def _slide_texts(prs_path: Path) -> list[list[str]]:
+    """Return a list of per-slide lists of text-frame strings."""
+    prs = Presentation(str(prs_path))
+    result: list[list[str]] = []
+    for slide in prs.slides:
+        texts: list[str] = []
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                text = shape.text_frame.text.strip()
+                if text:
+                    texts.append(text)
+        result.append(texts)
+    return result
+
+
+def write_diff_report(before_path: Path, after_path: Path, out_path: Path) -> None:
+    before = _slide_texts(before_path)
+    after = _slide_texts(after_path)
+    lines: list[str] = ["# Polish Diff", ""]
+    for i, (b, a) in enumerate(zip(before, after), start=1):
+        lines.append(f"## Slide {i}")
+        if b == a:
+            lines.append("_(no text changes)_")
+        else:
+            lines.append("**Before:**")
+            for t in b:
+                lines.append(f"- {t}")
+            lines.append("**After:**")
+            for t in a:
+                lines.append(f"- {t}")
+        lines.append("")
+    out_path.write_text("\n".join(lines))
+
+
 MONTSERRAT_FAMILY = ("Montserrat", "Montserrat Regular", "Montserrat Bold",
                      "Montserrat ExtraBold", "Montserrat Medium")
 
@@ -237,6 +271,9 @@ def _process_one(deck_path: Path, out_dir: Path, apply: bool) -> DeckAudit:
             f"Applied: {counts['fonts_fixed']} fonts, "
             f"{counts['colors_snapped']} colors. Wrote {polished_path}"
         )
+        diff_path = out_dir / f"{deck_path.stem}__polish_diff.md"
+        write_diff_report(deck_path, polished_path, diff_path)
+        logger.info(f"Wrote {diff_path}")
 
     return audit
 
