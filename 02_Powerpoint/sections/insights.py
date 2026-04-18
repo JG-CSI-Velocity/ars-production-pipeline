@@ -29,6 +29,8 @@ _LAYOUT_MAP = {
     "A20.3": (LAYOUT_CUSTOM, "screenshot"),
 }
 
+_APPENDIX_IDS = {"S2", "S4", "S5"}
+
 
 def register() -> SectionSpec:
     """Return the Insights section specification."""
@@ -37,4 +39,5 @@ def register() -> SectionSpec:
         label="What Should We Do Next?",
         prefixes=_PREFIXES,
         layout_map=_LAYOUT_MAP,
+        appendix_ids=_APPENDIX_IDS,
     )

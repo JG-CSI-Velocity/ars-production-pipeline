@@ -61,6 +61,16 @@ _APPENDIX_IDS = {
     "A7.9",
     "A7.10b",
     "A7.10c",
+    "DCTR-4",
+    "DCTR-5",
+    "DCTR-6",
+    "DCTR-7",
+    "DCTR-10",
+    "DCTR-11",
+    "DCTR-12",
+    "DCTR-13",
+    "DCTR-15",
+    "DCTR-16",
 }
 
 _SKIP_IDS = {"DCTR-1"}
