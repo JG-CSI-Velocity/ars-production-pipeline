@@ -1,0 +1,12 @@
+<section id="section-{{ section.id }}" class="review-section" data-section="{{ section.id }}">
+  <header class="section-header">
+    <div class="section-eyebrow">{{ section.eyebrow }}</div>
+    <h2 class="section-title">{{ section.title }}</h2>
+    {% if section.lede %}<p class="section-lede">{{ section.lede }}</p>{% endif %}
+  </header>
+  <div class="content-area">
+    {% for block in section.blocks %}
+      {% include 'partials/analysis.html' %}
+    {% endfor %}
+  </div>
+</section>
