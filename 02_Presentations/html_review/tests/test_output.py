@@ -4,6 +4,7 @@ from pathlib import Path
 
 from html_review.builder import build_html
 from html_review.model import ClientMeta
+from html_review.tests.fixtures.representative import SECTIONS, representative
 from html_review.tests.fixtures.tiny_deck import tiny_deck
 
 
@@ -48,3 +49,14 @@ def test_sidebar_lists_sections_in_canonical_order(tmp_path):
     mailer_idx = text.find("#section-mailer")
     assert attrition_idx != -1 and mailer_idx != -1
     assert attrition_idx < mailer_idx
+
+
+def test_representative_all_sections_render(tmp_path):
+    results = representative(tmp_path)
+    client = ClientMeta(id="1615", display_name="Cape & Coast Bank",
+                        month="2026-04", month_display="April 2026",
+                        run_date="2026-04-17")
+    html_path = build_html(results, client, tmp_path / "out", embed_images=True)
+    text = html_path.read_text()
+    for section, _title in SECTIONS:
+        assert f'id="section-{section}"' in text, f"missing section {section}"
