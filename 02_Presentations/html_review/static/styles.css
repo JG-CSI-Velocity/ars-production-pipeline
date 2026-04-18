@@ -515,3 +515,197 @@ kbd {
   background: #eee; padding: 2px 6px; border-radius: 3px;
   font-size: 11px; font-family: monospace;
 }
+
+/* ============================================================
+   PRESENTER MODE
+   Toggled via <body class="presenting">. Hides chrome, renders
+   one slide at a time fullscreen. Arrow keys / Space navigate.
+   ============================================================ */
+
+/* Presenter chrome (progress bar + counter) -- hidden by default */
+.presenter-chrome {
+  display: none;
+  pointer-events: none;
+}
+body.presenting .presenter-chrome {
+  display: block;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  z-index: 200;
+  pointer-events: none;
+}
+.presenter-counter {
+  position: absolute;
+  top: 20px;
+  right: 28px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  background: rgba(255,255,255,0.7);
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--line-soft);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.presenter-progress {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 3px;
+  background: var(--line-soft);
+}
+.presenter-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--teal);
+  transition: width 180ms ease;
+}
+
+/* Cover on the presenter needs a lighter counter pill (dark background) */
+body.presenting .cover-page.is-current-slide ~ .presenter-chrome .presenter-counter,
+body.presenting .cover-page.is-current-slide .presenter-counter {
+  /* unreachable selector -- counter is in separate container */
+}
+
+/* Lock scroll while presenting */
+body.presenting {
+  overflow: hidden;
+}
+body.presenting .shell {
+  min-height: auto;
+}
+
+/* Hide all the UI chrome when presenting */
+body.presenting .sidebar,
+body.presenting .selection-tray,
+body.presenting .select-checkbox {
+  display: none !important;
+}
+
+/* Hide every non-current slide. Default rule hides candidates; current is shown below. */
+body.presenting .cover-page,
+body.presenting .review-section,
+body.presenting .section-header,
+body.presenting .analysis-wrapper {
+  display: none;
+}
+
+/* Review section must stay visible as a container so its descendant header/wrapper can be the current slide */
+body.presenting .review-section { display: block; }
+body.presenting .review-section > .section-header,
+body.presenting .review-section .analysis-wrapper {
+  display: none;
+}
+
+/* Current slide fills the viewport */
+body.presenting .is-current-slide {
+  display: flex !important;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--paper);
+  padding: 64px 96px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  animation: presenterFade 150ms ease forwards;
+}
+
+@keyframes presenterFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Cover slide retains its dark gradient */
+body.presenting .cover-page.is-current-slide {
+  background:
+    radial-gradient(ellipse at 82% 10%, rgba(13,148,136,0.24) 0%, rgba(13,148,136,0) 52%),
+    radial-gradient(ellipse at 0% 110%, rgba(231,67,60,0.08) 0%, rgba(231,67,60,0) 45%),
+    linear-gradient(158deg, #061528 0%, #0F2A4A 55%, #132E50 100%);
+  justify-content: space-between;
+}
+
+/* Section divider as a slide */
+body.presenting .section-header.is-current-slide {
+  border-top: none;
+  padding: 64px 96px;
+}
+body.presenting .section-header.is-current-slide .section-title {
+  font-size: 96px;
+}
+body.presenting .section-header.is-current-slide .section-lede {
+  font-size: 24px;
+  max-width: 720px;
+}
+
+/* Exhibit slide layout -- center the article, size chart to viewport */
+body.presenting .analysis-wrapper.is-current-slide {
+  padding: 48px 72px;
+}
+body.presenting .analysis-wrapper.is-current-slide .analysis {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+body.presenting .analysis-wrapper.is-current-slide .analysis-head {
+  margin: 0 0 24px;
+  text-align: left;
+}
+body.presenting .analysis-wrapper.is-current-slide .analysis-title {
+  font-size: 34px;
+  max-width: none;
+}
+body.presenting .analysis-wrapper.is-current-slide .chart-frame {
+  background: var(--paper-2);
+  border: 1px solid var(--line-soft);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.presenting .analysis-wrapper.is-current-slide .chart {
+  max-height: 70vh;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+body.presenting .analysis-wrapper.is-current-slide .notes {
+  margin-top: 20px;
+  font-size: 17px;
+  max-width: none;
+}
+
+/* Hide data table by default on exhibit slide; revealed under .detail-open */
+body.presenting .analysis-wrapper.is-current-slide .data-table {
+  display: none;
+}
+
+/* Detail view: chart shrinks, data table appears, notes get heavier */
+body.presenting .analysis-wrapper.is-current-slide.detail-open .chart {
+  max-height: 50vh;
+}
+body.presenting .analysis-wrapper.is-current-slide.detail-open .data-table {
+  display: block;
+  margin-top: 20px;
+  padding-top: 14px;
+  max-height: 28vh;
+  overflow: auto;
+}
+body.presenting .analysis-wrapper.is-current-slide.detail-open .notes {
+  font-weight: 500;
+  color: var(--ink);
+}
