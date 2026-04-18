@@ -309,6 +309,8 @@ def _build_html_review(ars_ctx: Any, ctx: SharedContext) -> None:
     the pipeline continues on failure.
     """
     import sys as _sys
+    from dataclasses import dataclass
+    from typing import Any as _Any
 
     from ars_analysis.analytics.base import AnalysisResult as ARSResult
 
@@ -321,11 +323,38 @@ def _build_html_review(ars_ctx: Any, ctx: SharedContext) -> None:
     from html_review.builder import build_html
     from html_review.model import ClientMeta
 
+    @dataclass
+    class _HtmlReviewRow:
+        """Adapter matching html_review's AnalysisResultLike protocol.
+
+        The ARS AnalysisResult does not carry a `section` attribute -- the
+        section is the module_id that keys ars_ctx.results. We bridge that
+        here so the builder can render without touching ARS internals.
+        """
+
+        slide_id: str
+        title: str
+        section: str
+        chart_path: _Any
+        excel_data: _Any
+        notes: str
+
     all_results: list = []
-    for ars_results in ars_ctx.results.values():
-        if isinstance(ars_results, list):
-            all_results.extend(
-                ar for ar in ars_results if isinstance(ar, ARSResult)
+    for module_id, ars_results in ars_ctx.results.items():
+        if not isinstance(ars_results, list):
+            continue
+        for ar in ars_results:
+            if not isinstance(ar, ARSResult):
+                continue
+            all_results.append(
+                _HtmlReviewRow(
+                    slide_id=ar.slide_id,
+                    title=ar.title,
+                    section=str(module_id),
+                    chart_path=ar.chart_path,
+                    excel_data=ar.excel_data,
+                    notes=ar.notes or "",
+                )
             )
 
     if not all_results:
