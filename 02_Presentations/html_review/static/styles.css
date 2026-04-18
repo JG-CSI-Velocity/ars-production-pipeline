@@ -114,3 +114,139 @@ body {
 .sheet-select { margin: 6px 0; font-size: 12px; padding: 4px; }
 
 kbd { background: #eee; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-family: monospace; }
+
+/* ============================================================
+   POLISH — cover page, section dividers, hover checkbox, refined type
+   Added after user feedback: "this looks like a dashboard, where's the design?"
+   ============================================================ */
+
+/* Cover page */
+.cover-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 80px 60px;
+  background: linear-gradient(135deg, #0D2748 0%, #1B365D 60%, #0D9488 140%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+.cover-inner { max-width: 720px; position: relative; z-index: 1; }
+.cover-stripe {
+  width: 64px; height: 6px; background: #0D9488; margin-bottom: 48px;
+}
+.cover-eyebrow {
+  font-family: Montserrat; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.24em; text-transform: uppercase;
+  color: rgba(255,255,255,0.6); margin: 0 0 20px;
+}
+.cover-title {
+  font-family: Montserrat; font-size: 64px; font-weight: 800;
+  line-height: 1.02; letter-spacing: -0.02em;
+  margin: 0 0 20px; color: white;
+}
+.cover-subtitle {
+  font-family: Montserrat; font-size: 22px; font-weight: 400;
+  line-height: 1.35; color: rgba(255,255,255,0.82);
+  margin: 0 0 72px; max-width: 560px;
+}
+.cover-meta {
+  display: flex; gap: 14px; align-items: baseline;
+  padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.15);
+}
+.cover-meta-label {
+  font-family: Montserrat; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+}
+.cover-meta-value {
+  font-family: Montserrat; font-size: 14px; font-weight: 700;
+  letter-spacing: 0.02em; color: white;
+}
+
+/* Section divider — replaces the small section header */
+.section-header {
+  padding: 96px 60px 60px;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+  background: linear-gradient(180deg, #fafafb 0%, var(--bg) 100%);
+}
+.section-eyebrow {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.22em;
+  color: var(--teal); font-weight: 700; margin-bottom: 16px;
+}
+.section-title {
+  font-size: 48px; font-weight: 800; line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px; color: var(--navy);
+}
+.section-lede {
+  font-size: 17px; color: #4A5568; max-width: 640px;
+  line-height: 1.55; font-weight: 400;
+}
+
+/* First section after cover should not have the top border */
+.cover-page + * .section-header,
+.cover-page ~ :first-of-type > .section-header { border-top: none; margin-top: 0; }
+
+/* Refined analysis block */
+.content-area { padding: 40px 60px 80px; display: flex; flex-direction: column; gap: 32px; }
+
+.analysis-wrapper { padding-left: 0; margin: 0; position: relative; }
+.analysis {
+  background: white; border: 1px solid var(--border); border-radius: 12px;
+  padding: 40px 48px; transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.analysis h3 {
+  font-size: 22px; font-weight: 700; line-height: 1.3;
+  letter-spacing: -0.005em;
+  margin: 0 0 24px; color: var(--navy);
+}
+.analysis .chart {
+  width: 100%; max-width: 900px; height: auto; display: block;
+  margin: 0 auto; border-radius: 6px;
+}
+.analysis .notes {
+  margin: 24px auto 0; max-width: 720px; text-align: center;
+  font-size: 13px; color: #5A6474; font-style: italic; line-height: 1.55;
+}
+
+/* Hide checkbox chrome until hovering the analysis or when selected */
+.select-checkbox {
+  position: absolute; top: 20px; right: 20px; left: auto;
+  width: 26px; height: 26px; border-radius: 6px;
+  border: 1.5px solid #d1d5db; background: white;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 120ms ease;
+}
+.analysis-wrapper:hover .select-checkbox,
+.analysis-wrapper.selected .select-checkbox {
+  opacity: 1;
+}
+.analysis-wrapper.selected .analysis {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.08), 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* Data table refined */
+.data-table { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px; }
+.data-table summary {
+  cursor: pointer; font-family: Montserrat; font-size: 11px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.data-table summary:hover { color: var(--navy); }
+
+/* Selection tray refined */
+.selection-tray {
+  padding: 16px 60px; border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.85); backdrop-filter: blur(8px);
+}
+.selection-count { color: var(--navy); font-weight: 600; }
+.action-btn {
+  padding: 10px 18px; font-size: 13px; font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: 8px; transition: all 120ms ease;
+}
+.action-btn.primary { background: var(--navy); }
+.action-btn.primary:hover { background: #0D2748; transform: translateY(-1px); }
