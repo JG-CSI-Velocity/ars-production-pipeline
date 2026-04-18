@@ -6,6 +6,7 @@
   </header>
   <div class="content-area">
     {% for block in section.blocks %}
+      {% set exhibit_number = loop.index %}
       {% include 'partials/analysis.html' %}
     {% endfor %}
   </div>
