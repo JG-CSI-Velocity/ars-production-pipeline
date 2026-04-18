@@ -10,6 +10,8 @@ __pycache__/
 !02_Presentations/__init__.py
 !02_Presentations/polish.py
 !02_Presentations/conftest.py
+!02_Presentations/html_review/
+!02_Presentations/html_review/**
 !02_Presentations/style/
 !02_Presentations/scripts/
 !02_Presentations/tests/
