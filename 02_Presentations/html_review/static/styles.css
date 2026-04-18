@@ -56,61 +56,91 @@ body {
 /* ===== Layout ===== */
 .shell { display: flex; min-height: 100vh; }
 
-/* ---- Sidebar ---- */
+/* ---- Sidebar (Table of Contents) ---- */
 .sidebar {
-  width: 252px; flex-shrink: 0;
+  width: 264px; flex-shrink: 0;
   background: var(--navy-ink);
   color: rgba(255,255,255,0.75);
   position: sticky; top: 0;
   height: 100vh; overflow-y: auto;
-  padding: 36px 0 24px;
+  padding: 44px 0 28px;
   font-family: var(--sans);
 }
 .sidebar-brand {
-  padding: 0 28px 22px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  margin-bottom: 20px;
+  padding: 0 32px 28px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 28px;
+}
+.sidebar-mark {
+  font-size: 9px;
+  letter-spacing: 0.28em; text-transform: uppercase;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+  margin: 0 0 18px;
 }
 .sidebar-brand h1 {
   font-family: var(--serif);
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1.15;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-weight: 400;
+  letter-spacing: -0.015em;
   margin: 0;
   color: #fff;
 }
-.sidebar-brand p {
-  font-size: 11px;
-  margin: 6px 0 0;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-weight: 500;
-  color: rgba(255,255,255,0.5);
+.sidebar-period {
+  font-family: var(--serif);
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 400;
+  margin: 8px 0 0;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0;
+}
+.sidebar-toc-label {
+  padding: 0 32px;
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.26em; text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+  margin: 0 0 14px;
 }
 .sidebar-section {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 11px 28px;
-  color: rgba(255,255,255,0.72);
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  column-gap: 12px; align-items: baseline;
+  padding: 9px 32px;
+  color: rgba(255,255,255,0.68);
   text-decoration: none;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.005em;
-  border-left: 2px solid transparent;
+  border-left: 1px solid transparent;
+  transition: color 140ms ease, background 140ms ease;
 }
-.sidebar-section:hover { background: rgba(255,255,255,0.04); color: #fff; }
-.sidebar-section.active {
-  background: rgba(13,148,136,0.12);
-  border-left-color: var(--teal);
-  color: #fff;
-  font-weight: 600;
-}
-.sidebar-section .count {
-  float: none;
-  font-size: 10px; font-weight: 500;
-  letter-spacing: 0.1em;
+.sidebar-section:hover { color: #fff; background: rgba(255,255,255,0.02); }
+.sidebar-section .num {
+  font-family: var(--serif);
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 400;
   color: rgba(255,255,255,0.35);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.sidebar-section .label {
+  font-family: var(--sans);
+}
+.sidebar-section.active {
+  background: transparent;
+  border-left-color: var(--teal);
+  color: #fff;
+}
+.sidebar-section.active .num { color: var(--teal); font-style: normal; font-weight: 600; }
+.sidebar-section.active .label { font-weight: 500; }
+.sidebar-section .count {
+  font-size: 10px; font-weight: 500;
+  color: rgba(255,255,255,0.3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 
 /* ---- Main column ---- */
@@ -404,32 +434,34 @@ body {
   background: #fff;
 }
 
-/* ===== Selection tray ===== */
+/* ===== Selection tray (ambient) ===== */
 .selection-tray {
   position: sticky; top: 0; z-index: 10;
-  background: rgba(251,250,246,0.88);
-  backdrop-filter: saturate(140%) blur(10px);
-  -webkit-backdrop-filter: saturate(140%) blur(10px);
-  border-bottom: 1px solid var(--line);
-  padding: 16px var(--gutter);
-  display: flex; align-items: center; gap: 16px;
+  background: rgba(246,244,238,0.78);
+  backdrop-filter: saturate(140%) blur(12px);
+  -webkit-backdrop-filter: saturate(140%) blur(12px);
+  border-bottom: 1px solid rgba(229,231,235,0.6);
+  padding: 12px var(--gutter);
+  display: flex; align-items: center; gap: 14px;
 }
 .selection-count {
   display: flex; align-items: center; gap: 10px;
   font-family: var(--sans);
-  font-size: 12px; font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--ink-muted);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
   text-transform: uppercase;
 }
 .selection-count .badge {
-  background: var(--navy);
-  color: #fff;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 11px; font-weight: 700;
+  background: transparent;
+  color: var(--navy);
+  padding: 0;
+  font-family: var(--serif);
+  font-size: 16px; font-weight: 500;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  min-width: 14px; text-align: center;
 }
 .selection-spacer { flex: 1; }
 .action-btn {
