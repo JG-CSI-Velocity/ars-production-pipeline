@@ -35,10 +35,23 @@ def test_print_css_embedded(tmp_path):
     assert "body.exporting" in text
 
 
-def test_no_external_script_or_stylesheet_tags(tmp_path):
+def test_no_external_scripts_and_only_google_fonts_stylesheet(tmp_path):
+    """Scripts must be inlined. The only permitted external stylesheet is
+    Google Fonts -- the HTML uses Fraunces + Inter for presentation-grade
+    typography. Google Fonts is permitted because:
+      - corporate proxies virtually always allow fonts.googleapis.com
+      - the font-family stack degrades to system serif/sans if offline
+      - bundling woff2 inline would bloat the HTML by ~800KB
+    """
+    import re
     text = _build(tmp_path)
     assert 'src="http' not in text, "external script reference -- should be inlined"
-    assert 'href="http' not in text, "external stylesheet reference -- should be inlined"
+    # Collect all external href= URLs
+    externals = re.findall(r'href="(https?://[^"]+)"', text)
+    for url in externals:
+        assert url.startswith(("https://fonts.googleapis.com", "https://fonts.gstatic.com")), (
+            f"unexpected external stylesheet: {url}"
+        )
 
 
 def test_sidebar_lists_sections_in_canonical_order(tmp_path):
