@@ -201,7 +201,7 @@ class RegEBranches(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A8.4a",
-                title="Reg E by Branch (Historical vs L12M)",
+                title="Reg E Opt-In Rate by Branch (Eligible Personal, Historical vs L12M)",
                 chart_path=chart_path,
                 excel_data={"Comparison": comp_df if not comp_df.empty else hist},
                 notes=notes,
@@ -223,7 +223,7 @@ class RegEBranches(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.4c",
-                    title="Reg E Branch Scatter",
+                    title="Reg E Branch Scatter (Eligible Personal)",
                     success=False,
                     error="Not enough branches for scatter plot",
                 )
@@ -293,7 +293,7 @@ class RegEBranches(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.4b",
-                    title="Reg E Branch Vertical",
+                    title="Reg E Branch Vertical (Eligible Personal)",
                     success=False,
                     error="No branch comparison data",
                 )
@@ -455,7 +455,7 @@ class RegEBranches(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.13",
-                    title="Branch x Month Pivot",
+                    title="Reg E Branch x Month Pivot (Eligible Personal)",
                     success=False,
                     error="No L12M data for pivot",
                 )
