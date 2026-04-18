@@ -16,15 +16,30 @@
 
 ---
 
-## Working Directory
+## Working Directory — EXECUTION OVERRIDE (READ FIRST)
 
-All paths below assume the repo root: `/Users/jgmbp/Desktop/RPE-Workflow/`
+The code changes for this plan do **not** happen inside `RPE-Workflow/`. They happen inside a **git worktree of the ars-production-pipeline repo**, which the controller has already created.
 
-The pipeline lives inside `Step 3 - Powerpoint/ars-production-pipeline/`. Commands use this short path:
+**Actual working directory for all code changes:**
 
 ```bash
-PIPELINE="/Users/jgmbp/Desktop/RPE-Workflow/Step 3 - Powerpoint/ars-production-pipeline"
+PIPELINE="/Users/jgmbp/Desktop/ars-exec-narrative-rebuild"
 ```
+
+This worktree is already checked out on branch `feature/exec-narrative-rebuild` tracking `origin/02_powerpoint-pipeline` (the branch where the `02_Powerpoint/` code lives). The plan's original Task 0 branch-creation steps (steps 1–2) are **no-ops** — the branch and worktree already exist. Skip them and start Task 0 at Step 3 (reading the existing section pattern) or Step 4 (creating the tests directory).
+
+**Path substitution rules when executing any task below:**
+
+| Original command in plan | Actual command to run |
+|---|---|
+| `cd /Users/jgmbp/Desktop/RPE-Workflow` | `cd "$PIPELINE"` |
+| `git add "Step 3 - Powerpoint/ars-production-pipeline/02_Powerpoint/foo"` | `git add "02_Powerpoint/foo"` |
+| `Step 3 - Powerpoint/ars-production-pipeline/02_Powerpoint/...` (referenced as a file) | `02_Powerpoint/...` (relative to `$PIPELINE`) |
+| `$PIPELINE/02_Powerpoint` | unchanged — already correct |
+
+In short: **every `cd` is `cd "$PIPELINE"`, every git path is relative to the pipeline root, and every `$PIPELINE/...` reference is already correct.**
+
+Do not push to origin until explicitly told at Task 14 Step 5. Do not merge anything. Do not touch `/Users/jgmbp/Desktop/RPE-Workflow/` — planning artifacts live there and stay there.
 
 ---
 
