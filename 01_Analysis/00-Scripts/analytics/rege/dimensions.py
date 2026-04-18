@@ -272,7 +272,7 @@ class RegEDimensions(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A8.5",
-                title="Reg E by Account Age",
+                title="Reg E Opt-In Rate by Account Age (Eligible Personal)",
                 chart_path=chart_path,
                 excel_data={"Account Age": result},
                 notes=notes,
@@ -324,7 +324,7 @@ class RegEDimensions(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.6",
-                    title="Reg E by Holder Age",
+                    title="Reg E Opt-In Rate by Holder Age (Eligible Personal)",
                     success=False,
                     error="No holder age data (missing age column)",
                 )
@@ -449,7 +449,7 @@ class RegEDimensions(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.7",
-                    title="Reg E by Product Code",
+                    title="Reg E Opt-In Rate by Product Code (Eligible Personal)",
                     success=False,
                     error="No Product Code column found",
                 )
