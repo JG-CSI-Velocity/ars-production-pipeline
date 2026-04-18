@@ -251,7 +251,7 @@ class DCTRFunnel(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A7.9",
-                    title="Eligible vs Non-Eligible DCTR",
+                    title="Eligible vs Non-Eligible Debit Card Take Rate",
                     success=False,
                     error="Missing or empty open_accounts/eligible_data subsets",
                 )
@@ -261,7 +261,7 @@ class DCTRFunnel(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A7.9",
-                    title="Eligible vs Non-Eligible DCTR",
+                    title="Eligible vs Non-Eligible Debit Card Take Rate",
                     success=False,
                     error="start_date or end_date not set",
                 )

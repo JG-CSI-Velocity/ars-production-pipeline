@@ -295,7 +295,7 @@ class DCTRPenetration(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="DCTR-2",
-                title="DCTR: Open vs Eligible",
+                title="Debit Card Take Rate: Open vs Eligible",
                 excel_data={"Comparison": comparison},
                 notes=f"Open: {open_ins['overall_dctr']:.1%} | Eligible: {hist_ins['overall_dctr']:.1%} | Gap: {diff:+.1%}",
             )
@@ -337,7 +337,7 @@ class DCTRPenetration(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="DCTR-3",
-                title="DCTR Snapshot: Open to TTM",
+                title="Debit Card Take Rate Snapshot: Open to TTM",
                 chart_path=chart_path,
                 excel_data={"Monthly": monthly},
                 notes=f"L12M: {l12m_ins['dctr']:.1%} ({l12m_ins['total_accounts']:,} accts) | vs Overall: {comp:+.1%}",
@@ -443,7 +443,7 @@ class DCTRPenetration(AnalysisModule):
         results = [
             AnalysisResult(
                 slide_id="DCTR-4",
-                title="Personal DCTR",
+                title="Debit Card Take Rate — Eligible Personal",
                 chart_path=chart_path,
                 excel_data={"Yearly": p_yr, "Decade": p_dec},
                 notes=f"Personal: {p_ins.get('overall_dctr', 0):.1%} | Business: {b_ins.get('overall_dctr', 0):.1%}",
@@ -453,7 +453,7 @@ class DCTRPenetration(AnalysisModule):
             results.append(
                 AnalysisResult(
                     slide_id="DCTR-5",
-                    title="Business DCTR",
+                    title="Debit Card Take Rate — Eligible Business",
                     excel_data={
                         "Yearly": ctx.results["dctr_5"]["yearly"],
                         "Decade": ctx.results["dctr_5"]["decade"],
@@ -479,7 +479,7 @@ class DCTRPenetration(AnalysisModule):
         results = [
             AnalysisResult(
                 slide_id="DCTR-6",
-                title="Personal L12M DCTR",
+                title="Debit Card Take Rate — Eligible Personal (L12M)",
                 excel_data={"Monthly": pl_monthly},
                 notes=f"Personal L12M: {pl_ins['dctr']:.1%} ({pl_ins['total_accounts']:,} accts)",
             )
@@ -492,7 +492,7 @@ class DCTRPenetration(AnalysisModule):
             results.append(
                 AnalysisResult(
                     slide_id="DCTR-7",
-                    title="Business L12M DCTR",
+                    title="Debit Card Take Rate — Eligible Business (L12M)",
                     excel_data={"Monthly": bl_monthly},
                     notes=f"Business L12M: {bl_ins['dctr']:.1%} ({bl_ins['total_accounts']:,} accts)",
                 )
@@ -595,7 +595,7 @@ class DCTRPenetration(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="DCTR-8",
-                title="Comprehensive DCTR Summary",
+                title="Comprehensive Debit Card Take Rate Summary",
                 excel_data={"Summary": summary},
                 notes=f"{len(rows)} categories summarized",
             )

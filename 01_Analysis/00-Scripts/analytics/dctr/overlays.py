@@ -138,7 +138,7 @@ class DCTROverlays(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="DCTR-10",
-                title="DCTR by Account Age",
+                title="Debit Card Take Rate by Account Age",
                 chart_path=chart_path,
                 excel_data={"Account Age": df},
                 notes=(
@@ -254,7 +254,7 @@ class DCTROverlays(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="DCTR-11",
-                title="DCTR by Account Holder Age",
+                title="Debit Card Take Rate by Account Holder Age",
                 chart_path=chart_path,
                 excel_data={"Holder Age": df},
                 notes=(
@@ -284,7 +284,7 @@ class DCTROverlays(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="DCTR-12",
-                title="DCTR by Balance Range",
+                title="Debit Card Take Rate by Balance Range",
                 excel_data={"Balance Range": df},
                 notes=(
                     f"Highest: {ins.get('highest', '?')} ({ins.get('highest_dctr', 0):.1%}) | "

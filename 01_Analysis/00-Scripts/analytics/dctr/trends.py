@@ -166,7 +166,7 @@ class DCTRTrends(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A7.4",
-                title="DCTR Segment Trends",
+                title="Debit Card Take Rate Segment Trends",
                 chart_path=chart_path,
                 excel_data={"Segment Trends": df},
                 notes=f"Personal: {p_hist:.1f}% -> {p_l12m:.1f}% ({p_trend:+.1f}pp)",
@@ -280,7 +280,7 @@ class DCTRTrends(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A7.5",
-                title="Historical DCTR Trend by Decade",
+                title="Historical Debit Card Take Rate Trend by Decade",
                 chart_path=chart_path,
                 excel_data={"Decade": d1},
                 notes=f"{len(d1)} decades plotted",
@@ -468,7 +468,7 @@ class DCTRTrends(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A7.6a",
-                title="Trailing Twelve Months DCTR Trend",
+                title="Trailing Twelve Months Debit Card Take Rate Trend",
                 chart_path=chart_path,
                 excel_data={"L12M Trend": trend_df},
                 notes=f"{len(months)} months plotted",
@@ -567,7 +567,7 @@ class DCTRTrends(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A7.6b",
-                title="Personal vs Business DCTR by Decade",
+                title="Debit Card Take Rate: Eligible Personal vs Eligible Business by Decade",
                 chart_path=chart_path,
                 excel_data={"Personal Decade": p_dec},
                 notes=f"{len(p_dec)} decades",
@@ -651,7 +651,7 @@ class DCTRTrends(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A7.14",
-                title="DCTR Seasonality Analysis",
+                title="Debit Card Take Rate Seasonality Analysis",
                 chart_path=chart_path,
                 excel_data={"Monthly": monthly},
                 notes=f"Best: {best} | Worst: {worst}",
