@@ -1,32 +1,46 @@
-/* Applied only when export is triggered (body.exporting) + @media print */
+/* Print stylesheet. Active any time the browser prints, regardless of
+   whether the user clicked Export PDF or used Cmd+P directly. */
 @media print {
-  body.exporting .sidebar,
-  body.exporting .selection-tray,
+  /* Always hide analyst chrome in print */
+  .sidebar,
+  .selection-tray,
+  .select-checkbox {
+    display: none !important;
+  }
+
+  /* When body.exporting is set (user clicked Export PDF), also hide
+     unselected blocks and empty sections so the PDF only contains
+     what the analyst picked. Without body.exporting, everything prints. */
   body.exporting .analysis-wrapper:not(.selected),
   body.exporting .review-section.empty {
     display: none !important;
   }
-  body.exporting .main { max-width: none; padding: 0; }
-  body.exporting .section-header { padding: 0 0.4in; }
-  body.exporting .content-area { padding: 0 0.4in; }
-  body.exporting .analysis-wrapper { padding-left: 0; page-break-inside: avoid; break-inside: avoid; }
-  body.exporting .analysis-wrapper + .analysis-wrapper { page-break-before: always; break-before: page; }
-  body.exporting .select-checkbox { display: none; }
-  body.exporting .analysis { border: none; box-shadow: none; }
-  body.exporting .analysis.selected { border: none; box-shadow: none; }
+
+  body { background: white; }
+  .main { max-width: none; padding: 0; }
+  .content-area { padding: 0 0.4in; }
+  .section-header { padding: 0.6in 0.4in 0.3in; }
+
+  .analysis-wrapper { padding-left: 0; page-break-inside: avoid; break-inside: avoid; }
+  .analysis-wrapper + .analysis-wrapper { page-break-before: always; break-before: page; }
+
+  .analysis { border: none; box-shadow: none; padding: 0; }
+  .analysis .chart { max-height: 6in; object-fit: contain; }
+
+  /* Cover page breaks to its own page */
+  .cover-page { page-break-after: always; break-after: page; }
+  .review-section { page-break-before: always; break-before: page; }
+  .review-section:first-of-type { page-break-before: auto; break-before: auto; }
+
+  /* Section divider gets its own page */
+  .section-header { page-break-after: always; break-after: page; }
 
   @page {
     size: letter portrait;
     margin: 0.5in;
     @bottom-right {
       content: counter(page) " / " counter(pages);
-      font-family: Montserrat;
-      font-size: 9pt;
-      color: #6B7280;
-    }
-    @bottom-left {
-      content: "Cape & Coast Bank — April 2026 Review";
-      font-family: Montserrat;
+      font-family: Montserrat, sans-serif;
       font-size: 9pt;
       color: #6B7280;
     }
