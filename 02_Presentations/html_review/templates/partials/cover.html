@@ -1,7 +1,12 @@
 <section class="cover-page">
+  <header class="cover-topmark">
+    <span class="mark">CSI &nbsp;Velocity</span>
+    <span>Portfolio Review &nbsp;/&nbsp; {{ client.month_display }}</span>
+  </header>
+
   <div class="cover-inner">
     <div class="cover-stripe"></div>
-    <p class="cover-eyebrow">Portfolio Review &nbsp;&middot;&nbsp; {{ client.month_display }}</p>
+    <p class="cover-eyebrow">Client No. {{ client.id }}</p>
     <h1 class="cover-title">{{ client.display_name }}</h1>
     <p class="cover-subtitle">A month in review &mdash; performance, opportunities, and the story behind the numbers.</p>
     <div class="cover-meta">
@@ -19,4 +24,9 @@
       </div>
     </div>
   </div>
+
+  <footer class="cover-footmark">
+    <span>Confidential &mdash; for intended recipient only</span>
+    <span>{{ client.month }}</span>
+  </footer>
 </section>

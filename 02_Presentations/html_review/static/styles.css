@@ -119,21 +119,54 @@ body {
 /* ===== Cover page ===== */
 .cover-page {
   min-height: 100vh;
-  display: flex; align-items: center;
-  padding: 96px var(--gutter);
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 56px var(--gutter) 48px;
   background:
-    radial-gradient(ellipse at 85% 15%, rgba(13,148,136,0.28) 0%, rgba(13,148,136,0) 55%),
-    radial-gradient(ellipse at 0% 100%, rgba(231,67,60,0.10) 0%, rgba(231,67,60,0) 50%),
-    linear-gradient(160deg, #071730 0%, #0F2A4A 55%, #143355 100%);
+    radial-gradient(ellipse at 82% 10%, rgba(13,148,136,0.24) 0%, rgba(13,148,136,0) 52%),
+    radial-gradient(ellipse at 0% 110%, rgba(231,67,60,0.08) 0%, rgba(231,67,60,0) 45%),
+    linear-gradient(158deg, #061528 0%, #0F2A4A 55%, #132E50 100%);
   color: #fff;
   position: relative;
   overflow: hidden;
 }
-.cover-inner { max-width: 780px; position: relative; z-index: 1; }
+.cover-page::before {
+  /* subtle paper-grain noise via layered gradients, no image asset */
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.012) 0, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.6;
+}
+.cover-page::after {
+  /* inner hairline frame */
+  content: "";
+  position: absolute;
+  inset: 28px;
+  border: 1px solid rgba(255,255,255,0.08);
+  pointer-events: none;
+}
+.cover-topmark,
+.cover-footmark {
+  display: flex; justify-content: space-between; align-items: center;
+  position: relative; z-index: 1;
+  font-family: var(--sans);
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.24em; text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+}
+.cover-topmark .mark { color: #fff; font-weight: 600; letter-spacing: 0.18em; }
+.cover-inner {
+  max-width: 800px; position: relative; z-index: 1;
+  align-self: center;
+  width: 100%;
+  padding: 40px 0;
+}
 .cover-stripe {
-  width: 56px; height: 3px;
+  width: 48px; height: 2px;
   background: var(--teal);
-  margin-bottom: 56px;
+  margin-bottom: 52px;
 }
 .cover-eyebrow {
   font-family: var(--sans);
@@ -255,6 +288,14 @@ body {
   height: auto; display: block;
   margin: 0;
   border-radius: 4px;
+  background: var(--paper-2);
+}
+.analysis .chart-frame {
+  margin: 8px -8px 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--paper-2);
+  border: 1px solid var(--line-soft);
 }
 .analysis .notes {
   margin: 28px 0 0;
