@@ -1,0 +1,49 @@
+
+# ============================================
+# A[X].5 - ICS STAT CODE O - PRODUCT CODE DISTRIBUTION (NO DEBIT SPLIT)
+# ============================================
+
+print("\n📊 A[X].6 - Product Code distribution for ICS Stat Code O...")
+
+import pandas as pd
+import numpy as np
+
+# 1) Slice ICS O
+ics_stat_o = data[
+    (data['ICS Account'] == 'Yes') &
+    (data['Stat Code'].astype(str).str.upper().str.strip() == 'O')
+].copy()
+
+# 2) Normalize missing product codes
+ics_stat_o['Prod Code'] = ics_stat_o['Prod Code'].replace(['', 'nan', 'NaN', None], np.nan)
+ics_stat_o['Prod Code'] = ics_stat_o['Prod Code'].fillna('Unknown')
+
+# 3) Aggregate by product code
+prod_dist = (
+    ics_stat_o
+    .groupby('Prod Code', dropna=False)
+    .size()
+    .rename('Account Count')
+    .reset_index()
+)
+
+# 4) Compute share as FRACTION (0–1) so your styler renders it as %
+total_accounts = int(prod_dist['Account Count'].sum())
+prod_dist['Pct of ICS O'] = prod_dist['Account Count'] / total_accounts if total_accounts > 0 else 0.0
+
+# 5) Sort and append total row
+prod_dist = prod_dist.sort_values('Account Count', ascending=False).reset_index(drop=True)
+
+total_row = pd.DataFrame({
+    'Prod Code':      ['Total'],
+    'Account Count':  [total_accounts],
+    'Pct of ICS O':   [1.0 if total_accounts > 0 else 0.0]
+})
+
+ax6_ics_prod_dist = pd.concat([prod_dist, total_row], ignore_index=True)
+
+# 6) Display
+display_formatted(ax6_ics_prod_dist, "ICS Stat Code O - Product Code Distribution")
+
+print(f"\n✅ Analysis completed")
+print(f"   Total ICS Stat O Accounts: {total_accounts:,}")
