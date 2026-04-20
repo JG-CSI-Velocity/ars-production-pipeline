@@ -1,0 +1,44 @@
+
+# ============================================
+# A[X].6 - ICS STAT CODE O - DEBIT CARD DISTRIBUTION
+# ============================================
+
+print("\n📊 A[X].5 - Analyzing Debit Card Distribution for ICS Stat Code O...")
+
+# Get ICS accounts with Stat Code O (LETTER 'O', robust to case/space)
+ics_stat_o = data[
+    (data['ICS Account'] == 'Yes') &
+    (data['Stat Code'].astype(str).str.upper().str.strip() == "0")
+].copy()
+
+# Normalize 'Debit?' just in case (prevents split counts on casing/space)
+ics_stat_o['Debit?'] = (
+    ics_stat_o['Debit?'].fillna('').astype(str).str.strip().str.title()
+)
+
+# Debit card distribution
+debit_dist = ics_stat_o['Debit?'].value_counts().reindex(['Yes', 'No'], fill_value=0).reset_index()
+debit_dist.columns = ['Debit Card', 'Count']
+
+# FRACTION (0–1) so display_formatted renders % correctly
+debit_dist['% of ICS Stat O'] = (debit_dist['Count'] / len(ics_stat_o)).round(4)
+
+# Add total row (fraction 1.0 == 100%)
+total_row = pd.DataFrame({
+    'Debit Card': ['Total'],
+    'Count': [debit_dist['Count'].sum()],
+    '% of ICS Stat O': [1.0]
+})
+
+ax5_ics_stat_o_debit = pd.concat([debit_dist, total_row], ignore_index=True)
+
+# Safety fill for Styler (avoids NaN → int conversion errors)
+ax5_ics_stat_o_debit = ax5_ics_stat_o_debit.fillna(0)
+
+# Display
+display_formatted(ax5_ics_stat_o_debit, "ICS Stat Code O - Debit Card Distribution")
+
+print(f"\n✅ Analysis completed")
+print(f"   ICS Stat Code O Accounts: {len(ics_stat_o):,}")
+print(f"   With Debit: {int((ics_stat_o['Debit?'] == 'Yes').sum()):,}")
+print(f"   Without Debit: {int((ics_stat_o['Debit?'] == 'No').sum()):,}")
