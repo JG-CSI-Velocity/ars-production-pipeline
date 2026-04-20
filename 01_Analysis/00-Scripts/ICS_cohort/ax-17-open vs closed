@@ -1,0 +1,95 @@
+
+# ============================================
+# A[X].17 - ICS ACCOUNTS - OPEN VS CLOSED DURATION ANALYSIS
+# ============================================
+
+print("\n📊 A[X].17 - Analyzing ICS Account Duration - Open vs Closed...")
+
+# 1) Ensure we are using ICS accounts (as per your earlier cell)
+ics_accounts = data[data['ICS Account'] == 'Yes'].copy()
+
+# 2) Dates & durations
+ics_accounts['Date Opened'] = pd.to_datetime(ics_accounts['Date Opened'], errors='coerce')
+ics_accounts['Date Closed'] = pd.to_datetime(ics_accounts['Date Closed'], errors='coerce')
+
+ics_accounts['Duration Days'] = ics_accounts.apply(
+    lambda r: (pd.Timestamp.now() - r['Date Opened']).days if pd.isna(r['Date Closed'])
+              else (r['Date Closed'] - r['Date Opened']).days,
+    axis=1
+)
+
+# 3) Buckets
+def categorize_duration(days):
+    if pd.isna(days):           return 'Unknown'
+    elif days < 30:             return '0-1 month'
+    elif days < 90:             return '1-3 months'
+    elif days < 180:            return '3-6 months'
+    elif days < 365:            return '6-12 months'
+    elif days < 730:            return '1-2 years'
+    elif days < 1825:           return '2-5 years'
+    elif days < 3650:           return '5-10 years'
+    else:                       return '10+ years'
+
+ics_accounts['Duration Range'] = ics_accounts['Duration Days'].apply(categorize_duration)
+ics_accounts['Status'] = ics_accounts['Date Closed'].apply(lambda x: 'Closed' if pd.notna(x) else 'Open')
+ics_accounts['Is Stat O'] = ics_accounts['Stat Code'] == 'O'
+
+duration_order = ['0-1 month','1-3 months','3-6 months','6-12 months',
+                  '1-2 years','2-5 years','5-10 years','10+ years','Unknown']
+
+# 4) Build rows in fixed order
+rows = []
+for d in duration_order:
+    subset = ics_accounts[ics_accounts['Duration Range'] == d]
+    if subset.empty:
+        continue
+    open_ct   = int((subset['Status'] == 'Open').sum())
+    closed_ct = int((subset['Status'] == 'Closed').sum())
+    closed_non_stat_o = int(((subset['Status'] == 'Closed') & (~subset['Is Stat O'])).sum())
+    total = open_ct + closed_ct
+
+    rows.append({
+        'Label': d,                                # safe text column
+        'Open Count': open_ct,
+        'Closed Count': closed_ct,
+        'Closed (Non-Stat O)': closed_non_stat_o,
+        'Total': total,
+        'Closed_Pct': (closed_ct / total) if total else 0.0  # FRACTION 0–1
+    })
+
+ax14_ics_duration = pd.DataFrame(rows)
+
+# 5) Append totals with the SAME column names and order
+cols = ['Label','Open Count','Closed Count','Closed (Non-Stat O)','Total','Closed_Pct']
+ax14_ics_duration = ax14_ics_duration.reindex(columns=cols)
+
+total_open   = int(ax14_ics_duration['Open Count'].sum())
+total_closed = int(ax14_ics_duration['Closed Count'].sum())
+total_total  = int(ax14_ics_duration['Total'].sum())
+total_closed_pct = (total_closed / total_total) if total_total else 0.0
+
+total_row = pd.DataFrame([{
+    'Label': 'Total',
+    'Open Count': total_open,
+    'Closed Count': total_closed,
+    'Closed (Non-Stat O)': int(ax14_ics_duration['Closed (Non-Stat O)'].sum()),
+    'Total': total_total,
+    'Closed_Pct': total_closed_pct
+}])[cols]
+
+ax14_ics_duration = pd.concat([ax14_ics_duration, total_row], ignore_index=True)
+
+# 6) Harden numeric dtypes (formatter-proof)
+for c in ['Open Count','Closed Count','Closed (Non-Stat O)','Total','Closed_Pct']:
+    ax14_ics_duration[c] = pd.to_numeric(ax14_ics_duration[c], errors='coerce')
+
+# 7) Display (no '%' in the header; values are fractions -> your formatter renders %)
+display_formatted(ax14_ics_duration, "ICS Accounts - Open vs Closed Duration Analysis")
+
+# 8) Prints
+print(f"\n✅ Analysis completed")
+print(f"   Total ICS Accounts: {len(ics_accounts):,}")
+print(f"   Open: {total_open:,}")
+print(f"   Closed: {total_closed:,}")
+print(f"   Closed (Non-Stat O): {int(ax14_ics_duration.iloc[-1]['Closed (Non-Stat O)']):,}")
+
