@@ -1,0 +1,89 @@
+# Check for balance-related columns
+print("Balance-related columns in data:")
+balance_cols = [col for col in data.columns if 'bal' in col.lower()]
+for col in balance_cols:
+    print(f"  - {col}")
+
+
+# ============================================
+# A[X].20 - ICS STAT CODE O - BALANCE TIERS (CURRENT BALANCE) - CLEAN, NO DECIMALS
+# ============================================
+
+print("\n📊 A[X].20 - Analyzing ICS Stat Code O Balance Distribution (Current Balance)...")
+
+# Get ICS Stat Code O accounts only
+ics_stat_o = data[
+    (data['ICS Account'] == 'Yes') &
+    (data['Stat Code'].astype(str).str.upper().str.strip() == '0')
+].copy()
+
+# --- SAFE BALANCE TIERS (NO $ TO AVOID CURRENCY FORMATTER) ---
+def categorize_balance_safe(balance):
+    if pd.isna(balance):          return 'Unknown'
+    elif balance <= 0:            return '0 or Less'
+    elif balance < 1_000:         return '0 - 1K'
+    elif balance < 5_000:         return '1K - 5K'
+    elif balance < 10_000:        return '5K - 10K'
+    elif balance < 25_000:        return '10K - 25K'
+    elif balance < 50_000:        return '25K - 50K'
+    elif balance < 100_000:       return '50K - 100K'
+    elif balance < 250_000:       return '100K - 250K'
+    else:                         return '250K+'
+
+ics_stat_o['Tier'] = ics_stat_o['Curr Bal'].apply(categorize_balance_safe)
+
+# Tier order (SAFE, NO $)
+tier_order = ['0 or Less','0 - 1K','1K - 5K','5K - 10K',
+              '10K - 25K','25K - 50K','50K - 100K',
+              '100K - 250K','250K+','Unknown']
+
+# Group distribution
+dist = (
+    ics_stat_o.groupby('Tier')['Curr Bal']
+    .agg(Account_Count='count', Total_Balance='sum')
+    .reset_index()
+)
+
+# Enforce order
+dist['Tier'] = pd.Categorical(dist['Tier'], categories=tier_order, ordered=True)
+dist = dist.sort_values('Tier').reset_index(drop=True)
+
+# --- CLEAN PERCENT COLUMNS (use FRACTIONS, not x100) ---
+total_accounts  = len(ics_stat_o)
+total_balance   = ics_stat_o['Curr Bal'].sum()
+
+dist['Pct_Accounts'] = dist['Account_Count'] / total_accounts
+dist['Pct_Balance']  = dist['Total_Balance'] / total_balance
+
+# --- Append totals row ---
+total_row = pd.DataFrame({
+    'Tier': ['Total'],
+    'Account_Count': [dist['Account_Count'].sum()],
+    'Total_Balance': [dist['Total_Balance'].sum()],
+    'Pct_Accounts': [1.0],
+    'Pct_Balance': [1.0]
+})
+
+dist = pd.concat([dist, total_row], ignore_index=True)
+
+# --- FORCE ALL NUMERIC COLUMNS → INTEGER (except percent columns) ---
+for col in ['Account_Count', 'Total_Balance']:
+    dist[col] = pd.to_numeric(dist[col], errors='coerce').fillna(0).astype(int)
+
+# Percent columns stay floats (fractions) → ARS formatter will show them as % with no decimals if configured
+dist['Pct_Accounts'] = pd.to_numeric(dist['Pct_Accounts'], errors='coerce')
+dist['Pct_Balance']  = pd.to_numeric(dist['Pct_Balance'], errors='coerce')
+
+# Rename columns to avoid formatter misclassification
+dist = dist.rename(columns={
+    'Pct_Accounts': 'Percent Accounts',
+    'Pct_Balance': 'Percent Balance'
+})
+
+# Display
+display_formatted(dist, "ICS Stat Code O - Balance Distribution (Current Balance)")
+
+print("\n✅ Analysis completed")
+print(f"   Total ICS Stat O Accounts: {total_accounts:,}")
+print(f"   Total Current Balance: ${total_balance:,.2f}")
+print(f"   Average Current Balance: ${ics_stat_o['Curr Bal'].mean():,.2f}")
