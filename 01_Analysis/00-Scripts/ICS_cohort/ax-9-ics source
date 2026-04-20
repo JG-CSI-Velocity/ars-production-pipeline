@@ -1,0 +1,41 @@
+# ============================================
+# A[X].9 - ICS SOURCE DISTRIBUTION
+# ============================================
+
+print("\n📊 A[X].8 - Analyzing ICS Source Distribution...")
+
+# Get ICS accounts only
+ics_only = data[data['ICS Account'] == 'Yes']
+
+# Group by ICS Source
+source_dist = ics_only['Source'].value_counts().reset_index()
+source_dist.columns = ['Source', 'Count']
+source_dist['% of ICS Accounts'] = (source_dist['Count'] / len(ics_only)).round(2)
+
+# Handle blanks - replace NaN or empty string with "Blank"
+source_dist['ICS Source'] = source_dist['Source'].fillna('Blank')
+source_dist.loc[source_dist['Source'] == '', 'Source'] = 'Blank'
+
+# Sort by count descending
+ax8_ics_source = source_dist.sort_values('Count', ascending=False).reset_index(drop=True)
+
+
+# Add total row
+total_row = pd.DataFrame({
+    'ICS Source': ['Total'],
+    'Count': [ax8_ics_source['Count'].sum()],
+    '% of ICS Accounts': [1.0]
+})
+
+ax8_ics_source = pd.concat([ax8_ics_source, total_row], ignore_index=True)
+
+# FIX: remove NaN so styler doesn't choke
+ax8_ics_source = ax8_ics_source.fillna(0)
+
+# Display
+display_formatted(ax8_ics_source, "ICS Source Distribution")
+
+
+print(f"\n✅ Analysis completed")
+print(f"   Total ICS Accounts: {len(ics_only):,}")
+print(f"   Unique Sources: {len(source_dist)}")
