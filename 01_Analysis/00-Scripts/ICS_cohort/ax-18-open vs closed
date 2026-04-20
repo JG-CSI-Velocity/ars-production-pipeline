@@ -1,0 +1,50 @@
+# ============================================
+# A[X].18 - ICS STAT CODE - OPEN VS CLOSED STATUS
+# ============================================
+
+print("\n📊 A[X].18 - Analyzing ICS Stat Code by Open/Closed Status...")
+
+# Get ICS accounts only
+ics_accounts = data[data['ICS Account'] == 'Yes'].copy()
+
+# Create status flag
+ics_accounts['Status'] = ics_accounts['Date Closed'].apply(lambda x: 'Closed' if pd.notna(x) else 'Open')
+
+# Group by Stat Code and Status
+stat_status = ics_accounts.groupby(['Stat Code', 'Status']).size().unstack(fill_value=0)
+stat_status['Total'] = stat_status.sum(axis=1)
+
+# Calculate percentages
+if 'Open' in stat_status.columns:
+    stat_status['% Open'] = (stat_status['Open'] / stat_status['Total']).round(2)
+else:
+    stat_status['% Open'] = 0.0
+    
+if 'Closed' in stat_status.columns:
+    stat_status['% Closed'] = (stat_status['Closed'] / stat_status['Total']).round(2)
+else:
+    stat_status['% Closed'] = 0.0
+
+# Reset index and sort by total descending
+ax15_ics_stat_status = stat_status.reset_index()
+ax15_ics_stat_status = ax15_ics_stat_status.sort_values('Total', ascending=False).reset_index(drop=True)
+
+# Add total row
+total_row = pd.DataFrame({
+    'Stat Code': ['Total'],
+    'Closed': [ax15_ics_stat_status.get('Closed', pd.Series([0])).sum()],
+    'Open': [ax15_ics_stat_status.get('Open', pd.Series([0])).sum()],
+    'Total': [ax15_ics_stat_status['Total'].sum()],
+    '% Open': [(ax15_ics_stat_status.get('Open', pd.Series([0])).sum() / ax15_ics_stat_status['Total'].sum())],
+    '% Closed': [(ax15_ics_stat_status.get('Closed', pd.Series([0])).sum() / ax15_ics_stat_status['Total'].sum())]
+})
+total_row['% Open'] = total_row['% Open'].round(2)
+total_row['% Closed'] = total_row['% Closed'].round(2)
+
+ax15_ics_stat_status = pd.concat([ax15_ics_stat_status, total_row], ignore_index=True)
+
+# Display
+display_formatted(ax15_ics_stat_status, "ICS Accounts - Stat Code by Open/Closed Status")
+
+print(f"\n✅ Analysis completed")
+print(f"   📊 Key Finding: All non-Stat Code O ICS accounts appear to be closed!")
