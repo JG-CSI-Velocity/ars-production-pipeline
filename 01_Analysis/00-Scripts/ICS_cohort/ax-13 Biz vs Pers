@@ -1,0 +1,36 @@
+# ============================================
+# A[X].13 - ICS ACCOUNTS - BUSINESS VS PERSONAL
+# ============================================
+
+print("\n📊 A[X].13 - Analyzing ICS Accounts by Business vs Personal...")
+
+# Get ICS accounts only
+ics_only = data[data['ICS Account'] == 'Yes']
+
+# Group by Business flag
+business_dist = ics_only['Business?'].value_counts().reset_index()
+business_dist.columns = ['Account Type', 'Count']
+business_dist['% of ICS Accounts'] = (business_dist['Count'] / len(ics_only)).round(2)
+
+# Rename for clarity
+business_dist['Account Type'] = business_dist['Account Type'].map({'Yes': 'Business', 'No': 'Personal'})
+
+# Sort so Personal is first
+business_dist = business_dist.sort_values('Account Type', ascending=False).reset_index(drop=True)
+
+# Add total row
+total_row = pd.DataFrame({
+    'Account Type': ['Total'],
+    'Count': [business_dist['Count'].sum()],
+    '% of ICS Accounts': [1.0]
+})
+
+ax12_ics_business = pd.concat([business_dist, total_row], ignore_index=True)
+
+# Display
+display_formatted(ax12_ics_business, "ICS Accounts - Business vs Personal")
+
+print(f"\n✅ Analysis completed")
+print(f"   Total ICS Accounts: {len(ics_only):,}")
+print(f"   Personal: {len(ics_only[ics_only['Business?'] == 'No']):,}")
+print(f"   Business: {len(ics_only[ics_only['Business?'] == 'Yes']):,}")
