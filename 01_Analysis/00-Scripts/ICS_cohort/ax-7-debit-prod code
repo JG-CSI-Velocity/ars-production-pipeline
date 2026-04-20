@@ -1,0 +1,34 @@
+# ============================================
+# A[X].7 - ICS STAT CODE O - DEBIT BY PRODUCT CODE
+# ============================================
+
+print("\n📊 A[X].6 - Analyzing Debit Distribution by Product Code for ICS Stat Code O...")
+
+# Get ICS accounts with Stat Code O
+ics_stat_o = data[(data['ICS Account'] == 'Yes') & (data['Stat Code'] == '0')]
+
+# Group by Product Code and Debit
+prod_debit = ics_stat_o.groupby(['Prod Code', 'Debit?']).size().unstack(fill_value=0)
+prod_debit['Total'] = prod_debit.sum(axis=1)
+prod_debit['% with Debit'] = (prod_debit.get('Yes', 0) / prod_debit['Total']).round(2)
+
+# Reset index and sort by total descending
+ax6_ics_prod_debit = prod_debit.reset_index()
+ax6_ics_prod_debit = ax6_ics_prod_debit.sort_values('Total', ascending=False).reset_index(drop=True)
+
+# Add total row
+total_row = pd.DataFrame({
+    'Prod Code': ['Total'],
+    'No': [ax6_ics_prod_debit['No'].sum()],
+    'Yes': [ax6_ics_prod_debit['Yes'].sum()],
+    'Total': [ax6_ics_prod_debit['Total'].sum()],
+    '% with Debit': [(ax6_ics_prod_debit['Yes'].sum() / ax6_ics_prod_debit['Total'].sum() ) if ax6_ics_prod_debit['Total'].sum() > 0 else 0]
+})
+total_row['% with Debit'] = total_row['% with Debit'].round(2)
+
+ax6_ics_prod_debit = pd.concat([ax6_ics_prod_debit, total_row], ignore_index=True)
+
+# Display
+display_formatted(ax6_ics_prod_debit, "ICS Stat Code O - Debit by Product Code")
+
+print(f"\n✅ Analysis completed")
