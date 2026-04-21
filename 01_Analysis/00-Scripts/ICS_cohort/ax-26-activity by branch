@@ -1,0 +1,80 @@
+# ============================================
+# A[X].26 - ICS STAT CODE O - ACTIVITY BY BRANCH
+# ============================================
+
+print("\n📊 A[X].26 - Analyzing ICS Stat Code O Activity by Branch...")
+
+# Get ICS Stat Code O accounts with activity calculated
+ics_stat_o = data[(data['ICS Account'] == 'Yes') & (data['Stat Code'] == '0')].copy()
+
+# Calculate total swipes and spend across last 12 months
+swipe_cols = [col for col in ics_stat_o.columns if 'Swipes' in col and any(month in col for month in last_12_months)]
+spend_cols = [col for col in ics_stat_o.columns if 'Spend' in col and any(month in col for month in last_12_months)]
+
+ics_stat_o['Total L12M Swipes'] = ics_stat_o[swipe_cols].sum(axis=1)
+ics_stat_o['Total L12M Spend'] = ics_stat_o[spend_cols].sum(axis=1)
+ics_stat_o['Active in L12M'] = ics_stat_o['Total L12M Swipes'] > 0
+
+# Group by Branch
+branch_activity = ics_stat_o.groupby('Branch').agg({
+    'Total L12M Swipes': ['count', 'sum', 'mean', 'median'],
+    'Total L12M Spend': ['sum', 'mean', 'median'],
+    'Active in L12M': 'sum'
+}).reset_index()
+
+# Flatten column names
+branch_activity.columns = ['Branch', 'Account Count', 'Total Swipes', 'Avg Swipes per Account', 
+                           'Median Swipes per Account', 'Total Spend', 'Avg Spend per Account', 
+                           'Median Spend per Account', 'Active Accounts']
+
+# Calculate percentages and additional metrics
+branch_activity['% Active'] = (branch_activity['Active Accounts'] / branch_activity['Account Count'] * 100).round(2)
+branch_activity['Avg Spend per Swipe'] = branch_activity.apply(
+    lambda row: (row['Total Spend'] / row['Total Swipes']) if row['Total Swipes'] > 0 else 0,
+    axis=1
+).round(2)
+
+# Round values and fill NaN with 0
+branch_activity['Avg Swipes per Account'] = branch_activity['Avg Swipes per Account'].fillna(0).round(2)
+branch_activity['Median Swipes per Account'] = branch_activity['Median Swipes per Account'].fillna(0).round(2)
+branch_activity['Avg Spend per Account'] = branch_activity['Avg Spend per Account'].fillna(0).round(2)
+branch_activity['Median Spend per Account'] = branch_activity['Median Spend per Account'].fillna(0).round(2)
+branch_activity['Total Spend'] = branch_activity['Total Spend'].fillna(0).round(2)
+
+# Sort by account count descending
+ax22_branch_activity = branch_activity.sort_values('Account Count', ascending=False).reset_index(drop=True)
+
+# Add total row
+total_swipes = ax22_branch_activity['Total Swipes'].sum()
+total_spend = ax22_branch_activity['Total Spend'].sum()
+total_accounts = ax22_branch_activity['Account Count'].sum()
+
+total_row = pd.DataFrame({
+    'Branch': ['Total'],
+    'Account Count': [total_accounts],
+    'Total Swipes': [total_swipes],
+    'Avg Swipes per Account': [(total_swipes / total_accounts) if total_accounts > 0 else 0],
+    'Median Swipes per Account': [ics_stat_o['Total L12M Swipes'].median()],
+    'Total Spend': [total_spend],
+    'Avg Spend per Account': [(total_spend / total_accounts) if total_accounts > 0 else 0],
+    'Median Spend per Account': [ics_stat_o['Total L12M Spend'].median()],
+    'Active Accounts': [ax22_branch_activity['Active Accounts'].sum()],
+    '% Active': [(ax22_branch_activity['Active Accounts'].sum() / total_accounts * 100) if total_accounts > 0 else 0],
+    'Avg Spend per Swipe': [(total_spend / total_swipes) if total_swipes > 0 else 0]
+})
+
+# Round total row
+total_row['Avg Swipes per Account'] = total_row['Avg Swipes per Account'].round(2)
+total_row['Median Swipes per Account'] = total_row['Median Swipes per Account'].round(2)
+total_row['Avg Spend per Account'] = total_row['Avg Spend per Account'].round(2)
+total_row['Median Spend per Account'] = total_row['Median Spend per Account'].round(2)
+total_row['% Active'] = total_row['% Active'].round(2)
+total_row['Avg Spend per Swipe'] = total_row['Avg Spend per Swipe'].round(2)
+total_row['Total Spend'] = total_row['Total Spend'].round(2)
+
+ax22_branch_activity = pd.concat([ax22_branch_activity, total_row], ignore_index=True)
+
+# Display
+display_formatted(ax22_branch_activity, "ICS Stat Code O - Activity by Branch")
+
+print(f"\n✅ Analysis completed")
