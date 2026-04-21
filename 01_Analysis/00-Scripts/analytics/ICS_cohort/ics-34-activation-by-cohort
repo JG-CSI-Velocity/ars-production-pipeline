@@ -205,11 +205,9 @@ def _render_activation(tbl, caption):
 
 # ---------------------------------------------------------------------------
 # Two cohorts, identical filter EXCEPT for the ICS flag:
-#   Stat Code == ICS_STAT_CODE  AND  Debit? == 'Yes'
-# The Debit filter is required (the metric IS activation -- swipes can't
-# happen without a debit card) but the label drops "Debit" since both
-# sides carry it.  The only visible delta in the table is ICS = Yes vs
-# ICS = No.
+#   Stat Code == ICS_STAT_CODE
+# No Debit filter -- accounts without debit just count as non-activated,
+# which is the right answer.  Only visible delta is ICS = Yes vs ICS = No.
 # Both cohorts are consolidated by Opening Year with milestone values
 # weighted-averaged by Cohort Size across months.
 # ---------------------------------------------------------------------------
@@ -217,13 +215,9 @@ _STAT_MASK = (
     data['Stat Code'].astype(str).str.upper().str.strip()
     == str(ICS_STAT_CODE).upper()
 )
-_DEBIT_MASK = (
-    data['Debit?'] == 'Yes' if 'Debit?' in data.columns
-    else pd.Series(True, index=data.index)
-)
 
 # ---- ICS = Yes -------------------------------------------------------------
-_ics = data.loc[(data['ICS Account'] == 'Yes') & _STAT_MASK & _DEBIT_MASK].copy()
+_ics = data.loc[(data['ICS Account'] == 'Yes') & _STAT_MASK].copy()
 _ics_monthly = _monthly_activation_table(_ics, 'ICS')
 ics_activation_by_cohort = _collapse_to_annual(_ics_monthly)
 _render_activation(
@@ -231,8 +225,8 @@ _render_activation(
     f"ICS = Yes  |  {STAT_LABEL} — Activation % by Opening Year × Milestone",
 )
 
-# ---- ICS = No (same stat code, same debit filter) --------------------------
-_non = data.loc[(data['ICS Account'] != 'Yes') & _STAT_MASK & _DEBIT_MASK].copy()
+# ---- ICS = No (same stat code) --------------------------------------------
+_non = data.loc[(data['ICS Account'] != 'Yes') & _STAT_MASK].copy()
 _non_monthly = _monthly_activation_table(_non, 'Non-ICS')
 nonics_activation_by_cohort = _collapse_to_annual(_non_monthly)
 _render_activation(
