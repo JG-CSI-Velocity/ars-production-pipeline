@@ -1,0 +1,56 @@
+# ============================================
+# A[X].27 - ICS STAT CODE O - MONTHLY ACTIVITY TREND
+# ============================================
+
+print("\n📊 A[X].27 - Analyzing ICS Stat Code O Monthly Activity Trend...")
+
+# Get ICS Stat Code O accounts with debit cards
+ics_stat_o = data[(data['ICS Account'] == 'Yes') & (data['Stat Code'] == '0') & (data['Debit?'] == 'Yes')].copy()
+
+# Build monthly trend
+monthly_trend = []
+
+for month in last_12_months:
+    swipe_col = f"{month} Swipes"
+    spend_col = f"{month} Spend"
+    
+    if swipe_col in ics_stat_o.columns and spend_col in ics_stat_o.columns:
+        total_swipes = ics_stat_o[swipe_col].sum()
+        total_spend = ics_stat_o[spend_col].sum()
+        active_accounts = (ics_stat_o[swipe_col] > 0).sum()
+        
+        monthly_trend.append({
+            'Month': month,
+            'Active Accounts': active_accounts,
+            '% Active': (active_accounts / len(ics_stat_o) * 100) if len(ics_stat_o) > 0 else 0,
+            'Total Swipes': total_swipes,
+            'Total Spend': total_spend,
+            'Avg Swipes per Account': ics_stat_o[swipe_col].mean(),
+            'Avg Spend per Account': ics_stat_o[spend_col].mean(),
+            'Avg Swipes (Active Only)': ics_stat_o[ics_stat_o[swipe_col] > 0][swipe_col].mean() if active_accounts > 0 else 0,
+            'Avg Spend (Active Only)': ics_stat_o[ics_stat_o[swipe_col] > 0][spend_col].mean() if active_accounts > 0 else 0,
+            'Avg Spend per Swipe': (total_spend / total_swipes) if total_swipes > 0 else 0,
+            'Avg Current Balance (Active)': ics_stat_o[ics_stat_o[swipe_col] > 0]['Curr Bal'].mean() if active_accounts > 0 else 0
+        })
+
+ax23_monthly_trend = pd.DataFrame(monthly_trend)
+
+# Round values and fill NaN
+ax23_monthly_trend['% Active'] = ax23_monthly_trend['% Active'].round(2)
+ax23_monthly_trend['Avg Swipes per Account'] = ax23_monthly_trend['Avg Swipes per Account'].fillna(0).round(2)
+ax23_monthly_trend['Avg Spend per Account'] = ax23_monthly_trend['Avg Spend per Account'].fillna(0).round(2)
+ax23_monthly_trend['Avg Swipes (Active Only)'] = ax23_monthly_trend['Avg Swipes (Active Only)'].fillna(0).round(2)
+ax23_monthly_trend['Avg Spend (Active Only)'] = ax23_monthly_trend['Avg Spend (Active Only)'].fillna(0).round(2)
+ax23_monthly_trend['Total Spend'] = ax23_monthly_trend['Total Spend'].fillna(0).round(2)
+ax23_monthly_trend['Avg Spend per Swipe'] = ax23_monthly_trend['Avg Spend per Swipe'].fillna(0).round(2)
+ax23_monthly_trend['Avg Current Balance (Active)'] = ax23_monthly_trend['Avg Current Balance (Active)'].fillna(0).round(2)
+
+# Display
+display_formatted(ax23_monthly_trend, "ICS Stat Code O - Monthly Activity Trend (Debit Card Holders)")
+
+print(f"\n✅ Analysis completed")
+print(f"   Total ICS Stat O with Debit: {len(ics_stat_o):,}")
+print(f"   Avg Current Balance (All): ${ics_stat_o['Curr Bal'].mean():,.2f}")
+print(f"   Average Active Rate: {ax23_monthly_trend['% Active'].mean():.2f}%")
+print(f"   Total Swipes (12 months): {ax23_monthly_trend['Total Swipes'].sum():,.0f}")
+print(f"   Total Spend (12 months): ${ax23_monthly_trend['Total Spend'].sum():,.2f}")
