@@ -1,0 +1,97 @@
+
+# --- VALIDATION: What months and columns did we actually use? ---
+
+# Make sure the Stat Code is the LETTER 'O' (robust to stray case/space)
+ics_stat_o = data[
+    (data['ICS Account'] == 'Yes') &
+    (data['Stat Code'].astype(str).str.upper().str.strip() == '0')
+].copy()
+
+print(f"\n[VALIDATION] ICS Stat O accounts: {len(ics_stat_o):,}")
+
+# What did last_12_months contain?
+try:
+    print("[VALIDATION] last_12_months:", last_12_months)
+except NameError:
+    print("[VALIDATION] last_12_months is not defined here.")
+
+# Show the resolved column lists (from your current logic)
+swipe_cols = [c for c in ics_stat_o.columns
+              if 'Swipes' in c and any(month in c for month in last_12_months)]
+spend_cols = [c for c in ics_stat_o.columns
+              if 'Spend'  in c and any(month in c for month in last_12_months)]
+
+print(f"[VALIDATION] Swipe columns ({len(swipe_cols)}): {swipe_cols}")
+print(f"[VALIDATION] Spend columns ({len(spend_cols)}): {spend_cols}")
+
+# Count unique month tags recovered from column names (defensive)
+import re
+def _tag(c): 
+    m = re.search(r'([A-Za-z]{3}\d{2})', c)
+    return m.group(1) if m else None
+
+swipe_tags = sorted({ _tag(c) for c in swipe_cols if _tag(c) })
+spend_tags = sorted({ _tag(c) for c in spend_cols if _tag(c) })
+print(f"[VALIDATION] Swipe month tags: {swipe_tags}")
+print(f"[VALIDATION] Spend month tags: {spend_tags}")
+
+# Check alignment (same months for swipes/spend?)
+if swipe_tags != spend_tags:
+    print("⚠️ [VALIDATION] Month tags mismatch between Swipes and Spend!", swipe_tags, spend_tags)
+
+# Check for duplicates of Acct ID (double counting risk)
+dup_ids = ics_stat_o['Acct ID'][ics_stat_o['Acct ID'].duplicated(keep=False)]
+if not dup_ids.empty:
+    print(f"⚠️ [VALIDATION] Duplicate Acct ID rows detected: {dup_ids.nunique()} unique IDs duplicated.")
+else:
+    print("[VALIDATION] No duplicate Acct ID rows.")
+
+# Make sure numeric types are numeric
+before_non_numeric_swipes = ics_stat_o[swipe_cols].apply(lambda s: s.dtype).to_dict()
+before_non_numeric_spend  = ics_stat_o[spend_cols].apply(lambda s: s.dtype).to_dict()
+
+ics_stat_o[swipe_cols] = ics_stat_o[swipe_cols].apply(pd.to_numeric, errors='coerce')
+ics_stat_o[spend_cols]  = ics_stat_o[spend_cols].apply(pd.to_numeric, errors='coerce')
+
+after_numeric_swipes = ics_stat_o[swipe_cols].apply(lambda s: s.dtype).to_dict()
+after_numeric_spend  = ics_stat_o[spend_cols].apply(lambda s: s.dtype).to_dict()
+
+print("[VALIDATION] Dtypes (Swipes) before  → after:")
+print(" ", before_non_numeric_swipes, "→", after_numeric_swipes)
+print("[VALIDATION] Dtypes (Spend)  before  → after:")
+print(" ", before_non_numeric_spend,  "→", after_numeric_spend)
+
+# Recompute with numeric safety (does not overwrite your original summary)
+ics_stat_o['Total L12M Swipes__chk'] = ics_stat_o[swipe_cols].sum(axis=1, skipna=True)
+ics_stat_o['Total L12M Spend__chk']  = ics_stat_o[spend_cols].sum(axis=1,  skipna=True)
+
+# Aggregate reconciliations
+swipes_by_month = ics_stat_o[swipe_cols].sum().sort_index()
+spend_by_month  = ics_stat_o[spend_cols].sum().sort_index()
+
+print("\n[VALIDATION] Monthly totals (swipes):")
+print(swipes_by_month.to_string())
+print("\n[VALIDATION] Monthly totals (spend):")
+print(spend_by_month.to_string())
+
+print("\n[VALIDATION] Grand totals (from month sums):")
+print("  Swipes:", int(swipes_by_month.sum()))
+print("  Spend: $", float(spend_by_month.sum()))
+
+print("\n[VALIDATION] Grand totals (from per‑acct totals):")
+print("  Swipes:", int(ics_stat_o['Total L12M Swipes__chk'].sum()))
+print("  Spend: $", float(ics_stat_o['Total L12M Spend__chk'].sum()))
+
+# Compare with “MonthlySwipes12 / MonthlySpend12” columns if present
+present_sw12 = 'MonthlySwipes12' in ics_stat_o.columns
+present_sp12 = 'MonthlySpend12'  in ics_stat_o.columns
+if present_sw12 or present_sp12:
+    print("\n[VALIDATION] Comparison vs provided 12‑month rollups:")
+    if present_sw12:
+        diff_sw = (ics_stat_o['Total L12M Swipes__chk'] - pd.to_numeric(ics_stat_o['MonthlySwipes12'], errors='coerce')).abs().sum()
+        print(f"  |-- Δ swipes (our calc vs MonthlySwipes12): {diff_sw:,.0f} (sum abs diff across accts)")
+    if present_sp12:
+        diff_sp = (ics_stat_o['Total L12M Spend__chk'] - pd.to_numeric(ics_stat_o['MonthlySpend12'], errors='coerce')).abs().sum()
+        print(f"  |-- Δ spend  (our calc vs MonthlySpend12): ${diff_sp:,.2f} (sum abs diff across accts)")
+else:
+    print("\n[VALIDATION] No MonthlySwipes12/MonthlySpend12 columns to cross‑check.")
