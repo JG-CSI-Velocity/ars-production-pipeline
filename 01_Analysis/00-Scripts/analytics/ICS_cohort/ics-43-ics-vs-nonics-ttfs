@@ -3,76 +3,109 @@
 # ============================================
 # Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
 #
-# "Do ICS accounts activate faster?" — computes the lag between Date
-# Opened and first non-zero monthly swipe column, for each account,
-# for ICS and Non-ICS. Limited to accounts with a Date Opened inside
-# the last 24 months (so we have enough forward data to observe first
-# swipe). Requires the monthly Swipes columns to span at least that far.
+# Previous version called .apply(axis=1) to compute TTFS per row,
+# which on 50K+ Non-ICS accounts iterating 24 monthly columns
+# produced ~1.2M Python-level ops and OOM'd the Jupyter kernel.
+# This version is FULLY VECTORIZED:
+#   - One pass over the 24 monthly Swipes columns
+#   - Build an (n_rows × 24) boolean eligibility matrix + swipes>0 matrix
+#   - Take column-wise argmax to find the first eligible hit per row
+
+import re as _re_ttfs
+from datetime import datetime as _dt_ttfs
 
 print(f"\n📊 ics-43 — Time-to-first-swipe, ICS {STAT_LABEL} vs Non-ICS...")
 
 # 24-month window anchored on ACTIVITY_END_DATE
-_l24_end    = pd.Period(last_12_months[-1], freq='M')
-_l24_periods = pd.period_range(end=_l24_end, periods=24, freq='M')
+_l24_end      = pd.Period(last_12_months[-1], freq='M')
+_l24_periods  = pd.period_range(end=_l24_end, periods=24, freq='M')
 last_24_months = [p.strftime('%b%y') for p in _l24_periods]
 
-def _ttfs_distribution(frame, label):
-    """Return (summary_dict, per-milestone %s) for accounts with Date Opened
-    inside the 24-month window."""
-    _f = frame.copy()
+# Pre-compute the Timestamp for each window month ONCE (beginning-of-month).
+# Use strptime (not pd.Period) — see #63 for why.
+_window_month_start = np.array(
+    [pd.Timestamp(_dt_ttfs.strptime(_m, '%b%y')) for _m in last_24_months]
+)
+
+def _ttfs_vectorized(frame):
+    """Return (stats_dict) for accounts with Date Opened inside the 24-month
+    window. Fully vectorized — no per-row .apply."""
+    _f = frame
     _f = _f[_f['Date Opened'].notna()]
-    _f = _f[_f['Date Opened'] >= pd.Period(last_24_months[0], freq='M').to_timestamp()]
-    _f = _f[_f['Date Opened'] <= ACTIVITY_END_DATE]
+    _window_start = _window_month_start[0]
+    _f = _f[(_f['Date Opened'] >= _window_start) &
+            (_f['Date Opened'] <= ACTIVITY_END_DATE)]
 
     _ct = len(_f)
     if _ct == 0:
-        return {'label': label, 'count': 0}, {}
+        return dict(count=0, swiped=0, never=0, median=np.nan, mean=np.nan,
+                    pct_m1=0, pct_m3=0, pct_m6=0, pct_never=0)
 
-    _f['_ttfs_months'] = _f.apply(
-        lambda r: _first_swipe_offset(r, last_24_months), axis=1
+    # Pull Swipes columns as a (n_rows × 24) numeric matrix.
+    _cols_present = [(f"{_m} Swipes", i) for i, _m in enumerate(last_24_months)
+                     if f"{_m} Swipes" in _f.columns]
+    if not _cols_present:
+        return dict(count=_ct, swiped=0, never=_ct, median=np.nan, mean=np.nan,
+                    pct_m1=0, pct_m3=0, pct_m6=0, pct_never=1.0)
+
+    _swipe_cols  = [c for c, _ in _cols_present]
+    _month_idxs  = np.array([i for _, i in _cols_present])
+    _swipes      = _f[_swipe_cols].to_numpy(dtype=float)
+    _swipes      = np.nan_to_num(_swipes, nan=0.0)
+
+    # Opened dates normalized to month-start (aligns with window bins).
+    _opened = _f['Date Opened'].values.astype('datetime64[M]').astype('datetime64[ns]')
+    # Month-starts for the window columns present:
+    _month_ts = _window_month_start[_month_idxs].astype('datetime64[ns]')
+
+    # Eligibility matrix: month >= opened-month → shape (n_rows, n_months)
+    _eligible = _month_ts[None, :] >= _opened[:, None]
+    _has_swipe = _swipes > 0
+    _hit = _eligible & _has_swipe                    # (n_rows × n_months)
+
+    # argmax returns FIRST True along axis=1. 0 when all False → also 0 if
+    # row[0] is True. Distinguish no-hit rows via .any().
+    _any_hit = _hit.any(axis=1)
+    _first_idx = _hit.argmax(axis=1)                 # column index of first hit
+
+    # Offset = (first-hit month_idx) - (opened month_idx)
+    # opened month_idx = index of `_window_month_start` whose month equals
+    # the account's opened month. Compute via months-since-window-start.
+    _opened_period = _f['Date Opened'].dt.to_period('M')
+    _window_start_period = pd.Period(last_24_months[0], freq='M')
+    _opened_offset_from_window = (_opened_period - _window_start_period).apply(
+        lambda p: p.n
+    ).to_numpy()
+
+    # first-hit column index is in _month_idxs[_first_idx] (since we only kept
+    # columns that exist). Translate back to an offset from the window start.
+    _first_hit_offset = _month_idxs[_first_idx]   # offset from window[0]
+    _ttfs = _first_hit_offset - _opened_offset_from_window    # months since opened
+    _ttfs = np.where(_any_hit, _ttfs, np.nan)
+
+    _swiped_n  = int(_any_hit.sum())
+    _never_n   = _ct - _swiped_n
+    _by_m1     = int(np.sum(_any_hit & (_ttfs <= 0)))
+    _by_m3     = int(np.sum(_any_hit & (_ttfs <= 2)))
+    _by_m6     = int(np.sum(_any_hit & (_ttfs <= 5)))
+
+    _valid = _ttfs[_any_hit]
+    _median = float(np.median(_valid)) if _valid.size else np.nan
+    _mean   = float(np.mean(_valid))   if _valid.size else np.nan
+
+    return dict(
+        count=_ct, swiped=_swiped_n, never=_never_n,
+        median=_median, mean=_mean,
+        pct_m1=_by_m1 / _ct, pct_m3=_by_m3 / _ct, pct_m6=_by_m6 / _ct,
+        pct_never=_never_n / _ct,
     )
-
-    _swiped = _f[_f['_ttfs_months'].notna()]
-    _median = float(_swiped['_ttfs_months'].median()) if len(_swiped) else float('nan')
-    _mean   = float(_swiped['_ttfs_months'].mean())   if len(_swiped) else float('nan')
-
-    _by_m1 = int((_f['_ttfs_months'].notna() & (_f['_ttfs_months'] <= 0)).sum())
-    _by_m3 = int((_f['_ttfs_months'].notna() & (_f['_ttfs_months'] <= 2)).sum())
-    _by_m6 = int((_f['_ttfs_months'].notna() & (_f['_ttfs_months'] <= 5)).sum())
-    _never = int(_f['_ttfs_months'].isna().sum())
-
-    return {
-        'label':       label,
-        'count':       _ct,
-        'swiped':      len(_swiped),
-        'never':       _never,
-        'median':      _median,
-        'mean':        _mean,
-        'pct_m1':      (_by_m1 / _ct) if _ct else 0,
-        'pct_m3':      (_by_m3 / _ct) if _ct else 0,
-        'pct_m6':      (_by_m6 / _ct) if _ct else 0,
-        'pct_never':   (_never / _ct) if _ct else 0,
-    }, {}
-
-def _first_swipe_offset(row, window):
-    """Return months-since-opened of first non-zero swipe column, or NaN."""
-    if pd.isna(row['Date Opened']):
-        return np.nan
-    _opened = row['Date Opened']
-    for _m in window:
-        _tag_dt = pd.to_datetime(f"{_m[:3]} {_m[3:]}", format='%b %y')
-        if _tag_dt < _opened.replace(day=1):
-            continue
-        _col = f"{_m} Swipes"
-        if _col in row.index and pd.notna(row[_col]) and row[_col] > 0:
-            # months-since-opened = year-month delta
-            return (_tag_dt.year - _opened.year) * 12 + (_tag_dt.month - _opened.month)
-    return np.nan
 
 _ics = ics_cohort(data)
 _non = non_ics_cohort(data)
-_ics_s, _ = _ttfs_distribution(_ics, f'ICS {STAT_LABEL}')
-_non_s, _ = _ttfs_distribution(_non, 'Non-ICS')
+print(f"   (computing TTFS — ICS={len(_ics):,} rows, Non-ICS={len(_non):,} rows)")
+_ics_s = _ttfs_vectorized(_ics)
+_non_s = _ttfs_vectorized(_non)
+del _ics, _non   # release memory before building the comparison table
 
 def _row(metric, ics_val, non_val, fmt):
     return {'Metric': metric, f'ICS {STAT_LABEL}': fmt(ics_val), 'Non-ICS': fmt(non_val)}

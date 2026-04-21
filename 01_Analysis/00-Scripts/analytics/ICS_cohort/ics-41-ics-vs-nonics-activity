@@ -17,24 +17,44 @@ _l24_periods = pd.period_range(end=_l24_end, periods=24, freq='M')
 last_24_months = [p.strftime('%b%y') for p in _l24_periods]
 
 def _compute_activity(frame, window):
-    _frame = add_l12m_totals(frame, window=window)
-    _ct    = len(_frame)
-    _act   = int(_frame['Active in L12M'].sum()) if _ct else 0
-    _sw    = float(_frame['Total L12M Swipes'].sum()) if _ct else 0
-    _sp    = float(_frame['Total L12M Spend'].sum()) if _ct else 0
-    _act_frame = _frame[_frame['Active in L12M']]
-    return {
-        'count':      _ct,
-        'active':     _act,
-        'act_rate':   (_act / _ct) if _ct else 0,
-        'total_sw':   _sw,
-        'total_sp':   _sp,
-        'avg_sw':     (_sw / _ct) if _ct else 0,
-        'avg_sp':     (_sp / _ct) if _ct else 0,
-        'avg_sw_act': float(_act_frame['Total L12M Swipes'].mean()) if _act else 0,
-        'avg_sp_act': float(_act_frame['Total L12M Spend'].mean())  if _act else 0,
-        'sp_per_sw':  (_sp / _sw) if _sw else 0,
-    }
+    """Compute per-cohort activity stats WITHOUT calling add_l12m_totals
+    (which copies the frame + adds columns). On a 50K-row Non-ICS cohort,
+    add_l12m_totals(frame, L12M) + add_l12m_totals(frame, L24M) at once
+    was causing Jupyter kernel OOM. Work column-by-column instead."""
+    _ct = len(frame)
+    if _ct == 0:
+        return dict(count=0, active=0, act_rate=0, total_sw=0.0, total_sp=0.0,
+                    avg_sw=0, avg_sp=0, avg_sw_act=0, avg_sp_act=0, sp_per_sw=0)
+
+    _swipe_cols = [f"{_m} Swipes" for _m in window if f"{_m} Swipes" in frame.columns]
+    _spend_cols = [f"{_m} Spend"  for _m in window if f"{_m} Spend"  in frame.columns]
+
+    # Sum per row using numpy — avoids adding persistent columns.
+    _sw_matrix = frame[_swipe_cols].to_numpy(dtype=float, na_value=0.0) if _swipe_cols \
+                  else np.zeros((_ct, 0))
+    _sp_matrix = frame[_spend_cols].to_numpy(dtype=float, na_value=0.0) if _spend_cols \
+                  else np.zeros((_ct, 0))
+
+    _row_swipes = _sw_matrix.sum(axis=1)
+    _row_spend  = _sp_matrix.sum(axis=1)
+    _active     = _row_swipes > 0
+    _act_n      = int(_active.sum())
+
+    _sw_total = float(_row_swipes.sum())
+    _sp_total = float(_row_spend.sum())
+
+    return dict(
+        count=_ct,
+        active=_act_n,
+        act_rate=(_act_n / _ct) if _ct else 0,
+        total_sw=_sw_total,
+        total_sp=_sp_total,
+        avg_sw=(_sw_total / _ct) if _ct else 0,
+        avg_sp=(_sp_total / _ct) if _ct else 0,
+        avg_sw_act=float(_row_swipes[_active].mean()) if _act_n else 0,
+        avg_sp_act=float(_row_spend[_active].mean())  if _act_n else 0,
+        sp_per_sw=(_sp_total / _sw_total) if _sw_total else 0,
+    )
 
 _ics   = ics_cohort(data)
 _non   = non_ics_cohort(data)
