@@ -19,10 +19,36 @@
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 
+# ------------------------------------------------------------------
+# Defensive: rebuild anything missing from what's available.
+# ------------------------------------------------------------------
+if 'BANK_CATEGORIES' not in dir():
+    if 'COMPETITOR_MERCHANTS' in dir():
+        BANK_CATEGORIES = [k for k in COMPETITOR_MERCHANTS
+                           if k not in ('wallets', 'p2p', 'bnpl')]
+        print("    (derived BANK_CATEGORIES from COMPETITOR_MERCHANTS)")
+    else:
+        print("    BANK_CATEGORIES + COMPETITOR_MERCHANTS both missing. "
+              "Run competition/01 first.")
+
+if 'competitor_txns' not in dir():
+    if 'combined_df' in dir() and 'tag_competitors' in dir():
+        _tagged = tag_competitors(combined_df, merchant_col='merchant_consolidated')
+        competitor_txns = _tagged[_tagged['competitor_category'].notna()].copy()
+        if 'normalize_competitor_name' in dir():
+            competitor_txns['competitor_match'] = (
+                competitor_txns['merchant_consolidated'].apply(normalize_competitor_name)
+            )
+        print(f"    (rebuilt competitor_txns from combined_df: "
+              f"{len(competitor_txns):,} rows)")
+    else:
+        print("    competitor_txns missing and cannot rebuild "
+              "(need combined_df + tag_competitors). Run competition/01 + 02 first.")
+
 _required = ('competitor_txns', 'combined_df', 'BANK_CATEGORIES')
 _missing = [n for n in _required if n not in dir()]
 if _missing:
-    print(f"    Missing: {_missing}. Run competition/01 + 02 first.")
+    print(f"    Still missing: {_missing}.")
 else:
     if 'GEN_COLORS' not in dir():
         GEN_COLORS = {'accent': '#E63946', 'info': '#2B6CB0',

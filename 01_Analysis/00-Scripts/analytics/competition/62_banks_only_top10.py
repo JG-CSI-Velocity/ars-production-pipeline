@@ -13,10 +13,49 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
+# ------------------------------------------------------------------
+# Defensive: rebuild anything missing from what's available.
+# ------------------------------------------------------------------
+if 'BANK_CATEGORIES' not in dir():
+    if 'COMPETITOR_MERCHANTS' in dir():
+        BANK_CATEGORIES = [k for k in COMPETITOR_MERCHANTS
+                           if k not in ('wallets', 'p2p', 'bnpl')]
+        print("    (derived BANK_CATEGORIES from COMPETITOR_MERCHANTS)")
+    else:
+        print("    BANK_CATEGORIES + COMPETITOR_MERCHANTS both missing. "
+              "Run competition/01 first.")
+
+if 'competitor_txns' not in dir():
+    if 'combined_df' in dir() and 'tag_competitors' in dir():
+        _tagged = tag_competitors(combined_df, merchant_col='merchant_consolidated')
+        competitor_txns = _tagged[_tagged['competitor_category'].notna()].copy()
+        if 'normalize_competitor_name' in dir():
+            competitor_txns['competitor_match'] = (
+                competitor_txns['merchant_consolidated'].apply(normalize_competitor_name)
+            )
+        print(f"    (rebuilt competitor_txns: {len(competitor_txns):,} rows)")
+    else:
+        print("    competitor_txns missing and cannot rebuild. "
+              "Run competition/01 + 02 first.")
+
+if 'CATEGORY_PALETTE' not in dir():
+    CATEGORY_PALETTE = {
+        'Big Nationals':        '#E63946',
+        'Top 25 Fed District':  '#C0392B',
+        'Credit Unions':        '#2EC4B6',
+        'Local Banks':          '#264653',
+        'Digital Banks':        '#FF9F1C',
+        'Custom':               '#F4A261',
+        'Wallets':              '#6C757D',
+        'P2p':                  '#A8DADC',
+        'Bnpl':                 '#E76F51',
+    }
+    print("    (CATEGORY_PALETTE fallback applied; run competition/06 for full theme)")
+
 _required = ('competitor_txns', 'BANK_CATEGORIES', 'CATEGORY_PALETTE')
 _missing = [n for n in _required if n not in dir()]
 if _missing:
-    print(f"    Missing: {_missing}. Run competition/01 + 02 first.")
+    print(f"    Still missing: {_missing}.")
 else:
     if 'GEN_COLORS' not in dir():
         GEN_COLORS = {'accent': '#E63946', 'info': '#2B6CB0',
