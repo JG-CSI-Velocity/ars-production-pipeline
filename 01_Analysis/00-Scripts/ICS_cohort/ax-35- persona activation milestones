@@ -1,0 +1,178 @@
+# ============================================
+# A[X].28 - ICS STAT CODE O - ACTIVATION CATEGORIES
+# ============================================
+
+print("\n📊 A[X].28 - Categorizing ICS Stat Code O Accounts by Behavior...")
+
+# Get ICS Stat Code O accounts with debit cards opened in 2025
+ics_stat_o = data[(data['ICS Account'] == 'Yes') & (data['Stat Code'] == '0') & (data['Debit?'] == 'Yes')].copy()
+
+# Convert Date Opened to datetime
+ics_stat_o['Date Opened'] = pd.to_datetime(ics_stat_o['Date Opened'], errors='coerce')
+ics_stat_o['Opening Month'] = ics_stat_o['Date Opened'].dt.to_period('M').astype(str)
+
+# Filter to 2025 cohorts only
+ics_2025 = ics_stat_o[ics_stat_o['Opening Month'] >= '2025-01'].copy()
+
+# Categorize each account
+categories = []
+
+for idx, account in ics_2025.iterrows():
+    opening_date = pd.to_datetime(account['Opening Month'])
+    
+    # Check if account has at least 3 months of data
+    month_3_date = opening_date + pd.DateOffset(months=2)
+    month_3_str = month_3_date.strftime('%b%y')
+    
+    if month_3_str not in last_12_months:
+        # Too new to categorize
+        categories.append({
+            'Account': account.name,
+            'Opening Month': account['Opening Month'],
+            'Category': 'Too New (<3 Months)',
+            'M1 Swipes': 0,
+            'M3 Swipes': 0
+        })
+        continue
+    
+    # Get M1 and M3 activity - ensure we're getting actual numbers
+    month_1_str = opening_date.strftime('%b%y')
+    m1_col = f"{month_1_str} Swipes"
+    m3_col = f"{month_3_str} Swipes"
+    
+    m1_swipes = float(account[m1_col]) if m1_col in account.index and pd.notna(account[m1_col]) else 0
+    m3_swipes = float(account[m3_col]) if m3_col in account.index and pd.notna(account[m3_col]) else 0
+    
+    # Categorize with explicit logic
+    if m1_swipes > 0 and m3_swipes > 0:
+        category = 'Fast Activator'
+    elif m1_swipes == 0 and m3_swipes > 0:
+        category = 'Slow Burner'
+    elif m1_swipes > 0 and m3_swipes == 0:
+        category = 'One and Done'
+    elif m1_swipes == 0 and m3_swipes == 0:
+        category = 'Never Activator'
+    else:
+        category = 'ERROR'
+    
+    categories.append({
+        'Account': account.name,
+        'Opening Month': account['Opening Month'],
+        'Category': category,
+        'M1 Swipes': m1_swipes,
+        'M3 Swipes': m3_swipes
+    })
+
+# Create summary by category
+category_df = pd.DataFrame(categories)
+
+if len(category_df) > 0:
+    category_summary = category_df.groupby('Category').agg({
+        'Account': 'count',
+        'M1 Swipes': 'sum',
+        'M3 Swipes': 'sum'
+    }).reset_index()
+    
+    category_summary.columns = ['Category', 'Account Count', 'Total M1 Swipes', 'Total M3 Swipes']
+    category_summary['% of Total'] = (category_summary['Account Count'] / len(category_df)).round(2)
+    
+    # Order by desirability
+    category_order = ['Fast Activator', 'Slow Burner', 'One and Done', 'Never Activator', 'Too New (<3 Months)']
+    category_summary['Category'] = pd.Categorical(category_summary['Category'], categories=category_order, ordered=True)
+    ax28_categories = category_summary.sort_values('Category').reset_index(drop=True)
+    
+    # Add total row
+    total_row = pd.DataFrame({
+        'Category': ['Total'],
+        'Account Count': [ax28_categories['Account Count'].sum()],
+        'Total M1 Swipes': [ax28_categories['Total M1 Swipes'].sum()],
+        'Total M3 Swipes': [ax28_categories['Total M3 Swipes'].sum()],
+        '% of Total': [1.0]
+    })
+    
+    ax28_categories = pd.concat([ax28_categories, total_row], ignore_index=True)
+else:
+    ax28_categories = pd.DataFrame({
+        'Category': ['No data available'],
+        'Account Count': [0],
+        'Total M1 Swipes': [0],
+        'Total M3 Swipes': [0],
+        '% of Total': [0]
+    })
+
+# Display
+display_formatted(ax28_categories, "ICS Stat Code O - Account Activation Categories")
+
+# Print detailed summary
+print(f"\n{'='*80}")
+print(f"📊 ICS STAT CODE O - ACTIVATION CATEGORY SUMMARY")
+print(f"{'='*80}")
+
+if len(category_df) > 0:
+    print(f"\n🔢 OVERALL METRICS:")
+    print(f"   Total Accounts Analyzed: {len(category_df):,}")
+    
+    # Split into categorized vs too new
+    categorized = category_df[category_df['Category'] != 'Too New (<3 Months)']
+    too_new = category_df[category_df['Category'] == 'Too New (<3 Months)']
+    
+    print(f"   Fully Categorized: {len(categorized):,}")
+    print(f"   Too New (<3 Months): {len(too_new):,}")
+    
+    if len(categorized) > 0:
+        print(f"   Total M1 Swipes: {categorized['M1 Swipes'].sum():,.0f}")
+        print(f"   Total M3 Swipes: {categorized['M3 Swipes'].sum():,.0f}")
+        if categorized['M1 Swipes'].sum() > 0:
+            print(f"   Growth M1→M3: {((categorized['M3 Swipes'].sum() - categorized['M1 Swipes'].sum()) / categorized['M1 Swipes'].sum()):.1f}%")
+    
+    # Category breakdown (excluding Too New)
+    for category in ['Fast Activator', 'Slow Burner', 'One and Done', 'Never Activator']:
+        cat_data = category_df[category_df['Category'] == category]
+        if len(cat_data) > 0:
+            count = len(cat_data)
+            pct = (count / len(categorized)) if len(categorized) > 0 else 0
+            m1_swipes = cat_data['M1 Swipes'].sum()
+            m3_swipes = cat_data['M3 Swipes'].sum()
+            
+            if category == 'Fast Activator':
+                emoji = '✅'
+                label = 'FAST ACTIVATORS (Good!)'
+            elif category == 'Slow Burner':
+                emoji = '🔥'
+                label = 'SLOW BURNERS (Acceptable)'
+            elif category == 'One and Done':
+                emoji = '⚠️'
+                label = 'ONE AND DONE (Concerning)'
+            else:
+                emoji = '❌'
+                label = 'NEVER ACTIVATORS (Problem)'
+            
+            print(f"\n{emoji} {label}")
+            print(f"   Count: {count:,} ({pct:.1f}% of categorized)")
+            print(f"   M1 Swipes: {m1_swipes:,.0f}")
+            print(f"   M3 Swipes: {m3_swipes:,.0f}")
+    
+    # Too New category
+    if len(too_new) > 0:
+        print(f"\n⏳ TOO NEW (<3 MONTHS)")
+        print(f"   Count: {len(too_new):,} ({len(too_new) / len(category_df)}% of total)")
+    
+    # Key insights (excluding Too New)
+    if len(categorized) > 0:
+        fast_activators = len(category_df[category_df['Category'] == 'Fast Activator'])
+        never_activators = len(category_df[category_df['Category'] == 'Never Activator'])
+        success_rate = (fast_activators / len(categorized))
+        
+        print(f"\n💡 KEY INSIGHTS (Categorized Accounts Only):")
+        print(f"   Success Rate (Fast Activators): {success_rate:.1f}%")
+        print(f"   Problem Rate (Never Activators): {(never_activators / len(categorized)):.1f}%")
+        
+        if success_rate >= 70:
+            print(f"   ✅ Strong activation performance!")
+        elif success_rate >= 50:
+            print(f"   ⚠️ Moderate activation - room for improvement")
+        else:
+            print(f"   ❌ Low activation - needs attention")
+
+print(f"\n{'='*80}")
+print(f"✅ Analysis completed")
