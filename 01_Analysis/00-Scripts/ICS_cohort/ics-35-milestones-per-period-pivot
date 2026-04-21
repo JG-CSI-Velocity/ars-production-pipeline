@@ -1,0 +1,92 @@
+# ============================================
+# ics-35-milestones-per-period-pivot — Metrics × Milestones pivot per opening period
+# ============================================
+# Supersedes: ax-31-milestones per period.
+# Depends on: ics-33-cohort-milestones-extended (consumes `cohort_milestones_extended`).
+#
+# Renders one small pivoted table per opening period: rows = metric
+# (Active / % Active / Avg Swipes / Avg Spend), columns = milestone (M1..M12).
+
+print(f"\n📊 ics-35 — Milestones pivoted per opening period for ICS {STAT_LABEL}...")
+
+try:
+    _src = cohort_milestones_extended
+except NameError as e:
+    raise RuntimeError(
+        "`cohort_milestones_extended` not found — run ics-33-cohort-milestones-extended "
+        "before this cell."
+    ) from e
+
+_MILESTONES  = [1, 3, 6, 9, 12]
+_METRIC_ROWS = ['Active', '% Active', 'Avg Swipes', 'Avg Spend']
+
+# Build tidy long-form rows
+_tidy = []
+for _, _r in _src.iterrows():
+    _op   = _r.get('Opening Period')
+    _size = int(_r.get('Cohort Size', 0))
+    _bal  = float(_r.get('Avg Current Balance', 0) or 0)
+    for _m in _MILESTONES:
+        _a = _r.get(f'M{_m} Active')
+        _p = _r.get(f'M{_m} % Active')
+        _s = _r.get(f'M{_m} Avg Swipes')
+        _d = _r.get(f'M{_m} Avg Spend')
+        if all(pd.isna(v) or v in ('', None) for v in (_a, _p, _s, _d)):
+            continue
+        _tidy.append({
+            'Opening Period':      _op,
+            'Milestone':           f'M{_m}',
+            'Cohort Size':         _size,
+            'Avg Current Balance': _bal,
+            'Active':      int(_a)   if pd.notna(_a) else 0,
+            '% Active':    float(_p) if pd.notna(_p) else 0.0,
+            'Avg Swipes':  int(round(float(_s))) if pd.notna(_s) else 0,
+            'Avg Spend':   float(_d) if pd.notna(_d) else 0.0,
+        })
+
+_tidy_df = pd.DataFrame(_tidy)
+if _tidy_df.empty:
+    display_formatted(
+        pd.DataFrame({'Notice': ['No completed milestones available to pivot.']}),
+        f"ICS {STAT_LABEL} — Cohort Milestones (Metrics × Milestones)"
+    )
+else:
+    _cat_m = pd.api.types.CategoricalDtype(
+        categories=[f'M{x}' for x in _MILESTONES], ordered=True
+    )
+    _tidy_df['Milestone'] = _tidy_df['Milestone'].astype(_cat_m)
+
+    def _period_sort_key(p):
+        if isinstance(p, str) and len(p) == 4 and p.isdigit():
+            return (0, int(p), 0)
+        if isinstance(p, str) and len(p) == 7 and p[4] == '-':
+            _y, _mo = p.split('-')
+            return (1, int(_y), int(_mo))
+        return (2, 9999, 99)
+
+    _tidy_df = _tidy_df.sort_values(
+        ['Opening Period', 'Milestone'],
+        key=lambda s: s.map(_period_sort_key) if s.name == 'Opening Period' else s,
+    )
+
+    for _op, _block in _tidy_df.groupby('Opening Period', sort=False):
+        _long = []
+        for _metric in _METRIC_ROWS:
+            _piece = _block[['Milestone', _metric]].rename(columns={_metric: 'Value'})
+            _piece['Metric'] = _metric
+            _long.append(_piece)
+        _pivot = (
+            pd.concat(_long, ignore_index=True)
+              .pivot_table(index='Metric', columns='Milestone', values='Value', aggfunc='first')
+              .reset_index()
+              .rename_axis(None, axis=1)
+        )
+
+        _cohort_size = int(_block['Cohort Size'].iloc[0])
+        _avg_bal     = float(_block['Avg Current Balance'].iloc[0])
+        display_formatted(
+            _pivot,
+            f"ICS {STAT_LABEL} — {_op} (Cohort {_cohort_size:,} · Avg Bal ${_avg_bal:,.2f})"
+        )
+
+print(f"\n✅ Analysis completed")

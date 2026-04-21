@@ -1,0 +1,139 @@
+# ============================================
+# ics-40-exec-summary — Executive summary (print-only narrative)
+# ============================================
+# Supersedes: ax-40-exec summary.
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+#
+# Tells the story of how the ICS target-Stat cohort is performing.
+# Ends with an ICS vs Non-ICS comparison slice so stakeholders see not
+# just how the ICS cohort looks in isolation but how it differs from
+# the non-ICS baseline. Uses the configured activity window for all
+# L12M figures.
+
+print("\n" + "=" * 80)
+print(f"📊 ICS ACCOUNT ANALYSIS — EXECUTIVE SUMMARY  (ICS {STAT_LABEL})")
+print(f"   Activity window: {last_12_months[0]} … {last_12_months[-1]}")
+print("=" * 80)
+
+# ---- Cohort frames -------------------------------------------------------
+_all_ics   = data[data['ICS Account'] == 'Yes']
+_non_ics   = non_ics_cohort(data)
+_target    = add_l12m_totals(ics_cohort(data))
+_target_db = add_l12m_totals(ics_cohort_debit(data))
+_non_ics_l = add_l12m_totals(_non_ics)
+
+_total_ics_ct    = len(_all_ics)
+_target_ct       = len(_target)
+_active_l12m     = int(_target['Active in L12M'].sum())
+_act_rate        = (_active_l12m / _target_ct) if _target_ct else 0
+
+# ---- 1) PORTFOLIO OVERVIEW ----------------------------------------------
+print("\n📈 SECTION 1: PORTFOLIO OVERVIEW")
+print("-" * 80)
+print(f"Total Accounts (all)              : {len(data):>10,}")
+print(f"Total ICS Accounts                : {_total_ics_ct:>10,}  "
+      f"({_total_ics_ct / len(data):.1%} of book)")
+print(f"ICS {STAT_LABEL}                  : {_target_ct:>10,}  "
+      f"({(_target_ct / _total_ics_ct) if _total_ics_ct else 0:.1%} of ICS)")
+print(f"ICS {STAT_LABEL} + Debit          : {len(_target_db):>10,}")
+print(f"Active in last {len(last_12_months)} months     : {_active_l12m:>10,}  "
+      f"({_act_rate:.1%} of ICS {STAT_LABEL})")
+print(f"Inactive in last {len(last_12_months)} months   : {_target_ct - _active_l12m:>10,}")
+
+# ---- 2) ACTIVITY METRICS -------------------------------------------------
+_tot_sw = float(_target['Total L12M Swipes'].sum())
+_tot_sp = float(_target['Total L12M Spend'].sum())
+_active_frame = _target[_target['Active in L12M']]
+
+print("\n💳 SECTION 2: ACTIVITY METRICS (LAST 12 MONTHS)")
+print("-" * 80)
+print(f"Total Swipes                      : {_tot_sw:>12,.0f}")
+print(f"Total Spend                       : ${_tot_sp:>11,.2f}")
+print(f"Avg Swipes per Account (all)      : "
+      f"{float(_target['Total L12M Swipes'].mean() if _target_ct else 0):>12,.1f}")
+print(f"Avg Spend per Account (all)       : "
+      f"${float(_target['Total L12M Spend'].mean() if _target_ct else 0):>11,.2f}")
+print(f"Avg Swipes per Active Account     : "
+      f"{float(_active_frame['Total L12M Swipes'].mean() if len(_active_frame) else 0):>12,.1f}")
+print(f"Avg Spend per Active Account      : "
+      f"${float(_active_frame['Total L12M Spend'].mean() if len(_active_frame) else 0):>11,.2f}")
+print(f"Avg Spend per Swipe               : "
+      f"${(_tot_sp / _tot_sw) if _tot_sw else 0:>11,.2f}")
+
+# ---- 3) SOURCE PERFORMANCE ----------------------------------------------
+print("\n🎯 SECTION 3: SOURCE PERFORMANCE")
+print("-" * 80)
+for _src_name in sorted(_target['Source'].dropna().unique()):
+    _src        = _target[_target['Source'] == _src_name]
+    _src_active = _src[_src['Active in L12M']]
+    _rate       = (len(_src_active) / len(_src)) if len(_src) else 0
+    print(f"\n{_src_name}:")
+    print(f"   Accounts: {len(_src):,} | Active: {len(_src_active):,} ({_rate:.1%})")
+    if len(_src_active):
+        print(f"   Avg Swipes (Active): {float(_src_active['Total L12M Swipes'].mean()):.1f} "
+              f"| Avg Spend (Active): ${float(_src_active['Total L12M Spend'].mean()):,.2f}")
+
+# ---- 4) COHORT BEHAVIOR (personas if available) -------------------------
+print(f"\n🔥 SECTION 4: COHORT BEHAVIOR (cohorts from {COHORT_START} onward)")
+print("-" * 80)
+try:
+    _personas = ics_cohort_personas
+    _CATS = ['Fast Activator', 'Slow Burner', 'One and Done',
+             'Never Activator', 'Too New (<3 Months)']
+    _total_classified = len(_personas)
+    if _total_classified:
+        for _cat in _CATS:
+            _n = int((_personas['Category'] == _cat).sum())
+            if _n:
+                print(f"   {_cat:<22}: {_n:>6,}  ({_n / _total_classified:.1%})")
+        print(f"\n   Classified accounts  : {_total_classified:,}")
+except NameError:
+    print("   (Run ics-37-activation-personas first to populate this section.)")
+
+# ---- 5) ICS vs NON-ICS L12M COMPARISON ----------------------------------
+print("\n⚖️  SECTION 5: ICS vs NON-ICS — LAST 12 MONTHS")
+print("-" * 80)
+
+def _cohort_stats(frame):
+    _ct    = len(frame)
+    _act   = int(frame['Active in L12M'].sum()) if _ct else 0
+    _sw    = float(frame['Total L12M Swipes'].sum()) if _ct else 0
+    _sp    = float(frame['Total L12M Spend'].sum()) if _ct else 0
+    _bal   = float(frame['Curr Bal'].mean()) if _ct else 0
+    return {
+        'count':      _ct,
+        'active':     _act,
+        'act_rate':   (_act / _ct) if _ct else 0,
+        'avg_sw':     (_sw / _ct) if _ct else 0,
+        'avg_sp':     (_sp / _ct) if _ct else 0,
+        'avg_sw_act': float(frame.loc[frame['Active in L12M'], 'Total L12M Swipes'].mean()) if _act else 0,
+        'avg_sp_act': float(frame.loc[frame['Active in L12M'], 'Total L12M Spend'].mean())  if _act else 0,
+        'bal':        _bal,
+    }
+
+_ics_s = _cohort_stats(_target)
+_non_s = _cohort_stats(_non_ics_l)
+
+def _fmt(k, label, is_money=False, is_pct=False):
+    _i = _ics_s[k]; _n = _non_s[k]
+    if is_pct:
+        _delta = _i - _n
+        print(f"   {label:<32} ICS: {_i:>10.1%}  |  Non-ICS: {_n:>10.1%}  |  Δ {_delta:+.1%}")
+    elif is_money:
+        _delta = _i - _n
+        print(f"   {label:<32} ICS: ${_i:>10,.2f} |  Non-ICS: ${_n:>10,.2f} |  Δ ${_delta:+,.2f}")
+    else:
+        _delta = _i - _n
+        print(f"   {label:<32} ICS: {_i:>10,.1f}  |  Non-ICS: {_n:>10,.1f}  |  Δ {_delta:+,.1f}")
+
+print(f"   {'Cohort size':<32} ICS: {_ics_s['count']:>10,}  |  Non-ICS: {_non_s['count']:>10,}")
+_fmt('act_rate',   '% Active in L12M',                 is_pct=True)
+_fmt('avg_sw',     'Avg Swipes per Account')
+_fmt('avg_sp',     'Avg Spend per Account',            is_money=True)
+_fmt('avg_sw_act', 'Avg Swipes per Active Account')
+_fmt('avg_sp_act', 'Avg Spend per Active Account',     is_money=True)
+_fmt('bal',        'Avg Current Balance',              is_money=True)
+
+print("\n" + "=" * 80)
+print(f"✅ Executive summary complete")
+print("=" * 80)

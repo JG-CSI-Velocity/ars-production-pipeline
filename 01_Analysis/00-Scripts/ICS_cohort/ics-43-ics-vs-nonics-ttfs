@@ -1,0 +1,112 @@
+# ============================================
+# ics-43-ics-vs-nonics-ttfs — Time-to-first-swipe comparison, ICS vs Non-ICS
+# ============================================
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+#
+# "Do ICS accounts activate faster?" — computes the lag between Date
+# Opened and first non-zero monthly swipe column, for each account,
+# for ICS and Non-ICS. Limited to accounts with a Date Opened inside
+# the last 24 months (so we have enough forward data to observe first
+# swipe). Requires the monthly Swipes columns to span at least that far.
+
+print(f"\n📊 ics-43 — Time-to-first-swipe, ICS {STAT_LABEL} vs Non-ICS...")
+
+# 24-month window anchored on ACTIVITY_END_DATE
+_l24_end    = pd.Period(last_12_months[-1], freq='M')
+_l24_periods = pd.period_range(end=_l24_end, periods=24, freq='M')
+last_24_months = [p.strftime('%b%y') for p in _l24_periods]
+
+def _ttfs_distribution(frame, label):
+    """Return (summary_dict, per-milestone %s) for accounts with Date Opened
+    inside the 24-month window."""
+    _f = frame.copy()
+    _f = _f[_f['Date Opened'].notna()]
+    _f = _f[_f['Date Opened'] >= pd.Period(last_24_months[0], freq='M').to_timestamp()]
+    _f = _f[_f['Date Opened'] <= ACTIVITY_END_DATE]
+
+    _ct = len(_f)
+    if _ct == 0:
+        return {'label': label, 'count': 0}, {}
+
+    _f['_ttfs_months'] = _f.apply(
+        lambda r: _first_swipe_offset(r, last_24_months), axis=1
+    )
+
+    _swiped = _f[_f['_ttfs_months'].notna()]
+    _median = float(_swiped['_ttfs_months'].median()) if len(_swiped) else float('nan')
+    _mean   = float(_swiped['_ttfs_months'].mean())   if len(_swiped) else float('nan')
+
+    _by_m1 = int((_f['_ttfs_months'].notna() & (_f['_ttfs_months'] <= 0)).sum())
+    _by_m3 = int((_f['_ttfs_months'].notna() & (_f['_ttfs_months'] <= 2)).sum())
+    _by_m6 = int((_f['_ttfs_months'].notna() & (_f['_ttfs_months'] <= 5)).sum())
+    _never = int(_f['_ttfs_months'].isna().sum())
+
+    return {
+        'label':       label,
+        'count':       _ct,
+        'swiped':      len(_swiped),
+        'never':       _never,
+        'median':      _median,
+        'mean':        _mean,
+        'pct_m1':      (_by_m1 / _ct) if _ct else 0,
+        'pct_m3':      (_by_m3 / _ct) if _ct else 0,
+        'pct_m6':      (_by_m6 / _ct) if _ct else 0,
+        'pct_never':   (_never / _ct) if _ct else 0,
+    }, {}
+
+def _first_swipe_offset(row, window):
+    """Return months-since-opened of first non-zero swipe column, or NaN."""
+    if pd.isna(row['Date Opened']):
+        return np.nan
+    _opened = row['Date Opened']
+    for _m in window:
+        _tag_dt = pd.to_datetime(f"{_m[:3]} {_m[3:]}", format='%b %y')
+        if _tag_dt < _opened.replace(day=1):
+            continue
+        _col = f"{_m} Swipes"
+        if _col in row.index and pd.notna(row[_col]) and row[_col] > 0:
+            # months-since-opened = year-month delta
+            return (_tag_dt.year - _opened.year) * 12 + (_tag_dt.month - _opened.month)
+    return np.nan
+
+_ics = ics_cohort(data)
+_non = non_ics_cohort(data)
+_ics_s, _ = _ttfs_distribution(_ics, f'ICS {STAT_LABEL}')
+_non_s, _ = _ttfs_distribution(_non, 'Non-ICS')
+
+def _row(metric, ics_val, non_val, fmt):
+    return {'Metric': metric, f'ICS {STAT_LABEL}': fmt(ics_val), 'Non-ICS': fmt(non_val)}
+
+def _fmt_ct(v):    return f"{int(v):,}" if pd.notna(v) else "-"
+def _fmt_pct(v):   return f"{v:.1%}"    if pd.notna(v) else "-"
+def _fmt_float(v): return f"{v:.1f}"    if pd.notna(v) else "—"
+
+if _ics_s['count'] == 0 or _non_s['count'] == 0:
+    print(f"   ⚠️  Insufficient rows inside the 24-month opening window "
+          f"(ICS={_ics_s['count']}, Non-ICS={_non_s['count']}).")
+else:
+    ttfs_comparison = pd.DataFrame([
+        _row('Accounts opened in L24M',  _ics_s['count'],  _non_s['count'],  _fmt_ct),
+        _row('Swiped at least once',     _ics_s['swiped'], _non_s['swiped'], _fmt_ct),
+        _row('Never swiped (L24M)',      _ics_s['never'],  _non_s['never'],  _fmt_ct),
+        _row('% swiped by M1 (month 1)', _ics_s['pct_m1'], _non_s['pct_m1'], _fmt_pct),
+        _row('% swiped by M3',           _ics_s['pct_m3'], _non_s['pct_m3'], _fmt_pct),
+        _row('% swiped by M6',           _ics_s['pct_m6'], _non_s['pct_m6'], _fmt_pct),
+        _row('% never swiped',           _ics_s['pct_never'], _non_s['pct_never'], _fmt_pct),
+        _row('Median months to 1st swipe', _ics_s['median'], _non_s['median'], _fmt_float),
+        _row('Mean months to 1st swipe',   _ics_s['mean'],   _non_s['mean'],   _fmt_float),
+    ])
+
+    display_formatted(ttfs_comparison, f"Time-to-First-Swipe — ICS {STAT_LABEL} vs Non-ICS (opened in L24M)")
+
+    print(f"\n📣 KEY DIFFERENCES — TIME TO FIRST SWIPE")
+    print(f"   % swiped in M1 : ICS {_ics_s['pct_m1']:.1%} vs Non-ICS {_non_s['pct_m1']:.1%}  "
+          f"(Δ {_ics_s['pct_m1'] - _non_s['pct_m1']:+.1%})")
+    print(f"   % swiped in M3 : ICS {_ics_s['pct_m3']:.1%} vs Non-ICS {_non_s['pct_m3']:.1%}  "
+          f"(Δ {_ics_s['pct_m3'] - _non_s['pct_m3']:+.1%})")
+    if pd.notna(_ics_s['median']) and pd.notna(_non_s['median']):
+        _faster = "faster" if _ics_s['median'] < _non_s['median'] else "slower"
+        print(f"   Median TTFS    : ICS {_ics_s['median']:.1f} months vs Non-ICS "
+              f"{_non_s['median']:.1f} months  (ICS is {_faster})")
+
+print("\n✅ Analysis completed")

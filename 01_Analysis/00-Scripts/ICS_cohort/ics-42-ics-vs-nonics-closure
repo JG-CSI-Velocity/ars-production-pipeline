@@ -1,0 +1,108 @@
+# ============================================
+# ics-42-ics-vs-nonics-closure — Closure-rate and duration comparison, ICS vs Non-ICS
+# ============================================
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+#
+# Are ICS accounts stickier? Two views:
+#   1) Headline rates: % closed, % still open.
+#   2) Duration bucket distribution for closed accounts (how long they
+#      stayed open before closing), ICS vs Non-ICS side by side.
+
+print(f"\n📊 ics-42 — Closure / duration comparison, ICS vs Non-ICS...")
+
+def _bucketize(frame, label):
+    _f = frame.copy()
+    _f['Duration Days'] = np.where(
+        _f['Date Closed'].notna(),
+        (_f['Date Closed']     - _f['Date Opened']).dt.days,
+        (ACTIVITY_END_DATE     - _f['Date Opened']).dt.days,
+    )
+    _f['Duration Range'] = _f['Duration Days'].map(_age_bucket)
+    _f['Status'] = np.where(_f['Date Closed'].notna(), 'Closed', 'Open')
+    return _f.assign(_Cohort=label)
+
+_ics = _bucketize(data[data['ICS Account'] == 'Yes'], 'ICS')
+_non = _bucketize(non_ics_cohort(data),                'Non-ICS')
+
+# Headline rates
+def _rates(frame):
+    _ct     = len(frame)
+    _closed = int((frame['Status'] == 'Closed').sum())
+    _open   = int((frame['Status'] == 'Open').sum())
+    return {
+        'count':       _ct,
+        'closed':      _closed,
+        'open':        _open,
+        'closed_pct':  (_closed / _ct) if _ct else 0,
+        'open_pct':    (_open / _ct)   if _ct else 0,
+        'avg_days_closed': (
+            float(frame.loc[frame['Status'] == 'Closed', 'Duration Days'].mean())
+            if _closed else 0
+        ),
+    }
+
+_ics_r = _rates(_ics)
+_non_r = _rates(_non)
+
+closure_rates = pd.DataFrame([
+    {'Metric': 'Cohort Size',           'ICS': f"{_ics_r['count']:,}",         'Non-ICS': f"{_non_r['count']:,}"},
+    {'Metric': 'Open Accounts',         'ICS': f"{_ics_r['open']:,}",          'Non-ICS': f"{_non_r['open']:,}"},
+    {'Metric': 'Closed Accounts',       'ICS': f"{_ics_r['closed']:,}",        'Non-ICS': f"{_non_r['closed']:,}"},
+    {'Metric': '% Closed',              'ICS': f"{_ics_r['closed_pct']:.1%}",  'Non-ICS': f"{_non_r['closed_pct']:.1%}"},
+    {'Metric': '% Still Open',          'ICS': f"{_ics_r['open_pct']:.1%}",    'Non-ICS': f"{_non_r['open_pct']:.1%}"},
+    {'Metric': 'Avg Days Before Close', 'ICS': f"{_ics_r['avg_days_closed']:,.0f}", 'Non-ICS': f"{_non_r['avg_days_closed']:,.0f}"},
+])
+
+display_formatted(closure_rates, "ICS vs Non-ICS — Closure Rates")
+
+# Duration-bucket distribution for closed accounts
+_ics_closed = _ics[_ics['Status'] == 'Closed']
+_non_closed = _non[_non['Status'] == 'Closed']
+
+def _dist(frame):
+    _c = frame['Duration Range'].value_counts()
+    return _c.reindex(AGE_RANGE_ORDER, fill_value=0)
+
+_ics_dist = _dist(_ics_closed)
+_non_dist = _dist(_non_closed)
+
+_ics_total = int(_ics_dist.sum())
+_non_total = int(_non_dist.sum())
+
+closure_duration_comparison = pd.DataFrame({
+    'Duration Range':     AGE_RANGE_ORDER,
+    'ICS Closed':         _ics_dist.values,
+    'ICS Closed %':       (_ics_dist.values / _ics_total) if _ics_total else 0,
+    'Non-ICS Closed':     _non_dist.values,
+    'Non-ICS Closed %':   (_non_dist.values / _non_total) if _non_total else 0,
+})
+
+total_row = pd.DataFrame([{
+    'Duration Range':   'Total',
+    'ICS Closed':       _ics_total,
+    'ICS Closed %':     1.0 if _ics_total else 0.0,
+    'Non-ICS Closed':   _non_total,
+    'Non-ICS Closed %': 1.0 if _non_total else 0.0,
+}])
+closure_duration_comparison = pd.concat(
+    [closure_duration_comparison, total_row], ignore_index=True
+)
+
+display_formatted(
+    closure_duration_comparison,
+    "ICS vs Non-ICS — Duration Distribution of Closed Accounts"
+)
+
+# Narrative
+print(f"\n📣 KEY DIFFERENCES")
+_delta_close = _ics_r['closed_pct'] - _non_r['closed_pct']
+_sticker = "stickier" if _delta_close < 0 else "more churn-prone"
+print(f"   ICS closure rate  : {_ics_r['closed_pct']:.1%}  vs Non-ICS {_non_r['closed_pct']:.1%}  "
+      f"(Δ {_delta_close:+.1%}  → ICS is {_sticker})")
+if _ics_r['closed'] and _non_r['closed']:
+    print(f"   Avg days-to-close : ICS {_ics_r['avg_days_closed']:,.0f}  "
+          f"vs Non-ICS {_non_r['avg_days_closed']:,.0f}  "
+          f"(ICS stays {abs(_ics_r['avg_days_closed'] - _non_r['avg_days_closed']):,.0f} days "
+          f"{'longer' if _ics_r['avg_days_closed'] > _non_r['avg_days_closed'] else 'shorter'})")
+
+print("\n✅ Analysis completed")

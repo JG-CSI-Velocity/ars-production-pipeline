@@ -1,0 +1,72 @@
+# ============================================
+# ics-36-cohort-growth — Cohort swipe/spend growth M1 → M3 → M6
+# ============================================
+# Supersedes: ax-33-growth 2.0  (ax-32-growth dropped — superseded).
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+
+print(f"\n📊 ics-36 — Cohort growth patterns for ICS {STAT_LABEL} debit cohort...")
+
+cohort = ics_cohort_debit(data)
+cohort = add_opening_month(cohort)
+cohort = apply_cohort_start(cohort)
+
+rows = []
+for _op in sorted(cohort['Opening Month'].unique()):
+    _sub        = cohort[cohort['Opening Month'] == _op]
+    _opening_dt = pd.to_datetime(_op)
+    _row = {
+        'Opening Month': _op,
+        'Cohort Size':   int(len(_sub)),
+    }
+
+    def _month_metrics(offset, prefix):
+        _tag    = (_opening_dt + pd.DateOffset(months=offset)).strftime('%b%y')
+        _s_col  = f"{_tag} Swipes"
+        _d_col  = f"{_tag} Spend"
+        if (_s_col in _sub.columns) and (_d_col in _sub.columns):
+            _sw       = pd.to_numeric(_sub[_s_col], errors='coerce').fillna(0)
+            _sp       = pd.to_numeric(_sub[_d_col], errors='coerce').fillna(0)
+            _active   = (_sw > 0).sum()
+            _row[f'{prefix} Total Swipes'] = int(_sw.sum())
+            _row[f'{prefix} Total Spend']  = float(_sp.sum())
+            _row[f'{prefix} % Active']     = (_active / len(_sub)) if len(_sub) else np.nan
+        else:
+            _row[f'{prefix} Total Swipes'] = np.nan
+            _row[f'{prefix} Total Spend']  = np.nan
+            _row[f'{prefix} % Active']     = np.nan
+
+    _month_metrics(0,  'M1')
+    _month_metrics(2,  'M3')
+    _month_metrics(5,  'M6')
+
+    def _growth(a, b):
+        if pd.notna(a) and pd.notna(b) and a and a > 0:
+            return (b - a) / a
+        return np.nan
+
+    _row['Swipe Growth M1→M3 %']    = _growth(_row['M1 Total Swipes'], _row['M3 Total Swipes'])
+    _row['Spend Growth M1→M3 %']    = _growth(_row['M1 Total Spend'],  _row['M3 Total Spend'])
+    _row['Active Rate Change M1→M3'] = (
+        (_row['M3 % Active'] - _row['M1 % Active'])
+        if pd.notna(_row['M1 % Active']) and pd.notna(_row['M3 % Active']) else np.nan
+    )
+    _row['Swipe Growth M3→M6 %']    = _growth(_row['M3 Total Swipes'], _row['M6 Total Swipes'])
+    _row['Spend Growth M3→M6 %']    = _growth(_row['M3 Total Spend'],  _row['M6 Total Spend'])
+    _row['Active Rate Change M3→M6'] = (
+        (_row['M6 % Active'] - _row['M3 % Active'])
+        if pd.notna(_row['M3 % Active']) and pd.notna(_row['M6 % Active']) else np.nan
+    )
+
+    rows.append(_row)
+
+cohort_growth = pd.DataFrame(rows)
+
+for _c in cohort_growth.columns:
+    if _c in ('Opening Month', 'Cohort Size'):
+        continue
+    cohort_growth[_c] = pd.to_numeric(cohort_growth[_c], errors='coerce')
+
+display_formatted(cohort_growth, f"ICS {STAT_LABEL} — Cohort Growth (M1 vs M3 vs M6)")
+
+print(f"\n✅ Analysis completed")
+print(f"   Cohorts analyzed : {len(cohort_growth)}")
