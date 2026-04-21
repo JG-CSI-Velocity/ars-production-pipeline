@@ -20,40 +20,64 @@ from matplotlib.patches import FancyBboxPatch
 import matplotlib.pyplot as plt
 
 # ------------------------------------------------------------------
-# Defensive: rebuild anything missing from what's available.
+# Defensive bootstrap.  try/except NameError is portable across any
+# runner (Jupyter, pipeline.exec, pytest, subprocess) -- `in dir()`
+# only sees local scope when the cell is exec'd with separate globals
+# and locals.
 # ------------------------------------------------------------------
-if 'BANK_CATEGORIES' not in dir():
-    if 'COMPETITOR_MERCHANTS' in dir():
+_BOOT_OK = True
+
+# BANK_CATEGORIES: derive from COMPETITOR_MERCHANTS if missing
+try:
+    BANK_CATEGORIES
+except NameError:
+    try:
         BANK_CATEGORIES = [k for k in COMPETITOR_MERCHANTS
                            if k not in ('wallets', 'p2p', 'bnpl')]
         print("    (derived BANK_CATEGORIES from COMPETITOR_MERCHANTS)")
-    else:
-        print("    BANK_CATEGORIES + COMPETITOR_MERCHANTS both missing. "
+    except NameError:
+        print("    Missing BANK_CATEGORIES + COMPETITOR_MERCHANTS. "
               "Run competition/01 first.")
+        _BOOT_OK = False
 
-if 'competitor_txns' not in dir():
-    if 'combined_df' in dir() and 'tag_competitors' in dir():
+# competitor_txns: rebuild from combined_df if missing
+try:
+    competitor_txns
+except NameError:
+    try:
         _tagged = tag_competitors(combined_df, merchant_col='merchant_consolidated')
         competitor_txns = _tagged[_tagged['competitor_category'].notna()].copy()
-        if 'normalize_competitor_name' in dir():
+        try:
             competitor_txns['competitor_match'] = (
                 competitor_txns['merchant_consolidated'].apply(normalize_competitor_name)
             )
+        except NameError:
+            pass
         print(f"    (rebuilt competitor_txns from combined_df: "
               f"{len(competitor_txns):,} rows)")
-    else:
-        print("    competitor_txns missing and cannot rebuild "
+    except NameError:
+        print("    Missing competitor_txns and cannot rebuild "
               "(need combined_df + tag_competitors). Run competition/01 + 02 first.")
+        _BOOT_OK = False
 
-_required = ('competitor_txns', 'combined_df', 'BANK_CATEGORIES')
-_missing = [n for n in _required if n not in dir()]
-if _missing:
-    print(f"    Still missing: {_missing}.")
+# combined_df required for totals
+try:
+    combined_df
+except NameError:
+    print("    Missing combined_df.  Run setup/txn_setup first.")
+    _BOOT_OK = False
+
+# GEN_COLORS fallback
+try:
+    GEN_COLORS
+except NameError:
+    GEN_COLORS = {'accent': '#E63946', 'info': '#2B6CB0',
+                  'warning': '#C05621', 'success': '#2F855A',
+                  'dark_text': '#1A202C', 'muted': '#718096'}
+
+if not _BOOT_OK:
+    print("    Skipping -- required inputs missing.")
 else:
-    if 'GEN_COLORS' not in dir():
-        GEN_COLORS = {'accent': '#E63946', 'info': '#2B6CB0',
-                      'warning': '#C05621', 'success': '#2F855A',
-                      'dark_text': '#1A202C', 'muted': '#718096'}
 
     # ------------------------------------------------------------------
     # Filter to banks only (exclude wallets / P2P / BNPL)
