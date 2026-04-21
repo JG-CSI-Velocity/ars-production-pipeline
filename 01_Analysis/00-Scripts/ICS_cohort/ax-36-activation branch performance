@@ -1,0 +1,85 @@
+
+# ============================================
+# A[X].36 - ICS STAT CODE O - BRANCH ACTIVATION BY CATEGORY (PERCENTAGES)
+# ============================================
+
+print("\n📊 A[X].36 - Analyzing ICS Stat Code O Branch Performance by Category (Percentages)...")
+
+# --- 0) Ensure Category exists (rebuild from A[X].30 rules if needed) ---
+if 'Category' not in ics_2025.columns:
+    print("⚠️ 'Category' not found — rebuilding from A[X].30 rules...")
+    def categorize_account(row):
+        # Match your A[X].30 logic; adjust if needed
+        if row['Account Age'] < 90:
+            return 'Too New (<3 Months)'
+        elif row['# of Responses'] >= 2:
+            return 'Fast Activator'
+        elif row['# of Responses'] == 1:
+            return 'One and Done'
+        elif row['# of Responses'] == 0:
+            return 'Never Activator'
+        else:
+            return 'Slow Burner'
+    ics_2025 = ics_2025.copy()
+    ics_2025['Category'] = ics_2025.apply(categorize_account, axis=1)
+
+# --- 1) Group counts by Branch x Category ---
+branch_category = ics_2025.groupby(['Branch', 'Category']).size().unstack(fill_value=0)
+
+# Category columns (only those that actually exist in this dataset)
+all_cats = ['Fast Activator', 'Slow Burner', 'One and Done', 'Never Activator', 'Too New (<3 Months)']
+cat_cols = [c for c in all_cats if c in branch_category.columns]
+
+# --- 2) Totals & percentages by branch ---
+branch_category = branch_category.reindex(columns=cat_cols, fill_value=0)  # keep consistent order
+branch_category['Total'] = branch_category[cat_cols].sum(axis=1)
+
+# Percent columns (per-branch share)
+for c in cat_cols:
+    branch_category[f'{c} %'] = (branch_category[c] / branch_category['Total']).round(2)
+
+# --- 3) Success Rate % = Fast Activator / (total excluding "Too New") ---
+categorized_cols = [c for c in cat_cols if c != 'Too New (<3 Months)']
+branch_category['Categorized Total'] = branch_category[categorized_cols].sum(axis=1)
+branch_category['Success Rate %'] = branch_category.apply(
+    lambda r: round((r['Fast Activator'] / r['Categorized Total']), 2) if r['Categorized Total'] > 0 else 0,
+    axis=1
+)
+
+# --- 4) Reset, pick display columns, sort ---
+ax31_pct = branch_category.reset_index()
+
+# Display columns in a clean order
+pct_display_cols = ['Branch', 'Total'] + [f'{c} %' for c in all_cats if f'{c} %' in ax31_pct.columns] + ['Success Rate %']
+ax31_pct = ax31_pct[pct_display_cols].fillna(0)
+
+# Sort by Total descending
+ax31_pct = ax31_pct.sort_values('Total', ascending=False).reset_index(drop=True)
+
+# --- 5) Build Total row WITHOUT ax30_counts (purely from this table) ---
+# Recompute overall counts directly from the pre-% branch_category
+overall_counts = {c: branch_category[c].sum() for c in cat_cols}
+overall_total = sum(overall_counts.values())
+overall_categorized = sum(overall_counts.get(c, 0) for c in categorized_cols)
+overall_success = round((overall_counts.get('Fast Activator', 0) / overall_categorized), 2) if overall_categorized > 0 else 0
+
+total_row_data = {'Branch': 'Total', 'Total': overall_total}
+for c in all_cats:
+    col_pct = f'{c} %'
+    if col_pct in ax31_pct.columns:
+        num = overall_counts.get(c, 0)
+        total_row_data[col_pct] = round((num / overall_total), 2) if overall_total > 0 else 0
+total_row_data['Success Rate %'] = overall_success
+
+ax31_pct = pd.concat([ax31_pct, pd.DataFrame([total_row_data])], ignore_index=True)
+
+# NaN-proof before styled display (your Styler attempts int(round(v)))
+ax31_pct = ax31_pct.fillna(0)
+
+# Display
+display_formatted(ax31_pct, "ICS Stat Code O - Branch Performance by Category (Percentages)")
+
+print(f"\n✅ Percentage analysis completed")
+print(f"   Branches Analyzed: {len(ax31_pct) - 1}")
+if len(ax31_pct) > 1:
+    print(f"   Largest Branch: {ax31_pct.iloc[0]['Branch']} ({ax31_pct.iloc[0]['Total']:.0f} accounts)")
