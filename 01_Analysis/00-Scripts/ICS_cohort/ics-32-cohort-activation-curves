@@ -17,25 +17,11 @@ import matplotlib.pyplot as plt
 
 print(f"\n📊 ics-32 — Cohort activation curves for ICS {STAT_LABEL}...")
 
-# Accept either the current name (cohort_milestones_activation) or the
-# legacy name (cohort_milestones) — whichever the user's kernel happens
-# to have populated. Pick the first one that's a non-empty DataFrame
-# with at least one M* Activation % column.
-_frame = None
-for _candidate_name in ('cohort_milestones_activation', 'cohort_milestones'):
-    _obj = globals().get(_candidate_name)
-    if isinstance(_obj, pd.DataFrame) and any(
-        c.endswith(' Activation %') or c.endswith(' Retention %') for c in _obj.columns
-    ):
-        _frame = _obj
-        print(f"   (using `{_candidate_name}` from current kernel)")
-        break
-if _frame is None:
-    raise RuntimeError(
-        "Neither `cohort_milestones_activation` nor `cohort_milestones` is a usable "
-        "DataFrame in the current kernel. Re-run ics-31-cohort-milestones (the "
-        "latest version writes `cohort_milestones_activation`)."
-    )
+# Self-sufficient: get the milestones frame from the kernel if it exists,
+# otherwise build it now via the shared helper. No dependency on ics-31
+# having run first.
+_frame, _src_name = get_or_build_cohort_milestones()
+print(f"   (milestones source: {_src_name})")
 
 # ---- Discover milestone columns present in the frame --------------------
 _milestone_cols = {}                                   # e.g. {1: 'M1 Activation %'}

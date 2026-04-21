@@ -175,6 +175,102 @@ def first_swipe_month(row, window=None):
     return None
 
 # =========================================================
+# Utility: cohort milestones (shared by ics-30 / ics-31 / ics-32)
+# =========================================================
+
+COHORT_MILESTONES_DEFAULT = {
+    'M1': 0, 'M3': 2, 'M6': 5, 'M9': 8, 'M12': 11, 'M18': 17, 'M24': 23,
+}
+
+def build_cohort_milestones(df, milestones=None, require_debit=True):
+    """Build the cohort-milestones DataFrame used by ics-30 / ics-31 / ics-32.
+
+    Rows = opening month, columns include Cohort Size, Avg Current Balance,
+    and per-milestone (Active, Activation %, Avg Swipes, Avg Spend).
+    Activation % is a fraction (0-1).
+
+    require_debit=True → use ics_cohort_debit, False → use ics_cohort.
+    """
+    milestones = milestones or COHORT_MILESTONES_DEFAULT
+    _coh = ics_cohort_debit(df) if require_debit else ics_cohort(df)
+    _coh = add_opening_month(_coh)
+    _coh = apply_cohort_start(_coh)
+
+    _opening = sorted(_coh['Opening Month'].dropna().unique())
+
+    def _per_ms(opening_dt, sub, offset, prefix):
+        _tag   = (opening_dt + pd.DateOffset(months=offset)).strftime('%b%y')
+        _s_col = f"{_tag} Swipes"
+        _d_col = f"{_tag} Spend"
+        if (_s_col in sub.columns) and (_d_col in sub.columns):
+            _sw     = pd.to_numeric(sub[_s_col], errors='coerce').fillna(0)
+            _sp     = pd.to_numeric(sub[_d_col], errors='coerce').fillna(0)
+            _active = int((_sw > 0).sum())
+            _size   = len(sub)
+            return {
+                f"{prefix} Active":       _active,
+                f"{prefix} Activation %": (_active / _size) if _size else np.nan,
+                f"{prefix} Avg Swipes":   float(_sw.mean()) if _sw.sum() > 0 else np.nan,
+                f"{prefix} Avg Spend":    float(_sp.mean()) if _sp.sum() > 0 else np.nan,
+            }
+        return {
+            f"{prefix} Active":       np.nan,
+            f"{prefix} Activation %": np.nan,
+            f"{prefix} Avg Swipes":   np.nan,
+            f"{prefix} Avg Spend":    np.nan,
+        }
+
+    _rows = []
+    for _op in _opening:
+        _sub = _coh[_coh['Opening Month'] == _op]
+        if _sub.empty:
+            continue
+        _opening_dt = pd.to_datetime(_op)
+        _row = {
+            'Opening Month':       _op,
+            'Cohort Size':         int(len(_sub)),
+            'Avg Current Balance': float(_sub['Curr Bal'].mean()) if len(_sub) else np.nan,
+        }
+        for _prefix, _offset in milestones.items():
+            _row.update(_per_ms(_opening_dt, _sub, _offset, _prefix))
+        _rows.append(_row)
+
+    _out = pd.DataFrame(_rows).replace(
+        to_replace=['nan', 'NaN', 'None', ''], value=np.nan
+    )
+    # Clean dtypes
+    for _c in [c for c in _out.columns if c != 'Opening Month']:
+        if _c == 'Cohort Size' or _c.endswith(' Active'):
+            _out[_c] = pd.to_numeric(_out[_c], errors='coerce').round(0).astype('Int64')
+        elif _c.endswith(' Spend') or _c.endswith(' Avg Swipes') or 'Balance' in _c:
+            _out[_c] = pd.to_numeric(_out[_c], errors='coerce').round(2)
+        elif _c.endswith('Activation %'):
+            _s = pd.to_numeric(_out[_c], errors='coerce')
+            if _s.dropna().gt(1).mean() > 0.5:
+                _s = _s / 100.0
+            _out[_c] = _s
+    return _out
+
+def get_or_build_cohort_milestones():
+    """Return the cohort-milestones frame without requiring ics-31 to have run.
+
+    Checks globals() for `cohort_milestones_activation` (current name) or
+    `cohort_milestones` (legacy). If neither is a usable DataFrame, builds
+    one on the fly via build_cohort_milestones(data). Used by ics-30 and
+    ics-32 so a stale notebook session can't block the viz cells.
+    """
+    for _name in ('cohort_milestones_activation', 'cohort_milestones'):
+        _obj = globals().get(_name)
+        if isinstance(_obj, pd.DataFrame) and any(
+            c.endswith(' Activation %') or c.endswith(' Retention %') for c in _obj.columns
+        ):
+            return _obj, _name
+    # Fall back: build it now.
+    _built = build_cohort_milestones(data)
+    globals()['cohort_milestones_activation'] = _built
+    return _built, '(built on demand by ics-02)'
+
+# =========================================================
 # Sanity echo
 # =========================================================
 

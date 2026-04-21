@@ -16,88 +16,16 @@
 # ics-30-cohort-retention-heatmap and ics-32-cohort-activation-curves both
 # consume this frame.
 
-import re as _re_mile
-
 print(f"\n📊 ics-31 — Cohort milestones for ICS {STAT_LABEL} debit cohort...")
 
-cohort = ics_cohort_debit(data)
-cohort = add_opening_month(cohort)
-cohort = apply_cohort_start(cohort)
+# All milestone-building logic lives in ics-02-helpers now so ics-30 and
+# ics-32 can rebuild this frame independently if the user skips ics-31.
+cohort_milestones_activation = build_cohort_milestones(data)
 
-opening_months = sorted(cohort['Opening Month'].unique())
-
-# Offsets are (months after opening - 1). M1 = opening month itself.
-_MILESTONES = {
-    'M1':   0,
-    'M3':   2,
-    'M6':   5,
-    'M9':   8,
-    'M12': 11,
-    'M18': 17,
-    'M24': 23,
-}
-
-def _milestone_metrics(opening_dt, cohort_df, offset, prefix):
-    _tag = (opening_dt + pd.DateOffset(months=offset)).strftime('%b%y')
-    _s_col = f"{_tag} Swipes"
-    _d_col = f"{_tag} Spend"
-    # Compute wherever the data columns exist. We intentionally do NOT check
-    # `_tag in last_12_months` — that would blank out everything before the
-    # L12M window and hide all 2023/2024 cohort milestones.
-    if (_s_col in cohort_df.columns) and (_d_col in cohort_df.columns):
-        _sw = pd.to_numeric(cohort_df[_s_col], errors='coerce').fillna(0)
-        _sp = pd.to_numeric(cohort_df[_d_col], errors='coerce').fillna(0)
-        _active = int((_sw > 0).sum())
-        _size   = len(cohort_df)
-        return {
-            f"{prefix} Active":       _active,
-            f"{prefix} Activation %": (_active / _size) if _size else np.nan,
-            f"{prefix} Avg Swipes":   float(_sw.mean()) if _sw.sum() > 0 else np.nan,
-            f"{prefix} Avg Spend":    float(_sp.mean()) if _sp.sum() > 0 else np.nan,
-        }
-    return {
-        f"{prefix} Active":       np.nan,
-        f"{prefix} Activation %": np.nan,
-        f"{prefix} Avg Swipes":   np.nan,
-        f"{prefix} Avg Spend":    np.nan,
-    }
-
-rows = []
-for _op in opening_months:
-    _sub = cohort[cohort['Opening Month'] == _op]
-    if _sub.empty:
-        continue
-    _opening_dt = pd.to_datetime(_op)
-    _row = {
-        'Opening Month':       _op,
-        'Cohort Size':         int(len(_sub)),
-        'Avg Current Balance': float(_sub['Curr Bal'].mean()) if len(_sub) else np.nan,
-    }
-    for _prefix, _offset in _MILESTONES.items():
-        _row.update(_milestone_metrics(_opening_dt, _sub, _offset, _prefix))
-    rows.append(_row)
-
-cohort_milestones_activation = pd.DataFrame(rows)
-
-# Clean dtypes: counts → Int64, percents → float fraction, money/swipes → float.
-cohort_milestones_activation = cohort_milestones_activation.replace(
-    to_replace=['nan', 'NaN', 'None', ''], value=np.nan
+opening_months = (
+    cohort_milestones_activation['Opening Month'].tolist()
+    if not cohort_milestones_activation.empty else []
 )
-for _c in [c for c in cohort_milestones_activation.columns if c != 'Opening Month']:
-    if _c == 'Cohort Size' or _re_mile.search(r'Active$', _c):
-        cohort_milestones_activation[_c] = (
-            pd.to_numeric(cohort_milestones_activation[_c], errors='coerce')
-              .round(0).astype('Int64')
-        )
-    elif _re_mile.search(r'Balance|Spend$|Avg Swipes$', _c):
-        cohort_milestones_activation[_c] = (
-            pd.to_numeric(cohort_milestones_activation[_c], errors='coerce').round(2)
-        )
-    elif _re_mile.search(r'Activation %$', _c):
-        _s = pd.to_numeric(cohort_milestones_activation[_c], errors='coerce')
-        if _s.dropna().gt(1).mean() > 0.5:
-            _s = _s / 100.0
-        cohort_milestones_activation[_c] = _s
 
 # Display version: blank out NaN activation %s so the styler doesn't misformat.
 _display = cohort_milestones_activation.copy()
@@ -114,7 +42,7 @@ if opening_months:
     print(f"   Range            : {opening_months[0]} → {opening_months[-1]}")
     print(f"   Cohort start     : {COHORT_START}")
 print("\n   Average Activation Rates (across all eligible cohorts):")
-for _m in _MILESTONES.keys():
+for _m in COHORT_MILESTONES_DEFAULT.keys():
     _col = f"{_m} Activation %"
     if _col in cohort_milestones_activation.columns:
         _avg = cohort_milestones_activation[_col].mean(skipna=True)
