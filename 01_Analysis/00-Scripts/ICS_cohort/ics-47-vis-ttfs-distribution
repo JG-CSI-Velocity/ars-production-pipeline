@@ -1,0 +1,108 @@
+# ============================================
+# ics-47-vis-ttfs-distribution — Time-to-first-swipe distribution chart
+# ============================================
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+#
+# Visual companion to ics-43 (which is print/table only). Two histograms
+# side-by-side showing where in their lifecycle each cohort first swipes.
+# Includes a "never swiped" bar at the right, and dashed lines for the
+# medians of both groups.
+
+import matplotlib.pyplot as plt
+
+print(f"\n📊 ics-47 — Time-to-first-swipe distribution chart, ICS {STAT_LABEL} vs Non-ICS...")
+
+# 24-month window (matches ics-43)
+_l24_end     = pd.Period(last_12_months[-1], freq='M')
+_l24_periods = pd.period_range(end=_l24_end, periods=24, freq='M')
+last_24_months = [p.strftime('%b%y') for p in _l24_periods]
+
+def _ttfs_offset(row, window):
+    if pd.isna(row['Date Opened']):
+        return np.nan
+    _opened = row['Date Opened']
+    for _m in window:
+        _tag_dt = pd.to_datetime(f"{_m[:3]} {_m[3:]}", format='%b %y')
+        if _tag_dt < _opened.replace(day=1):
+            continue
+        _col = f"{_m} Swipes"
+        if _col in row.index and pd.notna(row[_col]) and row[_col] > 0:
+            return (_tag_dt.year - _opened.year) * 12 + (_tag_dt.month - _opened.month)
+    return np.nan
+
+def _ttfs_series(frame):
+    _f = frame.copy()
+    _f = _f[_f['Date Opened'].notna()]
+    _f = _f[_f['Date Opened'] >= pd.Period(last_24_months[0], freq='M').to_timestamp()]
+    _f = _f[_f['Date Opened'] <= ACTIVITY_END_DATE]
+    return _f.apply(lambda r: _ttfs_offset(r, last_24_months), axis=1)
+
+_ics_ttfs = _ttfs_series(ics_cohort(data))
+_non_ttfs = _ttfs_series(non_ics_cohort(data))
+
+if len(_ics_ttfs) == 0 or len(_non_ttfs) == 0:
+    raise RuntimeError("Need both ICS and Non-ICS rows opened in L24M to plot TTFS.")
+
+# Bin: 0..11 months, 12+, never (NaN)
+_BINS = list(range(0, 13))                    # 0,1,…,12 → covers M0–M12
+def _bin(series):
+    _swiped   = series.dropna().astype(int).clip(upper=12)
+    _hist     = _swiped.value_counts().reindex(_BINS, fill_value=0).sort_index()
+    _never    = int(series.isna().sum())
+    _total    = int(len(series))
+    return _hist, _never, _total
+
+_ics_h, _ics_never, _ics_total = _bin(_ics_ttfs)
+_non_h, _non_never, _non_total = _bin(_non_ttfs)
+
+# Convert to percent of cohort
+_ics_pct   = (_ics_h / _ics_total * 100) if _ics_total else _ics_h
+_non_pct   = (_non_h / _non_total * 100) if _non_total else _non_h
+_ics_never_pct = (_ics_never / _ics_total * 100) if _ics_total else 0
+_non_never_pct = (_non_never / _non_total * 100) if _non_total else 0
+
+# Median months (only swiped accounts)
+_ics_med = float(_ics_ttfs.dropna().median()) if _ics_ttfs.notna().any() else float('nan')
+_non_med = float(_non_ttfs.dropna().median()) if _non_ttfs.notna().any() else float('nan')
+
+fig, ax = plt.subplots(figsize=(12.5, 5.5), dpi=140)
+
+_x          = np.arange(len(_BINS) + 1)        # 13 bars + Never
+_x_labels   = [f"M{m+1}" for m in _BINS] + ['Never']
+_width      = 0.4
+
+_ics_vals = list(_ics_pct.values) + [_ics_never_pct]
+_non_vals = list(_non_pct.values) + [_non_never_pct]
+
+ax.bar(_x - _width/2, _non_vals, _width, color='#bcbcbc',
+       edgecolor='white', label=f'Non-ICS  (n={_non_total:,})')
+ax.bar(_x + _width/2, _ics_vals, _width, color='#1f77b4',
+       edgecolor='white', label=f'ICS {STAT_LABEL}  (n={_ics_total:,})')
+
+# Median lines (only on the swiped portion)
+if pd.notna(_non_med):
+    ax.axvline(_non_med - _width/2, color='#777777', linestyle='--', alpha=0.7,
+               label=f'Non-ICS median: {_non_med:.0f} mo')
+if pd.notna(_ics_med):
+    ax.axvline(_ics_med + _width/2, color='#1f77b4', linestyle='--', alpha=0.7,
+               label=f'ICS {STAT_LABEL} median: {_ics_med:.0f} mo')
+
+ax.set_title(f"Time to First Swipe — ICS {STAT_LABEL} vs Non-ICS  "
+             f"(opened in last 24 months)", fontsize=13, weight='bold', pad=10)
+ax.set_xlabel("Month of first swipe (since account opened)", fontsize=11)
+ax.set_ylabel("% of cohort", fontsize=11)
+ax.set_xticks(_x)
+ax.set_xticklabels(_x_labels, fontsize=9)
+ax.grid(True, axis='y', linestyle=':', alpha=0.5)
+ax.legend(loc='upper right', frameon=False, fontsize=9)
+
+import matplotlib.ticker as _mtick
+ax.yaxis.set_major_formatter(_mtick.PercentFormatter(decimals=0))
+
+plt.tight_layout()
+fig.savefig("ttfs_distribution.png", dpi=300, bbox_inches='tight')
+plt.show()
+
+print(f"\n✅ Rendered (saved: ttfs_distribution.png)")
+print(f"   ICS  median TTFS : {_ics_med:.1f} months  ({_ics_total - _ics_never:,}/{_ics_total:,} swiped)")
+print(f"   Non-ICS median   : {_non_med:.1f} months  ({_non_total - _non_never:,}/{_non_total:,} swiped)")

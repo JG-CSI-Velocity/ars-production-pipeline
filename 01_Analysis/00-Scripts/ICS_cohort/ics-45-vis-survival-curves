@@ -1,0 +1,99 @@
+# ============================================
+# ics-45-vis-survival-curves — Kaplan-Meier survival curves: ICS vs Non-ICS
+# ============================================
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers, lifelines.
+#
+# Survival = "% of accounts still open at month N after opening".
+# Two curves overlaid (ICS vs Non-ICS) with 95% confidence bands and
+# log-rank significance test. Answers "are ICS accounts stickier — and
+# is the difference real?" in a single chart.
+#
+# Install once: pip install lifelines
+
+import matplotlib.pyplot as plt
+
+try:
+    from lifelines import KaplanMeierFitter
+    from lifelines.statistics import logrank_test
+except ImportError as _e:
+    raise RuntimeError(
+        "ics-45 requires `lifelines`. Install with: pip install lifelines"
+    ) from _e
+
+print(f"\n📊 ics-45 — Survival curves, ICS {STAT_LABEL} vs Non-ICS...")
+
+def _build_survival_frame(frame, label):
+    _f = frame.copy()
+    _f = _f[_f['Date Opened'].notna()]
+    # Duration in months: closed = (closed - opened); open = (anchor - opened)
+    _closed_mask = _f['Date Closed'].notna()
+    _f['_duration_days'] = np.where(
+        _closed_mask,
+        (_f['Date Closed'] - _f['Date Opened']).dt.days,
+        (ACTIVITY_END_DATE - _f['Date Opened']).dt.days,
+    )
+    _f['_duration_months'] = (_f['_duration_days'] / 30.4375).clip(lower=0)
+    _f['_event_observed']  = _closed_mask.astype(int)        # 1 = closure observed
+    _f['_label']           = label
+    return _f[['_duration_months', '_event_observed', '_label']]
+
+_ics = _build_survival_frame(ics_cohort(data),       f'ICS {STAT_LABEL}')
+_non = _build_survival_frame(non_ics_cohort(data),    'Non-ICS')
+
+if len(_ics) == 0 or len(_non) == 0:
+    raise RuntimeError("Need both ICS and Non-ICS rows with Date Opened to build survival curves.")
+
+_kmf_ics = KaplanMeierFitter().fit(
+    durations=_ics['_duration_months'], event_observed=_ics['_event_observed'],
+    label=f'ICS {STAT_LABEL}  (n={len(_ics):,})',
+)
+_kmf_non = KaplanMeierFitter().fit(
+    durations=_non['_duration_months'], event_observed=_non['_event_observed'],
+    label=f'Non-ICS  (n={len(_non):,})',
+)
+
+_lr = logrank_test(
+    _ics['_duration_months'], _non['_duration_months'],
+    event_observed_A=_ics['_event_observed'],
+    event_observed_B=_non['_event_observed'],
+)
+
+fig, ax = plt.subplots(figsize=(11, 6), dpi=140)
+_kmf_ics.plot_survival_function(ax=ax, color='#1f77b4', ci_alpha=0.18)
+_kmf_non.plot_survival_function(ax=ax, color='#888888', ci_alpha=0.18)
+
+ax.set_title(f"Account Survival — ICS {STAT_LABEL} vs Non-ICS",
+             fontsize=14, weight='bold', pad=10)
+ax.set_xlabel("Months since account opened", fontsize=11)
+ax.set_ylabel("% still open", fontsize=11)
+ax.set_ylim(0, 1.02)
+
+import matplotlib.ticker as _mtick
+ax.yaxis.set_major_formatter(_mtick.PercentFormatter(1.0))
+ax.grid(True, linestyle=':', alpha=0.5)
+ax.legend(loc='lower left', frameon=False, fontsize=10)
+
+# Significance annotation
+_p = _lr.p_value
+_sig = ("p < 0.001 (highly significant)" if _p < 0.001
+        else (f"p = {_p:.3f} (significant)" if _p < 0.05
+              else f"p = {_p:.3f} (not significant)"))
+ax.text(0.98, 0.95, f"Log-rank test: {_sig}",
+        transform=ax.transAxes, ha='right', va='top',
+        fontsize=10, style='italic',
+        bbox=dict(boxstyle='round,pad=0.4', facecolor='white',
+                  edgecolor='#cccccc', linewidth=1))
+
+plt.tight_layout()
+fig.savefig("survival_curves.png", dpi=300, bbox_inches='tight')
+plt.show()
+
+# Median survival summary
+_med_ics = _kmf_ics.median_survival_time_
+_med_non = _kmf_non.median_survival_time_
+print(f"\n✅ Rendered (saved: survival_curves.png)")
+print(f"   Median survival ICS    : "
+      f"{_med_ics:.1f} months" if pd.notna(_med_ics) else "   Median survival ICS    : not reached")
+print(f"   Median survival Non-ICS: "
+      f"{_med_non:.1f} months" if pd.notna(_med_non) else "   Median survival Non-ICS: not reached")
+print(f"   Log-rank p-value       : {_p:.4g}")

@@ -1,0 +1,83 @@
+# ============================================
+# ics-44-vis-headline-comparison — Two-bar comparison: ICS vs Non-ICS at a glance
+# ============================================
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+#
+# Executive opening slide. Four metric pairs side-by-side, with the
+# multiplier annotated above each ICS bar so the audience reads the
+# story instantly: "ICS does X.X× more of [thing] than Non-ICS."
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as _mpatches
+
+print(f"\n📊 ics-44 — Headline ICS {STAT_LABEL} vs Non-ICS comparison chart...")
+
+_ics = add_l12m_totals(ics_cohort(data))
+_non = add_l12m_totals(non_ics_cohort(data))
+
+def _stats(frame):
+    _ct  = len(frame)
+    _act = int(frame['Active in L12M'].sum()) if _ct else 0
+    return {
+        '% Active':           (_act / _ct) * 100 if _ct else 0,
+        'Avg Spend / Acct':   float(frame['Total L12M Spend'].mean()) if _ct else 0,
+        'Avg Swipes / Acct':  float(frame['Total L12M Swipes'].mean()) if _ct else 0,
+        'Avg Curr Balance':   float(frame['Curr Bal'].mean()) if _ct else 0,
+    }
+
+_ics_s = _stats(_ics)
+_non_s = _stats(_non)
+
+_metrics = ['% Active', 'Avg Swipes / Acct', 'Avg Spend / Acct', 'Avg Curr Balance']
+_ics_vals = [_ics_s[m] for m in _metrics]
+_non_vals = [_non_s[m] for m in _metrics]
+
+fig, axes = plt.subplots(1, 4, figsize=(14, 4.8), dpi=140)
+_ICS_COLOR = '#1f77b4'
+_NON_COLOR = '#bcbcbc'
+
+for _ax, _metric, _ics_v, _non_v in zip(axes, _metrics, _ics_vals, _non_vals):
+    _bars = _ax.bar(['Non-ICS', f'ICS {STAT_LABEL}'], [_non_v, _ics_v],
+                    color=[_NON_COLOR, _ICS_COLOR], edgecolor='white', linewidth=1.5)
+
+    _ax.set_title(_metric, fontsize=12, weight='bold', pad=12)
+    _ax.spines['top'].set_visible(False)
+    _ax.spines['right'].set_visible(False)
+    _ax.tick_params(axis='x', labelsize=10)
+    _ax.tick_params(axis='y', labelsize=9)
+
+    # Format bar value labels per metric.
+    if _metric == '% Active':
+        _fmt = lambda v: f"{v:.1f}%"
+    elif 'Spend' in _metric or 'Balance' in _metric:
+        _fmt = lambda v: f"${v:,.0f}"
+    else:
+        _fmt = lambda v: f"{v:,.1f}"
+
+    _max_h = max(_ics_v, _non_v, 1)
+    _ax.set_ylim(0, _max_h * 1.30)
+
+    for _bar, _v in zip(_bars, [_non_v, _ics_v]):
+        _ax.text(_bar.get_x() + _bar.get_width() / 2, _bar.get_height() + _max_h * 0.02,
+                 _fmt(_v), ha='center', va='bottom', fontsize=10, weight='bold')
+
+    # Multiplier annotation on the ICS bar
+    if _non_v and _non_v > 0:
+        _mult = _ics_v / _non_v
+        _label = (f"{_mult:.1f}× higher" if _mult > 1.05
+                  else (f"{_mult:.1f}×"  if _mult >= 0.95 else f"{_mult:.1f}× lower"))
+        _color = '#2ca02c' if _mult > 1.05 else ('#777777' if _mult >= 0.95 else '#d62728')
+        _ax.text(1, _max_h * 1.18, _label, ha='center', va='center',
+                 fontsize=11, weight='bold', color=_color,
+                 bbox=dict(boxstyle='round,pad=0.4', facecolor='white',
+                           edgecolor=_color, linewidth=1.2))
+
+fig.suptitle(f"ICS {STAT_LABEL} vs Non-ICS — Last {ACTIVITY_WINDOW_MONTHS} Months",
+             fontsize=15, weight='bold', y=1.02)
+plt.tight_layout()
+fig.savefig("headline_comparison.png", dpi=300, bbox_inches='tight')
+plt.show()
+
+print(f"\n✅ Rendered (saved: headline_comparison.png)")
+print(f"   ICS  cohort   : {len(_ics):,} accounts")
+print(f"   Non-ICS cohort: {len(_non):,} accounts")

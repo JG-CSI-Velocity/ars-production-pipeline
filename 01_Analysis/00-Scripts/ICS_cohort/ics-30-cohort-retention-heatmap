@@ -83,19 +83,21 @@ def cohort_retention_heatmap(milestones_df, title=None, cmap='Blues',
         plt.show()
     return fig, ax
 
-# Render + save.
-try:
-    _milestones_frame = cohort_milestones_activation
-except NameError as e:
+# Pick whichever cohort_milestones frame the kernel has — current name or
+# legacy name from older ics-31 versions.
+_milestones_frame = None
+for _candidate_name in ('cohort_milestones_activation', 'cohort_milestones'):
+    _obj = globals().get(_candidate_name)
+    if isinstance(_obj, pd.DataFrame) and any(
+        c.endswith(' Activation %') or c.endswith(' Retention %') for c in _obj.columns
+    ):
+        _milestones_frame = _obj
+        print(f"   (using `{_candidate_name}` from current kernel)")
+        break
+if _milestones_frame is None:
     raise RuntimeError(
-        "`cohort_milestones_activation` not found — run ics-31-cohort-milestones "
-        "before this cell."
-    ) from e
-
-if not isinstance(_milestones_frame, pd.DataFrame):
-    raise TypeError(
-        f"cohort_milestones_activation is {type(_milestones_frame).__name__}, "
-        "expected DataFrame. Re-run ics-31-cohort-milestones to refresh it."
+        "Neither `cohort_milestones_activation` nor `cohort_milestones` is a "
+        "usable DataFrame in the current kernel. Re-run ics-31-cohort-milestones."
     )
 
 cohort_retention_heatmap(_milestones_frame)

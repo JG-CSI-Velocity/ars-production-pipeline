@@ -1,0 +1,127 @@
+# ============================================
+# ics-46-vis-branch-scatter — Branch performance quadrant scatter
+# ============================================
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+#
+# X-axis: cohort size (branch volume)
+# Y-axis: % active in last 12 months
+# Bubble size: total spend
+# Quadrants split at the median of each axis.
+#
+# Highlights:
+#   - top-right (high volume, high activation) = your stars to learn from
+#   - top-left  (low volume, high activation)  = expand
+#   - bottom-right (high volume, low activation) = the priority fixes
+#   - bottom-left (low volume, low activation)  = let attrition run
+
+import matplotlib.pyplot as plt
+
+print(f"\n📊 ics-46 — Branch performance quadrant scatter for ICS {STAT_LABEL}...")
+
+cohort = add_l12m_totals(ics_cohort(data))
+
+branch_perf = (
+    cohort.groupby('Branch')
+          .agg(
+              Account_Count = ('Active in L12M', 'count'),
+              Active_Count  = ('Active in L12M', 'sum'),
+              Total_Spend   = ('Total L12M Spend', 'sum'),
+          )
+          .reset_index()
+)
+branch_perf['Pct_Active'] = (
+    branch_perf['Active_Count'] / branch_perf['Account_Count']
+).where(branch_perf['Account_Count'] > 0, 0)
+
+# Filter out tiny branches (< 5 accts) so they don't distort scales / quadrants.
+_min_size = 5
+_significant = branch_perf[branch_perf['Account_Count'] >= _min_size].copy()
+if len(_significant) == 0:
+    raise RuntimeError("No branches have >= 5 accounts; lower _min_size to plot.")
+
+_med_x = float(_significant['Account_Count'].median())
+_med_y = float(_significant['Pct_Active'].median())
+
+# Color by quadrant
+def _quadrant_color(_x, _y):
+    _hi_x = _x >= _med_x
+    _hi_y = _y >= _med_y
+    if _hi_x and _hi_y:    return '#2ca02c'   # high vol + high active = stars
+    if not _hi_x and _hi_y: return '#1f77b4'  # low vol  + high active = expand
+    if _hi_x and not _hi_y: return '#d62728'  # high vol + low active  = fix
+    return '#999999'                          # low vol  + low active  = ignore
+
+_significant['_color'] = [_quadrant_color(x, y)
+                          for x, y in zip(_significant['Account_Count'],
+                                          _significant['Pct_Active'])]
+
+# Bubble area scaled to spend
+_max_spend = max(_significant['Total_Spend'].max(), 1)
+_significant['_size'] = 60 + 2400 * (_significant['Total_Spend'] / _max_spend)
+
+fig, ax = plt.subplots(figsize=(12, 7), dpi=140)
+ax.scatter(
+    _significant['Account_Count'],
+    _significant['Pct_Active'] * 100,
+    s=_significant['_size'],
+    c=_significant['_color'],
+    alpha=0.65, edgecolor='white', linewidth=1.2,
+)
+
+# Quadrant divider lines
+ax.axvline(_med_x,  color='#cccccc', linewidth=1, linestyle='--', alpha=0.7)
+ax.axhline(_med_y * 100, color='#cccccc', linewidth=1, linestyle='--', alpha=0.7)
+
+# Label top branches in each quadrant by spend
+_to_label = (
+    _significant.sort_values('Total_Spend', ascending=False)
+                .groupby('_color', sort=False)
+                .head(2)
+)
+for _, _r in _to_label.iterrows():
+    ax.annotate(
+        str(_r['Branch']),
+        xy=(_r['Account_Count'], _r['Pct_Active'] * 100),
+        xytext=(6, 6), textcoords='offset points',
+        fontsize=9, weight='bold', alpha=0.9,
+    )
+
+# Quadrant labels (in chart corners)
+_xlim = ax.get_xlim()
+_ylim = ax.get_ylim()
+ax.text(_xlim[1] * 0.98, _ylim[1] * 0.98, '★ Stars\n(high vol + high active)',
+        ha='right', va='top', fontsize=9, color='#2ca02c', alpha=0.7, style='italic')
+ax.text(_xlim[0] + (_xlim[1] - _xlim[0]) * 0.02, _ylim[1] * 0.98,
+        'Expand\n(low vol + high active)',
+        ha='left', va='top', fontsize=9, color='#1f77b4', alpha=0.7, style='italic')
+ax.text(_xlim[1] * 0.98, _ylim[0] + (_ylim[1] - _ylim[0]) * 0.02,
+        'Fix\n(high vol + low active)',
+        ha='right', va='bottom', fontsize=9, color='#d62728', alpha=0.7, style='italic')
+ax.text(_xlim[0] + (_xlim[1] - _xlim[0]) * 0.02,
+        _ylim[0] + (_ylim[1] - _ylim[0]) * 0.02,
+        'Tail\n(low vol + low active)',
+        ha='left', va='bottom', fontsize=9, color='#888888', alpha=0.7, style='italic')
+
+ax.set_title(f"Branch Performance Quadrant — ICS {STAT_LABEL} (L{ACTIVITY_WINDOW_MONTHS}M)",
+             fontsize=14, weight='bold', pad=10)
+ax.set_xlabel("Account Count (branch volume)", fontsize=11)
+ax.set_ylabel("% Active in last 12 months", fontsize=11)
+ax.grid(True, linestyle=':', alpha=0.4)
+
+# Footnote
+_total_branches  = int(len(branch_perf))
+_shown_branches  = int(len(_significant))
+fig.text(0.5, -0.01,
+         f"Bubble size = Total L12M Spend.   "
+         f"Showing {_shown_branches} of {_total_branches} branches "
+         f"(min cohort {_min_size}).   Quadrant lines = medians.",
+         ha='center', fontsize=9, style='italic', color='#555555')
+
+plt.tight_layout()
+fig.savefig("branch_quadrant_scatter.png", dpi=300, bbox_inches='tight')
+plt.show()
+
+print(f"\n✅ Rendered (saved: branch_quadrant_scatter.png)")
+print(f"   Branches plotted        : {_shown_branches} (of {_total_branches})")
+print(f"   Median branch size      : {_med_x:.0f} accounts")
+print(f"   Median active rate      : {_med_y:.1%}")
