@@ -8,40 +8,76 @@
 #   - Last 24 months (same activity end date, 24 months back)
 # For each window, computes per-cohort KPIs so you can see at a glance
 # whether ICS accounts are more active, swipe more, spend more.
+#
+# Memory note: the prior version called ics_cohort(data)/non_ics_cohort(data)
+# which each do df.loc[mask].copy() and return full-frame copies.  On a
+# 200K-row ODD with 450 columns that's 1-2 GB DOUBLED in memory, which
+# OOMs the Jupyter kernel before the cell even starts.  This version never
+# copies the frame: it operates on boolean masks + column slices directly
+# from `data`.  Memory footprint is ~40 MB per window instead of ~1-2 GB.
+
+from datetime import datetime as _dt_41
 
 print(f"\n📊 ics-41 — ICS {STAT_LABEL} vs Non-ICS activity comparison...")
 
-# Derive a 24-month window anchored to the same end date as last_12_months.
-_l24_end    = pd.Period(last_12_months[-1], freq='M')
-_l24_periods = pd.period_range(end=_l24_end, periods=24, freq='M')
+# ------------------------------------------------------------------
+# Windows (2-digit year bug: build via strptime, NOT pd.Period)
+# ------------------------------------------------------------------
+_last_tag = last_12_months[-1]  # e.g. 'Mar26'
+_anchor_dt = _dt_41.strptime(_last_tag, '%b%y')
+_l24_periods = pd.period_range(
+    end=pd.Period(year=_anchor_dt.year, month=_anchor_dt.month, freq='M'),
+    periods=24, freq='M',
+)
 last_24_months = [p.strftime('%b%y') for p in _l24_periods]
 
-def _compute_activity(frame, window):
-    """Compute per-cohort activity stats WITHOUT calling add_l12m_totals
-    (which copies the frame + adds columns). On a 50K-row Non-ICS cohort,
-    add_l12m_totals(frame, L12M) + add_l12m_totals(frame, L24M) at once
-    was causing Jupyter kernel OOM. Work column-by-column instead."""
-    _ct = len(frame)
+# ------------------------------------------------------------------
+# Masks (no frame copies)
+# ------------------------------------------------------------------
+_ics_mask = (
+    (data['ICS Account'] == 'Yes')
+    & (data['Stat Code'].astype(str).str.upper().str.strip()
+       == str(ICS_STAT_CODE).upper())
+)
+_non_mask = data['ICS Account'] != 'Yes'
+
+_n_ics = int(_ics_mask.sum())
+_n_non = int(_non_mask.sum())
+print(f"   (ICS={_n_ics:,} rows, Non-ICS={_n_non:,} rows — no frame copies)")
+
+if _n_ics == 0:
+    print(f"   ⚠️  Zero ICS rows. Is ICS_STAT_CODE={ICS_STAT_CODE!r} correct for this client?")
+
+
+# ------------------------------------------------------------------
+# Per-cohort activity stats -- column slice only, never full frame
+# ------------------------------------------------------------------
+def _compute_activity(mask, window):
+    _ct = int(mask.sum())
     if _ct == 0:
         return dict(count=0, active=0, act_rate=0, total_sw=0.0, total_sp=0.0,
                     avg_sw=0, avg_sp=0, avg_sw_act=0, avg_sp_act=0, sp_per_sw=0)
 
-    _swipe_cols = [f"{_m} Swipes" for _m in window if f"{_m} Swipes" in frame.columns]
-    _spend_cols = [f"{_m} Spend"  for _m in window if f"{_m} Spend"  in frame.columns]
+    _swipe_cols = [f"{m} Swipes" for m in window if f"{m} Swipes" in data.columns]
+    _spend_cols = [f"{m} Spend" for m in window if f"{m} Spend" in data.columns]
 
-    # Sum per row using numpy — avoids adding persistent columns.
-    _sw_matrix = frame[_swipe_cols].to_numpy(dtype=float, na_value=0.0) if _swipe_cols \
-                  else np.zeros((_ct, 0))
-    _sp_matrix = frame[_spend_cols].to_numpy(dtype=float, na_value=0.0) if _spend_cols \
-                  else np.zeros((_ct, 0))
+    # data.loc[mask, cols] selects only (rows matching mask) x (N cols)
+    # and .to_numpy() materializes that slice. No copy of data itself.
+    _sw_matrix = (data.loc[mask, _swipe_cols].to_numpy(dtype=float, na_value=0.0)
+                  if _swipe_cols else np.zeros((_ct, 0)))
+    _sp_matrix = (data.loc[mask, _spend_cols].to_numpy(dtype=float, na_value=0.0)
+                  if _spend_cols else np.zeros((_ct, 0)))
 
     _row_swipes = _sw_matrix.sum(axis=1)
-    _row_spend  = _sp_matrix.sum(axis=1)
-    _active     = _row_swipes > 0
-    _act_n      = int(_active.sum())
+    _row_spend = _sp_matrix.sum(axis=1)
+    _active = _row_swipes > 0
+    _act_n = int(_active.sum())
 
     _sw_total = float(_row_swipes.sum())
     _sp_total = float(_row_spend.sum())
+
+    # Drop big intermediates before returning
+    del _sw_matrix, _sp_matrix
 
     return dict(
         count=_ct,
@@ -52,31 +88,32 @@ def _compute_activity(frame, window):
         avg_sw=(_sw_total / _ct) if _ct else 0,
         avg_sp=(_sp_total / _ct) if _ct else 0,
         avg_sw_act=float(_row_swipes[_active].mean()) if _act_n else 0,
-        avg_sp_act=float(_row_spend[_active].mean())  if _act_n else 0,
+        avg_sp_act=float(_row_spend[_active].mean()) if _act_n else 0,
         sp_per_sw=(_sp_total / _sw_total) if _sw_total else 0,
     )
 
-_ics   = ics_cohort(data)
-_non   = non_ics_cohort(data)
 
-_ics12  = _compute_activity(_ics, last_12_months)
-_non12  = _compute_activity(_non, last_12_months)
-_ics24  = _compute_activity(_ics, last_24_months)
-_non24  = _compute_activity(_non, last_24_months)
+_ics12 = _compute_activity(_ics_mask, last_12_months)
+_non12 = _compute_activity(_non_mask, last_12_months)
+_ics24 = _compute_activity(_ics_mask, last_24_months)
+_non24 = _compute_activity(_non_mask, last_24_months)
+
 
 def _fmt_money(v):  return f"${v:,.2f}"
-def _fmt_count(v):  return f"{v:,}"
+def _fmt_count(v):  return f"{int(v):,}"
 def _fmt_float(v):  return f"{v:,.1f}"
 def _fmt_pct(v):    return f"{v:.1%}"
 
+
 def _row(label, k, fmt):
     return {
-        'Metric':               label,
-        'ICS (L12M)':           fmt(_ics12[k]),
-        'Non-ICS (L12M)':       fmt(_non12[k]),
-        'ICS (L24M)':           fmt(_ics24[k]),
-        'Non-ICS (L24M)':       fmt(_non24[k]),
+        'Metric':         label,
+        'ICS (L12M)':     fmt(_ics12[k]),
+        'Non-ICS (L12M)': fmt(_non12[k]),
+        'ICS (L24M)':     fmt(_ics24[k]),
+        'Non-ICS (L24M)': fmt(_non24[k]),
     }
+
 
 activity_comparison = pd.DataFrame([
     _row('Cohort Size',                  'count',      _fmt_count),
