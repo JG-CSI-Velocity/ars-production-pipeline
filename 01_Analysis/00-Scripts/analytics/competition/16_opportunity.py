@@ -1,12 +1,42 @@
 # ===========================================================================
 # OPPORTUNITY ANALYSIS: Declining Competitors + Winback Targets
 # ===========================================================================
-# NEW CELL - Surfaces competitors losing ground = your opportunity.
-# No dollars. Focus on accounts and transaction trends.
+# "Losing ground" means: fewer transactions in the most-recent 3 months
+# than in the 3 months before that (same calendar window for every
+# competitor, derived from the dataset). We also require at least 25
+# unique member accounts at that competitor so single-digit noise
+# doesn't flag as an opportunity.
 
 if len(all_competitor_data) > 0:
     bank_categories = BANK_CATEGORIES
     total_accounts = combined_df['primary_account_num'].nunique()
+
+    # -----------------------------------------------------------------------
+    # Unified date window — same RECENT / PREVIOUS for every competitor so
+    # the comparison is apples-to-apples (and readable).
+    # -----------------------------------------------------------------------
+    if 'year_month' not in combined_df.columns:
+        combined_df = combined_df.assign(
+            year_month=pd.to_datetime(combined_df['transaction_date']).dt.to_period('M')
+        )
+    _all_months = sorted(combined_df['year_month'].dropna().unique())
+
+if len(all_competitor_data) == 0 or len(_all_months) < 6:
+    print("Insufficient data for opportunity analysis (need 6+ months).")
+else:
+    RECENT_3   = _all_months[-3:]
+    PREVIOUS_3 = _all_months[-6:-3]
+    RECENT_LABEL   = f"{RECENT_3[0].strftime('%b%y')} - {RECENT_3[-1].strftime('%b%y')}"
+    PREVIOUS_LABEL = f"{PREVIOUS_3[0].strftime('%b%y')} - {PREVIOUS_3[-1].strftime('%b%y')}"
+
+    MIN_ACCOUNTS = 25
+
+    # Visible criteria banner so a reader knows what "losing ground" means.
+    print("\n    LOSING GROUND = fewer transactions in the recent window than the previous window.")
+    print(f"       Recent window   : {RECENT_LABEL}  (last 3 months of data)")
+    print(f"       Previous window : {PREVIOUS_LABEL}")
+    print(f"       Minimum size    : {MIN_ACCOUNTS} unique member accounts at that competitor")
+    print("       Excluded        : competitors with fewer than 6 months of history\n")
 
     opp_data = []
 
@@ -16,7 +46,6 @@ if len(all_competitor_data) > 0:
             continue
 
         unique_accounts = competitor_trans['primary_account_num'].nunique()
-        txn_count = len(competitor_trans)
         penetration_pct = (unique_accounts / total_accounts * 100) if total_accounts > 0 else 0
 
         if 'year_month' not in competitor_trans.columns:
@@ -24,43 +53,44 @@ if len(all_competitor_data) > 0:
                 competitor_trans['transaction_date']
             ).dt.to_period('M')
 
-        sorted_months = sorted(competitor_trans['year_month'].unique())
-        if len(sorted_months) < 6:
+        # Require the competitor to have any activity in both windows.
+        _comp_months = set(competitor_trans['year_month'].dropna().unique())
+        if not (_comp_months & set(RECENT_3)) or not (_comp_months & set(PREVIOUS_3)):
             continue
 
-        recent_3 = sorted_months[-3:]
-        previous_3 = sorted_months[-6:-3]
-
-        recent_txn = len(competitor_trans[competitor_trans['year_month'].isin(recent_3)])
-        prev_txn = len(competitor_trans[competitor_trans['year_month'].isin(previous_3)])
+        recent_txn = len(competitor_trans[competitor_trans['year_month'].isin(RECENT_3)])
+        prev_txn   = len(competitor_trans[competitor_trans['year_month'].isin(PREVIOUS_3)])
         txn_growth = ((recent_txn - prev_txn) / prev_txn * 100) if prev_txn > 0 else 0
 
         recent_acct = competitor_trans[
-            competitor_trans['year_month'].isin(recent_3)
+            competitor_trans['year_month'].isin(RECENT_3)
         ]['primary_account_num'].nunique()
         prev_acct = competitor_trans[
-            competitor_trans['year_month'].isin(previous_3)
+            competitor_trans['year_month'].isin(PREVIOUS_3)
         ]['primary_account_num'].nunique()
         acct_growth = ((recent_acct - prev_acct) / prev_acct * 100) if prev_acct > 0 else 0
 
         opp_data.append({
-            'bank': competitor,
-            'category': category,
-            'unique_accounts': unique_accounts,
-            'penetration_pct': penetration_pct,
-            'txn_growth': txn_growth,
-            'acct_growth': acct_growth,
-            'recent_acct': recent_acct,
+            'bank':             competitor,
+            'category':         category,
+            'unique_accounts':  unique_accounts,
+            'penetration_pct':  penetration_pct,
+            'recent_txn':       recent_txn,
+            'prev_txn':         prev_txn,
+            'txn_growth':       txn_growth,
+            'recent_acct':      recent_acct,
+            'prev_acct':        prev_acct,
+            'acct_growth':      acct_growth,
         })
 
     if len(opp_data) > 0:
         odf = pd.DataFrame(opp_data)
         odf['category_label'] = odf['category'].str.replace('_', ' ').str.title()
 
-        # Filter to declining competitors with meaningful account base
+        # Filter to declining competitors with meaningful account base.
         declining = odf[
             (odf['txn_growth'] < 0) &
-            (odf['unique_accounts'] >= 25)
+            (odf['unique_accounts'] >= MIN_ACCOUNTS)
         ].sort_values('txn_growth').copy()
 
         # Opportunity score: bigger bank + faster decline = bigger opportunity
@@ -110,7 +140,10 @@ if len(all_competitor_data) > 0:
                 )
 
             ax.set_yticks([])
-            ax.set_xlabel("Rate of Decline (%)", fontsize=18, fontweight='bold', labelpad=12)
+            ax.set_xlabel(
+                f"Transaction Decline (%):  {RECENT_LABEL}  vs  {PREVIOUS_LABEL}",
+                fontsize=18, fontweight='bold', labelpad=12,
+            )
             ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.0f}%"))
 
             gen_clean_axes(ax, keep_left=False)
@@ -121,10 +154,13 @@ if len(all_competitor_data) > 0:
             ax.set_title("Winback Opportunities",
                          fontsize=28, fontweight='bold',
                          color=GEN_COLORS['success'], pad=20, loc='left')
-            ax.text(0.0, 0.97,
-                    "Competitors losing ground = your chance to win customers back",
-                    transform=ax.transAxes, fontsize=15,
-                    color=GEN_COLORS['muted'], style='italic')
+            ax.text(
+                0.0, 0.97,
+                f'"Losing ground" = fewer transactions in {RECENT_LABEL} '
+                f'than in {PREVIOUS_LABEL}  (min {MIN_ACCOUNTS} member accounts)',
+                transform=ax.transAxes, fontsize=13,
+                color=GEN_COLORS['muted'], style='italic',
+            )
 
             # Size legend note
             ax.text(0.99, 0.01, "Bubble size = number of accounts",
@@ -149,18 +185,37 @@ if len(all_competitor_data) > 0:
             plt.show()
 
             # Summary
-            # BUG FIX: summing per-competitor unique_accounts double-counted any
-            # account that used multiple declining banks. Distinct-count across
-            # competitor_txns filtered to declining names.
-            _dec_names_opp = set(declining['competitor']) if 'competitor' in declining.columns else set(declining.index)
+            # Distinct-count across competitor_txns filtered to declining names —
+            # avoids inflation when an account used multiple declining banks.
+            _dec_names_opp = set(declining['bank'])
             _dec_txns_opp  = competitor_txns[competitor_txns['competitor_match'].isin(_dec_names_opp)]
             total_opp_accounts = int(_dec_txns_opp['primary_account_num'].nunique())
             avg_decline = declining['txn_growth'].mean()
-            print(f"\n    OPPORTUNITY SUMMARY:")
-            print(f"    {len(declining)} competitors declining  |  {total_opp_accounts:,} accounts in play")
+            print(f"\n    OPPORTUNITY SUMMARY ({RECENT_LABEL} vs {PREVIOUS_LABEL}):")
+            print(f"    {len(declining)} competitors losing ground  |  "
+                  f"{total_opp_accounts:,} unique accounts touching them")
             print(f"    Average decline rate: {avg_decline:.1f}%")
-            print(f"    RECOMMENDED ACTION: Target these {total_opp_accounts:,} accounts with")
-            print(f"    personalized retention/acquisition campaigns.")
+            print(f"    RECOMMENDED ACTION: target these {total_opp_accounts:,} accounts with")
+            print(f"    personalized retention / acquisition campaigns.")
+
+            # Detail table so the caller can see absolute volumes alongside the
+            # decline %s. A -40% bank with 5,000 recent txns and a -40% bank
+            # with 120 recent txns are very different opportunities.
+            _detail = declining.sort_values('recent_txn', ascending=False).copy()
+            _display = pd.DataFrame({
+                'Bank':                        _detail['bank'],
+                'Category':                    _detail['category_label'],
+                f'Txns ({RECENT_LABEL})':      _detail['recent_txn'].map('{:,}'.format),
+                f'Txns ({PREVIOUS_LABEL})':    _detail['prev_txn'].map('{:,}'.format),
+                'Txn Growth %':                _detail['txn_growth'].map('{:+.1f}%'.format),
+                f'Accts ({RECENT_LABEL})':     _detail['recent_acct'].map('{:,}'.format),
+                'Acct Growth %':               _detail['acct_growth'].map('{:+.1f}%'.format),
+            })
+            try:
+                display_formatted(_display, f"Winback Targets — criteria: declining txns, min {MIN_ACCOUNTS} members")
+            except (NameError, Exception):
+                print("\n--- Winback Targets (detail) ---")
+                print(_display.to_string(index=False))
 
         else:
             print("\n    No declining competitors detected in this period.")
