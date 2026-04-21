@@ -14,18 +14,71 @@ import pandas as pd
 # Excludes "Total Swipes", "Total Spend", "MonthlySwipes12", and similar rollups.
 _MONTHLY_COL_RE = re.compile(r'^[A-Za-z]{3}\d{2} (Swipes|Spend)$')
 
-# Defensive: if ics-00-config has not been re-run since ACTIVITY_END_DATE was
-# introduced, derive it here from last_12_months[-1]. Use strptime (NOT
-# pd.Period) — pandas Period treats the 2-digit year as year-of-era, which
-# produced the OutOfBoundsDatetime crashes in #63 / #64.
+# =========================================================
+# DEFENSIVE CONFIG DEFAULTS
+# =========================================================
+# If the user runs this cell without having run ics-00-config first
+# (kernel restart, re-run out of order, etc.), fill in reasonable
+# defaults so downstream analysis cells don't blow up with NameError
+# on STAT_LABEL / ICS_STAT_CODE / last_12_months / COHORT_START / etc.
+# Re-running ics-00-config afterwards overrides any of these.
+
+_missing_config = []
+
+try:
+    ICS_STAT_CODE
+except NameError:
+    ICS_STAT_CODE = 'O'
+    _missing_config.append('ICS_STAT_CODE')
+
+try:
+    STAT_LABEL
+except NameError:
+    STAT_LABEL = f"Stat Code {ICS_STAT_CODE}"
+    _missing_config.append('STAT_LABEL')
+
+try:
+    COHORT_FLOOR
+except NameError:
+    COHORT_FLOOR = "2020-01"
+    _missing_config.append('COHORT_FLOOR')
+
+try:
+    COHORT_START
+except NameError:
+    COHORT_START = COHORT_FLOOR
+    _missing_config.append('COHORT_START')
+
+try:
+    last_12_months
+except NameError:
+    # Trailing 12 fully-completed months anchored on (today - 1 month).
+    _anchor_p = pd.Timestamp.today().to_period('M') - 1
+    last_12_months = [
+        p.strftime('%b%y')
+        for p in pd.period_range(end=_anchor_p, periods=12, freq='M')
+    ]
+    _missing_config.append('last_12_months')
+
 try:
     ACTIVITY_END_DATE
 except NameError:
-    _last_tag = last_12_months[-1]                              # e.g. 'Mar26'
-    _anchor   = _dt.strptime(_last_tag, '%b%y')                 # 2026-03-01
+    # Derive from last_12_months[-1] via strptime — NOT pd.Period, which
+    # interprets the 2-digit year as year-of-era (#63/#64 root cause).
+    _last_tag = last_12_months[-1]
+    _anchor   = _dt.strptime(_last_tag, '%b%y')
     ACTIVITY_END_DATE = pd.Timestamp(_anchor) + pd.offsets.MonthEnd(0)
-    print(f"   (ics-02 derived ACTIVITY_END_DATE locally → {ACTIVITY_END_DATE.date()}; "
-          f"re-run ics-00-config for the canonical value.)")
+    _missing_config.append('ACTIVITY_END_DATE')
+
+try:
+    ACTIVITY_ANCHOR_YEAR
+except NameError:
+    ACTIVITY_ANCHOR_YEAR = ACTIVITY_END_DATE.year
+    _missing_config.append('ACTIVITY_ANCHOR_YEAR')
+
+if _missing_config:
+    print(f"   (ics-02 filled in missing config defaults: {_missing_config}. "
+          f"Re-run ics-00-config for canonical values.)")
 
 # =========================================================
 # Cohort filters
