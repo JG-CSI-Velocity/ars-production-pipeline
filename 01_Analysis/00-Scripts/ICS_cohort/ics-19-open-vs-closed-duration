@@ -14,12 +14,11 @@ ics_accounts = data[data['ICS Account'] == 'Yes'].copy()
 
 # Duration = (Date Closed − Date Opened) for closed rows,
 #            (end-of-activity-window − Date Opened) for still-open rows.
-_anchor = pd.Period(last_12_months[-1], freq='M').to_timestamp(how='end')
 _closed_mask = ics_accounts['Date Closed'].notna()
 ics_accounts['Duration Days'] = np.where(
     _closed_mask,
-    (ics_accounts['Date Closed'] - ics_accounts['Date Opened']).dt.days,
-    (_anchor - ics_accounts['Date Opened']).dt.days,
+    (ics_accounts['Date Closed']  - ics_accounts['Date Opened']).dt.days,
+    (ACTIVITY_END_DATE            - ics_accounts['Date Opened']).dt.days,
 )
 ics_accounts['Duration Range'] = ics_accounts['Duration Days'].map(_age_bucket)
 ics_accounts['Status'] = np.where(_closed_mask, 'Closed', 'Open')

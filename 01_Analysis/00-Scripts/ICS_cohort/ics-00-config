@@ -58,14 +58,21 @@ def _resolve_activity_window(end_month_override, n_months):
         # Last FULLY COMPLETED month = the month before the current one
         anchor = pd.Timestamp.today().to_period('M') - 1
     periods = pd.period_range(end=anchor, periods=n_months, freq='M')
-    return [p.strftime('%b%y') for p in periods]
+    tags = [p.strftime('%b%y') for p in periods]
+    # End-of-month Timestamp for the last period; used anywhere that needs a
+    # stable "as of" anchor. Do NOT derive this by re-parsing '%b%y' — pandas
+    # treats the 2-digit year as year-of-era and overflows.
+    end_date = anchor.to_timestamp(how='end')
+    return tags, end_date
 
-last_12_months = _resolve_activity_window(ACTIVITY_END_MONTH, ACTIVITY_WINDOW_MONTHS)
+last_12_months, ACTIVITY_END_DATE = _resolve_activity_window(
+    ACTIVITY_END_MONTH, ACTIVITY_WINDOW_MONTHS
+)
 
 # Year used by cells that split "prior years (aggregated)" from
 # "latest year (individual months)" — driven by the activity window,
 # NOT by today's date, so frozen reports stay stable.
-ACTIVITY_ANCHOR_YEAR = int(last_12_months[-1][-2:]) + 2000
+ACTIVITY_ANCHOR_YEAR = ACTIVITY_END_DATE.year
 
 # =========================================================
 # ECHO — always print so you can verify before running everything else

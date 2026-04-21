@@ -69,7 +69,7 @@ def add_account_age(df, date_col='Date Opened',
     if not np.issubdtype(df[date_col].dtype, np.datetime64):
         df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
     if ref_date is None:
-        ref_date = pd.Period(last_12_months[-1], freq='M').to_timestamp(how='end')
+        ref_date = ACTIVITY_END_DATE
     df[days_col] = (ref_date - df[date_col]).dt.days
     df[range_col] = df[days_col].map(_age_bucket)
     return df
