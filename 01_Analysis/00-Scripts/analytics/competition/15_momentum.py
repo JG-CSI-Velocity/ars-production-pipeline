@@ -101,18 +101,23 @@ if len(all_competitor_data) > 0:
 
             fig, ax = plt.subplots(figsize=(14, 9))
 
-            # Bar colors: single-hue heatmap keyed to recent account count.
-            # Darker = more accounts using that competitor (regardless of
-            # whether they're growing or declining). Direction is still
-            # conveyed by the left/right position of each bar.
+            # Bar colors: two sequential colormaps keyed to recent account
+            # count. Threats (growers) use Reds; opportunities (decliners)
+            # use Blues. Darker = more accounts using that competitor.
+            # Direction is still conveyed by left/right position AND hue.
             import matplotlib as _mpl
-            _cmap = _mpl.colormaps.get_cmap('Blues')
+            _cmap_threat = _mpl.colormaps.get_cmap('Reds')
+            _cmap_opp    = _mpl.colormaps.get_cmap('Blues')
             _acct_vals = show_df['recent_acct'].astype(float).values
             _acct_max  = float(_acct_vals.max()) if len(_acct_vals) and _acct_vals.max() > 0 else 1.0
-            # Squeeze into [0.25, 0.95] so the smallest bar isn't invisible-white
+            # Squeeze into [0.30, 0.90] so the smallest bar isn't invisible-white
             # and the largest isn't black.
-            _intensity = 0.25 + (_acct_vals / _acct_max) * 0.70
-            bar_colors = [_cmap(v) for v in _intensity]
+            _intensity = 0.30 + (_acct_vals / _acct_max) * 0.60
+            _growths   = show_df['txn_growth'].values
+            bar_colors = [
+                (_cmap_threat(v) if g > 0 else _cmap_opp(v))
+                for g, v in zip(_growths, _intensity)
+            ]
 
             bars = ax.barh(
                 range(len(show_df)),
@@ -124,16 +129,27 @@ if len(all_competitor_data) > 0:
                 zorder=3
             )
 
-            # Value labels
+            # Value labels — always anchored to the zero line on the opposite
+            # side of the bar, so negative-growth labels can't bleed into the
+            # competitor-name yticklabels on the far left.
+            _x_max = float(show_df['txn_growth'].abs().max())
+            _label_offset = max(0.8, _x_max * 0.02)
             for i, (_, row) in enumerate(show_df.iterrows()):
-                offset = 1.5 if row['txn_growth'] >= 0 else -1.5
-                ha = 'left' if row['txn_growth'] >= 0 else 'right'
+                if row['txn_growth'] >= 0:
+                    # Growing bar extends right → label to the right of the bar tip
+                    _x = row['txn_growth'] + _label_offset
+                    _ha = 'left'
+                else:
+                    # Declining bar extends left → put the label on the RIGHT
+                    # of the zero line (the center of the chart), never near
+                    # the bank-name yticks.
+                    _x = _label_offset
+                    _ha = 'left'
                 ax.text(
-                    row['txn_growth'] + offset, i,
-                    f"{row['txn_growth']:+.1f}%",
-                    fontsize=13, fontweight='bold',
+                    _x, i, f"{row['txn_growth']:+.1f}%",
+                    fontsize=12, fontweight='bold',
                     color=GEN_COLORS['dark_text'],
-                    va='center', ha=ha
+                    va='center', ha=_ha,
                 )
 
             ax.set_yticks(range(len(show_df)))
@@ -163,17 +179,15 @@ if len(all_competitor_data) > 0:
                     transform=ax.transAxes, fontsize=15,
                     color=GEN_COLORS['muted'], style='italic')
 
-            # Side labels — moved BELOW the chart so they don't collide with
-            # the title block. Placed just under the x-axis label via fig.text.
-            x_max = show_df['txn_growth'].abs().max()
-            ax.text(x_max * 0.7, -1.4,
-                    "THREAT  -->",
-                    fontsize=13, fontweight='bold', color=GEN_COLORS['accent'],
-                    alpha=0.55, ha='center')
-            ax.text(-x_max * 0.7, -1.4,
-                    "<--  OPPORTUNITY",
-                    fontsize=13, fontweight='bold', color=GEN_COLORS['success'],
-                    alpha=0.55, ha='center')
+            # THREAT / OPPORTUNITY direction labels — placed in the figure
+            # margin (below the x-axis label) via fig.text so they can't
+            # collide with the bars, value labels, or competitor names.
+            fig.text(0.75, 0.03, "THREAT  →",
+                     fontsize=13, fontweight='bold', color='#C62828',
+                     alpha=0.75, ha='center')
+            fig.text(0.25, 0.03, "←  OPPORTUNITY",
+                     fontsize=13, fontweight='bold', color='#1565C0',
+                     alpha=0.75, ha='center')
 
             # Bubble-size-equivalent legend text for the heatmap
             ax.text(0.99, 1.06,
@@ -182,7 +196,7 @@ if len(all_competitor_data) > 0:
                     color=GEN_COLORS['muted'], style='italic', ha='right')
 
             plt.tight_layout()
-            plt.subplots_adjust(top=0.86, bottom=0.14)   # breathing room
+            plt.subplots_adjust(top=0.86, bottom=0.18)   # extra bottom room for THREAT/OPPORTUNITY labels
             plt.show()
 
             # Opportunity callout
