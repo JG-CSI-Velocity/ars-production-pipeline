@@ -7,11 +7,15 @@
 if len(all_competitor_data) > 0:
     summary_df = pd.DataFrame(summary_data).sort_values('total_amount', ascending=False)
 
-    total_competitor_trans = summary_df['total_transactions'].sum()
-    total_competitor_accounts = summary_df['unique_accounts'].sum()
-    total_competitors_found = len(all_competitor_data)
+    # BUG FIX: summary_df has ONE row per competitor, so summing
+    # unique_accounts double-counts any account that uses >1 competitor
+    # (drove pct_accounts above 100%). Count distinct accounts once
+    # across the whole competitor_txns frame instead.
+    total_competitor_trans    = len(competitor_txns)
+    total_competitor_accounts = competitor_txns['primary_account_num'].nunique()
+    total_competitors_found   = len(all_competitor_data)
 
-    total_all_trans = len(combined_df)
+    total_all_trans    = len(combined_df)
     total_all_accounts = combined_df['primary_account_num'].nunique()
 
     pct_trans = (total_competitor_trans / total_all_trans * 100) if total_all_trans > 0 else 0
