@@ -1,0 +1,26 @@
+# ============================================
+# ics-10-portfolio-totals — ICS vs Non-ICS across the full dataset
+# ============================================
+# Supersedes: ax-2-total dataset  (which was labeled A[X].1 — conflicted with ax-1).
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+
+print("\n📊 ics-10 — Portfolio totals (ICS vs Non-ICS)...")
+
+total_accounts   = len(data)
+ics_accounts     = data[data['ICS Account'] == 'Yes']
+non_ics_accounts = data[data['ICS Account'] != 'Yes']
+
+portfolio_totals = pd.DataFrame({
+    'Category': ['Total Accounts', 'ICS Accounts', 'Non-ICS Accounts'],
+    'Count':    [total_accounts, len(ics_accounts), len(non_ics_accounts)],
+})
+portfolio_totals['% of Total'] = (
+    portfolio_totals['Count'] / total_accounts
+)
+
+display_formatted(portfolio_totals, "Portfolio Totals — ICS vs Non-ICS")
+
+print(f"\n✅ Analysis completed")
+print(f"   Total Accounts   : {total_accounts:,}")
+print(f"   ICS Accounts     : {len(ics_accounts):,} ({len(ics_accounts)/total_accounts:.2%})")
+print(f"   Non-ICS Accounts : {len(non_ics_accounts):,} ({len(non_ics_accounts)/total_accounts:.2%})")

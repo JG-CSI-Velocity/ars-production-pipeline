@@ -1,0 +1,30 @@
+# ============================================
+# ics-11-portfolio-open — ICS vs Non-ICS, open accounts only
+# ============================================
+# Supersedes: ax-3-open-ICS Accounts  (which depended on an undefined upstream
+# `open_accounts` frame and re-did its own ICS normalization).
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+
+print("\n📊 ics-11 — Portfolio totals for open accounts...")
+
+# Derive open accounts directly from normalized data — self-contained.
+open_accounts = data[data['Date Closed'].isna()]
+
+total_open       = len(open_accounts)
+ics_open         = open_accounts[open_accounts['ICS Account'] == 'Yes']
+non_ics_open     = open_accounts[open_accounts['ICS Account'] != 'Yes']
+
+portfolio_open = pd.DataFrame({
+    'Category': ['Total Open Accounts', 'ICS Accounts', 'Non-ICS Accounts'],
+    'Count':    [total_open, len(ics_open), len(non_ics_open)],
+})
+portfolio_open['% of Open'] = (
+    portfolio_open['Count'] / total_open if total_open > 0 else 0
+)
+
+display_formatted(portfolio_open, "Portfolio Totals — Open Accounts (ICS vs Non-ICS)")
+
+print(f"\n✅ Analysis completed")
+print(f"   Total Open       : {total_open:,}")
+print(f"   ICS Open         : {len(ics_open):,} ({(len(ics_open)/total_open if total_open else 0):.1%})")
+print(f"   Non-ICS Open     : {len(non_ics_open):,} ({(len(non_ics_open)/total_open if total_open else 0):.1%})")

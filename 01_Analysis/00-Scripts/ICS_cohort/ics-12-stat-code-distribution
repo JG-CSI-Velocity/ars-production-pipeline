@@ -1,0 +1,69 @@
+# ============================================
+# ics-12-stat-code-distribution — Stat Code mix within ICS
+# ============================================
+# Supersedes: ax-4-stat code  (was labeled A[X].3; inline magic-number `95`).
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+#
+# Why this cell does NOT filter to ICS_STAT_CODE:
+#   This cell is the one that tells you WHICH Stat Code is dominant for this
+#   client — it's the diagnostic that answers "should ICS_STAT_CODE be 'O' or
+#   '0'?". Filtering it would hide the answer.
+
+print("\n📊 ics-12 — Stat Code distribution within ICS...")
+
+# --------------------------------------------------------
+# Per-report knob: some clients have ICS accounts the data dump doesn't
+# include. Set to 0 when the dump is complete.
+# --------------------------------------------------------
+ICS_NOT_IN_DUMP = 0   # <-- set per report if applicable
+
+ics_only = data[data['ICS Account'] == 'Yes']
+
+stat_code_dist = (
+    ics_only.groupby('Stat Code', dropna=False)
+            .size()
+            .reset_index(name='Count')
+)
+stat_code_dist['% of ICS Accounts'] = (
+    stat_code_dist['Count'] / len(ics_only) if len(ics_only) else 0
+)
+
+stat_code_dist = (
+    stat_code_dist.sort_values('Count', ascending=False)
+                  .reset_index(drop=True)
+)
+
+# Optional "Not in Data Dump" row
+if ICS_NOT_IN_DUMP > 0:
+    not_in_dump = pd.DataFrame({
+        'Stat Code':         ['Not in Data Dump'],
+        'Count':             [ICS_NOT_IN_DUMP],
+        '% of ICS Accounts': [ICS_NOT_IN_DUMP / len(ics_only) if len(ics_only) else 0],
+    })
+    stat_code_dist = pd.concat([stat_code_dist, not_in_dump], ignore_index=True)
+
+# Total row
+total_row = pd.DataFrame({
+    'Stat Code':         ['Total'],
+    'Count':             [stat_code_dist['Count'].sum()],
+    '% of ICS Accounts': [1.0],
+})
+stat_code_dist = pd.concat([stat_code_dist, total_row], ignore_index=True).fillna(0)
+
+display_formatted(stat_code_dist, "ICS Accounts — Stat Code Distribution")
+
+# Highlight which Stat Code the config currently targets
+_target_rows = stat_code_dist['Stat Code'].astype(str).str.upper().str.strip() \
+               == str(ICS_STAT_CODE).upper()
+_target_ct = int(stat_code_dist.loc[_target_rows, 'Count'].sum()) if _target_rows.any() else 0
+
+print(f"\n✅ Analysis completed")
+print(f"   Total ICS in dump          : {len(ics_only):,}")
+if ICS_NOT_IN_DUMP > 0:
+    print(f"   Not in Data Dump           : {ICS_NOT_IN_DUMP:,}")
+    print(f"   Total ICS (all)            : {len(ics_only) + ICS_NOT_IN_DUMP:,}")
+print(f"   Unique Stat Codes          : {ics_only['Stat Code'].nunique()}")
+print(f"   Rows at target Stat Code {ICS_STAT_CODE!r}: {_target_ct:,}")
+if _target_ct == 0:
+    print(f"   ⚠️  No rows match ICS_STAT_CODE={ICS_STAT_CODE!r}. "
+          f"Update ics-00-config if another value dominates above.")
