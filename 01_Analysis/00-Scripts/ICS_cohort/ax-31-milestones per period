@@ -1,0 +1,92 @@
+
+# ============================================
+# A[X].31 - VERTICAL, PER-PERIOD PIVOT (Milestones as columns, Metrics as rows)
+# ============================================
+
+_milestones = [1, 3, 6, 9, 12]
+metric_rows = ['Active', '% Active', 'Avg Swipes', 'Avg Spend']
+
+# 1) Tidy (long) rows from your wide milestone columns
+tidy_rows = []
+for _, r in ax25_cohort_milestones.iterrows():
+    op = r.get('Opening Period')
+    cohort_size = int(r.get('Cohort Size', 0))
+    avg_curr_bal = float(r.get('Avg Current Balance', 0))
+
+    for m in _milestones:
+        a = r.get(f'M{m} Active', '')
+        p = r.get(f'M{m} % Active', '')
+        s = r.get(f'M{m} Avg Swipes', '')
+        d = r.get(f'M{m} Avg Spend', '')
+
+        # skip missing/future milestones
+        if (a, p, s, d) == ('', '', '', ''):
+            continue
+
+        tidy_rows.append({
+            'Opening Period': op,
+            'Milestone': f'M{m}',
+            'Cohort Size': cohort_size,                 # numeric context
+            'Avg Current Balance': avg_curr_bal,        # numeric context ($)
+            'Active': int(a) if a != '' else 0,         # integer
+            '% Active': float(p) if p != '' else 0.0,   # FRACTION (0–1)
+            'Avg Swipes': int(round(float(s))) if s not in ('', None) else 0,  # integer
+            'Avg Spend': float(d) if d not in ('', None) else 0.0              # numeric ($)
+        })
+
+tidy = pd.DataFrame(tidy_rows)
+
+if tidy.empty:
+    display_formatted(pd.DataFrame({'Notice': ['No completed milestones for the selected window.']}),
+                      "ICS Stat Code O - Cohort Milestones (Metrics × Milestones)")
+else:
+    # Sort milestones M1, M3, M6, M9, M12
+    cat_m = pd.api.types.CategoricalDtype(categories=[f'M{x}' for x in _milestones], ordered=True)
+    tidy['Milestone'] = tidy['Milestone'].astype(cat_m)
+
+    # Optional: sort Opening Periods naturally (years before yyyy-mm)
+    def _period_sort_key(p):
+        if isinstance(p, str) and len(p) == 4 and p.isdigit():
+            return (0, int(p), 0)
+        if isinstance(p, str) and len(p) == 7 and p[4] == '-' and p[:4].isdigit():
+            y, m = p.split('-')
+            return (1, int(y), int(m))
+        return (2, 9999, 99)
+
+    tidy = tidy.sort_values(['Opening Period','Milestone'],
+                            key=lambda s: s.map(_period_sort_key) if s.name == 'Opening Period' else s)
+
+    # 2) Render one small, pivoted table per Opening Period
+    for op, block in tidy.groupby('Opening Period', sort=False):
+        # bring metrics to rows, milestones to columns
+        long_blocks = []
+        for metric in metric_rows:
+            piece = block[['Milestone', metric]].copy()
+            piece = piece.rename(columns={metric: 'Value'})
+            piece['Metric'] = metric
+            long_blocks.append(piece)
+        pivot = (pd.concat(long_blocks, ignore_index=True)
+                   .pivot_table(index='Metric', columns='Milestone', values='Value', aggfunc='first')
+                   .reset_index()
+                   .rename_axis(None, axis=1))
+
+        # Format per metric row (keep types so ARS formats correctly)
+        for c in [f'M{x}' for x in _milestones if f'M{x}' in pivot.columns]:
+            mask_pct   = pivot['Metric'].eq('% Active')
+            mask_int   = pivot['Metric'].isin(['Active','Avg Swipes'])
+            mask_money = pivot['Metric'].eq('Avg Spend')
+
+            if mask_pct.any():
+                pivot.loc[mask_pct, c] = pd.to_numeric(pivot.loc[mask_pct, c], errors='coerce').fillna(0.0)  # fraction
+            if mask_int.any():
+                pivot.loc[mask_int, c] = pd.to_numeric(pivot.loc[mask_int, c], errors='coerce').fillna(0).round(0).astype(int)
+            if mask_money.any():
+                pivot.loc[mask_money, c] = pd.to_numeric(pivot.loc[mask_money, c], errors='coerce').fillna(0.0)  # currency
+
+        # Add a small context header row (Cohort Size, Avg Current Balance)
+        cohort_size     = int(block['Cohort Size'].iloc[0])
+        avg_current_bal = float(block['Avg Current Balance'].iloc[0])
+
+        # Display the per-period section
+        print(f"\n📅 Opening Period: {op}   |   Cohort Size: {cohort_size:,}   |   Avg Current Balance: ${avg_current_bal:,.2f}")
+        display_formatted(pivot, f"Milestones for {op} (Metrics × Milestones)")
