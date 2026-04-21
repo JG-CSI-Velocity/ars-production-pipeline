@@ -1,0 +1,99 @@
+# ============================================
+# ics-34-activation-by-cohort — Per-opening-month activation %, ICS vs Non-ICS
+# ============================================
+# Supersedes: ax-31-cohort m1 activation  (was M1-only).
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+#
+# Two parallel tables: same opening months as rows, milestone columns
+# (M1 / M3 / M6 / M9 / M12 / M24) as % active. First table is the ICS
+# target-Stat debit cohort; second is the matched Non-ICS-with-debit
+# cohort so the comparison is apples-to-apples (both can swipe).
+#
+# A cell is blank when the milestone month falls outside the data
+# (cohort too new). Final row is the cohort-size-weighted average.
+
+print(f"\n📊 ics-34 — Activation % per cohort, by milestone — ICS {STAT_LABEL} vs Non-ICS...")
+
+_MILESTONES = [('M1', 0), ('M3', 2), ('M6', 5), ('M9', 8), ('M12', 11), ('M24', 23)]
+
+def _activation_table(frame, label):
+    """Return a per-opening-month activation table for one cohort."""
+    _f = add_opening_month(frame)
+    _f = apply_cohort_start(_f)
+    if _f.empty:
+        return pd.DataFrame(columns=(['Opening Month', 'Cohort Size']
+                                     + [m for m, _ in _MILESTONES]))
+
+    rows = []
+    for _op in sorted(_f['Opening Month'].dropna().unique()):
+        _sub        = _f[_f['Opening Month'] == _op]
+        _opening_dt = pd.to_datetime(_op)
+        _row = {'Opening Month': _op, 'Cohort Size': int(len(_sub))}
+        for _name, _offset in _MILESTONES:
+            _tag   = (_opening_dt + pd.DateOffset(months=_offset)).strftime('%b%y')
+            _s_col = f"{_tag} Swipes"
+            if _s_col in _sub.columns:
+                _sw     = pd.to_numeric(_sub[_s_col], errors='coerce').fillna(0)
+                _active = int((_sw > 0).sum())
+                _row[_name] = (_active / len(_sub)) if len(_sub) else float('nan')
+            else:
+                _row[_name] = float('nan')
+        rows.append(_row)
+
+    _tbl = pd.DataFrame(rows)
+
+    # Weighted-average bottom row
+    _total_size = int(_tbl['Cohort Size'].sum())
+    _avg_row    = {'Opening Month': 'Weighted Avg', 'Cohort Size': _total_size}
+    for _name, _ in _MILESTONES:
+        _vals = pd.to_numeric(_tbl[_name], errors='coerce')
+        _mask = _vals.notna()
+        if _mask.any():
+            _w        = _tbl.loc[_mask, 'Cohort Size'].astype(float)
+            _active_n = (_vals[_mask] * _w).sum()
+            _avg_row[_name] = (_active_n / _w.sum()) if _w.sum() else float('nan')
+        else:
+            _avg_row[_name] = float('nan')
+    _tbl = pd.concat([_tbl, pd.DataFrame([_avg_row])], ignore_index=True)
+
+    # Numeric hygiene
+    for _name, _ in _MILESTONES:
+        _tbl[_name] = pd.to_numeric(_tbl[_name], errors='coerce')
+
+    return _tbl
+
+# ---- ICS target-Stat debit cohort -----------------------------------------
+_ics  = ics_cohort_debit(data)
+ics_activation_by_cohort = _activation_table(_ics, 'ICS')
+display_formatted(
+    ics_activation_by_cohort,
+    f"ICS {STAT_LABEL} (Debit) — Activation % by Cohort × Milestone"
+)
+
+# ---- Matched Non-ICS-with-debit cohort ------------------------------------
+_non = non_ics_cohort(data)
+if 'Debit?' in _non.columns:
+    _non = _non[_non['Debit?'] == 'Yes']
+nonics_activation_by_cohort = _activation_table(_non, 'Non-ICS')
+display_formatted(
+    nonics_activation_by_cohort,
+    "Non-ICS (Debit) — Activation % by Cohort × Milestone"
+)
+
+# ---- Side-by-side delta summary on the weighted average row ---------------
+print(f"\n📣 Weighted-average activation rates (Δ = ICS − Non-ICS):")
+_ics_avg = ics_activation_by_cohort.iloc[-1]
+_non_avg = nonics_activation_by_cohort.iloc[-1]
+for _name, _ in _MILESTONES:
+    _i = _ics_avg[_name]
+    _n = _non_avg[_name]
+    if pd.notna(_i) and pd.notna(_n):
+        print(f"   {_name:>3}: ICS {_i:>6.1%}  |  Non-ICS {_n:>6.1%}  |  Δ {_i - _n:+.1%}")
+    elif pd.notna(_i):
+        print(f"   {_name:>3}: ICS {_i:>6.1%}  |  Non-ICS    -    |  (no Non-ICS data)")
+    elif pd.notna(_n):
+        print(f"   {_name:>3}: ICS    -     |  Non-ICS {_n:>6.1%}  |  (no ICS data)")
+
+print(f"\n✅ Analysis completed")
+print(f"   ICS  cohorts shown    : {len(ics_activation_by_cohort) - 1}")
+print(f"   Non-ICS cohorts shown : {len(nonics_activation_by_cohort) - 1}")
