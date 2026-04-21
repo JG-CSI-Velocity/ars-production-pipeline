@@ -1,0 +1,133 @@
+
+# ============================================
+# A[X].21 - ICS STAT CODE O - ACTIVITY BY BALANCE TIER (FINAL NUMERIC VERSION)
+# ============================================
+
+print("\n📊 A[X].21 - Analyzing ICS Stat Code O Activity by Balance Tier...")
+
+# 1) Filter ICS Stat O (LETTER 'O', robust to case/space)
+ics_stat_o = data[
+    (data['ICS Account'] == 'Yes') &
+    (data['Stat Code'].astype(str).str.upper().str.strip() == '0')
+].copy()
+
+# 2) Last-12-month columns (keep as numerics)
+swipe_cols = [c for c in ics_stat_o.columns if ('Swipes' in c and any(m in c for m in last_12_months))]
+spend_cols = [c for c in ics_stat_o.columns if ('Spend'  in c and any(m in c for m in last_12_months))]
+
+ics_stat_o[swipe_cols] = ics_stat_o[swipe_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
+ics_stat_o[spend_cols] = ics_stat_o[spend_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
+
+ics_stat_o['Total L12M Swipes'] = ics_stat_o[swipe_cols].sum(axis=1).astype('int64')
+ics_stat_o['Total L12M Spend']  = ics_stat_o[spend_cols].sum(axis=1)
+ics_stat_o['Active in L12M']    = ics_stat_o['Total L12M Swipes'] > 0
+
+# 3) Formatter-safe tiers (NO leading '$' in labels)
+def to_tier(bal):
+    if pd.isna(bal):           return 'Unknown'
+    if bal <= 0:               return '0 or Less'
+    if bal < 1_000:            return '0 - 1K'
+    if bal < 5_000:            return '1K - 5K'
+    if bal < 10_000:           return '5K - 10K'
+    if bal < 25_000:           return '10K - 25K'
+    if bal < 50_000:           return '25K - 50K'
+    if bal < 100_000:          return '50K - 100K'
+    if bal < 250_000:          return '100K - 250K'
+    return '250K+'
+
+ics_stat_o['Tier'] = ics_stat_o['Curr Bal'].apply(to_tier)
+
+tier_order = [
+    '0 or Less','0 - 1K','1K - 5K','5K - 10K',
+    '10K - 25K','25K - 50K','50K - 100K',
+    '100K - 250K','250K+','Unknown'
+]
+
+# 4) Grouped metrics (all numeric, no strings)
+grp = (
+    ics_stat_o
+      .groupby('Tier', dropna=False)
+      .agg(
+          Account_Count   = ('Total L12M Swipes','count'),
+          Total_Swipes    = ('Total L12M Swipes','sum'),
+          Avg_Swipes_raw  = ('Total L12M Swipes','mean'),
+          Median_Swipes   = ('Total L12M Swipes','median'),
+          Total_Spend     = ('Total L12M Spend','sum'),
+          Avg_Spend       = ('Total L12M Spend','mean'),
+          Median_Spend    = ('Total L12M Spend','median'),
+          Active_Accounts = ('Active in L12M','sum')
+      )
+      .reset_index()
+)
+
+# Enforce tier order
+grp['Tier'] = pd.Categorical(grp['Tier'], categories=tier_order, ordered=True)
+grp = grp.sort_values('Tier').reset_index(drop=True)
+
+# Derived numeric metrics
+grp['Pct_Active']      = (grp['Active_Accounts'] / grp['Account_Count']).fillna(0)              # fraction (0–1)
+grp['Spend_per_Swipe'] = (grp['Total_Spend'] / grp['Total_Swipes']).replace([np.inf, -np.inf], 0).fillna(0)
+
+# Make swipes averages whole numbers (user preference)
+grp['Avg_Swipes'] = grp['Avg_Swipes_raw'].round(0).astype('int64')
+grp['Median_Swipes'] = pd.to_numeric(grp['Median_Swipes'], errors='coerce').round(0).fillna(0).astype('int64')
+
+# Ensure clean integer types where appropriate
+grp['Account_Count'] = grp['Account_Count'].astype('int64')
+grp['Total_Swipes']  = grp['Total_Swipes'].astype('int64')
+grp['Active_Accounts'] = grp['Active_Accounts'].astype('int64')
+
+# 5) Total row (still purely numeric)
+tot_accts  = int(grp['Account_Count'].sum())
+tot_swipes = int(grp['Total_Swipes'].sum())
+tot_spend  = float(grp['Total_Spend'].sum())
+
+total_row = pd.DataFrame([{
+    'Tier':            'Total',
+    'Account_Count':   tot_accts,
+    'Total_Swipes':    tot_swipes,
+    'Avg_Swipes_raw':  (tot_swipes / tot_accts) if tot_accts else 0,
+    'Median_Swipes':   int(ics_stat_o['Total L12M Swipes'].median() if len(ics_stat_o) else 0),
+    'Total_Spend':     tot_spend,
+    'Avg_Spend':       (tot_spend / tot_accts) if tot_accts else 0,
+    'Median_Spend':    float(ics_stat_o['Total L12M Spend'].median() if len(ics_stat_o) else 0),
+    'Active_Accounts': int(grp['Active_Accounts'].sum()),
+    'Pct_Active':      (grp['Active_Accounts'].sum() / tot_accts) if tot_accts else 0,
+    'Spend_per_Swipe': (tot_spend / tot_swipes) if tot_swipes else 0
+}])
+
+grp = pd.concat([grp, total_row], ignore_index=True)
+
+# Recompute final Avg_Swipes as whole numbers for total row
+grp.loc[grp['Tier'] == 'Total', 'Avg_Swipes'] = grp.loc[grp['Tier'] == 'Total', 'Avg_Swipes_raw'].round(0).astype('int64')
+
+# 6) Select & rename columns for display (still numeric types)
+ax21_balance_activity = (
+    grp[['Tier',
+         'Account_Count','Total_Swipes','Avg_Swipes','Median_Swipes',
+         'Total_Spend','Avg_Spend','Median_Spend',
+         'Active_Accounts','Pct_Active','Spend_per_Swipe']]
+      .rename(columns={
+          'Tier': 'Tier',                                    # keep neutral header (no 'Balance')
+          'Account_Count': 'Account Count',
+          'Total_Swipes':  'Total Swipes',
+          'Avg_Swipes':    'Avg Swipes per Acct',
+          'Median_Swipes': 'Median Swipes per Acct',
+          'Total_Spend':   'Total Spend',
+          'Avg_Spend':     'Avg Spend per Acct',
+          'Median_Spend':  'Median Spend per Acct',
+          'Active_Accounts':'Active Accounts',
+          'Pct_Active':    '% Active',            # fraction (0–1); your formatter renders %
+          'Spend_per_Swipe':'Avg Spend per Swipe' # currency; your formatter renders $
+      })
+)
+
+# 🔒 IMPORTANT: leave ALL numeric columns as numeric types.
+# - Counts/Swipes are int
+# - Spend & Spend per Swipe are float
+# - % Active is fraction 0–1
+# The ARS formatter will format each by type/name without trying to parse text like '11,392'.
+
+display_formatted(ax21_balance_activity, "ICS Stat Code O - Activity by Balance Tier (Current Balance)")
+
+print(f"\n✅ Analysis completed")
