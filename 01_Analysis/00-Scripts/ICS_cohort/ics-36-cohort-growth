@@ -66,7 +66,16 @@ for _c in cohort_growth.columns:
         continue
     cohort_growth[_c] = pd.to_numeric(cohort_growth[_c], errors='coerce')
 
+# Drop cohorts that have NO usable metric data at all (too new — no M1, M3,
+# or M6 columns exist for them in the dump). A cohort is kept if at least
+# one metric column has a non-NaN value.
+_metric_cols = [c for c in cohort_growth.columns if c not in ('Opening Month', 'Cohort Size')]
+_dropped     = int(cohort_growth[_metric_cols].isna().all(axis=1).sum())
+cohort_growth = cohort_growth.dropna(subset=_metric_cols, how='all').reset_index(drop=True)
+
 display_formatted(cohort_growth, f"ICS {STAT_LABEL} — Cohort Growth (M1 vs M3 vs M6)")
 
 print(f"\n✅ Analysis completed")
-print(f"   Cohorts analyzed : {len(cohort_growth)}")
+print(f"   Cohorts shown    : {len(cohort_growth)}")
+if _dropped:
+    print(f"   Cohorts dropped  : {_dropped} (no M1/M3/M6 data available — typically too new)")

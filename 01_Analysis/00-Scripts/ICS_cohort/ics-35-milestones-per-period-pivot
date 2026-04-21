@@ -69,18 +69,39 @@ else:
         key=lambda s: s.map(_period_sort_key) if s.name == 'Opening Period' else s,
     )
 
-    for _op, _block in _tidy_df.groupby('Opening Period', sort=False):
+    # Pre-format each metric value as a STRING so the display formatter
+    # can't misinterpret a mixed-type column (counts vs %s vs $ all share
+    # the same M1 column once pivoted).
+    def _fmt_for(metric, value):
+        if pd.isna(value):
+            return ''
+        if metric == '% Active':
+            # value is fraction 0-1
+            return f"{float(value):.1%}"
+        if metric == 'Avg Spend':
+            return f"${float(value):,.2f}"
+        # Active and Avg Swipes → integer with thousands separator
+        return f"{int(round(float(value))):,}"
+
+    for _op, _block in _tidy_df.groupby('Opening Period', sort=False, observed=False):
         _long = []
         for _metric in _METRIC_ROWS:
             _piece = _block[['Milestone', _metric]].rename(columns={_metric: 'Value'})
+            _piece['Value']  = _piece['Value'].map(lambda v, _m=_metric: _fmt_for(_m, v))
             _piece['Metric'] = _metric
             _long.append(_piece)
         _pivot = (
             pd.concat(_long, ignore_index=True)
-              .pivot_table(index='Metric', columns='Milestone', values='Value', aggfunc='first')
+              .pivot_table(
+                  index='Metric', columns='Milestone', values='Value',
+                  aggfunc='first', observed=False,
+              )
               .reset_index()
               .rename_axis(None, axis=1)
         )
+        # Force the Metric row order (pivot sorts alphabetically by default).
+        _pivot['Metric'] = pd.Categorical(_pivot['Metric'], categories=_METRIC_ROWS, ordered=True)
+        _pivot = _pivot.sort_values('Metric').reset_index(drop=True)
 
         _cohort_size = int(_block['Cohort Size'].iloc[0])
         _avg_bal     = float(_block['Avg Current Balance'].iloc[0])
