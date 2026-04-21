@@ -5,8 +5,13 @@
 # Supersedes the old ax-1 (which only touched ICS Account).
 # Safe to re-run — idempotent.
 
+import re
 import numpy as np
 import pandas as pd
+
+# Match only monthly activity columns like "Apr25 Swipes" / "Mar26 Spend".
+# Explicitly excludes "Total Swipes", "Total Spend", "MonthlySwipes12", etc.
+_MONTHLY_COL_RE = re.compile(r'^[A-Za-z]{3}\d{2} (Swipes|Spend)$')
 
 print("\n🧹 ics-01-normalize — cleaning columns used by downstream cells...")
 
@@ -50,9 +55,12 @@ for _col in ['Avg Bal', 'Curr Bal']:
         data[_col] = pd.to_numeric(data[_col], errors='coerce')
 
 # ---------- Monthly swipe/spend columns -----------------------------------
-# Anything ending in ' Swipes' or ' Spend' — coerce to numeric.
-_swipe_cols = [c for c in data.columns if c.endswith(' Swipes')]
-_spend_cols = [c for c in data.columns if c.endswith(' Spend')]
+# Only match monthly tags like "Apr25 Swipes" — ignore "Total Swipes",
+# "MonthlySwipes12", or any other rollup columns.
+_swipe_cols = [c for c in data.columns
+               if _MONTHLY_COL_RE.match(c) and c.endswith(' Swipes')]
+_spend_cols = [c for c in data.columns
+               if _MONTHLY_COL_RE.match(c) and c.endswith(' Spend')]
 for _col in _swipe_cols + _spend_cols:
     data[_col] = pd.to_numeric(data[_col], errors='coerce')
 

@@ -5,8 +5,13 @@
 # Change ICS_STAT_CODE or COHORT_START in ics-00-config and every cell below
 # picks up the new value automatically on next run.
 
+import re
 import numpy as np
 import pandas as pd
+
+# Match only monthly activity columns like "Apr25 Swipes" / "Mar26 Spend".
+# Excludes "Total Swipes", "Total Spend", "MonthlySwipes12", and similar rollups.
+_MONTHLY_COL_RE = re.compile(r'^[A-Za-z]{3}\d{2} (Swipes|Spend)$')
 
 # =========================================================
 # Cohort filters
@@ -116,13 +121,22 @@ BALANCE_TIER_ORDER = [
 # =========================================================
 
 def swipe_spend_columns(df, window=None):
-    """Return (swipe_cols, spend_cols) that exist in df AND fall inside the
-    configured activity window (last_12_months by default)."""
+    """Return (swipe_cols, spend_cols) for the configured activity window.
+    Only matches monthly columns ('Apr25 Swipes', 'Mar26 Spend') — ignores
+    'Total Swipes', 'Total Spend', 'MonthlySwipes12', and similar rollups."""
     window = window or last_12_months
-    swipe = [c for c in df.columns
-             if c.endswith(' Swipes') and any(m in c for m in window)]
-    spend = [c for c in df.columns
-             if c.endswith(' Spend')  and any(m in c for m in window)]
+    window_set = set(window)
+    swipe, spend = [], []
+    for c in df.columns:
+        if not _MONTHLY_COL_RE.match(c):
+            continue
+        tag = c.split(' ', 1)[0]  # 'Apr25 Swipes' -> 'Apr25'
+        if tag not in window_set:
+            continue
+        if c.endswith(' Swipes'):
+            swipe.append(c)
+        else:
+            spend.append(c)
     return swipe, spend
 
 def add_l12m_totals(df, window=None):
