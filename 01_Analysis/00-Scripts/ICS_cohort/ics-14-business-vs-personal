@@ -1,0 +1,37 @@
+# ============================================
+# ics-14-business-vs-personal — Business vs Personal split within ICS
+# ============================================
+# Supersedes: ax-13 Biz vs Pers.
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+
+print("\n📊 ics-14 — Business vs Personal within ICS...")
+
+ics_only = data[data['ICS Account'] == 'Yes']
+
+business_mix = (
+    ics_only['Business?']
+            .value_counts()
+            .reindex(['No', 'Yes'], fill_value=0)
+            .reset_index()
+)
+business_mix.columns = ['Account Type', 'Count']
+business_mix['Account Type'] = business_mix['Account Type'].map(
+    {'Yes': 'Business', 'No': 'Personal'}
+)
+
+den = len(ics_only)
+business_mix['% of ICS Accounts'] = (business_mix['Count'] / den) if den else 0
+
+total_row = pd.DataFrame({
+    'Account Type':      ['Total'],
+    'Count':             [int(business_mix['Count'].sum())],
+    '% of ICS Accounts': [1.0 if den else 0.0],
+})
+business_mix = pd.concat([business_mix, total_row], ignore_index=True)
+
+display_formatted(business_mix, "ICS — Business vs Personal")
+
+print(f"\n✅ Analysis completed")
+print(f"   Total ICS : {den:,}")
+print(f"   Personal  : {int((ics_only['Business?'] == 'No').sum()):,}")
+print(f"   Business  : {int((ics_only['Business?'] == 'Yes').sum()):,}")

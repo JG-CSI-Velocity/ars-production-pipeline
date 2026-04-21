@@ -1,0 +1,46 @@
+# ============================================
+# ics-15-source-by-account-type — Account Type × Source cross-tab within ICS
+# ============================================
+# Supersedes: ax-14-p vs b.
+# Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+
+print("\n📊 ics-15 — Source by Account Type within ICS...")
+
+ics_only = data[data['ICS Account'] == 'Yes'].copy()
+ics_only['Account Type'] = ics_only['Business?'].map(
+    {'Yes': 'Business', 'No': 'Personal'}
+)
+
+type_source = (
+    ics_only.groupby(['Account Type', 'Source'])
+            .size()
+            .unstack(fill_value=0)
+)
+type_source['Total'] = type_source.sum(axis=1)
+
+for _col in [c for c in type_source.columns if c != 'Total']:
+    type_source[f'{_col} %'] = (type_source[_col] / type_source['Total']).round(2)
+
+source_by_account_type = type_source.reset_index()
+
+total_sum = int(source_by_account_type['Total'].sum())
+total_row_data = {'Account Type': 'Total'}
+for _col in source_by_account_type.columns:
+    if _col == 'Account Type':
+        continue
+    if '%' in _col:
+        _base = _col.replace(' %', '')
+        if _base in source_by_account_type.columns:
+            _val = source_by_account_type[_base].sum()
+            total_row_data[_col] = round((_val / total_sum), 2) if total_sum else 0
+        else:
+            total_row_data[_col] = 0
+    else:
+        total_row_data[_col] = int(source_by_account_type[_col].sum())
+source_by_account_type = pd.concat(
+    [source_by_account_type, pd.DataFrame([total_row_data])], ignore_index=True
+).fillna(0)
+
+display_formatted(source_by_account_type, "ICS — Source by Account Type (Business vs Personal)")
+
+print(f"\n✅ Analysis completed")
