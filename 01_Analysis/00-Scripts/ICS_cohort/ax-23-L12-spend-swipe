@@ -1,0 +1,98 @@
+
+# ============================================
+# A[X].23 - ICS STAT CODE O - L12M SWIPE & SPEND SUMMARY (FINAL)
+# ============================================
+
+print("\n📊 A[X].23 - Analyzing ICS Stat Code O - Last 12 Months Activity...")
+
+# Get ICS Stat Code O accounts only
+ics_stat_o = data[
+    (data['ICS Account'] == 'Yes') & 
+    (data['Stat Code'].astype(str).str.upper().str.strip() == '0')
+].copy()
+
+# Identify month columns
+swipe_cols = [c for c in ics_stat_o.columns if 'Swipes' in c and any(m in c for m in last_12_months)]
+spend_cols = [c for c in ics_stat_o.columns if 'Spend'  in c and any(m in c for m in last_12_months)]
+
+# Convert to numeric
+ics_stat_o[swipe_cols] = ics_stat_o[swipe_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
+ics_stat_o[spend_cols] = ics_stat_o[spend_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
+
+# Per-account totals
+ics_stat_o['Total L12M Swipes'] = ics_stat_o[swipe_cols].sum(axis=1).astype(int)
+ics_stat_o['Total L12M Spend']  = ics_stat_o[spend_cols].sum(axis=1)
+
+# Spend per swipe
+ics_stat_o['Avg Spend per Swipe'] = (
+    ics_stat_o['Total L12M Spend'] / 
+    ics_stat_o['Total L12M Swipes'].replace({0: np.nan})
+).fillna(0)
+
+# Active flag
+ics_stat_o['Active in L12M'] = ics_stat_o['Total L12M Swipes'] > 0
+
+# KPI values
+total_accts     = len(ics_stat_o)
+active_accts    = int(ics_stat_o['Active in L12M'].sum())
+inactive_accts  = total_accts - active_accts
+
+total_swipes    = int(ics_stat_o['Total L12M Swipes'].sum())
+total_spend     = float(ics_stat_o['Total L12M Spend'].sum())
+
+avg_swipes_acct       = ics_stat_o['Total L12M Swipes'].mean()
+avg_spend_acct        = ics_stat_o['Total L12M Spend'].mean()
+avg_swipes_active     = ics_stat_o.loc[ics_stat_o['Active in L12M'], 'Total L12M Swipes'].mean()
+avg_spend_active      = ics_stat_o.loc[ics_stat_o['Active in L12M'], 'Total L12M Spend'].mean()
+avg_spend_per_swipe = (
+    ics_stat_o['Total L12M Spend'].sum() /
+    ics_stat_o['Total L12M Swipes'].sum()
+)
+
+avg_bal_all           = ics_stat_o['Curr Bal'].mean()
+avg_bal_active        = ics_stat_o.loc[ics_stat_o['Active in L12M'], 'Curr Bal'].mean()
+
+# Build CLEAN summary using ONLY STRINGS
+summary = pd.DataFrame({
+    'Metric': [
+        'Total Accounts',
+        'Accounts with Swipes',
+        'Accounts with No Swipes',
+        '% Active',
+        'Avg Current Balance (All Accts)',
+        'Avg Current Balance (Active Accts)',
+        'Total Swipes (All Accts)',
+        'Total Spend (All Accts)',
+        'Avg Swipes per Acct',
+        'Avg Spend per Acct',
+        'Avg Swipes per Active Acct',
+        'Avg Spend per Active Acct',
+        'Avg Spend per Swipe'
+    ],
+    'Value': [
+        f"{total_accts:,}",
+        f"{active_accts:,}",
+        f"{inactive_accts:,}",
+        f"{active_accts/total_accts*100:.1f}%",
+        f"${avg_bal_all:,.2f}",
+        f"${avg_bal_active:,.2f}",
+        f"{total_swipes:,}",
+        f"${total_spend:,.2f}",
+        f"{avg_swipes_acct:.0f}",
+        f"${avg_spend_acct:,.2f}",
+        f"{avg_swipes_active:.0f}",
+        f"${avg_spend_active:,.2f}",
+        f"${avg_spend_per_swipe:,.2f}"
+    ]
+})
+
+ax19_ics_activity_summary = summary
+
+display_formatted(ax19_ics_activity_summary, "ICS Stat Code O - Last 12 Months Activity Summary")
+
+print(f"\n✅ Analysis completed")
+print(f"   Total Accounts: {total_accts:,}")
+print(f"   Active Rate: {active_accts/total_accts:.1%}")
+print(f"   Avg Current Balance: ${avg_bal_all:,.2f}")
+print(f"   Total Swipes: {total_swipes:,}")
+print(f"   Total Spend: ${total_spend:,.2f}")
