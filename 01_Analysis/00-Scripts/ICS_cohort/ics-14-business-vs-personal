@@ -3,35 +3,52 @@
 # ============================================
 # Supersedes: ax-13 Biz vs Pers.
 # Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
+#
+# Shows two cohorts side by side:
+#   - All ICS accounts                              (current behavior)
+#   - ICS accounts at the configured Stat Code      (= "open" for clients
+#                                                     where ICS_STAT_CODE
+#                                                     identifies open status)
 
-print("\n📊 ics-14 — Business vs Personal within ICS...")
+print(f"\n📊 ics-14 — Business vs Personal: All ICS vs ICS at {STAT_LABEL}...")
 
-ics_only = data[data['ICS Account'] == 'Yes']
+all_ics = data[data['ICS Account'] == 'Yes']
+target  = ics_cohort(data)
 
-business_mix = (
-    ics_only['Business?']
-            .value_counts()
-            .reindex(['No', 'Yes'], fill_value=0)
-            .reset_index()
-)
-business_mix.columns = ['Account Type', 'Count']
-business_mix['Account Type'] = business_mix['Account Type'].map(
-    {'Yes': 'Business', 'No': 'Personal'}
-)
+def _bp_counts(frame):
+    counts = (
+        frame['Business?']
+             .value_counts()
+             .reindex(['No', 'Yes'], fill_value=0)
+    )
+    return int(counts['No']), int(counts['Yes'])
 
-den = len(ics_only)
-business_mix['% of ICS Accounts'] = (business_mix['Count'] / den) if den else 0
+all_p, all_b           = _bp_counts(all_ics)
+target_p, target_b     = _bp_counts(target)
+all_total              = all_p + all_b
+target_total           = target_p + target_b
 
-total_row = pd.DataFrame({
-    'Account Type':      ['Total'],
-    'Count':             [int(business_mix['Count'].sum())],
-    '% of ICS Accounts': [1.0 if den else 0.0],
+business_mix = pd.DataFrame({
+    'Account Type':       ['Personal', 'Business', 'Total'],
+    'All ICS':            [all_p, all_b, all_total],
+    'All ICS %':          [
+        (all_p / all_total) if all_total else 0,
+        (all_b / all_total) if all_total else 0,
+        1.0 if all_total else 0,
+    ],
+    f'At {STAT_LABEL}':   [target_p, target_b, target_total],
+    f'At {STAT_LABEL} %': [
+        (target_p / target_total) if target_total else 0,
+        (target_b / target_total) if target_total else 0,
+        1.0 if target_total else 0,
+    ],
 })
-business_mix = pd.concat([business_mix, total_row], ignore_index=True)
 
-display_formatted(business_mix, "ICS — Business vs Personal")
+display_formatted(
+    business_mix,
+    f"ICS — Business vs Personal (All vs At {STAT_LABEL})"
+)
 
 print(f"\n✅ Analysis completed")
-print(f"   Total ICS : {den:,}")
-print(f"   Personal  : {int((ics_only['Business?'] == 'No').sum()):,}")
-print(f"   Business  : {int((ics_only['Business?'] == 'Yes').sum()):,}")
+print(f"   All ICS         : {all_total:,}  (Personal={all_p:,}  Business={all_b:,})")
+print(f"   At {STAT_LABEL} : {target_total:,}  (Personal={target_p:,}  Business={target_b:,})")
