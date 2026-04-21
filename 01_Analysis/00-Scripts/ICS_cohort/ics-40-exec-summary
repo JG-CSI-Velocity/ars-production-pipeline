@@ -4,16 +4,32 @@
 # Supersedes: ax-40-exec summary.
 # Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
 #
-# Section-by-section executive brief. Each section renders as a proper
-# DataFrame via display_formatted so the output is slide-ready, not a
-# wall of print text. Ends with an ICS vs Non-ICS comparison so the
-# story "how good are these accounts, really?" is visible without
-# scrolling to other cells.
+# Section-by-section executive brief. Each section is wrapped in its own
+# try/except so a failure in one section cannot silently kill the rest
+# (bug report #73: Section 1 rendered then the cell appeared to stop).
+# If display_formatted chokes on a table, we fall back to DataFrame.to_string()
+# so the numbers still appear.
+
+import traceback as _tb_exec
 
 print("\n" + "=" * 80)
 print(f"📊 ICS ACCOUNT ANALYSIS — EXECUTIVE SUMMARY  (ICS {STAT_LABEL})")
 print(f"   Activity window: {last_12_months[0]} … {last_12_months[-1]}")
 print("=" * 80)
+
+def _safe_display(frame, title):
+    """Try display_formatted, fall back to plain DataFrame print if it raises.
+    Isolates section failures so one bad render doesn't abort the cell."""
+    try:
+        display_formatted(frame, title)
+    except Exception as _e:
+        print(f"\n   ⚠️  display_formatted failed for '{title}': {type(_e).__name__}: {_e}")
+        print(f"   --- fallback plain-text render ---")
+        try:
+            print(frame.to_string(index=False))
+        except Exception as _e2:
+            print(f"   (plain-text render also failed: {_e2})")
+        print(f"   ---------------------------------")
 
 # ---- Cohort frames -------------------------------------------------------
 _all_ics   = data[data['ICS Account'] == 'Yes']
@@ -66,7 +82,7 @@ exec_portfolio = pd.DataFrame({
         f'ICS {STAT_LABEL}',
     ],
 })
-display_formatted(exec_portfolio, "Section 1 — Portfolio Overview")
+_safe_display(exec_portfolio, "Section 1 — Portfolio Overview")
 
 # =========================================================================
 # SECTION 2 — ACTIVITY METRICS (LAST N MONTHS)
@@ -98,7 +114,7 @@ exec_activity = pd.DataFrame({
         f"${(_tot_sp / _tot_sw) if _tot_sw else 0:,.2f}",
     ],
 })
-display_formatted(exec_activity, f"Section 2 — ICS {STAT_LABEL} Activity")
+_safe_display(exec_activity, f"Section 2 — ICS {STAT_LABEL} Activity")
 
 # =========================================================================
 # SECTION 3 — SOURCE PERFORMANCE
@@ -124,7 +140,7 @@ for _src_name in sorted(_target['Source'].dropna().unique()):
     })
 exec_source = pd.DataFrame(_rows_source)
 if not exec_source.empty:
-    display_formatted(exec_source, f"Section 3 — Source Performance (ICS {STAT_LABEL})")
+    _safe_display(exec_source, f"Section 3 — Source Performance (ICS {STAT_LABEL})")
 else:
     print("   (No Source values populated in the cohort.)")
 
@@ -153,7 +169,7 @@ try:
         '% of Cohort':    '100.0%' if _total_classified else '0.0%',
     })
     exec_personas = pd.DataFrame(_rows_p)
-    display_formatted(exec_personas, "Section 4 — Activation Personas")
+    _safe_display(exec_personas, "Section 4 — Activation Personas")
 except NameError:
     print("   (Run ics-37-activation-personas first to populate this section.)")
 
@@ -204,7 +220,7 @@ exec_vs = pd.DataFrame([
     _row('Avg Spend per Active Account',   'avg_sp_act',  'money'),
     _row('Avg Current Balance',            'bal',         'money'),
 ])
-display_formatted(
+_safe_display(
     exec_vs,
     f"Section 5 — ICS {STAT_LABEL} vs Non-ICS (L{len(last_12_months)}M)"
 )
