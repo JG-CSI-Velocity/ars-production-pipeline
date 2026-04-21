@@ -1,0 +1,95 @@
+# ============================================
+# ics-30-cohort-retention-heatmap — Heatmap of cohort activation rates by milestone
+# ============================================
+# Supersedes: ax-29-chart-heatmap.
+# Depends on: ics-31-cohort-milestones (must run FIRST to produce `cohort_milestones`).
+#
+# Renders a seaborn heatmap of activation/retention % by opening month × milestone.
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+print(f"\n📊 ics-30 — Cohort retention heatmap for ICS {STAT_LABEL}...")
+
+def _retention_matrix(milestones_df):
+    _keep = [m for m in ['M1', 'M3', 'M6', 'M12']
+             if f'{m} Activation %' in milestones_df.columns
+             or f'{m} Retention %'  in milestones_df.columns]
+    if not _keep:
+        raise ValueError(
+            "No M* Activation %/Retention % columns found in cohort_milestones. "
+            "Run ics-31-cohort-milestones first."
+        )
+    _pct_col = lambda m: (
+        f'{m} Activation %' if f'{m} Activation %' in milestones_df.columns
+        else f'{m} Retention %'
+    )
+    mat = milestones_df[['Opening Month'] + [_pct_col(m) for m in _keep]].copy()
+    for m in _keep:
+        _c = _pct_col(m)
+        _s = pd.to_numeric(mat[_c], errors='coerce')
+        # Accept both fraction (0-1) and percent (0-100) scales.
+        if _s.dropna().gt(1).mean() > 0.5:
+            _s = _s / 100.0
+        mat[_c] = _s
+    mat = mat.set_index('Opening Month')
+    mat.columns = _keep
+    return mat.sort_index()
+
+def cohort_retention_heatmap(milestones_df, title=None, cmap='Blues',
+                             save_path=None, show=True, newest_on_top=False):
+    _mat = _retention_matrix(milestones_df)
+    if newest_on_top:
+        _mat = _mat.iloc[::-1]
+    _pct = _mat * 100.0
+    _mask = _pct.isna()
+
+    _n_rows = len(_pct)
+    _fig_h  = max(4, 0.46 * _n_rows)
+    fig, ax = plt.subplots(figsize=(9, _fig_h), dpi=140)
+
+    sns.heatmap(
+        _pct, mask=_mask, ax=ax, cmap=cmap, vmin=0, vmax=100,
+        linewidths=0.6, linecolor='white',
+        cbar=True,
+        cbar_kws={'label': 'Activation (%)', 'shrink': 0.9, 'ticks': np.arange(0, 101, 20)},
+        annot=False,
+    )
+
+    ax.set_title(title or f"ICS {STAT_LABEL} — Cohort Activation Heatmap",
+                 fontsize=16, weight='bold', pad=8)
+    ax.set_xlabel("Milestone", fontsize=12)
+    ax.set_ylabel("Opening Month", fontsize=12)
+    ax.tick_params(axis='x', labelsize=11)
+    ax.tick_params(axis='y', labelsize=11)
+
+    # In-cell labels with contrast-aware colors.
+    for _i in range(_pct.shape[0]):
+        for _j in range(_pct.shape[1]):
+            _v = _pct.iat[_i, _j]
+            if pd.isna(_v):
+                continue
+            _txt = 'white' if (_v / 100.0) > 0.55 else '#1f2d3a'
+            ax.text(_j + 0.5, _i + 0.5, f"{_v:.1f}",
+                    ha='center', va='center', fontsize=10, color=_txt)
+
+    plt.tight_layout()
+    if save_path:
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+    if show:
+        plt.show()
+    return fig, ax
+
+# Render + save.
+try:
+    _milestones_frame = cohort_milestones
+except NameError as e:
+    raise RuntimeError(
+        "`cohort_milestones` not found — run ics-31-cohort-milestones before "
+        "this cell."
+    ) from e
+
+cohort_retention_heatmap(_milestones_frame)
+cohort_retention_heatmap(_milestones_frame, save_path="cohort_heatmap.png", show=False)
+
+print(f"\n✅ Heatmap rendered (saved: cohort_heatmap.png)")
