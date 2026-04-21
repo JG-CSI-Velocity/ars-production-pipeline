@@ -1,0 +1,122 @@
+
+# ============================================
+# A[X].33 - ICS STAT CODE O - GROWTH PATTERNS (formatter-safe)
+# ============================================
+
+print("\n📊 A[X].33 - Analyzing ICS Stat Code O Growth Patterns...")
+
+import numpy as np
+
+# Get ICS Stat Code O accounts with debit cards
+ics_stat_o = data[
+    (data['ICS Account'] == 'Yes') &
+    (data['Stat Code'].astype(str).str.upper().str.strip() == '0') &
+    (data['Debit?'] == 'Yes')
+].copy()
+
+# Convert Date Opened to datetime
+ics_stat_o['Date Opened'] = pd.to_datetime(ics_stat_o['Date Opened'], errors='coerce')
+ics_stat_o['Opening Month'] = ics_stat_o['Date Opened'].dt.to_period('M').astype(str)
+
+# Filter to 2025 cohorts only
+ics_2025 = ics_stat_o[ics_stat_o['Opening Month'] >= '2025-01'].copy()
+
+# Calculate growth patterns - show all cohorts, set future/missing to NaN (not empty strings)
+growth_patterns = []
+
+for opening_month in sorted(ics_2025['Opening Month'].unique()):
+    cohort = ics_2025[ics_2025['Opening Month'] == opening_month].copy()
+    opening_date = pd.to_datetime(opening_month)
+    
+    cohort_row = {
+        'Opening Month': opening_month,
+        'Cohort Size': int(len(cohort))
+    }
+    
+    # Helper to pull one target month safely
+    def month_metrics(offset_months, prefix):
+        target_dt  = opening_date + pd.DateOffset(months=offset_months)
+        tag        = target_dt.strftime('%b%y')     # e.g., 'Mar25'
+        swipe_col  = f"{tag} Swipes"
+        spend_col  = f"{tag} Spend"
+        
+        # Only compute if both column exists AND this month is actually in the L12M window
+        if (swipe_col in cohort.columns) and (spend_col in cohort.columns) and (tag in last_12_months):
+            total_swipes = pd.to_numeric(cohort[swipe_col], errors='coerce').fillna(0).sum()
+            total_spend  = pd.to_numeric(cohort[spend_col], errors='coerce').fillna(0).sum()
+            active_count = (pd.to_numeric(cohort[swipe_col], errors='coerce').fillna(0) > 0).sum()
+            active_frac  = (active_count / len(cohort)) if len(cohort) > 0 else np.nan  # FRACTION (0–1)
+            
+            cohort_row[f'{prefix} Total Swipes'] = int(total_swipes)
+            cohort_row[f'{prefix} Total Spend']  = float(total_spend)
+            cohort_row[f'{prefix} % Active']     = float(active_frac)
+        else:
+            cohort_row[f'{prefix} Total Swipes'] = np.nan
+            cohort_row[f'{prefix} Total Spend']  = np.nan
+            cohort_row[f'{prefix} % Active']     = np.nan
+    
+    # Month 1 (offset 0), Month 3 (offset 2), Month 6 (offset 5)
+    month_metrics(0, 'M1')
+    month_metrics(2, 'M3')
+    month_metrics(5, 'M6')
+
+    # Growth calculations (use FRACTIONS for % columns; keep NaN if unavailable)
+    # M1 -> M3
+    if pd.notna(cohort_row['M1 Total Swipes']) and cohort_row['M1 Total Swipes'] > 0 and pd.notna(cohort_row['M3 Total Swipes']):
+        cohort_row['Swipe Growth M1→M3 %'] = (cohort_row['M3 Total Swipes'] - cohort_row['M1 Total Swipes']) / cohort_row['M1 Total Swipes']  # FRACTION
+    else:
+        cohort_row['Swipe Growth M1→M3 %'] = np.nan
+
+    if pd.notna(cohort_row['M1 Total Spend']) and cohort_row['M1 Total Spend'] > 0 and pd.notna(cohort_row['M3 Total Spend']):
+        cohort_row['Spend Growth M1→M3 %'] = (cohort_row['M3 Total Spend'] - cohort_row['M1 Total Spend']) / cohort_row['M1 Total Spend']  # FRACTION
+    else:
+        cohort_row['Spend Growth M1→M3 %'] = np.nan
+
+    if pd.notna(cohort_row['M1 % Active']) and pd.notna(cohort_row['M3 % Active']):
+        # Change in active rate (fraction → will display as % by styler)
+        cohort_row['Active Rate Change M1→M3'] = cohort_row['M3 % Active'] - cohort_row['M1 % Active']
+    else:
+        cohort_row['Active Rate Change M1→M3'] = np.nan
+
+    # M3 -> M6
+    if pd.notna(cohort_row['M3 Total Swipes']) and cohort_row['M3 Total Swipes'] > 0 and pd.notna(cohort_row['M6 Total Swipes']):
+        cohort_row['Swipe Growth M3→M6 %'] = (cohort_row['M6 Total Swipes'] - cohort_row['M3 Total Swipes']) / cohort_row['M3 Total Swipes']
+    else:
+        cohort_row['Swipe Growth M3→M6 %'] = np.nan
+
+    if pd.notna(cohort_row['M3 Total Spend']) and cohort_row['M3 Total Spend'] > 0 and pd.notna(cohort_row['M6 Total Spend']):
+        cohort_row['Spend Growth M3→M6 %'] = (cohort_row['M6 Total Spend'] - cohort_row['M3 Total Spend']) / cohort_row['M3 Total Spend']
+    else:
+        cohort_row['Spend Growth M3→M6 %'] = np.nan
+
+    if pd.notna(cohort_row['M3 % Active']) and pd.notna(cohort_row['M6 % Active']):
+        cohort_row['Active Rate Change M3→M6'] = cohort_row['M6 % Active'] - cohort_row['M3 % Active']
+    else:
+        cohort_row['Active Rate Change M3→M6'] = np.nan
+
+    growth_patterns.append(cohort_row)
+
+ax27_growth = pd.DataFrame(growth_patterns)
+
+# --- Final dtype hardening & rounding (numbers only; NaN stays NaN, not '')
+# Integers for counts
+for c in [col for col in ax27_growth.columns if 'Total Swipes' in col]:
+    ax27_growth[c] = pd.to_numeric(ax27_growth[c], errors='coerce').round(0).astype('Int64')  # nullable int
+
+ax27_growth['Cohort Size'] = pd.to_numeric(ax27_growth['Cohort Size'], errors='coerce').round(0).astype('Int64')
+
+# Currency as float (styler will format as $)
+for c in [col for col in ax27_growth.columns if 'Total Spend' in col]:
+    ax27_growth[c] = pd.to_numeric(ax27_growth[c], errors='coerce').astype(float).round(2)
+
+# Percent-ish columns (fractions 0–1): keep as float; let styler render as %
+percent_like = [col for col in ax27_growth.columns if col.endswith('% Active') or col.endswith('%')]
+for c in percent_like:
+    ax27_growth[c] = pd.to_numeric(ax27_growth[c], errors='coerce').astype(float)
+
+# Display
+display_formatted(ax27_growth, "ICS Stat Code O - Growth Patterns (Total Volume & Active Rate)")
+
+print(f"\n✅ Analysis completed")
+print(f"   Total Cohorts: {len(ax27_growth)}")
+print(f"   Metrics: Total volume growth + Active rate change")
