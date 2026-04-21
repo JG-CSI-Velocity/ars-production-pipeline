@@ -82,12 +82,18 @@ def cohort_retention_heatmap(milestones_df, title=None, cmap='Blues',
 
 # Render + save.
 try:
-    _milestones_frame = cohort_milestones
+    _milestones_frame = cohort_milestones_activation
 except NameError as e:
     raise RuntimeError(
-        "`cohort_milestones` not found — run ics-31-cohort-milestones before "
-        "this cell."
+        "`cohort_milestones_activation` not found — run ics-31-cohort-milestones "
+        "before this cell."
     ) from e
+
+if not isinstance(_milestones_frame, pd.DataFrame):
+    raise TypeError(
+        f"cohort_milestones_activation is {type(_milestones_frame).__name__}, "
+        "expected DataFrame. Re-run ics-31-cohort-milestones to refresh it."
+    )
 
 cohort_retention_heatmap(_milestones_frame)
 cohort_retention_heatmap(_milestones_frame, save_path="cohort_heatmap.png", show=False)

@@ -5,7 +5,7 @@
 # Also supersedes: ax-28-cohort          (older, near-duplicate — archived).
 # Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
 #
-# Produces `cohort_milestones` — one row per opening month, columns for
+# Produces `cohort_milestones_activation` — one row per opening month, columns for
 # Cohort Size, Avg Current Balance, and Active / Activation % / Avg Swipes
 # / Avg Spend at each of M1 / M3 / M6 / M12.
 #
@@ -60,30 +60,30 @@ for _op in opening_months:
         _row.update(_milestone_metrics(_opening_dt, _sub, _offset, _prefix))
     rows.append(_row)
 
-cohort_milestones = pd.DataFrame(rows)
+cohort_milestones_activation = pd.DataFrame(rows)
 
 # Clean dtypes: counts → Int64, percents → float fraction, money/swipes → float.
-cohort_milestones = cohort_milestones.replace(
+cohort_milestones_activation = cohort_milestones_activation.replace(
     to_replace=['nan', 'NaN', 'None', ''], value=np.nan
 )
-for _c in [c for c in cohort_milestones.columns if c != 'Opening Month']:
+for _c in [c for c in cohort_milestones_activation.columns if c != 'Opening Month']:
     if _c == 'Cohort Size' or _re_mile.search(r'Active$', _c):
-        cohort_milestones[_c] = (
-            pd.to_numeric(cohort_milestones[_c], errors='coerce')
+        cohort_milestones_activation[_c] = (
+            pd.to_numeric(cohort_milestones_activation[_c], errors='coerce')
               .round(0).astype('Int64')
         )
     elif _re_mile.search(r'Balance|Spend$|Avg Swipes$', _c):
-        cohort_milestones[_c] = (
-            pd.to_numeric(cohort_milestones[_c], errors='coerce').round(2)
+        cohort_milestones_activation[_c] = (
+            pd.to_numeric(cohort_milestones_activation[_c], errors='coerce').round(2)
         )
     elif _re_mile.search(r'Activation %$', _c):
-        _s = pd.to_numeric(cohort_milestones[_c], errors='coerce')
+        _s = pd.to_numeric(cohort_milestones_activation[_c], errors='coerce')
         if _s.dropna().gt(1).mean() > 0.5:
             _s = _s / 100.0
-        cohort_milestones[_c] = _s
+        cohort_milestones_activation[_c] = _s
 
 # Display version: blank out NaN activation %s so the styler doesn't misformat.
-_display = cohort_milestones.copy()
+_display = cohort_milestones_activation.copy()
 for _c in _display.columns:
     if _c.endswith("Activation %"):
         _display[_c] = _display[_c].apply(lambda v: v if pd.notna(v) else '')
@@ -93,13 +93,13 @@ display_formatted(_display, f"ICS {STAT_LABEL} — Cohort Milestones (M1/M3/M6/M
 # Summary
 print(f"\n✅ Analysis completed")
 if opening_months:
-    print(f"   Cohorts analyzed : {len(cohort_milestones)}")
+    print(f"   Cohorts analyzed : {len(cohort_milestones_activation)}")
     print(f"   Range            : {opening_months[0]} → {opening_months[-1]}")
     print(f"   Cohort start     : {COHORT_START}")
 print("\n   Average Activation Rates:")
 for _m in ['M1', 'M3', 'M6', 'M12']:
     _col = f"{_m} Activation %"
-    if _col in cohort_milestones.columns:
-        _avg = cohort_milestones[_col].mean(skipna=True)
+    if _col in cohort_milestones_activation.columns:
+        _avg = cohort_milestones_activation[_col].mean(skipna=True)
         if pd.notna(_avg):
             print(f"   {_m}: {_avg:.1%}")
