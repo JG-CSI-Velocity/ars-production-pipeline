@@ -135,7 +135,13 @@ def plot_competitive_landscape_bubble(
 
 
 # ---- Run ----
-if len(penetration_data) > 0:
+# Guard against pen_df not existing (04_build_threat_data must run first).
+# Replaces the old check on `penetration_data` which was never defined.
+if 'pen_df' not in dir():
+    print("⚠️  pen_df not found — run 04_build_threat_data.py before this cell.")
+elif len(pen_df) == 0:
+    print("No penetration data available.")
+else:
     plot_competitive_landscape_bubble(
         pen_df,
         title="Competitive Landscape",

@@ -5,7 +5,9 @@
 # Shows formatted top-25 tables per competitor. This cell can be slow for
 # many competitors -- placed at end so visualizations render first.
 
-if len(all_account_summaries) > 0:
+if 'all_account_summaries' not in dir():
+    print("⚠️  all_account_summaries not found — run 19_account_summaries.py first.")
+elif len(all_account_summaries) > 0:
     # Build category lookup from competitor_txns (robust to key mismatches)
     _cat_lookup_40 = (
         competitor_txns.groupby('competitor_match')['competitor_category']

@@ -45,7 +45,14 @@ if len(all_competitor_data) > 0 and len(summary_data) > 0:
     _top['short_name'] = _top['norm_name'].apply(
         lambda n: n[:25] + '..' if len(str(n)) > 27 else n
     )
-    _top['bar_label'] = _top['short_name'] + '\n(' + _top['category_label'] + ')'
+    # Cast to str — category_label can be a Categorical dtype which breaks
+    # string concatenation (#81: "Object with dtype category cannot perform the numpy op add").
+    _top['bar_label'] = (
+        _top['short_name'].astype(str)
+        + '\n('
+        + _top['category_label'].astype(str)
+        + ')'
+    )
 
     fig, ax = plt.subplots(figsize=(14, max(7, len(_top) * 0.9)))
 

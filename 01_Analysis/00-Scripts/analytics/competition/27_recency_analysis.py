@@ -4,7 +4,9 @@
 # Aggregate recency distribution across all competitor accounts, plus
 # a 30/90/180-day breakdown. Uses all_account_summaries.
 
-if len(all_account_summaries) > 0:
+if 'all_account_summaries' not in dir():
+    print("⚠️  all_account_summaries not found — run 19_account_summaries.py first.")
+elif len(all_account_summaries) > 0:
     # Build category lookup from competitor_txns (robust to key mismatches)
     _cat_lookup = (
         competitor_txns.groupby('competitor_match')['competitor_category']

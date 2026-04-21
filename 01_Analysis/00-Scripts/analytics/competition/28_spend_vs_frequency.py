@@ -5,7 +5,11 @@
 # competitor spend (y), colored by recency. Identifies high-engagement
 # accounts at each competitor.
 
-if len(all_account_summaries) > 0 and len(deep_dive_competitors) > 0:
+if 'all_account_summaries' not in dir():
+    print("⚠️  all_account_summaries not found — run 19_account_summaries.py first.")
+elif 'deep_dive_competitors' not in dir():
+    print("⚠️  deep_dive_competitors not found — run earlier competition cells first.")
+elif len(all_account_summaries) > 0 and len(deep_dive_competitors) > 0:
     for comp_name in deep_dive_competitors:
         if comp_name not in all_account_summaries:
             continue

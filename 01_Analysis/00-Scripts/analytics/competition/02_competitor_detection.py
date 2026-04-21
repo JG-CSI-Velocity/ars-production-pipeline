@@ -4,6 +4,56 @@
 # Tags all competitor transactions, builds downstream variables,
 # and renders a conference-quality detection summary panel.
 
+# -------------------------------------------------------------------------
+# Defensive: theme / palette fallbacks
+# -------------------------------------------------------------------------
+# The Panel 2 rendering block below references CATEGORY_PALETTE, GEN_COLORS,
+# gen_fmt_count, and gen_clean_axes. Those normally come from
+# (analytics/general/*) + (competition/06_conference_theme.py). If the user
+# runs this cell before those — which is natural since 06 > 02 — we hit
+# NameError (#76). Provide sensible defaults so this cell runs standalone.
+
+try:
+    CATEGORY_PALETTE
+except NameError:
+    CATEGORY_PALETTE = {
+        'Big Nationals':        '#E63946',
+        'Top 25 Fed District':  '#C0392B',
+        'Credit Unions':        '#2EC4B6',
+        'Local Banks':          '#264653',
+        'Digital Banks':        '#FF9F1C',
+        'Custom':               '#F4A261',
+        'Wallets':              '#6C757D',
+        'P2p':                  '#A8DADC',
+        'Bnpl':                 '#E76F51',
+    }
+
+try:
+    GEN_COLORS
+except NameError:
+    GEN_COLORS = {
+        'dark_text': '#1f2d3a',
+        'muted':     '#6C757D',
+        'grid':      '#DDDDDD',
+    }
+
+try:
+    gen_fmt_count
+except NameError:
+    def gen_fmt_count(x, _pos=None):
+        return f"{int(x):,}"
+
+try:
+    gen_clean_axes
+except NameError:
+    def gen_clean_axes(ax, keep_left=False, keep_bottom=False):
+        for _spine in ('top', 'right'):
+            ax.spines[_spine].set_visible(False)
+        if not keep_left:
+            ax.spines['left'].set_visible(False)
+        if not keep_bottom:
+            ax.spines['bottom'].set_visible(False)
+
 # Tag competitors using the matching function from 01_competitor_config
 combined_df = tag_competitors(combined_df, merchant_col='merchant_consolidated')
 
