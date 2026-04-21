@@ -1,0 +1,166 @@
+# ============================================
+# ics-02-helpers  (run after ics-00-config & ics-01-normalize)
+# ============================================
+# Reusable cohort filters + small utilities used by every analysis cell.
+# Change ICS_STAT_CODE or COHORT_START in ics-00-config and every cell below
+# picks up the new value automatically on next run.
+
+import numpy as np
+import pandas as pd
+
+# =========================================================
+# Cohort filters
+# =========================================================
+
+def ics_cohort(df):
+    """ICS accounts matching the configured target Stat Code.
+    (ICS Account == 'Yes') & (Stat Code == ICS_STAT_CODE)
+    """
+    mask = (
+        (df['ICS Account'] == 'Yes') &
+        (df['Stat Code'].astype(str).str.upper().str.strip()
+         == str(ICS_STAT_CODE).upper())
+    )
+    return df.loc[mask].copy()
+
+def ics_cohort_debit(df):
+    """ICS target-stat cohort restricted to debit-card holders."""
+    out = ics_cohort(df)
+    if 'Debit?' in out.columns:
+        out = out.loc[out['Debit?'] == 'Yes'].copy()
+    return out
+
+def non_ics_cohort(df):
+    """Complement cohort for ICS-vs-Non-ICS comparisons."""
+    return df.loc[df['ICS Account'] != 'Yes'].copy()
+
+def apply_cohort_start(df, opening_month_col='Opening Month'):
+    """Filter a frame that already has 'Opening Month' (YYYY-MM strings)
+    down to cohorts from COHORT_START onward."""
+    if COHORT_START is None:
+        return df
+    return df.loc[df[opening_month_col] >= COHORT_START].copy()
+
+# =========================================================
+# Utility: derived columns
+# =========================================================
+
+def add_opening_month(df, date_col='Date Opened', out_col='Opening Month'):
+    """Add 'YYYY-MM' string column from a datetime column."""
+    df = df.copy()
+    if not np.issubdtype(df[date_col].dtype, np.datetime64):
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+    df[out_col] = df[date_col].dt.to_period('M').astype(str)
+    return df
+
+def add_account_age(df, date_col='Date Opened',
+                    ref_date=None,
+                    days_col='Account Age Days',
+                    range_col='Age Range'):
+    """Add 'Account Age Days' and 'Age Range' columns.
+    Anchors to ref_date (default: last month of activity window, end-of-month)
+    so reports are stable when re-run."""
+    df = df.copy()
+    if not np.issubdtype(df[date_col].dtype, np.datetime64):
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+    if ref_date is None:
+        ref_date = pd.Period(last_12_months[-1], freq='M').to_timestamp(how='end')
+    df[days_col] = (ref_date - df[date_col]).dt.days
+    df[range_col] = df[days_col].map(_age_bucket)
+    return df
+
+def _age_bucket(days):
+    if pd.isna(days):   return 'Unknown'
+    if days < 30:       return '0-1 month'
+    if days < 90:       return '1-3 months'
+    if days < 180:      return '3-6 months'
+    if days < 365:      return '6-12 months'
+    if days < 730:      return '1-2 years'
+    if days < 1825:     return '2-5 years'
+    if days < 3650:     return '5-10 years'
+    return '10+ years'
+
+AGE_RANGE_ORDER = [
+    '0-1 month', '1-3 months', '3-6 months', '6-12 months',
+    '1-2 years', '2-5 years', '5-10 years', '10+ years', 'Unknown'
+]
+
+# =========================================================
+# Utility: balance tiers (no $ in labels — keeps styler happy)
+# =========================================================
+
+def add_balance_tier(df, balance_col='Curr Bal', out_col='Tier'):
+    df = df.copy()
+    df[out_col] = df[balance_col].map(_balance_bucket)
+    return df
+
+def _balance_bucket(bal):
+    if pd.isna(bal):        return 'Unknown'
+    if bal <= 0:            return '0 or Less'
+    if bal < 1_000:         return '0 - 1K'
+    if bal < 5_000:         return '1K - 5K'
+    if bal < 10_000:        return '5K - 10K'
+    if bal < 25_000:        return '10K - 25K'
+    if bal < 50_000:        return '25K - 50K'
+    if bal < 100_000:       return '50K - 100K'
+    if bal < 250_000:       return '100K - 250K'
+    return '250K+'
+
+BALANCE_TIER_ORDER = [
+    '0 or Less', '0 - 1K', '1K - 5K', '5K - 10K', '10K - 25K',
+    '25K - 50K', '50K - 100K', '100K - 250K', '250K+', 'Unknown'
+]
+
+# =========================================================
+# Utility: L12M swipe/spend rollups
+# =========================================================
+
+def swipe_spend_columns(df, window=None):
+    """Return (swipe_cols, spend_cols) that exist in df AND fall inside the
+    configured activity window (last_12_months by default)."""
+    window = window or last_12_months
+    swipe = [c for c in df.columns
+             if c.endswith(' Swipes') and any(m in c for m in window)]
+    spend = [c for c in df.columns
+             if c.endswith(' Spend')  and any(m in c for m in window)]
+    return swipe, spend
+
+def add_l12m_totals(df, window=None):
+    """Add 'Total L12M Swipes', 'Total L12M Spend', 'Active in L12M' columns."""
+    df = df.copy()
+    swipe, spend = swipe_spend_columns(df, window)
+    df[swipe] = df[swipe].apply(pd.to_numeric, errors='coerce').fillna(0)
+    df[spend] = df[spend].apply(pd.to_numeric, errors='coerce').fillna(0)
+    df['Total L12M Swipes'] = df[swipe].sum(axis=1).astype('int64')
+    df['Total L12M Spend']  = df[spend].sum(axis=1).astype(float)
+    df['Active in L12M']    = df['Total L12M Swipes'] > 0
+    return df
+
+def first_swipe_month(row, window=None):
+    """Return the '%b%y' tag of the first non-zero swipe month for a row,
+    or None if never swiped within the window."""
+    window = window or last_12_months
+    for m in window:
+        col = f"{m} Swipes"
+        if col in row.index and pd.notna(row[col]) and row[col] > 0:
+            return m
+    return None
+
+# =========================================================
+# Sanity echo
+# =========================================================
+
+try:
+    _ics       = len(ics_cohort(data))
+    _ics_debit = len(ics_cohort_debit(data))
+    _non_ics   = len(non_ics_cohort(data))
+    _total     = len(data)
+    print("ics-02-helpers loaded.")
+    print(f"   Total rows          : {_total:,}")
+    print(f"   ICS ({STAT_LABEL})  : {_ics:,}")
+    print(f"   ICS + Debit         : {_ics_debit:,}")
+    print(f"   Non-ICS             : {_non_ics:,}")
+    if _ics == 0:
+        print(f"   ⚠️  Zero ICS rows. Is ICS_STAT_CODE={ICS_STAT_CODE!r} correct for this client?")
+except NameError:
+    print("ics-02-helpers loaded. (Load `data` to see cohort counts.)")

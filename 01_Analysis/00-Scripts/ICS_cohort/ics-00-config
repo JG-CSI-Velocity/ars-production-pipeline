@@ -1,0 +1,106 @@
+# ============================================
+# ics-00-config  (RUN FIRST — once per client)
+# ============================================
+# Single place to configure every ICS cohort analysis cell.
+# Change the values in the "KNOBS" block below, then run all cells.
+
+import pandas as pd
+
+# =========================================================
+# KNOBS — edit these per client / per report
+# =========================================================
+
+# (1) Which Stat Code identifies an "ICS" account for this client?
+#     Some clients use the letter 'O', some use the digit '0'.
+#     The filter is case/space-robust; just put the character.
+ICS_STAT_CODE = 'O'
+
+# (2) Cohort start — the earliest Opening Month that counts as
+#     a "new cohort" for cohort/activation/persona/growth cells.
+#     Set EITHER a full year OR an exact YYYY-MM month.
+#     Month wins if both are set.
+#     Leave BOTH None to analyze all cohorts from COHORT_FLOOR onward.
+COHORT_START_YEAR  = None          # e.g. 2024
+COHORT_START_MONTH = None          # e.g. "2024-07"
+
+# (3) Floor used when COHORT_START_* are both None.
+#     We still don't want pre-historic data polluting the cohort grid.
+COHORT_FLOOR = "2020-01"
+
+# (4) Activity window — the rolling period used by every "last-N-months"
+#     activity / cohort / milestone cell.
+#     ACTIVITY_END_MONTH = None  → auto: last FULLY COMPLETED month
+#                                  (today 2026-04-xx → anchor = 2026-03)
+#     ACTIVITY_END_MONTH = "2026-03" → frozen report, stays stable
+ACTIVITY_WINDOW_MONTHS = 12
+ACTIVITY_END_MONTH     = None
+
+# =========================================================
+# DERIVED — do not edit below
+# =========================================================
+
+STAT_LABEL = f"Stat Code {ICS_STAT_CODE}"
+
+# --- Cohort start resolution ------------------------------
+if COHORT_START_MONTH:
+    COHORT_START = COHORT_START_MONTH
+elif COHORT_START_YEAR:
+    COHORT_START = f"{COHORT_START_YEAR}-01"
+else:
+    COHORT_START = COHORT_FLOOR
+
+# --- Activity window resolution ---------------------------
+def _resolve_activity_window(end_month_override, n_months):
+    """Return a list of '%b%y' tags (e.g. 'Mar26') matching swipe/spend columns."""
+    if end_month_override:
+        anchor = pd.Period(end_month_override, freq='M')
+    else:
+        # Last FULLY COMPLETED month = the month before the current one
+        anchor = pd.Timestamp.today().to_period('M') - 1
+    periods = pd.period_range(end=anchor, periods=n_months, freq='M')
+    return [p.strftime('%b%y') for p in periods]
+
+last_12_months = _resolve_activity_window(ACTIVITY_END_MONTH, ACTIVITY_WINDOW_MONTHS)
+
+# Year used by cells that split "prior years (aggregated)" from
+# "latest year (individual months)" — driven by the activity window,
+# NOT by today's date, so frozen reports stay stable.
+ACTIVITY_ANCHOR_YEAR = int(last_12_months[-1][-2:]) + 2000
+
+# =========================================================
+# ECHO — always print so you can verify before running everything else
+# =========================================================
+
+print("=" * 60)
+print("ICS COHORT CONFIG")
+print("=" * 60)
+print(f"ICS_STAT_CODE        : {ICS_STAT_CODE!r}  ({STAT_LABEL})")
+if COHORT_START_MONTH:
+    _src = f"COHORT_START_MONTH={COHORT_START_MONTH}"
+elif COHORT_START_YEAR:
+    _src = f"COHORT_START_YEAR={COHORT_START_YEAR}"
+else:
+    _src = f"floor={COHORT_FLOOR} (no start override)"
+print(f"COHORT_START         : {COHORT_START}  [{_src}]")
+print(f"ACTIVITY window      : {last_12_months[0]} … {last_12_months[-1]}  ({ACTIVITY_WINDOW_MONTHS} months)")
+print(f"ACTIVITY_ANCHOR_YEAR : {ACTIVITY_ANCHOR_YEAR}")
+print(f"                       {last_12_months}")
+print("=" * 60)
+
+# --- Empirical Stat Code audit (only runs if `data` already loaded) ---
+try:
+    _sc = (
+        data['Stat Code']
+            .astype(str).str.upper().str.strip()
+            .value_counts(dropna=False)
+            .head(15)
+    )
+    print("\nActual Stat Code values seen in data (top 15):")
+    print(_sc.to_string())
+    _match = int((data['Stat Code'].astype(str).str.upper().str.strip()
+                 == str(ICS_STAT_CODE).upper()).sum())
+    print(f"\nRows matching ICS_STAT_CODE={ICS_STAT_CODE!r}: {_match:,}")
+    if _match == 0:
+        print("⚠️  Zero rows match. Check whether this client uses 'O' (letter) or '0' (digit).")
+except NameError:
+    print("\n(Load `data` first, then re-run this cell for the Stat Code audit.)")

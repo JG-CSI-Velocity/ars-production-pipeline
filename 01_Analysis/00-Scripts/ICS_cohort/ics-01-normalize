@@ -1,0 +1,76 @@
+# ============================================
+# ics-01-normalize  (run after ics-00-config, before any analysis cell)
+# ============================================
+# Single place to normalize every column downstream cells depend on.
+# Supersedes the old ax-1 (which only touched ICS Account).
+# Safe to re-run — idempotent.
+
+import numpy as np
+import pandas as pd
+
+print("\n🧹 ics-01-normalize — cleaning columns used by downstream cells...")
+
+_before_rows = len(data)
+
+# ---------- Yes/No flags --------------------------------------------------
+def _normalize_yesno(series):
+    return (
+        series.fillna('')
+              .astype(str)
+              .str.strip()
+              .str.upper()
+              .map({'YES': 'Yes', 'Y': 'Yes', 'TRUE': 'Yes', '1': 'Yes',
+                    'NO': 'No',  'N': 'No',  'FALSE': 'No', '0': 'No'})
+              .fillna('No')
+    )
+
+for _col in ['ICS Account', 'Debit?', 'Business?']:
+    if _col in data.columns:
+        data[_col] = _normalize_yesno(data[_col])
+
+# ---------- Stat Code: keep as uppercased / stripped string -----------------
+if 'Stat Code' in data.columns:
+    data['Stat Code'] = (
+        data['Stat Code'].fillna('').astype(str).str.strip().str.upper()
+    )
+
+# ---------- Source: fill blanks -------------------------------------------
+if 'Source' in data.columns:
+    data['Source'] = data['Source'].fillna('Blank')
+    data.loc[data['Source'].astype(str).str.strip() == '', 'Source'] = 'Blank'
+
+# ---------- Dates ---------------------------------------------------------
+for _col in ['Date Opened', 'Date Closed']:
+    if _col in data.columns:
+        data[_col] = pd.to_datetime(data[_col], errors='coerce')
+
+# ---------- Balance columns -----------------------------------------------
+for _col in ['Avg Bal', 'Curr Bal']:
+    if _col in data.columns:
+        data[_col] = pd.to_numeric(data[_col], errors='coerce')
+
+# ---------- Monthly swipe/spend columns -----------------------------------
+# Anything ending in ' Swipes' or ' Spend' — coerce to numeric.
+_swipe_cols = [c for c in data.columns if c.endswith(' Swipes')]
+_spend_cols = [c for c in data.columns if c.endswith(' Spend')]
+for _col in _swipe_cols + _spend_cols:
+    data[_col] = pd.to_numeric(data[_col], errors='coerce')
+
+# ---------- Summary -------------------------------------------------------
+_after_rows = len(data)
+
+print(f"   Rows           : {_before_rows:,} (unchanged: {_before_rows == _after_rows})")
+print(f"   Yes/No columns : {[c for c in ['ICS Account','Debit?','Business?'] if c in data.columns]}")
+print(f"   Date columns   : {[c for c in ['Date Opened','Date Closed'] if c in data.columns]}")
+print(f"   Balance cols   : {[c for c in ['Avg Bal','Curr Bal'] if c in data.columns]}")
+print(f"   Swipe cols     : {len(_swipe_cols)}  (first: {_swipe_cols[:3]} …)")
+print(f"   Spend cols     : {len(_spend_cols)}  (first: {_spend_cols[:3]} …)")
+
+# Quick data-quality sanity print
+if 'Date Opened' in data.columns and 'Date Closed' in data.columns:
+    _bad = int(((data['Date Closed'].notna()) &
+                (data['Date Closed'] < data['Date Opened'])).sum())
+    if _bad:
+        print(f"   ⚠️  {_bad:,} rows have Date Closed < Date Opened")
+
+print("   ✅ normalization complete")
