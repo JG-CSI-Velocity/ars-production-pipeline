@@ -5,45 +5,91 @@
 #
 # Are ICS accounts stickier? Two views:
 #   1) Headline rates: % closed, % still open.
-#   2) Duration bucket distribution for closed accounts (how long they
-#      stayed open before closing), ICS vs Non-ICS side by side.
+#   2) Duration bucket distribution for closed accounts, ICS vs Non-ICS.
+#
+# Memory note: the prior version called `frame.copy()` on the Non-ICS
+# cohort (typically tens of thousands of rows × many columns) and added
+# four new columns (Duration Days / Range / Status / _Cohort) to the
+# copy. On larger books that pattern was contributing to the Jupyter
+# kernel crashes users saw in cells 41-43. This version works in numpy
+# arrays derived from the TWO columns we actually need (Date Opened +
+# Date Closed) and never copies the frame.
+#
+# Window anchor: ACTIVITY_END_DATE comes from ics-00-config and is the
+# last day of the last FULLY COMPLETED month — same anchor used by
+# every other cell in this pack.
 
 print(f"\n📊 ics-42 — Closure / duration comparison, ICS vs Non-ICS...")
+print(f"   Open-account duration computed as (ACTIVITY_END_DATE − Date Opened).")
+print(f"   Anchor: {ACTIVITY_END_DATE.date()}  (end of last fully completed month)")
 
-def _bucketize(frame, label):
-    _f = frame.copy()
-    _f['Duration Days'] = np.where(
-        _f['Date Closed'].notna(),
-        (_f['Date Closed']     - _f['Date Opened']).dt.days,
-        (ACTIVITY_END_DATE     - _f['Date Opened']).dt.days,
-    )
-    _f['Duration Range'] = _f['Duration Days'].map(_age_bucket)
-    _f['Status'] = np.where(_f['Date Closed'].notna(), 'Closed', 'Open')
-    return _f.assign(_Cohort=label)
-
-_ics = _bucketize(data[data['ICS Account'] == 'Yes'], 'ICS')
-_non = _bucketize(non_ics_cohort(data),                'Non-ICS')
-
-# Headline rates
-def _rates(frame):
+def _rates_and_dist(frame, label):
+    """Compute closure rates + closed-duration distribution for a cohort.
+    Vectorized, no frame copy — pulls only the two date columns needed."""
+    _opened = frame['Date Opened']
+    _closed = frame['Date Closed']
     _ct     = len(frame)
-    _closed = int((frame['Status'] == 'Closed').sum())
-    _open   = int((frame['Status'] == 'Open').sum())
-    return {
-        'count':       _ct,
-        'closed':      _closed,
-        'open':        _open,
-        'closed_pct':  (_closed / _ct) if _ct else 0,
-        'open_pct':    (_open / _ct)   if _ct else 0,
-        'avg_days_closed': (
-            float(frame.loc[frame['Status'] == 'Closed', 'Duration Days'].mean())
-            if _closed else 0
-        ),
-    }
+    if _ct == 0:
+        _empty = pd.Series(0, index=AGE_RANGE_ORDER)
+        return (
+            dict(count=0, closed=0, open=0, closed_pct=0, open_pct=0, avg_days_closed=0),
+            _empty,
+        )
 
-_ics_r = _rates(_ics)
-_non_r = _rates(_non)
+    _is_closed   = _closed.notna().to_numpy()
+    _closed_vals = _closed.to_numpy(dtype='datetime64[ns]')
+    _opened_vals = _opened.to_numpy(dtype='datetime64[ns]')
+    _anchor_np   = np.datetime64(ACTIVITY_END_DATE, 'ns')
 
+    # Duration Days: closed=(Closed-Opened), open=(Anchor-Opened)
+    _dur_days = np.where(
+        _is_closed,
+        (_closed_vals - _opened_vals).astype('timedelta64[D]').astype(float),
+        (_anchor_np   - _opened_vals).astype('timedelta64[D]').astype(float),
+    )
+    # NaN for rows with no Date Opened at all.
+    _valid_opened = ~pd.isna(_opened).to_numpy()
+    _dur_days = np.where(_valid_opened, _dur_days, np.nan)
+
+    _closed_n  = int(_is_closed.sum())
+    _open_n    = int(_ct - _closed_n)
+    _avg_days_closed = (
+        float(np.nanmean(_dur_days[_is_closed])) if _closed_n else 0.0
+    )
+
+    stats = dict(
+        count=_ct,
+        closed=_closed_n,
+        open=_open_n,
+        closed_pct=(_closed_n / _ct) if _ct else 0,
+        open_pct=(_open_n / _ct) if _ct else 0,
+        avg_days_closed=_avg_days_closed,
+    )
+
+    # Duration distribution for CLOSED accounts only.
+    if _closed_n:
+        _closed_durations = _dur_days[_is_closed]
+        # Apply _age_bucket via vectorized pandas path (list, not per-row).
+        _ranges = pd.Series(_closed_durations).map(_age_bucket)
+        _dist = _ranges.value_counts().reindex(AGE_RANGE_ORDER, fill_value=0)
+    else:
+        _dist = pd.Series(0, index=AGE_RANGE_ORDER)
+
+    return stats, _dist
+
+# Pull minimal views — only the two date columns. No frame copies.
+_ics_cols = data.loc[data['ICS Account'] == 'Yes',  ['Date Opened', 'Date Closed']]
+_non_cols = data.loc[data['ICS Account'] != 'Yes',  ['Date Opened', 'Date Closed']]
+
+print(f"   (ICS={len(_ics_cols):,} rows, Non-ICS={len(_non_cols):,} rows)")
+
+_ics_r, _ics_dist = _rates_and_dist(_ics_cols, 'ICS')
+_non_r, _non_dist = _rates_and_dist(_non_cols, 'Non-ICS')
+del _ics_cols, _non_cols   # release before building display tables
+
+# -------------------------------------------------------------------------
+# Headline closure rates
+# -------------------------------------------------------------------------
 closure_rates = pd.DataFrame([
     {'Metric': 'Cohort Size',           'ICS': f"{_ics_r['count']:,}",         'Non-ICS': f"{_non_r['count']:,}"},
     {'Metric': 'Open Accounts',         'ICS': f"{_ics_r['open']:,}",          'Non-ICS': f"{_non_r['open']:,}"},
@@ -52,20 +98,11 @@ closure_rates = pd.DataFrame([
     {'Metric': '% Still Open',          'ICS': f"{_ics_r['open_pct']:.1%}",    'Non-ICS': f"{_non_r['open_pct']:.1%}"},
     {'Metric': 'Avg Days Before Close', 'ICS': f"{_ics_r['avg_days_closed']:,.0f}", 'Non-ICS': f"{_non_r['avg_days_closed']:,.0f}"},
 ])
-
 display_formatted(closure_rates, "ICS vs Non-ICS — Closure Rates")
 
-# Duration-bucket distribution for closed accounts
-_ics_closed = _ics[_ics['Status'] == 'Closed']
-_non_closed = _non[_non['Status'] == 'Closed']
-
-def _dist(frame):
-    _c = frame['Duration Range'].value_counts()
-    return _c.reindex(AGE_RANGE_ORDER, fill_value=0)
-
-_ics_dist = _dist(_ics_closed)
-_non_dist = _dist(_non_closed)
-
+# -------------------------------------------------------------------------
+# Duration distribution for closed accounts
+# -------------------------------------------------------------------------
 _ics_total = int(_ics_dist.sum())
 _non_total = int(_non_dist.sum())
 
@@ -93,7 +130,9 @@ display_formatted(
     "ICS vs Non-ICS — Duration Distribution of Closed Accounts"
 )
 
+# -------------------------------------------------------------------------
 # Narrative
+# -------------------------------------------------------------------------
 print(f"\n📣 KEY DIFFERENCES")
 _delta_close = _ics_r['closed_pct'] - _non_r['closed_pct']
 _sticker = "stickier" if _delta_close < 0 else "more churn-prone"
