@@ -1,10 +1,10 @@
 # ============================================
-# ics-10-portfolio-totals — ICS vs Non-ICS across the full dataset
+# ics-03-portfolio-totals — ICS vs Non-ICS across the full dataset
 # ============================================
 # Supersedes: ax-2-total dataset  (which was labeled A[X].1 — conflicted with ax-1).
 # Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
 
-print("\n📊 ics-10 — Portfolio totals (ICS vs Non-ICS)...")
+print("\n📊 ics-03 — Portfolio totals (ICS vs Non-ICS)...")
 
 total_accounts   = len(data)
 ics_accounts     = data[data['ICS Account'] == 'Yes']

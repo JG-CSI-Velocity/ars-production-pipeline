@@ -1,5 +1,5 @@
 # ============================================
-# ics-12-stat-code-distribution — Stat Code mix within ICS
+# ics-05-stat-code-distribution — Stat Code mix within ICS
 # ============================================
 # Supersedes: ax-4-stat code  (was labeled A[X].3; inline magic-number `95`).
 # Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
@@ -9,7 +9,7 @@
 #   client — it's the diagnostic that answers "should ICS_STAT_CODE be 'O' or
 #   '0'?". Filtering it would hide the answer.
 
-print("\n📊 ics-12 — Stat Code distribution within ICS...")
+print("\n📊 ics-05 — Stat Code distribution within ICS...")
 
 # --------------------------------------------------------
 # Per-report knob: some clients have ICS accounts the data dump doesn't

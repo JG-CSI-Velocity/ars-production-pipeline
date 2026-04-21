@@ -1,11 +1,11 @@
 # ============================================
-# ics-11-portfolio-open — ICS vs Non-ICS, open accounts only
+# ics-04-portfolio-open — ICS vs Non-ICS, open accounts only
 # ============================================
 # Supersedes: ax-3-open-ICS Accounts  (which depended on an undefined upstream
 # `open_accounts` frame and re-did its own ICS normalization).
 # Depends on: ics-00-config, ics-01-normalize, ics-02-helpers.
 
-print("\n📊 ics-11 — Portfolio totals for open accounts...")
+print("\n📊 ics-04 — Portfolio totals for open accounts...")
 
 # Derive open accounts directly from normalized data — self-contained.
 open_accounts = data[data['Date Closed'].isna()]
