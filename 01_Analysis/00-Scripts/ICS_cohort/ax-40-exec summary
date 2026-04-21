@@ -1,0 +1,171 @@
+# ============================================
+# A[X].29 - ICS ACCOUNT ANALYSIS - EXECUTIVE SUMMARY
+# ============================================
+
+print("\n" + "="*80)
+print("📊 ICS ACCOUNT ANALYSIS - EXECUTIVE SUMMARY")
+print("="*80)
+
+# Get ICS Stat Code O accounts with debit cards  (LETTER O, not ZERO)
+ics_stat_o = data[
+    (data['ICS Account'] == 'Yes') &
+    (data['Stat Code'].astype(str).str.upper().str.strip() == 'O') &
+    (data['Debit?'] == 'Yes')
+].copy()
+
+# Calculate L12M activity
+swipe_cols = [col for col in ics_stat_o.columns if 'Swipes' in col and any(month in col for month in last_12_months)]
+spend_cols = [col for col in ics_stat_o.columns if 'Spend' in col and any(month in col for month in last_12_months)]
+
+ics_stat_o['Total L12M Swipes'] = ics_stat_o[swipe_cols].sum(axis=1)
+ics_stat_o['Total L12M Spend']  = ics_stat_o[spend_cols].sum(axis=1)
+ics_stat_o['Active in L12M']    = ics_stat_o['Total L12M Swipes'] > 0
+
+# Date fields
+ics_stat_o['Date Opened']   = pd.to_datetime(ics_stat_o['Date Opened'], errors='coerce')
+ics_stat_o['Opening Month'] = ics_stat_o['Date Opened'].dt.to_period('M').astype(str)
+ics_2025 = ics_stat_o[ics_stat_o['Opening Month'] >= '2025-01'].copy()
+
+# ============================================
+# SECTION 1: PORTFOLIO OVERVIEW
+# ============================================
+print("\n📈 SECTION 1: PORTFOLIO OVERVIEW")
+print("-" * 80)
+
+total_ics          = len(data[data['ICS Account'] == 'Yes'])
+ics_stat_o_count   = len(ics_stat_o)
+ics_with_activity  = int(ics_stat_o['Active in L12M'].sum())
+activation_rate    = (ics_with_activity / ics_stat_o_count * 100) if ics_stat_o_count > 0 else 0
+
+print(f"Total ICS Accounts (All):               {total_ics:>8,}")
+print(f"ICS Stat Code O with Debit Cards:       {ics_stat_o_count:>8,}")
+print(f"Active in Last 12 Months:               {ics_with_activity:>8,} ({activation_rate:.1f}%)")
+print(f"Inactive in Last 12 Months:             {ics_stat_o_count - ics_with_activity:>8,}")
+
+# ============================================
+# SECTION 2: ACTIVITY METRICS (LAST 12 MONTHS)
+# ============================================
+print("\n💳 SECTION 2: ACTIVITY METRICS (LAST 12 MONTHS)")
+print("-" * 80)
+
+total_swipes       = float(ics_stat_o['Total L12M Swipes'].sum())
+total_spend        = float(ics_stat_o['Total L12M Spend'].sum())
+avg_swipes_all     = float(ics_stat_o['Total L12M Swipes'].mean()) if ics_stat_o_count > 0 else 0
+avg_spend_all      = float(ics_stat_o['Total L12M Spend'].mean())  if ics_stat_o_count > 0 else 0
+
+active_accounts    = ics_stat_o[ics_stat_o['Active in L12M']]
+avg_swipes_active  = float(active_accounts['Total L12M Swipes'].mean()) if len(active_accounts) > 0 else 0
+avg_spend_active   = float(active_accounts['Total L12M Spend'].mean())  if len(active_accounts) > 0 else 0
+avg_spend_per_swipe= (total_spend / total_swipes) if total_swipes > 0 else 0
+
+print(f"Total Swipes:                           {total_swipes:>12,.0f}")
+print(f"Total Spend:                            ${total_spend:>11,.2f}")
+print(f"Average Swipes per Account (All):       {avg_swipes_all:>12,.1f}")
+print(f"Average Spend per Account (All):        ${avg_spend_all:>11,.2f}")
+print(f"Average Swipes per Active Account:      {avg_swipes_active:>12,.1f}")
+print(f"Average Spend per Active Account:       ${avg_spend_active:>11,.2f}")
+print(f"Average Spend per Swipe:                ${avg_spend_per_swipe:>11,.2f}")
+
+# ============================================
+# SECTION 3: SOURCE PERFORMANCE
+# ============================================
+print("\n🎯 SECTION 3: SOURCE PERFORMANCE")
+print("-" * 80)
+
+# Handle blanks in Source (not "ICS Source")
+ics_stat_o['Source'] = ics_stat_o['Source'].fillna('Blank')
+ics_stat_o.loc[ics_stat_o['Source'] == '', 'Source'] = 'Blank'
+
+for source in sorted(ics_stat_o['Source'].unique()):
+    source_data       = ics_stat_o[ics_stat_o['Source'] == source]
+    source_active     = source_data[source_data['Active in L12M']]
+    source_rate       = (len(source_active) / len(source_data) * 100) if len(source_data) > 0 else 0
+    source_avg_swipes = float(source_active['Total L12M Swipes'].mean()) if len(source_active) > 0 else 0
+    source_avg_spend  = float(source_active['Total L12M Spend'].mean())  if len(source_active) > 0 else 0
+    
+    print(f"\n{source}:")
+    print(f"  Accounts: {len(source_data):,} | Active: {len(source_active):,} ({source_rate:.1f}%)")
+    print(f"  Avg Swipes (Active): {source_avg_swipes:.1f} | Avg Spend (Active): ${source_avg_spend:,.2f}")
+
+# ============================================
+# SECTION 4: COHORT BEHAVIOR (2025 ACCOUNTS)
+# ============================================
+print("\n🔥 SECTION 4: COHORT BEHAVIOR (2025 ACCOUNTS)")
+print("-" * 80)
+
+# Categorize 2025 accounts
+categories = []
+for idx, account in ics_2025.iterrows():
+    opening_date = pd.to_datetime(account['Opening Month'])
+    month_3_date = opening_date + pd.DateOffset(months=2)
+    month_3_str  = month_3_date.strftime('%b%y')
+
+    if month_3_str not in last_12_months:
+        category  = 'Too New (<3 Months)'
+        m1_swipes = 0.0
+        m3_swipes = 0.0
+    else:
+        month_1_str = opening_date.strftime('%b%y')
+        m1_col = f"{month_1_str} Swipes"
+        m3_col = f"{month_3_str} Swipes"
+        
+        m1_swipes = float(account[m1_col]) if m1_col in account.index and pd.notna(account[m1_col]) else 0.0
+        m3_swipes = float(account[m3_col]) if m3_col in account.index and pd.notna(account[m3_col]) else 0.0
+        
+        if (m1_swipes > 0) and (m3_swipes > 0):
+            category = 'Fast Activator'
+        elif (m1_swipes == 0) and (m3_swipes > 0):
+            category = 'Slow Burner'
+        elif (m1_swipes > 0) and (m3_swipes == 0):
+            category = 'One and Done'
+        else:
+            category = 'Never Activator'
+    
+    categories.append({'Category': category, 'M1 Swipes': m1_swipes, 'M3 Swipes': m3_swipes})
+
+category_df = pd.DataFrame(categories)
+categorized = category_df[category_df['Category'] != 'Too New (<3 Months)']
+
+print(f"Total 2025 Accounts: {len(ics_2025):,}")
+print(f"Categorized (3+ months): {len(categorized):,}")
+print(f"Too New: {len(category_df[category_df['Category'] == 'Too New (<3 Months)']):,}")
+
+if len(categorized) > 0:
+    print(f"\nActivation Patterns:")
+    for cat in ['Fast Activator', 'Slow Burner', 'One and Done', 'Never Activator']:
+        count = int((category_df['Category'] == cat).sum())
+        pct   = (count / len(categorized) * 100) if len(categorized) > 0 else 0
+        emoji = '✅' if cat == 'Fast Activator' else ('🔥' if cat == 'Slow Burner' else ('⚠️' if cat == 'One and Done' else '❌'))
+        print(f"  {emoji} {cat:<20} {count:>6,} ({pct:>5.1f}%)")
+
+# ============================================
+# SECTION 5: KEY INSIGHTS & RECOMMENDATIONS
+# ============================================
+print("\n💡 SECTION 5: KEY INSIGHTS & RECOMMENDATIONS")
+print("-" * 80)
+
+fast_activator_pct  = ((category_df['Category'] == 'Fast Activator').sum() / len(categorized) * 100) if len(categorized) > 0 else 0
+never_activator_pct = ((category_df['Category'] == 'Never Activator').sum() / len(categorized) * 100) if len(categorized) > 0 else 0
+
+print("\n📊 Key Findings:")
+print(f"  • {activation_rate:.1f}% of ICS Stat O accounts are active (made swipes in L12M)")
+print(f"  • Fast Activator rate: {fast_activator_pct:.1f}% (strong early adoption)")
+print(f"  • Never Activator rate: {never_activator_pct:.1f}% (opportunity for intervention)")
+print(f"  • Average spend per swipe: ${avg_spend_per_swipe:.2f}")
+
+print("\n🎯 Recommendations:")
+if fast_activator_pct >= 60:
+    print("  ✅ Strong activation performance - focus on scaling successful practices")
+else:
+    print("  ⚠️ Activation needs improvement - consider enhanced onboarding")
+
+if never_activator_pct >= 20:
+    print("  ⚠️ High never-activation rate - implement early engagement campaigns")
+
+print("  • Analyze top-performing branches and replicate best practices")
+print("  • Target 'One and Done' accounts with re-engagement campaigns")
+print("  • Monitor cohort trends monthly to identify issues early")
+
+print("\n" + "="*80)
+print("✅ EXECUTIVE SUMMARY COMPLETE")
+print("="*80)
