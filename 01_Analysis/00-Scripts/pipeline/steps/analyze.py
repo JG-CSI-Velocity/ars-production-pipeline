@@ -69,6 +69,24 @@ def step_analyze(ctx: PipelineContext) -> None:
         skip=skip_count,
         fail=fail_count,
     )
+    _log_soft_failures(ctx)
+
+
+def _log_soft_failures(ctx: PipelineContext) -> None:
+    """Summarize AnalysisResult entries with success=False (caught by _safe wrappers).
+
+    Module-level failures are already logged above. This surfaces the per-slide
+    failures that would otherwise only be visible as scattered WARNING lines.
+    """
+    soft = [r for r in ctx.all_slides if not getattr(r, "success", True)]
+    if not soft:
+        return
+    logger.warning(
+        "{n} slide(s) skipped with errors (non-fatal -- see warnings above):",
+        n=len(soft),
+    )
+    for r in soft:
+        logger.warning("  {sid}: {title} -- {err}", sid=r.slide_id, title=r.title, err=r.error)
 
 
 def step_analyze_selected(ctx: PipelineContext, module_ids: list[str]) -> None:
@@ -117,3 +135,4 @@ def step_analyze_selected(ctx: PipelineContext, module_ids: list[str]) -> None:
         skip=skip_count,
         fail=fail_count,
     )
+    _log_soft_failures(ctx)
