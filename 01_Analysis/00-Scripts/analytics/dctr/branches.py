@@ -132,9 +132,10 @@ class DCTRBranches(AnalysisModule):
         dc = ed.copy()
         dc["Date Opened"] = pd.to_datetime(dc["Date Opened"], errors="coerce", format="mixed")
         dc["Account Age Days"] = (pd.Timestamp.now() - dc["Date Opened"]).dt.days
+        dc["Branch"] = dc["Branch"].astype(str)
         if bm:
             str_bm = {str(k): v for k, v in bm.items()}
-            mapped = dc["Branch"].astype(str).map(str_bm)
+            mapped = dc["Branch"].map(str_bm)
             dc["Branch Name"] = mapped.where(mapped.notna(), dc["Branch"])
         else:
             dc["Branch Name"] = dc["Branch"]
@@ -197,9 +198,10 @@ class DCTRBranches(AnalysisModule):
         dc = ed.copy()
         dc["Date Opened"] = pd.to_datetime(dc["Date Opened"], errors="coerce", format="mixed")
         dc["Month_Year"] = dc["Date Opened"].dt.strftime("%b%y")
+        dc["Branch"] = dc["Branch"].astype(str)
         if bm:
             str_bm = {str(k): v for k, v in bm.items()}
-            mapped = dc["Branch"].astype(str).map(str_bm)
+            mapped = dc["Branch"].map(str_bm)
             dc["Branch Name"] = mapped.where(mapped.notna(), dc["Branch"])
         else:
             dc["Branch Name"] = dc["Branch"]
@@ -505,9 +507,10 @@ class DCTRBranches(AnalysisModule):
         dc = ed.copy()
         dc["Date Opened"] = pd.to_datetime(dc["Date Opened"], errors="coerce", format="mixed")
         dc["Month_Year"] = dc["Date Opened"].dt.strftime("%b%y")
+        dc["Branch"] = dc["Branch"].astype(str)
         if bm:
             str_bm = {str(k): v for k, v in bm.items()}
-            mapped = dc["Branch"].astype(str).map(str_bm)
+            mapped = dc["Branch"].map(str_bm)
             dc["Branch Name"] = mapped.where(mapped.notna(), dc["Branch"])
         else:
             dc["Branch Name"] = dc["Branch"]
