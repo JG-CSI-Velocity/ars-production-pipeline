@@ -1,11 +1,10 @@
 # ===========================================================================
-# CORE -- BNPL Account Share (Ex Wallets + P2P)
+# BNPL ACCOUNT SHARE (Ex Wallets + P2P)
 # ===========================================================================
 # Parallel to cell 29 (wallet_share) but for BNPL, since wallets are excluded
-# from the 60-series. For each top BNPL provider present in core_txns,
-# shows the top 20 accounts by BNPL spend with that provider (stacked
-# against their in-CU spend if `competitor_spend_analysis` is available
-# from cell 18).
+# from the 60-series. For each top BNPL provider, shows the top 20 accounts
+# by BNPL spend (stacked against their in-CU spend if `competitor_spend_analysis`
+# is available from cell 18).
 #
 # Assumes competitor_txns, GEN_COLORS are in globals.
 # ===========================================================================
@@ -13,8 +12,8 @@
 import matplotlib.pyplot as plt
 
 EXCLUDE_CATS = ('wallets', 'p2p')
-core_txns = competitor_txns[~competitor_txns['competitor_category'].isin(EXCLUDE_CATS)].copy()
-excluded_txns = len(competitor_txns) - len(core_txns)
+banks_bnpl_txns = competitor_txns[~competitor_txns['competitor_category'].isin(EXCLUDE_CATS)].copy()
+excluded_txns = len(competitor_txns) - len(banks_bnpl_txns)
 excluded_pct = excluded_txns / max(len(competitor_txns), 1) * 100
 SCOPE_NOTE = (f"Excludes wallets + P2P ({excluded_txns:,} txns, "
               f"{excluded_pct:.1f}% of competitor activity). BNPL retained.")
@@ -24,7 +23,7 @@ def _fmt_currency(x, _pos=None):
     return f"${int(x):,}"
 
 
-bnpl_txns = core_txns[core_txns['competitor_category'] == 'bnpl']
+bnpl_txns = banks_bnpl_txns[banks_bnpl_txns['competitor_category'] == 'bnpl']
 if len(bnpl_txns) == 0:
     print("    No BNPL activity detected (Affirm / Klarna / Afterpay). Skipping.")
 else:

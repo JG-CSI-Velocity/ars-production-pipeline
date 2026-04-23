@@ -1,5 +1,5 @@
 # ===========================================================================
-# CORE -- BNPL Threats (Ex Wallets + P2P)
+# BNPL THREATS (Ex Wallets + P2P)
 # ===========================================================================
 # Parallel to cell 33 (non_bank_threats) but limited to BNPL, since wallets
 # and P2P are excluded from the 60-series. Ranks BNPL providers (Affirm,
@@ -13,13 +13,13 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
 EXCLUDE_CATS = ('wallets', 'p2p')
-core_txns = competitor_txns[~competitor_txns['competitor_category'].isin(EXCLUDE_CATS)].copy()
-excluded_txns = len(competitor_txns) - len(core_txns)
+banks_bnpl_txns = competitor_txns[~competitor_txns['competitor_category'].isin(EXCLUDE_CATS)].copy()
+excluded_txns = len(competitor_txns) - len(banks_bnpl_txns)
 excluded_pct = excluded_txns / max(len(competitor_txns), 1) * 100
 SCOPE_NOTE = (f"Excludes wallets + P2P ({excluded_txns:,} txns, "
               f"{excluded_pct:.1f}% of competitor activity). BNPL retained.")
 
-bnpl = core_txns[core_txns['competitor_category'] == 'bnpl']
+bnpl = banks_bnpl_txns[banks_bnpl_txns['competitor_category'] == 'bnpl']
 if len(bnpl) == 0:
     print("    No BNPL activity detected. Skipping.")
 else:

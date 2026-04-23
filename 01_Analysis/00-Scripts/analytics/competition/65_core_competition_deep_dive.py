@@ -1,5 +1,5 @@
 # ===========================================================================
-# CORE COMPETITION DEEP DIVE (Ex Wallets + P2P, Keep BNPL)
+# COMPETITION DEEP DIVE -- Banks + BNPL (Excludes Wallets + P2P)
 # ===========================================================================
 # Self-contained rich cell. Six panels:
 #   1. Headline KPI strip          -- % accounts, % txns, # competitors, BNPL %
@@ -8,6 +8,8 @@
 #   4. Monthly trend               -- transaction volume + unique accts over time
 #   5. Category momentum           -- recent-3-mo vs previous-3-mo per category
 #   6. Top growers / decliners     -- per-competitor momentum
+#
+# Uses observed=True on groupby because competitor_category is pd.Categorical.
 #
 # Assumes competitor_txns, combined_df, GEN_COLORS, CATEGORY_PALETTE are in globals.
 # ===========================================================================
@@ -19,38 +21,38 @@ from matplotlib.patches import FancyBboxPatch
 import numpy as np
 
 EXCLUDE_CATS = ('wallets', 'p2p')
-core_txns = competitor_txns[~competitor_txns['competitor_category'].isin(EXCLUDE_CATS)].copy()
-excluded_txns = len(competitor_txns) - len(core_txns)
+banks_bnpl_txns = competitor_txns[~competitor_txns['competitor_category'].isin(EXCLUDE_CATS)].copy()
+excluded_txns = len(competitor_txns) - len(banks_bnpl_txns)
 excluded_pct = excluded_txns / max(len(competitor_txns), 1) * 100
 SCOPE_NOTE = (f"Excludes wallets + P2P ({excluded_txns:,} txns, "
               f"{excluded_pct:.1f}% of competitor activity). BNPL retained.")
 
 total_all_trans = len(combined_df)
 total_all_accts = combined_df['primary_account_num'].nunique()
-total_core_trans = len(core_txns)
-total_core_accts = core_txns['primary_account_num'].nunique()
-total_core_comps = core_txns['competitor_match'].nunique()
+total_scope_trans = len(banks_bnpl_txns)
+total_scope_accts = banks_bnpl_txns['primary_account_num'].nunique()
+total_scope_comps = banks_bnpl_txns['competitor_match'].nunique()
 
 print("=" * 72)
-print("CORE COMPETITION DEEP DIVE — Banks + BNPL (Ex Wallets + P2P)")
+print("COMPETITION DEEP DIVE — Banks + BNPL (Ex Wallets + P2P)")
 print("=" * 72)
-print(f"  Excluded wallets + P2P        : {excluded_txns:,} txns ({excluded_pct:.1f}%)")
-print(f"  Core competitor txns          : {total_core_trans:,}")
-print(f"  Core competitor accounts      : {total_core_accts:,} "
-      f"({total_core_accts / max(total_all_accts, 1) * 100:.1f}% of all accounts)")
-print(f"  Distinct competitors          : {total_core_comps}")
+print(f"  Excluded wallets + P2P          : {excluded_txns:,} txns ({excluded_pct:.1f}%)")
+print(f"  In-scope competitor txns        : {total_scope_trans:,}")
+print(f"  In-scope competitor accounts    : {total_scope_accts:,} "
+      f"({total_scope_accts / max(total_all_accts, 1) * 100:.1f}% of all accounts)")
+print(f"  Distinct competitors detected   : {total_scope_comps}")
 print()
 
 # --- Panel 1: KPI strip --------------------------------------------------
-pct_accts = total_core_accts / total_all_accts * 100 if total_all_accts else 0
-pct_txns = total_core_trans / total_all_trans * 100 if total_all_trans else 0
-bnpl = core_txns[core_txns['competitor_category'] == 'bnpl']
+pct_accts = total_scope_accts / total_all_accts * 100 if total_all_accts else 0
+pct_txns = total_scope_trans / total_all_trans * 100 if total_all_trans else 0
+bnpl = banks_bnpl_txns[banks_bnpl_txns['competitor_category'] == 'bnpl']
 bnpl_pct_accts = bnpl['primary_account_num'].nunique() / max(total_all_accts, 1) * 100
 
 kpis = [
     (f"{pct_accts:.1f}%",      "of Accounts\nUsing Bank + BNPL Competitors", GEN_COLORS['accent']),
     (f"{pct_txns:.1f}%",       "of Transactions\nto Bank + BNPL",            GEN_COLORS['info']),
-    (f"{total_core_comps}",    "Distinct Competitors\nDetected",             GEN_COLORS['warning']),
+    (f"{total_scope_comps}",   "Distinct Competitors\nDetected",             GEN_COLORS['warning']),
     (f"{bnpl_pct_accts:.1f}%", "of Accounts\nCarrying BNPL Balances",        GEN_COLORS['success']),
 ]
 fig1, axes1 = plt.subplots(1, 4, figsize=(22, 5.8))
@@ -65,7 +67,7 @@ for ax, (value, label, color) in zip(axes1, kpis):
     ax.text(0.5, 0.20, label, transform=ax.transAxes,
             fontsize=16, fontweight='bold', color=GEN_COLORS['dark_text'],
             ha='center', va='center', linespacing=1.4)
-fig1.suptitle("Core Competitive Exposure — Banks + BNPL",
+fig1.suptitle("Competitive Exposure — Banks + BNPL",
               fontsize=28, fontweight='bold',
               color=GEN_COLORS['dark_text'], y=1.03)
 fig1.text(0.5, 0.96, SCOPE_NOTE,
@@ -75,7 +77,7 @@ plt.savefig('competition_65_panel1_kpi.png', dpi=160, bbox_inches='tight')
 plt.show(); plt.close(fig1)
 
 # --- Panel 2: Category donut + stats -------------------------------------
-cat = (core_txns.groupby('competitor_category')
+cat = (banks_bnpl_txns.groupby('competitor_category', observed=True)
        .agg(txns=('amount', 'count'),
             accts=('primary_account_num', 'nunique'),
             comps=('competitor_match', 'nunique'),
@@ -95,8 +97,8 @@ wedges, _, autos = ax_d.pie(
 for t in autos:
     t.set_fontsize(18); t.set_fontweight('bold'); t.set_color('white')
     t.set_path_effects([_pe.withStroke(linewidth=2, foreground='#333333')])
-ax_d.text(0, 0, f"{int(cat['txns'].sum()):,}\nCore Txns",
-          ha='center', va='center', fontsize=20, fontweight='bold',
+ax_d.text(0, 0, f"{int(cat['txns'].sum()):,}\nCompetitor\nTxns",
+          ha='center', va='center', fontsize=19, fontweight='bold',
           color=GEN_COLORS['dark_text'])
 ax_d.set_title("Share by Category", fontsize=22, fontweight='bold',
                color=GEN_COLORS['dark_text'], pad=18)
@@ -134,19 +136,19 @@ plt.savefig('competition_65_panel2_category.png', dpi=160, bbox_inches='tight')
 plt.show(); plt.close(fig2)
 
 # --- Panel 3: Top 15 competitors -----------------------------------------
-top15 = (core_txns.groupby('competitor_match')
+top15 = (banks_bnpl_txns.groupby('competitor_match')
          .agg(txns=('amount', 'count'),
               accts=('primary_account_num', 'nunique'),
               spend=('amount', 'sum'),
               category=('competitor_category', 'first'))
          .sort_values('txns', ascending=False).head(15))
-top15['reach'] = top15['accts'] / max(total_core_accts, 1) * 100
+top15['reach'] = top15['accts'] / max(total_scope_accts, 1) * 100
 
 fig3, ax3 = plt.subplots(figsize=(22, 10))
 fig3.patch.set_facecolor('#FFFFFF')
 ax3.axis('off'); ax3.set_xlim(0, 22); ax3.set_ylim(-0.6, len(top15) + 1.8)
 ax3.invert_yaxis()
-ax3.text(0.3, 0, "Top 15 Core Competitors — by Transaction Volume",
+ax3.text(0.3, 0, "Top 15 Competitors — by Transaction Volume",
          fontsize=26, fontweight='bold', color=GEN_COLORS['dark_text'])
 ax3.text(0.3, 0.7, SCOPE_NOTE,
          fontsize=13, color=GEN_COLORS['muted'], style='italic')
@@ -189,8 +191,8 @@ plt.savefig('competition_65_panel3_top15.png', dpi=160, bbox_inches='tight')
 plt.show(); plt.close(fig3)
 
 # --- Panel 4: Monthly trend ----------------------------------------------
-if 'year_month' in core_txns.columns and core_txns['year_month'].notna().any():
-    monthly = (core_txns.groupby('year_month')
+if 'year_month' in banks_bnpl_txns.columns and banks_bnpl_txns['year_month'].notna().any():
+    monthly = (banks_bnpl_txns.groupby('year_month')
                .agg(txns=('amount', 'count'),
                     accts=('primary_account_num', 'nunique'),
                     spend=('amount', 'sum'))
@@ -205,14 +207,14 @@ if 'year_month' in core_txns.columns and core_txns['year_month'].notna().any():
                   linewidth=2.8, markersize=9, label='Unique accounts')
         ax4.set_xticks(x)
         ax4.set_xticklabels(monthly.index.astype(str), rotation=45, ha='right', fontsize=12)
-        ax4.set_ylabel('Core competitor transactions',
+        ax4.set_ylabel('Competitor transactions (Banks + BNPL)',
                        fontsize=14, fontweight='bold', color=GEN_COLORS['info'])
-        ax4b.set_ylabel('Unique accounts with core competitor activity',
+        ax4b.set_ylabel('Unique accounts with Banks + BNPL activity',
                         fontsize=14, fontweight='bold', color=GEN_COLORS['accent'])
         ax4.tick_params(axis='y', colors=GEN_COLORS['info'], labelsize=12)
         ax4b.tick_params(axis='y', colors=GEN_COLORS['accent'], labelsize=12)
         ax4.spines['top'].set_visible(False); ax4b.spines['top'].set_visible(False)
-        ax4.set_title("Monthly Core Competitor Activity",
+        ax4.set_title("Monthly Competitor Activity — Banks + BNPL",
                       fontsize=22, fontweight='bold',
                       color=GEN_COLORS['dark_text'], pad=14, loc='left')
         fig4.text(0.5, -0.02, SCOPE_NOTE, ha='center',
@@ -226,22 +228,23 @@ if 'year_month' in core_txns.columns and core_txns['year_month'].notna().any():
     else:
         print("    (Not enough months for a trend -- skipped panel 4.)")
 else:
-    print("    (core_txns has no year_month column -- skipped panel 4.)")
+    print("    (banks_bnpl_txns has no year_month column -- skipped panel 4.)")
 
 # --- Panels 5 + 6: Momentum ----------------------------------------------
-if 'year_month' in core_txns.columns and core_txns['year_month'].notna().any():
-    months_sorted = sorted(core_txns['year_month'].dropna().unique())
+if 'year_month' in banks_bnpl_txns.columns and banks_bnpl_txns['year_month'].notna().any():
+    months_sorted = sorted(banks_bnpl_txns['year_month'].dropna().unique())
     if len(months_sorted) >= 6:
         recent_3 = months_sorted[-3:]
         prev_3 = months_sorted[-6:-3]
 
-        def _acct_counts_in(frame, months, group_col):
+        def _acct_counts_in(frame, months, group_col, observed_flag=False):
             sub = frame[frame['year_month'].isin(months)]
-            return sub.groupby(group_col)['primary_account_num'].nunique()
+            kwargs = {'observed': True} if observed_flag else {}
+            return sub.groupby(group_col, **kwargs)['primary_account_num'].nunique()
 
-        # Panel 5: category momentum
-        cat_recent = _acct_counts_in(core_txns, recent_3, 'competitor_category')
-        cat_prev = _acct_counts_in(core_txns, prev_3, 'competitor_category')
+        # Panel 5: category momentum (observed=True because Categorical)
+        cat_recent = _acct_counts_in(banks_bnpl_txns, recent_3, 'competitor_category', True)
+        cat_prev = _acct_counts_in(banks_bnpl_txns, prev_3, 'competitor_category', True)
         cat_idx = sorted(set(cat_recent.index) | set(cat_prev.index))
         cat_recent = cat_recent.reindex(cat_idx, fill_value=0)
         cat_prev = cat_prev.reindex(cat_idx, fill_value=0)
@@ -272,7 +275,7 @@ if 'year_month' in core_txns.columns and core_txns['year_month'].notna().any():
                      color=GEN_COLORS['dark_text'])
         ax5.set_xlabel('Net change in unique accounts (recent 3 − previous 3 months)',
                        fontsize=13, fontweight='bold')
-        ax5.set_title("Category Momentum — Core Competition",
+        ax5.set_title("Category Momentum — Banks + BNPL",
                       fontsize=22, fontweight='bold',
                       color=GEN_COLORS['dark_text'], pad=14, loc='left')
         for s in ('top', 'right'):
@@ -287,8 +290,8 @@ if 'year_month' in core_txns.columns and core_txns['year_month'].notna().any():
         plt.show(); plt.close(fig5)
 
         # Panel 6: per-competitor growers + decliners
-        bank_recent = _acct_counts_in(core_txns, recent_3, 'competitor_match')
-        bank_prev = _acct_counts_in(core_txns, prev_3, 'competitor_match')
+        bank_recent = _acct_counts_in(banks_bnpl_txns, recent_3, 'competitor_match')
+        bank_prev = _acct_counts_in(banks_bnpl_txns, prev_3, 'competitor_match')
         bank_idx = sorted(set(bank_recent.index) | set(bank_prev.index))
         bank_recent = bank_recent.reindex(bank_idx, fill_value=0)
         bank_prev = bank_prev.reindex(bank_idx, fill_value=0)
@@ -323,7 +326,7 @@ if 'year_month' in core_txns.columns and core_txns['year_month'].notna().any():
             for s in ('top', 'right'):
                 ax6.spines[s].set_visible(False)
 
-        fig6.suptitle("Per-Competitor Momentum — Core Competition",
+        fig6.suptitle("Per-Competitor Momentum — Banks + BNPL",
                       fontsize=24, fontweight='bold',
                       color=GEN_COLORS['dark_text'], y=1.02)
         fig6.text(0.5, -0.02,
@@ -357,4 +360,4 @@ if 'year_month' in core_txns.columns and core_txns['year_month'].notna().any():
     else:
         print("    (Need at least 6 months of data for momentum -- skipped panels 5/6.)")
 else:
-    print("    (core_txns has no year_month column -- skipped panels 5/6.)")
+    print("    (banks_bnpl_txns has no year_month column -- skipped panels 5/6.)")

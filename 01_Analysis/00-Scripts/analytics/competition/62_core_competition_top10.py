@@ -1,5 +1,5 @@
 # ===========================================================================
-# CORE COMPETITION -- Top 10 Competitors (Ex Wallets + P2P, Keep BNPL)
+# COMPETITION -- Top 10 Competitors (Banks + BNPL, Excludes Wallets + P2P)
 # ===========================================================================
 # Named ranking of the top 10 competitor institutions by transaction volume.
 # Excludes wallets + P2P; BNPL is retained so Affirm/Klarna/Afterpay can
@@ -12,17 +12,17 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
 EXCLUDE_CATS = ('wallets', 'p2p')
-core_txns = competitor_txns[~competitor_txns['competitor_category'].isin(EXCLUDE_CATS)].copy()
-excluded_txns = len(competitor_txns) - len(core_txns)
+banks_bnpl_txns = competitor_txns[~competitor_txns['competitor_category'].isin(EXCLUDE_CATS)].copy()
+excluded_txns = len(competitor_txns) - len(banks_bnpl_txns)
 excluded_pct = excluded_txns / max(len(competitor_txns), 1) * 100
 SCOPE_NOTE = (f"Excludes wallets + P2P ({excluded_txns:,} txns, "
               f"{excluded_pct:.1f}% of competitor activity). BNPL retained.")
 
-if len(core_txns) == 0:
-    print("    No core-competition transactions. Skipping.")
+if len(banks_bnpl_txns) == 0:
+    print("    No qualifying competitor transactions. Skipping.")
 else:
     top10 = (
-        core_txns.groupby('competitor_match')
+        banks_bnpl_txns.groupby('competitor_match')
         .agg(txns=('amount', 'count'),
              accounts=('primary_account_num', 'nunique'),
              spend=('amount', 'sum'),
@@ -30,8 +30,8 @@ else:
         .sort_values('txns', ascending=False)
         .head(10)
     )
-    total_core_accts = core_txns['primary_account_num'].nunique()
-    top10['reach_pct'] = top10['accounts'] / max(total_core_accts, 1) * 100
+    total_scope_accts = banks_bnpl_txns['primary_account_num'].nunique()
+    top10['reach_pct'] = top10['accounts'] / max(total_scope_accts, 1) * 100
 
     fig, ax = plt.subplots(figsize=(22, 8))
     fig.patch.set_facecolor('#FFFFFF')
@@ -40,7 +40,7 @@ else:
     ax.set_ylim(-0.6, len(top10) + 1.8)
     ax.invert_yaxis()
 
-    ax.text(0.3, 0, "Top 10 Core Competitors — by Transaction Volume",
+    ax.text(0.3, 0, "Top 10 Competitors — by Transaction Volume",
             fontsize=26, fontweight='bold', color=GEN_COLORS['dark_text'])
     ax.text(0.3, 0.7, SCOPE_NOTE,
             fontsize=13, color=GEN_COLORS['muted'], style='italic')
@@ -86,15 +86,15 @@ else:
                     color=GEN_COLORS['grid'], linewidth=0.5, alpha=0.5)
 
     plt.tight_layout()
-    plt.savefig('competition_62_core_top10.png', dpi=160, bbox_inches='tight')
+    plt.savefig('competition_62_banks_bnpl_top10.png', dpi=160, bbox_inches='tight')
     plt.show()
     plt.close(fig)
 
     _top1 = top10.iloc[0]
     _top1_name = top10.index[0]
-    print(f"\n    Top core competitor: {_top1_name} — "
+    print(f"\n    Top competitor: {_top1_name} — "
           f"{int(_top1['txns']):,} txns across {int(_top1['accounts']):,} accounts "
           f"({_top1['reach_pct']:.1f}% reach).")
     print(f"    10 competitors account for {int(top10['txns'].sum()):,} of "
-          f"{len(core_txns):,} core transactions "
-          f"({top10['txns'].sum() / max(len(core_txns), 1) * 100:.1f}%).")
+          f"{len(banks_bnpl_txns):,} in-scope transactions "
+          f"({top10['txns'].sum() / max(len(banks_bnpl_txns), 1) * 100:.1f}%).")
