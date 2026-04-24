@@ -42,6 +42,7 @@ Spec identical to DCTR Slide 1 Panel B, except:
 - Data: branch-level Reg E opt-in rates (historical + L12M)
 - Source chart: rebuild `analytics/rege/branches.py` A8.4a as vertical combo (currently horizontal bar)
 - Focus logic: 3 branches with largest absolute contribution to the gap (or to the opportunity, if rate is up)
+- Branch filter: exclude any branch where L12M eligible volume = 0 (same rule as DCTR panel B)
 
 ### Callout
 

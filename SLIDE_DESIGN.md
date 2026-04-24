@@ -168,6 +168,7 @@ For KPI/cover slides, the callout box becomes the central element and the chart 
 - Historical rate (when present) = muted gray (`#B0B0B0`), dashed line, no markers
 - Both Y-axes labeled with units
 - Rate line is always drawn last so it sits on top
+- **Zero-volume categories are dropped**, not shown as empty columns. If the chart's X-axis is branches, months, or product codes, any category with zero eligible volume is filtered out before rendering. Rate lines do not extend through excluded categories. If any are excluded, note the count in the footnote band ("{n} categories with zero volume hidden").
 
 ### 6.3 Comparison
 - Always sort ascending or descending by the value being compared, unless a natural order exists (months, segments).

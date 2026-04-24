@@ -55,6 +55,7 @@ Examples when populated:
 **Sub-title:** "Branch take rate vs historical, by eligible volume"
 
 - **X-axis:** branches, sorted descending by L12M eligible volume (left = largest branch)
+- **Branch filter:** exclude any branch where L12M eligible volume = 0. No zero-volume bars; rate lines don't extend through inactive branches. Exclusion count ("{n} inactive branches hidden") shown in the footnote band if any.
 - **Left Y-axis:** DCTR % (0-100)
 - **Right Y-axis:** Eligible accounts opened (muted)
 - **Columns** (right axis): eligible account volume per branch
