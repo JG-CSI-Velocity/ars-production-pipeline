@@ -17,17 +17,21 @@ FINANCIAL_SERVICES_PATTERNS = {
     ],
 
     'Investment/Brokerage': [
-        'MORGAN STANLEY CLIENT', 'MORGAN STANLEY BROKERAGE',
-        'RAYMOND JAMES ASSOC', 'RAYMOND JAMES & ASSOC',
-        'CHARLES SCHWAB', 'SCHWAB BROKERAGE',
-        'FIDELITY INVESTMENTS', 'FIDELITY BROKERAGE',
-        'VANGUARD BROKERAGE', 'VANGUARD GROUP',
-        'E\\*TRADE', 'ETRADE', 'TD AMERITRADE',
-        'MERRILL LYNCH', 'MERRILL EDGE',
+        'MORGAN STANLEY',
+        'RAYMOND JAMES',
+        'CHARLES SCHWAB', 'SCHWAB BROKERAGE', 'SCHWAB BROKER', 'SCHWAB.COM', 'SCHWAB',
+        'FIDELITY INVESTMENTS', 'FIDELITY BROKERAGE', 'FIDELITY NETBENEFITS',
+        'FIDELITY FDS', 'FIDELITY BILLPAY', 'FID BKG', 'FIDELITY',
+        'VANGUARD BROKERAGE', 'VANGUARD GROUP', 'VANGUARD BUY', 'VANGUARD EDELIVERY', 'VANGUARD',
+        'ETRADE', 'E TRADE', 'TD AMERITRADE', 'AMERITRADE',
+        'MERRILL LYNCH', 'MERRILL EDGE', 'MERRILL',
         'RBC CAPITAL MARKETS', 'LPL FINANCIAL',
-        'BETTERMENT LLC', 'WEALTHFRONT BROKERAGE',
-        'ROBINHOOD SECURITIES', 'WEBULL CORPORATION',
-        'INTERACTIVE BROKERS', 'TASTYTRADE'
+        'BETTERMENT',
+        'WEALTHFRONT BROKERAGE', 'WEALTHFRONT INC', 'WEALTHFRONT ADVISERS', 'WEALTHFRONT',
+        'ROBINHOOD SECURITIES', 'ROBINHOOD',
+        'WEBULL CORPORATION', 'WEBULL',
+        'INTERACTIVE BROKERS', 'TASTYTRADE',
+        'STASH INVEST', 'ACORNS', 'PUBLIC HOLDINGS', 'M1 FINANCE', 'SOFI INVEST'
     ],
 
     'Treasury/Bonds': [
@@ -35,21 +39,32 @@ FINANCIAL_SERVICES_PATTERNS = {
     ],
 
     'Mortgage/HELOC': [
-        'ROCKET MORTGAGE', 'QUICKEN LOANS',
-        'PENNYMAC LOAN', 'PENNYMAC CORP',
-        'FREEDOM MORTGAGE', 'MR COOPER MORTGAGE',
-        'CALIBER HOME LOANS', 'OCWEN LOAN',
-        'NEWREZ LLC', 'FLAGSTAR BANK MORTGAGE',
-        'LAKEVIEW LOAN', 'CARRINGTON MORTGAGE',
-        'GUILD MORTGAGE', 'UNITED WHOLESALE MORTGAGE'
+        'ROCKET MORTGAGE', 'ROCKET MTG', 'QUICKEN LOANS',
+        'PENNYMAC LOAN', 'PENNYMAC CORP', 'PENNYMAC',
+        'FREEDOM MORTGAGE', 'MR COOPER MORTGAGE', 'MR COOPER',
+        'CALIBER HOME LOANS', 'CALIBER HOME', 'OCWEN LOAN', 'OCWEN',
+        'NEWREZ LLC', 'NEWREZ', 'FLAGSTAR BANK MORTGAGE', 'FLAGSTAR MORTGAGE',
+        'LAKEVIEW LOAN', 'LAKEVIEW LOAN SERVICING',
+        'CARRINGTON MORTGAGE', 'CARRINGTON MTG',
+        'GUILD MORTGAGE', 'GUILD MTG',
+        'UNITED WHOLESALE MORTGAGE', 'UWM',
+        'BETTER MORTGAGE', 'BETTER.COM', 'LOANDEPOT', 'LOAN DEPOT',
+        'NATIONSTAR', 'WELLS FARGO HOME MORTGAGE',
+        'FAIRWAY INDEPENDENT MORTGAGE', 'FAIRWAY MORTGAGE',
+        'BAYVIEW LOAN', 'SHELLPOINT MORTGAGE', 'SPECIALIZED LOAN SERVICING'
     ],
 
     'Personal Loans': [
         'SOFI LENDING', 'SOFI LOAN',
-        'LENDING CLUB CORP', 'PROSPER FUNDING',
-        'UPSTART NETWORK', 'MARCUS BY GOLDMAN',
-        'MARCUS PERSONAL', 'DISCOVER PERSONAL LOANS',
-        'LIGHTSTREAM', 'PAYOFF INC', 'BEST EGG'
+        'LENDING CLUB CORP', 'LENDING CLUB', 'LENDINGCLUB',
+        'PROSPER FUNDING', 'PROSPER MARKETPLACE', 'PROSPER',
+        'UPSTART NETWORK', 'UPSTART',
+        'MARCUS BY GOLDMAN', 'MARCUS PERSONAL',
+        'DISCOVER PERSONAL LOANS', 'DISCOVER LOAN',
+        'LIGHTSTREAM', 'PAYOFF INC', 'BEST EGG',
+        'ONEMAIN FINANCIAL', 'ONE MAIN FINANCIAL',
+        'AVANT', 'HAPPY MONEY',
+        'ROCKET LOANS', 'LENDING TREE'
     ],
 
     'Credit Cards': [
@@ -110,14 +125,19 @@ FINANCIAL_SERVICES_PATTERNS = {
     # 'BNPL/Pay Later' is built dynamically below from UNIVERSAL_ECOSYSTEMS
 
     'Crypto/Digital Assets': [
-        'COINBASE', 'COINBASE INC', 'COINBASE PRO',
-        'CRYPTO.COM', 'CRYPTO COM',
-        'BINANCE', 'BINANCE US',
+        'COINBASE', 'COINBASE INC', 'COINBASE PRO', 'COINBASE.COM',
+        'CRYPTO.COM', 'CRYPTO COM', 'CRYPTOCOM',
+        'BINANCE', 'BINANCE US', 'BINANCE.US',
         'KRAKEN', 'PAYWARD INC',
         'GEMINI EXCHANGE', 'GEMINI TRUST',
-        'BITPAY', 'BLOCKCHAIN COM',
-        'CASHAPP BITCOIN', 'CASH APP BTC',
+        'BITPAY', 'BLOCKCHAIN COM', 'BLOCKCHAIN.COM',
+        'CASHAPP BITCOIN', 'CASH APP BTC', 'CASH APP BITCOIN',
         'ROBINHOOD CRYPTO',
+        'BITSTAMP', 'BITFLYER', 'BITFINEX',
+        'KUCOIN', 'OKCOIN', 'UPHOLD',
+        'STRIKE BITCOIN', 'STRIKE.ME',
+        'PAXOS', 'CIRCLE INTERNET',
+        'METAMASK', 'LEDGER',
     ],
 
     'Tax & Accounting': [
@@ -165,19 +185,47 @@ FINANCIAL_SERVICES_PATTERNS = {
 }
 
 # ---------------------------------------------------------------------------
-# Auto-build BNPL and Wallets/P2P from UNIVERSAL_ECOSYSTEMS (section 06)
-# Single source of truth — both sections use the same patterns.
+# Auto-build BNPL and Wallets/P2P from UNIVERSAL_ECOSYSTEMS (section 06,
+# competition/01_competitor_config.py). Single source of truth for ecosystem
+# patterns when the competition section has been loaded.
+#
+# FALLBACK: if competition section hasn't been run in this kernel yet, use
+# hard-coded patterns so BNPL/Pay Later and Digital Wallets/P2P still detect.
+# A warning is printed so the user knows to run competition section 01 first
+# for a single source of truth.
 # ---------------------------------------------------------------------------
+_FALLBACK_BNPL = [
+    'AFFIRM', 'AFFIRM PAYMENT',
+    'KLARNA', 'AFTERPAY',
+    'SEZZLE', 'ZIP PAY', 'QUADPAY', 'SPLITIT',
+]
+_FALLBACK_WALLETS_P2P = [
+    'APPLE PAY', 'APPLE CASH',
+    'VENMO', 'PAYPAL',
+    'CASH APP', 'SQUARE CASH',
+    'GOOGLE PAY', 'GOOGLE WALLET',
+    'SAMSUNG PAY',
+    'ZELLE',
+]
+
 if 'UNIVERSAL_ECOSYSTEMS' in dir():
     if 'bnpl' in UNIVERSAL_ECOSYSTEMS:
         FINANCIAL_SERVICES_PATTERNS['BNPL/Pay Later'] = \
-            UNIVERSAL_ECOSYSTEMS['bnpl'].get('starts_with', [])
+            UNIVERSAL_ECOSYSTEMS['bnpl'].get('starts_with', []) or _FALLBACK_BNPL
+    else:
+        FINANCIAL_SERVICES_PATTERNS['BNPL/Pay Later'] = _FALLBACK_BNPL
     _wallet_p2p = []
     for _eco_key in ('wallets', 'p2p'):
         if _eco_key in UNIVERSAL_ECOSYSTEMS:
             _wallet_p2p.extend(UNIVERSAL_ECOSYSTEMS[_eco_key].get('starts_with', []))
-    if _wallet_p2p:
-        FINANCIAL_SERVICES_PATTERNS['Digital Wallets/P2P'] = _wallet_p2p
+    FINANCIAL_SERVICES_PATTERNS['Digital Wallets/P2P'] = _wallet_p2p or _FALLBACK_WALLETS_P2P
+else:
+    print("  WARNING: UNIVERSAL_ECOSYSTEMS not in scope — competition/01_competitor_config.py")
+    print("           has not been run in this kernel. Using fallback BNPL + Wallet/P2P")
+    print("           patterns so those categories still detect. For a single source of")
+    print("           truth, run competition section 01 before financial_services section.")
+    FINANCIAL_SERVICES_PATTERNS['BNPL/Pay Later'] = _FALLBACK_BNPL
+    FINANCIAL_SERVICES_PATTERNS['Digital Wallets/P2P'] = _FALLBACK_WALLETS_P2P
 
 import pandas as pd
 import matplotlib.pyplot as plt
