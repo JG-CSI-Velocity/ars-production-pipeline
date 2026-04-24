@@ -10,63 +10,44 @@ print("Scanning for financial services transactions...\n")
 
 search_column = 'merchant_consolidated' if 'merchant_consolidated' in combined_df.columns else 'merchant_name'
 
-# False positives are SCOPED TO SPECIFIC CATEGORIES to avoid over-filtering
-# legit matches in unrelated buckets. E.g., "AUTO TRADER" should only drop
-# Auto Loans candidates; it should never be able to drop an Investment hit
-# that happens to contain the substring "TRADER".
-FALSE_POSITIVE_BY_CATEGORY = {
-    'Auto Loans': [
-        'TOWING', 'TOW SERVICE', 'BODY SHOP', 'AUTO REPAIR',
-        'AUTO PARTS', 'AUTOZONE', 'AUTO TRADER',
-    ],
-    # Add per-category exclusions here as needed. Example:
-    # 'Investment/Brokerage': ['TRADER JOE', "TRADER JOE'S"],
-}
+false_positive_patterns = [
+    'TOWING', 'TOW SERVICE', 'BODY SHOP', 'AUTO REPAIR',
+    'AUTO PARTS', 'AUTOZONE', 'AUTO TRADER', 'TRADER JOE', "TRADER JOE'S"
+]
 
 _REGEX_BATCH_SIZE = 80  # avoid massive regex alternations
 
 # ---------------------------------------------------------------------------
 # PERFORMANCE: Match patterns against unique merchants first, then filter.
 # This avoids running regex against millions of rows for every category.
-#
-# MATCHING: uses word-boundary CONTAINS (not prefix-only), so merchants like
-#   "DEBIT POS COINBASE.COM 8552009 CA"
-#   "ACH CREDIT FIDELITY INVESTMENTS"
-#   "PURCHASE ROBINHOOD SECURITIES"
-# tag correctly even when the bank carrier prefixes the merchant string with
-# DEBIT/POS/ACH/PURCHASE/PAYMENT etc. Prefix-only matching was the #1 cause
-# of zero/low counts in crypto, brokerage, mortgage, and lending categories.
 # ---------------------------------------------------------------------------
 _unique_merchants = combined_df[search_column].dropna().unique()
 _unique_merch_series = pd.Series(_unique_merchants)
 
 for category, patterns in FINANCIAL_SERVICES_PATTERNS.items():
+    # Match patterns against unique merchant names (much smaller list)
+    # Uses prefix matching (str.match with ^) to be consistent with
+    # section 06's tag_competitors() which also uses starts_with logic.
     import re as _re
     _merch_mask = pd.Series(False, index=_unique_merch_series.index)
     for _i in range(0, len(patterns), _REGEX_BATCH_SIZE):
         _batch = patterns[_i:_i + _REGEX_BATCH_SIZE]
-        # Word-boundary at the left; trailing boundary inside the alternation
-        # is unnecessary because merchant strings are typically suffixed with
-        # free-form tails (account numbers, locations) that we do not want to
-        # require word boundaries against.
-        _regex = r'(?:^|\b)(?:' + '|'.join(_re.escape(p) for p in _batch) + r')\b'
-        _merch_mask |= _unique_merch_series.str.contains(
-            _regex, case=False, na=False, regex=True
+        _regex = '^(?:' + '|'.join(_re.escape(p) for p in _batch) + ')'
+        _merch_mask |= _unique_merch_series.str.match(
+            _regex, case=False, na=False
         )
     _matched_merchants = set(_unique_merch_series[_merch_mask].values)
 
     if not _matched_merchants:
         continue
 
-    # Category-scoped false-positive filter (safer than a global list)
-    _fps_for_cat = FALSE_POSITIVE_BY_CATEGORY.get(category, [])
-    if _fps_for_cat:
-        _fp_removed = set()
-        for m in _matched_merchants:
-            _m_upper = m.upper() if isinstance(m, str) else ''
-            if any(fp in _m_upper for fp in _fps_for_cat):
-                _fp_removed.add(m)
-        _matched_merchants -= _fp_removed
+    # Filter false positives from matched merchant names
+    _fp_removed = set()
+    for m in _matched_merchants:
+        _m_upper = m.upper() if isinstance(m, str) else ''
+        if any(fp in _m_upper for fp in false_positive_patterns):
+            _fp_removed.add(m)
+    _matched_merchants -= _fp_removed
 
     if not _matched_merchants:
         continue
