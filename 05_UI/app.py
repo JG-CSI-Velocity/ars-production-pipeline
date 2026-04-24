@@ -559,18 +559,28 @@ async def start_run(
             cmd = [sys.executable, "-u", str(analysis_run),
                    "--month", month, "--csm", csm, "--client", client_id,
                    "--product", product]
+            # Forward SLIDE_MODE and SLIDE_BUDGET so UI-set deck-size
+            # controls reach the analysis subprocess. Without this, the
+            # child inherits parent env but ARS_UI_PORT and similar
+            # wrapper-only vars can overwrite intended values.
+            import os as _env_os
+            _run_env = _env_os.environ.copy()
+            _run_env["PYTHONUNBUFFERED"] = "1"  # belt+braces with -u
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace",
                 bufsize=1,
                 cwd=str(analysis_run.parent),
+                env=_run_env,
             )
+            runs[run_id]["last_output_at"] = datetime.now().isoformat()
             for line in proc.stdout:
                 line = line.rstrip()
                 if run_id in runs:
                     runs[run_id]["log"].append(line)
                     runs[run_id]["current_step"] = line.strip()
+                    runs[run_id]["last_output_at"] = datetime.now().isoformat()
                     log_len = len(runs[run_id]["log"])
                     runs[run_id]["progress"] = min(95, log_len * 2)
 
