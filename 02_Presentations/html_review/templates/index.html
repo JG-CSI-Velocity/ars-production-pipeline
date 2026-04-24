@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ client.display_name }} — {{ client.month_display }} Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>{{ styles_css | safe }}</style>
+<style>{{ print_css | safe }}</style>
+</head>
+<body data-client="{{ client.id }}" data-month="{{ client.month }}">
+
+<div class="shell">
+
+  {% include 'partials/sidebar.html' %}
+
+  <main class="main">
+
+    {% include 'partials/cover.html' %}
+
+    <div class="selection-tray">
+      <div class="selection-count">
+        <span class="badge" id="selection-count">0</span>
+        <span>selected for export</span>
+      </div>
+      <div class="selection-spacer"></div>
+      <button class="action-btn" id="btn-clear">Clear</button>
+      <button class="action-btn primary" id="btn-export">Export PDF →</button>
+      <button class="action-btn" id="btn-present">Present ⎚</button>
+    </div>
+
+    {% for section in sections %}
+      {% include 'partials/section.html' %}
+    {% endfor %}
+
+    <div class="presenter-chrome" aria-hidden="true">
+      <div class="presenter-counter" id="presenter-counter">1 / 1</div>
+      <div class="presenter-progress"><div class="presenter-progress-bar" id="presenter-progress-bar"></div></div>
+    </div>
+
+  </main>
+
+</div>
+
+<script>{{ app_js | safe }}</script>
+<script>{{ print_js | safe }}</script>
+<script>{{ present_js | safe }}</script>
+
+</body>
+</html>

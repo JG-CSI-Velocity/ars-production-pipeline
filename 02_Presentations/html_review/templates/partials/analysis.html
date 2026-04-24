@@ -1,0 +1,44 @@
+{# Single analysis block: headline + chart + optional data table + optional notes #}
+<div class="analysis-wrapper" data-block-id="{{ block.id }}">
+  <label class="select-checkbox">
+    <input type="checkbox" class="select-box" data-block-id="{{ block.id }}" />
+  </label>
+  <article class="analysis">
+    <header class="analysis-head">
+      <p class="analysis-eyebrow">
+        <span class="exhibit-num">Exhibit {{ '%02d' % exhibit_number }}</span>
+      </p>
+      <h3 class="analysis-title">{{ block.title }}</h3>
+    </header>
+    {% if block.chart_src %}
+      <figure class="chart-frame">
+        <img class="chart" src="{{ block.chart_src }}" alt="{{ block.title }}" />
+      </figure>
+    {% endif %}
+    {% if block.tables %}
+      <details class="data-table">
+        <summary>Data table{% if block.tables|length > 1 %} ({{ block.tables|length }} sheets){% endif %}</summary>
+        {% if block.tables|length > 1 %}
+          <select class="sheet-select" data-block-id="{{ block.id }}">
+            {% for t in block.tables %}
+              <option value="{{ loop.index0 }}">{{ t.sheet_name }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+        {% for t in block.tables %}
+          <table class="sheet" data-sheet-idx="{{ loop.index0 }}"{% if not loop.first %} hidden{% endif %}>
+            <thead><tr>{% for col in t.columns %}<th>{{ col }}</th>{% endfor %}</tr></thead>
+            <tbody>
+              {% for row in t.rows %}
+                <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endfor %}
+      </details>
+    {% endif %}
+    {% if block.notes %}
+      <p class="t-annotation notes">{{ block.notes }}</p>
+    {% endif %}
+  </article>
+</div>
