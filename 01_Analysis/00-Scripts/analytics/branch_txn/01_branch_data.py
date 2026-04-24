@@ -13,7 +13,27 @@ try:
     # Place file as branch_config.json in repo root or 10-branch/ folder.
     # ------------------------------------------------------------------
     BRANCH_NAME_MAP = {}
-    _br_config_paths = [
+    # Prefer client-specific config under M:\ARS\03_Config\branch_configs\ so
+    # different clients can have different branch maps; fall back to a single
+    # shared file, then to CWD-relative locations for Jupyter users.
+    _client_id = globals().get('CLIENT_ID') or os.environ.get('CLIENT_ID', '')
+    _ars_base_candidates = [
+        os.environ.get('ARS_BASE', ''),
+        r'M:\ARS',
+        '/Volumes/M/ARS',
+    ]
+    _ars_base = next((p for p in _ars_base_candidates if p and os.path.isdir(p)), '')
+
+    _br_config_paths = []
+    if _ars_base:
+        if _client_id:
+            _br_config_paths.append(os.path.join(
+                _ars_base, '03_Config', 'branch_configs', f'{_client_id}.json',
+            ))
+        _br_config_paths.append(os.path.join(
+            _ars_base, '03_Config', 'branch_config.json',
+        ))
+    _br_config_paths += [
         os.path.join(os.path.dirname(os.getcwd()), 'branch_config.json'),
         os.path.join(os.getcwd(), 'branch_config.json'),
         'branch_config.json',
@@ -34,8 +54,22 @@ try:
             break
 
     if not BRANCH_NAME_MAP:
-        print("    WARNING: branch_config.json not found. Branch names will show as numbers.")
-        print("    Place branch_config.json in repo root with format: {\"1\": \"Main Office\", ...}")
+        # Loud, visible warning block so the missing-config issue doesn't
+        # silently propagate as numeric branch names in every chart.
+        print()
+        print("    " + "!" * 56)
+        print("    ! WARNING: branch_config.json not found            !")
+        print("    ! Branch names will display as numeric IDs.        !")
+        print("    !                                                  !")
+        print("    ! Preferred locations (first match wins):          !")
+        if _ars_base and _client_id:
+            print(f"    !   {_ars_base}\\03_Config\\branch_configs\\{_client_id}.json")
+        if _ars_base:
+            print(f"    !   {_ars_base}\\03_Config\\branch_config.json")
+        print("    !                                                  !")
+        print("    ! Format: {\"1\": \"Main Office\", \"2\": \"West\", ...} !")
+        print("    " + "!" * 56)
+        print()
 
     # Merge Branch onto combined_df
     br_subset = rewards_df[['Acct Number', 'Branch']].copy()

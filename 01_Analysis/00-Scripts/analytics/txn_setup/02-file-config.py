@@ -180,17 +180,44 @@ older_files = [f for f, d in dated_files if d < window_start]
 # 5) Include unparsed files (can't determine date -- safer to include)
 files_to_load = recent_files + unparsed_files
 
-# 6) Check Parquet cache -- if it's newer than ALL TXN files, skip file reading
-if PARQUET_CACHE.exists() and files_to_load:
+# 6) Check Parquet cache -- if it's newer than ALL TXN files, skip file reading.
+# The single most impactful speedup: the first run spends ~26 minutes reading
+# 14+ TXN files off the M: network share; subsequent runs load the cached
+# .parquet in seconds. Every branch of this decision prints a status line so
+# users can tell at a glance why a given run is slow.
+print()
+print("-" * 60)
+print("PARQUET CACHE STATUS")
+print("-" * 60)
+if not PARQUET_CACHE.exists():
+    print(f"  Status: NO CACHE (will be built during this run)")
+    print(f"  Location: {PARQUET_CACHE}")
+    print(f"  Note: first run for this client is slow; subsequent runs are fast.")
+elif not files_to_load:
+    # Cache exists but no raw files -- rely on cache
+    USE_PARQUET_CACHE = PARQUET_CACHE
+    _cache_mtime = PARQUET_CACHE.stat().st_mtime
+    print(f"  Status: HIT (no raw TXN files found; using cache)")
+    print(f"  Cache:  {PARQUET_CACHE.name}")
+    print(f"  Date:   {datetime.fromtimestamp(_cache_mtime):%Y-%m-%d %H:%M}")
+else:
     _cache_mtime = PARQUET_CACHE.stat().st_mtime
     _newest_file_mtime = max(f.stat().st_mtime for f in files_to_load)
     if _cache_mtime > _newest_file_mtime:
         USE_PARQUET_CACHE = PARQUET_CACHE
-        print(f"CACHE HIT: Loading from Parquet cache (faster)")
-        print(f"  Cache: {PARQUET_CACHE.name}")
-        print(f"  Cache date: {datetime.fromtimestamp(_cache_mtime):%Y-%m-%d %H:%M}")
+        _age_hours = (datetime.now().timestamp() - _cache_mtime) / 3600
+        _cache_mb = PARQUET_CACHE.stat().st_size / (1024 * 1024)
+        print(f"  Status: HIT (skipping file read, saving ~25 min)")
+        print(f"  Cache:  {PARQUET_CACHE.name} ({_cache_mb:.0f} MB)")
+        print(f"  Date:   {datetime.fromtimestamp(_cache_mtime):%Y-%m-%d %H:%M} ({_age_hours:.1f}h old)")
     else:
-        print(f"CACHE MISS: New TXN files detected, rebuilding from source")
+        _newest_file_dt = datetime.fromtimestamp(_newest_file_mtime)
+        _cache_dt = datetime.fromtimestamp(_cache_mtime)
+        print(f"  Status: MISS (newer TXN files present -- rebuilding)")
+        print(f"  Cache date:   {_cache_dt:%Y-%m-%d %H:%M}")
+        print(f"  Newest file:  {_newest_file_dt:%Y-%m-%d %H:%M}")
+print("-" * 60)
+print()
 
 # TXN files are read directly from the network share.
 # The Parquet cache (above) is the real speed optimization -- after the first

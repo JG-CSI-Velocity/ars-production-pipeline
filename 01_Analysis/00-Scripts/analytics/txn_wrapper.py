@@ -76,7 +76,11 @@ class ChartCapture:
         return self
 
     def __exit__(self, *args):
-        # Capture any remaining open figures
+        # Capture any remaining open figures left behind when a script ended
+        # without calling plt.show() (or crashed mid-render). Savefig errors
+        # here used to be DEBUG-level silent drops -- upgraded to WARNING so
+        # partial-chart losses don't disappear from the run report.
+        self.save_errors: list[str] = []
         for fig_num in plt.get_fignums():
             fig = plt.figure(fig_num)
             self._fig_count += 1
@@ -87,7 +91,9 @@ class ChartCapture:
                             facecolor="white", edgecolor="none")
                 self.captured.append(path)
             except Exception as exc:
-                logger.debug("Failed to save chart {name}: {err}", name=name, err=exc)
+                msg = f"{name}: {type(exc).__name__}: {str(exc)[:120]}"
+                logger.warning("Chart save failed in __exit__: {msg}", msg=msg)
+                self.save_errors.append(msg)
         plt.close("all")
 
         # Restore original plt.show
