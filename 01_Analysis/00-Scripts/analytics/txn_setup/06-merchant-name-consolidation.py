@@ -5,6 +5,67 @@ Works across all clients to consolidate common merchant name variations.
 Add this to your notebook and use it in your merchant analysis sections.
 """
 
+import re as _re_clean
+
+# Carrier prefixes that banks/processors prepend to the REAL merchant string.
+# Stripped BEFORE brand matching so "ACH CREDIT SESLOC CREDIT UNION 805-555"
+# becomes "SESLOC CREDIT UNION 805-555" and prefix-match in tag_competitors
+# correctly tags it as a credit_union.
+#
+# This is the root cause of the 1776 undercount: wallets/BNPL brands
+# (VENMO, ZELLE, PAYPAL, AFFIRM, KLARNA, AFTERPAY) have EXPLICIT rules in
+# this file that reduce them to clean names, so tag_competitors' prefix
+# match works. Credit unions and local banks have NO explicit rules -- so
+# "ACH CREDIT SESLOC CREDIT UNION" stays messy and prefix-match FAILS,
+# dropping the transaction entirely from competitor_txns.
+_CARRIER_PREFIX_RE = _re_clean.compile(
+    r'^(?:'
+    r'DEBIT\s+PURCHASE|DEBIT\s+CARD\s+PURCHASE|DEBIT\s+POS|DEBIT|'
+    r'CREDIT\s+PURCHASE|CREDIT\s+CARD|CREDIT|'
+    r'POS\s+PURCHASE|POS\s+DEBIT|POS|'
+    r'ACH\s+DEBIT|ACH\s+CREDIT|ACH\s+PAYMENT|ACH\s+WEB|ACH|'
+    r'PURCHASE\s+AUTHORIZED|PURCHASE|'
+    r'PAYMENT\s+TO|PAYMENT|'
+    r'EXTERNAL\s+TRANSFER|EXT\s+TRANSFER|EXT\s+XFER|EXT|'
+    r'ONLINE\s+TRANSFER|WEB\s+TRANSFER|TRANSFER|XFER|'
+    r'DIRECT\s+DEP|DIRECT\s+DEBIT|'
+    r'RECURRING\s+PAYMENT|RECURRING|'
+    r'CKCD|DEB|CRD'
+    r')\s+',
+    _re_clean.IGNORECASE,
+)
+
+# Trailing per-transaction noise that prevents clean grouping later:
+# phone numbers, account digits, two-letter state codes.
+_TRAILING_STATE_RE  = _re_clean.compile(r'\s+[A-Z]{2}$')
+_TRAILING_DIGITS_RE = _re_clean.compile(r'\s+[\d\-]{3,}$')
+_TRAILING_PHONE_RE  = _re_clean.compile(r'\s+(?:\d{3}[-\s]?\d{3}[-\s]?\d{4})$')
+
+
+def _strip_carrier_noise(merchant_upper):
+    """Remove carrier prefix + per-txn tail so the real merchant name is at
+    position 0. Safe for every merchant type including wallets/BNPL (their
+    rules below still work because brand rules use `in merchant_upper`
+    substring checks, not prefix checks)."""
+    # Strip leading carrier prefix up to 3 times to handle doubled prefixes
+    # like "POS DEBIT PURCHASE"
+    for _ in range(3):
+        new = _CARRIER_PREFIX_RE.sub('', merchant_upper, count=1)
+        if new == merchant_upper:
+            break
+        merchant_upper = new
+    # Strip trailing noise in a loop until stable so
+    # "RANDOM SHOP 123456 CA" collapses to "RANDOM SHOP" in one call.
+    for _ in range(4):
+        prev = merchant_upper
+        merchant_upper = _TRAILING_PHONE_RE.sub('', merchant_upper)
+        merchant_upper = _TRAILING_DIGITS_RE.sub('', merchant_upper)
+        merchant_upper = _TRAILING_STATE_RE.sub('', merchant_upper)
+        if merchant_upper == prev:
+            break
+    return merchant_upper.strip()
+
+
 def standardize_merchant_name(merchant_name):
     """
     Consolidate duplicate merchant variations across all clients.
@@ -16,10 +77,18 @@ def standardize_merchant_name(merchant_name):
 
     # Normalize: strip whitespace, convert to uppercase
     merchant_upper = str(merchant_name).strip().upper()
-    
+
     # Remove extra spaces (multiple spaces → single space)
     merchant_upper = ' '.join(merchant_upper.split())
-    
+
+    # Strip carrier prefix ("DEBIT POS", "ACH CREDIT", etc.) + per-txn
+    # tail (phone, digits, state) so brand rules below and downstream
+    # prefix-match in tag_competitors see the REAL merchant name. Wallet
+    # and BNPL rules below use substring checks so this does not change
+    # their behavior; CUs / local banks / misc competitors gain correct
+    # tagging that was silently missing.
+    merchant_upper = _strip_carrier_noise(merchant_upper)
+
     # ============================================================================
     # TECH & DIGITAL SERVICES
     # ============================================================================
@@ -796,6 +865,10 @@ def standardize_merchant_name(merchant_name):
         return 'HONDA FINANCE'
         
     # ============================================================================
-    # If no match, return original
+    # If no explicit brand rule fired, return the NOISE-STRIPPED + UPPERCASED
+    # version instead of the raw input. This is what lets CUs, local banks,
+    # and other competitors get tagged correctly downstream: tag_competitors
+    # prefix-matches on this value, so "SESLOC CREDIT UNION" (clean) works
+    # but "ACH CREDIT SESLOC CREDIT UNION 805-555" (raw) does not.
     # ============================================================================
-    return merchant_name
+    return merchant_upper if merchant_upper else merchant_name
