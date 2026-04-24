@@ -511,10 +511,29 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     df = namespace.get("combined_df")
     if df is not None and hasattr(df, "__len__"):
         row_count = len(df)
-    logger.info(
-        "txn_setup complete: {rows:,} rows in {sec:.1f}s",
-        rows=row_count, sec=elapsed,
-    )
+
+    # Memory telemetry. When the campaign section later hits ``bad
+    # allocation'' / ``not enough free memory for image buffer'' (issue
+    # #92), this baseline helps diagnose whether setup itself is the
+    # problem or something downstream is leaking. psutil is optional.
+    _rss_mb = None
+    try:
+        import psutil as _psutil
+        _rss_mb = _psutil.Process().memory_info().rss / (1024 * 1024)
+    except Exception:
+        pass
+
+    if _rss_mb is not None:
+        logger.info(
+            "txn_setup complete: {rows:,} rows in {sec:.1f}s (process RSS: {rss:,.0f} MB)",
+            rows=row_count, sec=elapsed, rss=_rss_mb,
+        )
+        namespace["_txn_setup_rss_mb"] = _rss_mb
+    else:
+        logger.info(
+            "txn_setup complete: {rows:,} rows in {sec:.1f}s",
+            rows=row_count, sec=elapsed,
+        )
 
     return namespace
 

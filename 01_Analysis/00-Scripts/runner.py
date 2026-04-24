@@ -492,6 +492,31 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
             f"{total_script_failures} script(s) inside sections failed, "
             f"{len(ars_ctx.all_slides)} slides generated"
         )
+
+        # Deck-size budget warning. A client exec review should be
+        # 150 slides or fewer; if we're over, highlight which sections
+        # dominate so the user can decide whether to rerun with
+        # SLIDE_MODE=minimal or live with it.
+        import os as _os_budget
+        _slide_budget = int(_os_budget.environ.get("SLIDE_BUDGET", "150"))
+        _total_slides = len(ars_ctx.all_slides)
+        if _total_slides > _slide_budget:
+            ctx.progress_callback("")
+            ctx.progress_callback(
+                f"  NOTICE: {_total_slides} slides exceeds SLIDE_BUDGET ({_slide_budget})."
+            )
+            _heavy = sorted(
+                [(n, s) for n, s, _, _ in section_results if s > 15],
+                key=lambda x: -x[1],
+            )[:5]
+            if _heavy:
+                ctx.progress_callback(
+                    "  Largest sections: "
+                    + ", ".join(f"{n}={s}" for n, s in _heavy)
+                )
+            ctx.progress_callback(
+                "  Tip: set SLIDE_MODE=minimal (or =standard if already deep)"
+            )
         ctx.progress_callback("=" * 72)
 
     # Generate output (deck + excel) if slides exist
