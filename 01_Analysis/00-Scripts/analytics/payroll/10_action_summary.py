@@ -80,7 +80,12 @@ if 'branch' in payroll_df.columns and payroll_df['branch'].notna().sum() > 0:
 
     if len(branch_penet) > 0:
         lowest_branches = branch_penet.nsmallest(3, 'pct')
-        branch_names = ', '.join(lowest_branches['branch'].str[:15].tolist())
+        # astype(str) first: when branch_config.json is missing, branch
+        # column is numeric and .str[] raises ``Can only use .str accessor
+        # with string values!''. Harmless when branch is already string.
+        branch_names = ', '.join(
+            lowest_branches['branch'].astype(str).str[:15].tolist()
+        )
         avg_low = lowest_branches['pct'].mean()
         findings.append({
             'Category': 'Branch Gaps',
@@ -185,7 +190,7 @@ if 'branch' in payroll_df.columns and payroll_df['branch'].notna().sum() > 0:
     if len(branch_penet) > 0:
         lowest_br = branch_penet.nsmallest(3, 'pct')
         actions.append({
-            'Action': f"Branch-specific payroll drives at {', '.join(lowest_br['branch'].str[:12].tolist())}",
+            'Action': f"Branch-specific payroll drives at {', '.join(lowest_br['branch'].astype(str).str[:12].tolist())}",
             'Target': f"~{lowest_br['total'].sum():,} accounts at low-penetration branches",
             'Expected Impact': f"Close {abs(pct_payroll - lowest_br['pct'].mean()):.0f}pp gap vs CU average",
             'Priority': 'Medium',

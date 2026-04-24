@@ -130,7 +130,14 @@ if 'branch' in payroll_df.columns and payroll_df['branch'].notna().sum() > 0:
                  fontsize=11, fontweight='bold', color=GEN_COLORS['dark_text'])
 
     ax3.set_yticks(range(len(branch_penet)))
-    ax3.set_yticklabels(branch_penet['branch'].str[:20], fontsize=11, fontweight='bold')
+    # Cast branch to string before slicing: when branch_config.json is
+    # missing, branch column contains numeric IDs and .str[] blows up with
+    # ``Can only use .str accessor with string values!''. astype(str) is
+    # safe for both numeric and string branch columns.
+    ax3.set_yticklabels(
+        branch_penet['branch'].astype(str).str[:20],
+        fontsize=11, fontweight='bold',
+    )
     ax3.set_title("By Branch (Top 15)", fontsize=18, fontweight='bold',
                   color=GEN_COLORS['dark_text'], loc='left')
 else:
