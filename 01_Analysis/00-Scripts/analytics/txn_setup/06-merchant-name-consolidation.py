@@ -5,6 +5,59 @@ Works across all clients to consolidate common merchant name variations.
 Add this to your notebook and use it in your merchant analysis sections.
 """
 
+import re as _re_clean
+
+# Carrier prefixes that banks/processors prepend to the real merchant string.
+# Stripped from the FRONT of the merchant name so downstream matching sees
+# "COINBASE.COM 8552009 CA" instead of "DEBIT POS COINBASE.COM 8552009 CA".
+_CARRIER_PREFIX_RE = _re_clean.compile(
+    r'^(?:'
+    r'DEBIT\s+PURCHASE|DEBIT\s+CARD\s+PURCHASE|DEBIT\s+POS|DEBIT|'
+    r'CREDIT\s+PURCHASE|CREDIT\s+CARD|CREDIT|'
+    r'POS\s+PURCHASE|POS\s+DEBIT|POS|'
+    r'ACH\s+DEBIT|ACH\s+CREDIT|ACH\s+PAYMENT|ACH\s+WEB|ACH|'
+    r'PURCHASE\s+AUTHORIZED|PURCHASE|'
+    r'PAYMENT\s+TO|PAYMENT|'
+    r'EXTERNAL\s+TRANSFER|EXT\s+TRANSFER|EXT\s+XFER|EXT|'
+    r'ONLINE\s+TRANSFER|WEB\s+TRANSFER|TRANSFER|XFER|'
+    r'DIRECT\s+DEP|DIRECT\s+DEBIT|'
+    r'RECURRING\s+PAYMENT|RECURRING|'
+    r'SQ\s*\*|TST\s*\*|CKCD|DEB|CRD'
+    r')\s+',
+    _re_clean.IGNORECASE,
+)
+
+# Trailing noise that makes merchant strings unique per-transaction:
+# phone numbers, account tails, city/state codes.
+_TRAILING_STATE_RE = _re_clean.compile(r'\s+[A-Z]{2}$')
+_TRAILING_DIGITS_RE = _re_clean.compile(r'\s+[\d\-]{4,}$')
+_TRAILING_PHONE_RE = _re_clean.compile(r'\s+(?:\d{3}[-\s]?\d{3}[-\s]?\d{4})$')
+
+
+def _strip_carrier_noise(merchant_upper):
+    """Remove carrier prefixes and per-txn tails so the REAL merchant name
+    starts at position 0. Used as a safety-net when no brand rule below
+    fires, so brands we haven't explicitly listed still come out clean."""
+    # Strip leading carrier prefix (may appear twice, e.g., "POS DEBIT" then
+    # "PURCHASE") -- run up to 3 times, then give up.
+    for _ in range(3):
+        new = _CARRIER_PREFIX_RE.sub('', merchant_upper, count=1)
+        if new == merchant_upper:
+            break
+        merchant_upper = new
+    # Strip trailing phone numbers, account digits, state codes. Loop
+    # until stable so something like "RANDOM SHOP 123456 CA" strips the
+    # state code AND the trailing digits in successive passes.
+    for _ in range(4):
+        prev = merchant_upper
+        merchant_upper = _TRAILING_PHONE_RE.sub('', merchant_upper)
+        merchant_upper = _TRAILING_DIGITS_RE.sub('', merchant_upper)
+        merchant_upper = _TRAILING_STATE_RE.sub('', merchant_upper)
+        if merchant_upper == prev:
+            break
+    return merchant_upper.strip()
+
+
 def standardize_merchant_name(merchant_name):
     """
     Consolidate duplicate merchant variations across all clients.
@@ -16,9 +69,15 @@ def standardize_merchant_name(merchant_name):
 
     # Normalize: strip whitespace, convert to uppercase
     merchant_upper = str(merchant_name).strip().upper()
-    
+
     # Remove extra spaces (multiple spaces → single space)
     merchant_upper = ' '.join(merchant_upper.split())
+
+    # Strip carrier prefixes ONCE up front so the existing brand rules below
+    # (which check substrings) see a cleaner string. This is the fix for
+    # "DEBIT POS COINBASE.COM 8552009 CA" never matching Coinbase rules -- we
+    # now see "COINBASE.COM 8552009 CA" before running the rules.
+    merchant_upper = _strip_carrier_noise(merchant_upper)
     
     # ============================================================================
     # TECH & DIGITAL SERVICES
@@ -794,8 +853,128 @@ def standardize_merchant_name(merchant_name):
     
     if 'HONDA FINANCE' in merchant_upper:
         return 'HONDA FINANCE'
-        
+
     # ============================================================================
-    # If no match, return original
+    # CRYPTO / DIGITAL ASSETS
     # ============================================================================
-    return merchant_name
+
+    if 'COINBASE' in merchant_upper:
+        return 'COINBASE'
+
+    if 'CRYPTO.COM' in merchant_upper or 'CRYPTOCOM' in merchant_upper or 'CRYPTO COM' in merchant_upper:
+        return 'CRYPTO.COM'
+
+    if 'BINANCE' in merchant_upper:
+        return 'BINANCE'
+
+    if 'KRAKEN' in merchant_upper or 'PAYWARD' in merchant_upper:
+        return 'KRAKEN'
+
+    if 'GEMINI' in merchant_upper and ('EXCHANGE' in merchant_upper or 'TRUST' in merchant_upper or 'CRYPTO' in merchant_upper):
+        return 'GEMINI'
+
+    if 'BITPAY' in merchant_upper:
+        return 'BITPAY'
+
+    if 'BLOCKCHAIN' in merchant_upper:
+        return 'BLOCKCHAIN.COM'
+
+    if 'BITSTAMP' in merchant_upper:
+        return 'BITSTAMP'
+
+    if 'UPHOLD' in merchant_upper:
+        return 'UPHOLD'
+
+    if 'METAMASK' in merchant_upper:
+        return 'METAMASK'
+
+    if 'LEDGER' in merchant_upper and ('CRYPTO' in merchant_upper or 'WALLET' in merchant_upper):
+        return 'LEDGER'
+
+    # ============================================================================
+    # BROKERAGE / INVESTMENT
+    # ============================================================================
+
+    if 'FIDELITY' in merchant_upper or 'FID BKG' in merchant_upper:
+        return 'FIDELITY'
+
+    if 'SCHWAB' in merchant_upper:
+        return 'CHARLES SCHWAB'
+
+    if 'VANGUARD' in merchant_upper:
+        return 'VANGUARD'
+
+    if 'MORGAN STANLEY' in merchant_upper:
+        return 'MORGAN STANLEY'
+
+    if 'MERRILL' in merchant_upper:
+        return 'MERRILL LYNCH'
+
+    if 'RAYMOND JAMES' in merchant_upper:
+        return 'RAYMOND JAMES'
+
+    if 'EDWARD JONES' in merchant_upper:
+        return 'EDWARD JONES'
+
+    if 'AMERIPRISE' in merchant_upper:
+        return 'AMERIPRISE'
+
+    if 'ETRADE' in merchant_upper or 'E TRADE' in merchant_upper:
+        return 'E*TRADE'
+
+    if 'AMERITRADE' in merchant_upper:
+        return 'TD AMERITRADE'
+
+    if 'ROBINHOOD' in merchant_upper:
+        if 'CRYPTO' in merchant_upper:
+            return 'ROBINHOOD CRYPTO'
+        return 'ROBINHOOD'
+
+    if 'WEBULL' in merchant_upper:
+        return 'WEBULL'
+
+    if 'INTERACTIVE BROKERS' in merchant_upper:
+        return 'INTERACTIVE BROKERS'
+
+    if 'TASTYTRADE' in merchant_upper:
+        return 'TASTYTRADE'
+
+    if 'BETTERMENT' in merchant_upper:
+        return 'BETTERMENT'
+
+    if 'WEALTHFRONT' in merchant_upper:
+        return 'WEALTHFRONT'
+
+    if 'ACORNS' in merchant_upper:
+        return 'ACORNS'
+
+    if 'STASH' in merchant_upper and ('INVEST' in merchant_upper or 'FINANCIAL' in merchant_upper):
+        return 'STASH'
+
+    if 'PUBLIC HOLDINGS' in merchant_upper or 'PUBLIC.COM' in merchant_upper:
+        return 'PUBLIC'
+
+    if 'M1 FINANCE' in merchant_upper:
+        return 'M1 FINANCE'
+
+    if 'TIAA' in merchant_upper:
+        return 'TIAA'
+
+    if 'JOHN HANCOCK' in merchant_upper:
+        return 'JOHN HANCOCK'
+
+    if 'TRANSAMERICA' in merchant_upper:
+        return 'TRANSAMERICA'
+
+    if 'MASS MUTUAL' in merchant_upper or 'MASSMUTUAL' in merchant_upper:
+        return 'MASSMUTUAL'
+
+    if 'EMPOWER' in merchant_upper and ('RETIREMENT' in merchant_upper or '401' in merchant_upper):
+        return 'EMPOWER RETIREMENT'
+
+    # ============================================================================
+    # If no match, return the cleaned-up version (carrier prefix already
+    # stripped at top of function) rather than the raw messy input, so
+    # downstream detection / display sees the real merchant name.
+    # ============================================================================
+    return merchant_upper if merchant_upper else merchant_name
