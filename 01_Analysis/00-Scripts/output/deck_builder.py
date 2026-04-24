@@ -1898,9 +1898,19 @@ def build_deck(ctx: PipelineContext) -> Path | None:
 
     # Build the PPTX
     ctx.paths.pptx_dir.mkdir(parents=True, exist_ok=True)
-    # Detect product type from slide IDs to avoid overwriting different runs
-    _has_ars = any(not getattr(s, "slide_id", "").startswith("TXN-") for s in final_slides)
-    _has_txn = any(getattr(s, "slide_id", "").startswith("TXN-") for s in final_slides)
+    # Detect product type from the ORIGINAL AnalysisResult objects in
+    # ctx.all_slides. Previously this checked final_slides (SlideContent)
+    # which has no slide_id attribute -- getattr(..., "") always returned
+    # "", so _has_txn was always False and every deck got mislabeled
+    # ``{client}_{month}_ars_deck.pptx'' even on pure-TXN runs (issue:
+    # 1776 2026.04 run produced 328 TXN slides but was named _ars_deck).
+    _original = getattr(ctx, "all_slides", []) or []
+    _has_ars = any(
+        not getattr(s, "slide_id", "").startswith("TXN-") for s in _original
+    )
+    _has_txn = any(
+        getattr(s, "slide_id", "").startswith("TXN-") for s in _original
+    )
     if _has_ars and _has_txn:
         _product_label = "combined"
     elif _has_txn:
