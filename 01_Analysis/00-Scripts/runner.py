@@ -436,29 +436,63 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
             ars_ctx.results[wrapper.module_id] = results
             ars_ctx.all_slides.extend(results)
             n_slides = len(results)
-            section_results.append((wrapper.display_name, n_slides, "OK" if n_slides > 0 else "NO CHARTS"))
+            # Per-script failures (surfaced by txn_wrapper). Previously these
+            # were logged but never shown in the summary -- causing reports
+            # to claim ``22/22 OK'' when scripts had actually crashed.
+            script_failures = getattr(wrapper, "failures", None) or []
+            if script_failures:
+                status = f"OK ({len(script_failures)} script(s) failed)"
+            elif n_slides > 0:
+                status = "OK"
+            else:
+                status = "NO CHARTS"
+            section_results.append((
+                wrapper.display_name, n_slides, status, script_failures,
+            ))
             success_count += 1
-            logger.info("TXN section %s: %d slides", wrapper.section_name, n_slides)
+            logger.info(
+                "TXN section %s: %d slides, %d script failures",
+                wrapper.section_name, n_slides, len(script_failures),
+            )
         except Exception as exc:
             logger.error("TXN section %s failed: %s", wrapper.section_name, exc)
-            section_results.append((wrapper.display_name, 0, f"FAILED: {exc}"))
+            section_results.append((wrapper.display_name, 0, f"FAILED: {exc}", []))
             fail_count += 1
 
     # Print summary report
     if ctx.progress_callback:
         ctx.progress_callback("")
-        ctx.progress_callback("=" * 60)
+        ctx.progress_callback("=" * 72)
         ctx.progress_callback("  TXN ANALYSIS SUMMARY")
-        ctx.progress_callback("=" * 60)
-        for name, slides, status in section_results:
-            marker = "OK" if "OK" in status else "!!" if "FAIL" in status or "SKIP" in status else "--"
-            ctx.progress_callback(f"  [{marker}] {name:<30s} {slides:>3} slides  {status}")
-        ctx.progress_callback("-" * 60)
+        ctx.progress_callback("=" * 72)
+        total_script_failures = 0
+        for name, slides, status, script_failures in section_results:
+            if "FAIL" in status:
+                marker = "!!"
+            elif script_failures:
+                marker = "XX"  # section ran but had script-level failures
+            elif "SKIP" in status:
+                marker = "--"
+            elif "OK" in status:
+                marker = "OK"
+            else:
+                marker = "--"
+            ctx.progress_callback(
+                f"  [{marker}] {name:<30s} {slides:>3} slides  {status}"
+            )
+            # Indent each failed script under its section for quick triage
+            for f in script_failures:
+                total_script_failures += 1
+                ctx.progress_callback(
+                    f"         - {f.script_name}: {f.error_type}: {f.error_msg[:90]}"
+                )
+        ctx.progress_callback("-" * 72)
         ctx.progress_callback(
-            f"  Total: {success_count} OK, {fail_count} failed, "
+            f"  Total: {success_count} sections OK, {fail_count} sections failed, "
+            f"{total_script_failures} script(s) inside sections failed, "
             f"{len(ars_ctx.all_slides)} slides generated"
         )
-        ctx.progress_callback("=" * 60)
+        ctx.progress_callback("=" * 72)
 
     # Generate output (deck + excel) if slides exist
     if ars_ctx.all_slides:
