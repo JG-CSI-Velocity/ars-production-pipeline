@@ -6,6 +6,34 @@
 # Uses DATASET_MONTHS from setup/09 for per-month normalization.
 # Guard: try/except for missing columns.
 
+# ---------------------------------------------------------------------------
+# SLIDE_MODE pruning for campaign section (default standard ~25 slides).
+# 22-29 is an 8-cell segment-cohort deep-dive; 30-36 is a 7-cell responder
+# demographic breakdown. Both valuable for a full analyst audit but
+# duplicative noise for a client exec review. 'deep' runs everything.
+# ---------------------------------------------------------------------------
+import os as _os_mode
+_SLIDE_MODE = _os_mode.environ.get('SLIDE_MODE', 'standard').lower()
+_PRUNE = {
+    'standard': [
+        '22_', '23_', '24_', '25_', '26_', '27_', '28_', '29_',
+        '30_', '31_', '32_', '33_', '34_', '35_', '36_',
+        '38_', '41_', '43_',
+    ],
+    'minimal': [
+        '03_', '05_', '07_', '09_', '10_', '11_', '12_', '13_',
+        '14_', '15_', '16_', '18_', '19_', '20_', '21_',
+        '22_', '23_', '24_', '25_', '26_', '27_', '28_', '29_',
+        '30_', '31_', '32_', '33_', '34_', '35_', '36_',
+        '38_', '40_', '41_', '43_',
+    ],
+    'deep': [],
+}
+SKIP_SCRIPT_PATTERNS = _PRUNE.get(_SLIDE_MODE, [])
+if SKIP_SCRIPT_PATTERNS:
+    print(f"    SLIDE_MODE={_SLIDE_MODE}: pruning {len(SKIP_SCRIPT_PATTERNS)} "
+          f"campaign cell patterns for deck size control")
+
 try:
     # Identify available mail/resp columns
     rewards_cols = [c.strip() for c in rewards_df.columns]

@@ -131,6 +131,15 @@ def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
     # the next section and any subsequent `Path(__file__).parent` is wrong.
     saved_file = namespace.get("__file__")
 
+    # Per-script skip patterns (prefix-match on script name). Configured by
+    # earlier cells to prune duplicate / optional cells without deleting code.
+    # Example: competition/01 sets SKIP_SCRIPT_PATTERNS=['60_', '61_', '62_']
+    # when SLIDE_MODE='standard' to drop the parallel banks-only / core-
+    # competition variants (each a ~5-slide duplicate view of 07-09). Keeps
+    # the deep-dive cells available for clients who want them via
+    # SLIDE_MODE='deep'.
+    skip_patterns = namespace.get("SKIP_SCRIPT_PATTERNS", [])
+
     for script_path in scripts:
         script_name = script_path.stem
 
@@ -138,6 +147,14 @@ def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
         # to bail out early (e.g., "No MCC data available")
         if namespace.get("SKIP_SECTION"):
             logger.info("  TXN skipping: {name} (SKIP_SECTION set)", name=script_name)
+            continue
+
+        # Check script-level skip patterns
+        if any(script_name.startswith(pat) for pat in skip_patterns):
+            logger.info(
+                "  TXN skipping: {name} (matches SKIP_SCRIPT_PATTERNS)",
+                name=script_name,
+            )
             continue
 
         logger.info("  TXN executing: {name}", name=script_name)
@@ -180,8 +197,10 @@ def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
     else:
         namespace["__file__"] = saved_file
 
-    # Reset skip flag for next section
+    # Reset skip flags for next section -- each section controls its own
+    # pruning via its own 01_*.py setting SKIP_SCRIPT_PATTERNS.
     namespace.pop("SKIP_SECTION", None)
+    namespace.pop("SKIP_SCRIPT_PATTERNS", None)
 
     return all_charts, failures
 
