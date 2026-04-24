@@ -88,7 +88,8 @@ def _render_donut_chart(seg_details: dict, save_path, title: str) -> bool:
                 transform=ax.transAxes,
             )
             ax.axis("off")
-        ax.set_title(title, fontsize=18, fontweight="bold", pad=15)
+        # Chart sub-title intentionally omitted -- the mailer_summary slide
+        # layout hard-codes its own titles, so a chart title would duplicate.
     return True
 
 
@@ -146,7 +147,8 @@ def _render_hbar_chart(seg_details: dict, save_path, title: str) -> bool:
         ax.invert_yaxis()
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.set_title(title, fontsize=18, fontweight="bold", pad=15)
+        # Chart sub-title intentionally omitted -- the mailer_summary slide
+        # layout hard-codes its own titles, so a chart title would duplicate.
     return True
 
 
