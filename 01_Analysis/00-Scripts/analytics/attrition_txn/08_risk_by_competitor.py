@@ -106,7 +106,7 @@ else:
 
     fig.suptitle("Competitor Activity Among Declining Members",
                  fontsize=24, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
     fig.text(0.5, 0.99,
              f"Are at-risk members switching or just spending less? | {DATASET_LABEL}",
              fontsize=14, color=GEN_COLORS['muted'], style='italic', ha='center')

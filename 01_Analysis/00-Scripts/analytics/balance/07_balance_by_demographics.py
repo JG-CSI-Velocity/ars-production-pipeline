@@ -147,7 +147,7 @@ axes[2].tick_params(axis='x', rotation=30)
 # ---------------------------------------------------------------------------
 fig.suptitle("Balance Profile by Demographics",
              fontsize=26, fontweight='bold',
-             color=GEN_COLORS['dark_text'], y=1.04)
+             color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
 fig.text(0.01, 1.00,
          f"Median balance across key segmentation dimensions | {DATASET_LABEL}",
          fontsize=12, style='italic', color=GEN_COLORS['muted'])

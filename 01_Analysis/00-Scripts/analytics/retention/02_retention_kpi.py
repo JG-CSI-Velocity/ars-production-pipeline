@@ -77,8 +77,8 @@ else:
 
     fig.suptitle("Retention & Churn Overview",
                  fontsize=28, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
-    fig.text(0.5, 0.97, f"Account health classification  |  {DATASET_LABEL}",
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
+    fig.text(0.5, GEN_SUBTITLE_Y, f"Account health classification  |  {DATASET_LABEL}",
              ha='center', fontsize=13, color=GEN_COLORS['muted'], style='italic')
 
     plt.tight_layout()

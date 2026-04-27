@@ -77,7 +77,7 @@ ax2.text(9.5, y_header, 'Share', fontsize=10, color=GEN_COLORS['muted'],
 
 fig.suptitle("Top Merchant Breakdown",
              fontsize=28, fontweight='bold',
-             color=GEN_COLORS['dark_text'], y=1.04)
+             color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
 
 plt.tight_layout()
 plt.show()

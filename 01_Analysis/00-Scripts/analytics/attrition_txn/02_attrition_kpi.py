@@ -60,7 +60,7 @@ for ax, (value, label, color) in zip(axes, kpis):
 
 fig.suptitle("Attrition Risk at a Glance",
              fontsize=28, fontweight='bold',
-             color=GEN_COLORS['dark_text'], y=1.04)
+             color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
 fig.text(0.5, 0.98, f"Based on 3-month vs 12-month velocity ratios | {DATASET_LABEL}",
          fontsize=14, color=GEN_COLORS['muted'], style='italic',
          ha='center')

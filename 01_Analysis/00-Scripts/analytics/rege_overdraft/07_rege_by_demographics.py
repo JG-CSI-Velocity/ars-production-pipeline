@@ -112,7 +112,7 @@ else:
 
     fig.suptitle("Reg E Opt-In Rate by Demographics",
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
     fig.text(0.5, 0.99,
              f"Which segments are opting out most? | {DATASET_LABEL}",
              fontsize=14, color=GEN_COLORS['muted'], style='italic',
