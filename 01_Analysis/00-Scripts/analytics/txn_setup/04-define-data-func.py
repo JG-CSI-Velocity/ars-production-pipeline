@@ -32,31 +32,91 @@ DTYPE_HINTS = {
 }
 
 
+def _sniff_delimiter(filepath, sample_bytes=8192):
+    """Detect delimiter from FILE CONTENT, not just extension.
+
+    Reads the first few KB and counts tabs vs commas. The winner is the
+    real delimiter. Falls back to extension-based guessing only if the
+    sample is empty or both counts tie at zero.
+
+    Why content-based: some clients deliver TSV data with a .csv
+    extension (e.g. 1441 / FNB Alaska, 4/26 run, issue #95). Pandas read
+    that file with sep=',' because of the extension; the header line had
+    no commas so it was parsed as 1 column; line 278 happened to contain
+    a literal comma inside a field, suddenly making it look like 2
+    columns and crashing the entire pipeline with the unhelpful
+    ``Expected 1 fields, saw 2''. Sniffing the actual delimiter prevents
+    this whole class of failure.
+    """
+    try:
+        with open(filepath, 'rb') as fh:
+            sample = fh.read(sample_bytes).decode('utf-8', errors='replace')
+        # Count delimiter occurrences only on lines after the first to
+        # avoid an unusually delimiter-heavy header skewing the count.
+        lines = sample.splitlines()[1:5] if len(sample.splitlines()) > 1 else sample.splitlines()
+        joined = '\n'.join(lines) if lines else sample
+        n_tabs = joined.count('\t')
+        n_commas = joined.count(',')
+        if n_tabs == 0 and n_commas == 0:
+            # Couldn't sniff -- fall back to extension
+            return ',' if filepath.suffix.lower() == '.csv' else '\t'
+        return '\t' if n_tabs > n_commas else ','
+    except Exception:
+        # If we can't even read it, defer the explosion to pd.read_csv
+        # which will give a clearer error
+        return ',' if filepath.suffix.lower() == '.csv' else '\t'
+
+
 def load_transaction_file(filepath):
     """Load a debit card transaction file (.txt or .csv).
 
-    Detects delimiter automatically: tab for .txt, comma for .csv.
-    Some clients use .csv with commas, others use .txt with tabs.
-    The format never changes within one client across months.
+    Delimiter is detected from file CONTENT (not just extension).
+    Mismatched extension+content (e.g. .csv that's actually tab-delimited)
+    used to crash with ``Error tokenizing data. Expected 1 fields,
+    saw 2'' -- now handled transparently with a content-aware sniff
+    plus retry-with-other-delimiter fallback in both directions.
     """
     filepath = Path(filepath)
 
-    # Detect delimiter by file extension
-    if filepath.suffix.lower() == '.csv':
-        sep = ','
-    else:
-        sep = '\t'
+    # Pick delimiter from content, not extension
+    sep = _sniff_delimiter(filepath)
+    sep_label = 'TAB' if sep == '\t' else 'COMMA'
+    extension_guess = ',' if filepath.suffix.lower() == '.csv' else '\t'
+    if sep != extension_guess:
+        ext_label = 'TAB' if extension_guess == '\t' else 'COMMA'
+        print(f"  NOTE: {filepath.name} extension suggests {ext_label} but content is {sep_label}; using {sep_label}")
 
     # Use dtype hints to skip type inference (big speedup on millions of rows)
-    df = pd.read_csv(filepath, sep=sep, skiprows=1, header=None,
-                     dtype=DTYPE_HINTS, low_memory=False, na_values=['', 'NA', 'N/A'])
-
-    # Warn if column count is unexpected
-    if len(df.columns) == 1 and sep == '\t':
-        # Might be a comma-separated file with .txt extension -- retry
-        print(f"  WARNING: {filepath.name} has 1 column with tab delimiter, retrying with comma...")
-        df = pd.read_csv(filepath, sep=',', skiprows=1, header=None,
+    try:
+        df = pd.read_csv(filepath, sep=sep, skiprows=1, header=None,
                          dtype=DTYPE_HINTS, low_memory=False, na_values=['', 'NA', 'N/A'])
+    except Exception as exc:
+        print(f"  WARNING: {filepath.name} failed parse with {sep_label}: {type(exc).__name__}: {exc}")
+        # Try the other delimiter as a last resort
+        other = ',' if sep == '\t' else '\t'
+        other_label = 'TAB' if other == '\t' else 'COMMA'
+        print(f"           Retrying with {other_label}...")
+        df = pd.read_csv(filepath, sep=other, skiprows=1, header=None,
+                         dtype=DTYPE_HINTS, low_memory=False, na_values=['', 'NA', 'N/A'])
+        sep = other
+        sep_label = other_label
+
+    # Both-direction retry: if we ended up with 1 column, the sniff was
+    # probably wrong (e.g. file with no delimiters in the first 4 lines
+    # because every field was empty). Try the OTHER delimiter.
+    if len(df.columns) == 1:
+        other = ',' if sep == '\t' else '\t'
+        other_label = 'TAB' if other == '\t' else 'COMMA'
+        print(f"  WARNING: {filepath.name} parsed to 1 column with {sep_label}; retrying with {other_label}")
+        try:
+            df_retry = pd.read_csv(filepath, sep=other, skiprows=1, header=None,
+                                   dtype=DTYPE_HINTS, low_memory=False, na_values=['', 'NA', 'N/A'])
+            if len(df_retry.columns) > 1:
+                df = df_retry
+                sep = other
+                sep_label = other_label
+        except Exception as exc:
+            print(f"           Retry also failed: {type(exc).__name__}: {exc}")
 
     if len(df.columns) != len(EXPECTED_COLUMNS):
         print(f"  WARNING: {filepath.name} has {len(df.columns)} columns (expected {len(EXPECTED_COLUMNS)})")
