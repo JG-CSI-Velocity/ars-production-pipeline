@@ -141,7 +141,7 @@ else:
 
     fig.suptitle("The Staircase Effect: More Products = More Value",
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.06)
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
     fig.text(0.01, 1.01,
              f"Each additional product adds significant member value  |  "
              f"Top-tier members worth {multiplier:.1f}x single-product  |  {DATASET_LABEL}",

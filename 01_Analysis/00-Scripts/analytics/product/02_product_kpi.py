@@ -64,7 +64,7 @@ else:
 
     fig.suptitle("Card Product Overview",
                  fontsize=28, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
 
     plt.tight_layout()
     plt.show()

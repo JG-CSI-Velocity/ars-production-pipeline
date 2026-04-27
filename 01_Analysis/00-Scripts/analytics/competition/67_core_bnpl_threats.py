@@ -82,7 +82,7 @@ else:
                 ha='center', va='center', linespacing=1.4)
     fig0.suptitle("BNPL Threat Snapshot",
                   fontsize=26, fontweight='bold',
-                  color=GEN_COLORS['dark_text'], y=1.04)
+                  color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
     fig0.text(0.5, 0.97, SCOPE_NOTE,
               ha='center', fontsize=13, color=GEN_COLORS['muted'], style='italic')
     plt.tight_layout()

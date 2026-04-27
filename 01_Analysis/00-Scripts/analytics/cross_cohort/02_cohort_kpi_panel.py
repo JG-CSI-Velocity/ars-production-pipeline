@@ -154,7 +154,7 @@ else:
 
     fig.suptitle('ARS Performance by Acquisition Channel',
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.05)
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
     fig.text(0.5, 0.98,
              'Scope: accounts mailed >=1 ARS offer.  Each card: ICS value | Non-ICS value.',
              ha='center', fontsize=12, color=GEN_COLORS['muted'], style='italic')

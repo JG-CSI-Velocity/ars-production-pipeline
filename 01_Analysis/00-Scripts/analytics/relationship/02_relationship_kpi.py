@@ -94,8 +94,8 @@ else:
 
     fig.suptitle("Member Relationship Depth",
                  fontsize=28, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
-    fig.text(0.01, 0.97,
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
+    fig.text(0.01, GEN_SUBTITLE_Y,
              f"Single-product members are 3x more likely to leave  |  {DATASET_LABEL}",
              fontsize=14, color=GEN_COLORS['muted'], style='italic')
 

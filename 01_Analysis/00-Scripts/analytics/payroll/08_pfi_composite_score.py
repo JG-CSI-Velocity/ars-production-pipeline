@@ -208,7 +208,7 @@ ax2.set_title("Score Distribution (0-20)", fontsize=20, fontweight='bold',
 
 fig.suptitle("PFI Composite Score: Member Relationship Depth",
              fontsize=26, fontweight='bold',
-             color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=1.06)
+             color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=GEN_TITLE_Y)
 fig.text(0.01, 1.01,
          f"Payroll (5) + Balance (4) + Activity (4) + Products (3) + Tenure (3) + Bill Pay (1)  --  {DATASET_LABEL}",
          fontsize=12, style='italic', color=GEN_COLORS['muted'],

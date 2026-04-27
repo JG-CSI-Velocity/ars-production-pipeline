@@ -137,8 +137,8 @@ else:
 
         fig.suptitle("Competitive Exposure — Banks Only",
                      fontsize=30, fontweight='bold',
-                     color=GEN_COLORS['dark_text'], y=1.04)
-        fig.text(0.5, 0.97,
+                     color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
+        fig.text(0.5, GEN_SUBTITLE_Y,
                  f"Excludes wallets / P2P / BNPL ({_eco_txns:,} txns, {_eco_pct:.1f}% of competitor activity)",
                  ha='center', fontsize=14, color=GEN_COLORS['muted'], style='italic')
 

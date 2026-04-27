@@ -88,7 +88,7 @@ for ax, kpi in zip(axes, kpi_data):
 
 fig.suptitle("Payroll & Direct Deposit Detection",
              fontsize=28, fontweight='bold',
-             color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=1.06)
+             color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=GEN_TITLE_Y)
 fig.text(0.01, 1.00,
          f"Primary Financial Institution signal  --  {DATASET_LABEL}",
          fontsize=14, style='italic', color=GEN_COLORS['muted'],

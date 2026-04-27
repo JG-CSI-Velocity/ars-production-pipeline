@@ -51,8 +51,8 @@ if len(pers_consistency_df) > 0:
 
     fig.suptitle("Personal Merchant Spend Consistency",
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
-    fig.text(0.5, 0.96, "Stable vs spiky personal merchants ($10K+ spend, 3+ months, CV capped at 500%)",
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
+    fig.text(0.5, GEN_SUBTITLE_Y, "Stable vs spiky personal merchants ($10K+ spend, 3+ months, CV capped at 500%)",
              ha='center', fontsize=13, color=GEN_COLORS['muted'], style='italic')
 
     plt.tight_layout()

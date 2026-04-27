@@ -33,7 +33,9 @@ else:
     # =================================================================
     # LEFT: Response Rate by Account Age (hero)
     # =================================================================
-    bars = ax1.bar(x, resp_age_summary['response_rate'], width=0.6,
+    # Wider bars (0.78 instead of 0.6) so the in-bar count text doesn't
+    # overflow the column edges -- reported visual bug from 4/27 deck review.
+    bars = ax1.bar(x, resp_age_summary['response_rate'], width=0.78,
                    color=_RESP_COLOR, edgecolor='white', linewidth=0.5, alpha=0.85)
 
     _max_idx = resp_age_summary['response_rate'].idxmax()
@@ -43,6 +45,9 @@ else:
             bar.set_color(_ACCENT)
             bar.set_alpha(1.0)
 
+    # Combine rate% and count into ONE label above the bar so we don't have
+    # to fit white "n=X mailed" text inside narrow columns. The mailed count
+    # is essential context but doesn't need to live inside the bar.
     for i, (bar, rate, mailed) in enumerate(zip(bars,
                                                   resp_age_summary['response_rate'],
                                                   resp_age_summary['mailed'])):
@@ -50,9 +55,18 @@ else:
                  f'{rate:.1f}%', ha='center', va='bottom', fontsize=14,
                  fontweight='bold',
                  color=_ACCENT if i == _max_pos else _RESP_COLOR)
-        ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() / 2,
-                 f'{int(mailed):,}\nmailed', ha='center', va='center', fontsize=14,
-                 color='white', fontweight='bold')
+        # Count label: white inside the bar IF the bar is tall enough, else
+        # gray below the bar baseline so it never bleeds off-edge. Switch
+        # threshold at 1.5% absolute response rate (most decks have rates
+        # in the 0.5-5% range).
+        if bar.get_height() >= 1.5:
+            ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() / 2,
+                     f'{int(mailed):,}', ha='center', va='center', fontsize=11,
+                     color='white', fontweight='bold')
+        else:
+            ax1.text(bar.get_x() + bar.get_width() / 2, -0.18,
+                     f'n={int(mailed):,}', ha='center', va='top', fontsize=10,
+                     color=_MUTED, fontweight='bold')
 
     _overall_rate = resp_age_summary['responded'].sum() / resp_age_summary['mailed'].sum() * 100
     ax1.axhline(_overall_rate, color=_MUTED, linewidth=1.5, linestyle='--', zorder=2)

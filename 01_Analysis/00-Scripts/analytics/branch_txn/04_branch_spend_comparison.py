@@ -49,8 +49,8 @@ else:
 
     fig.suptitle("Branch Spend & Activity Comparison",
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
-    fig.text(0.5, 0.96, "Which branches have the highest-value and most active accounts?",
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
+    fig.text(0.5, GEN_SUBTITLE_Y, "Which branches have the highest-value and most active accounts?",
              ha='center', fontsize=13, color=GEN_COLORS['muted'], style='italic')
 
     plt.tight_layout()

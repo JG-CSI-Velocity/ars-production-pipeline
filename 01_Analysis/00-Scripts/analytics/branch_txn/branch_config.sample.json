@@ -1,0 +1,15 @@
+{
+  "_doc": "Branch number -> branch name mapping. Copy this file, rename it, fill in your client's branches, and place at one of the locations below (the loader checks them in order):",
+  "_locations": [
+    "M:/ARS/03_Config/branch_configs/{CLIENT_ID}.json   (client-specific, preferred)",
+    "M:/ARS/03_Config/branch_config.json                (shared default, used when no client-specific file)"
+  ],
+  "_format_note": "Keys MUST be strings (e.g. \"1\" not 1) because branch numbers from the ODD file may be int OR float (e.g. 1.0). The loader handles both via the .split('.') step in branch_txn/01_branch_data.py. Strip leading zeros if your CU stores branches as 001 -- keys here should match what the ODD column emits.",
+  "_remove_underscored_keys_before_use": "Lines starting with _ are documentation only. Remove them in your real config (or leave them -- json.load will tolerate them since they're just unused keys).",
+
+  "1": "Main Office",
+  "2": "Downtown Branch",
+  "3": "West Branch",
+  "4": "North Branch",
+  "5": "South Branch"
+}

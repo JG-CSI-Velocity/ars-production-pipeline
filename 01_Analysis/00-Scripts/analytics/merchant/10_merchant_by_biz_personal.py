@@ -56,8 +56,8 @@ if 'business_flag' in combined_df.columns:
 
     fig.suptitle("Top Merchants: Business vs Personal",
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
-    fig.text(0.5, 0.96, "Do business and personal accounts rely on different merchants?",
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
+    fig.text(0.5, GEN_SUBTITLE_Y, "Do business and personal accounts rely on different merchants?",
              ha='center', fontsize=15, color=GEN_COLORS['muted'], style='italic')
 
     plt.tight_layout()

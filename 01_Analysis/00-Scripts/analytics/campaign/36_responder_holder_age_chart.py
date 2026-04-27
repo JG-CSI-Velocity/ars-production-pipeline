@@ -33,7 +33,9 @@ else:
     # =================================================================
     # LEFT: Response Rate by Holder Age (hero)
     # =================================================================
-    bars = ax1.bar(x, holder_age_summary['response_rate'], width=0.6,
+    # Wider bars + adaptive label placement (mirrors cell 34 fix from the
+    # 4/27 deck review -- skinny columns + white text bleeding off-edges)
+    bars = ax1.bar(x, holder_age_summary['response_rate'], width=0.78,
                    color=_INFO, edgecolor='white', linewidth=0.5, alpha=0.85)
 
     _max_idx = holder_age_summary['response_rate'].idxmax()
@@ -50,9 +52,14 @@ else:
                  f'{rate:.1f}%', ha='center', va='bottom', fontsize=14,
                  fontweight='bold',
                  color=_ACCENT if i == _max_pos else _INFO)
-        ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() / 2,
-                 f'{int(mailed):,}\nmailed', ha='center', va='center', fontsize=14,
-                 color='white', fontweight='bold')
+        if bar.get_height() >= 1.5:
+            ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() / 2,
+                     f'{int(mailed):,}', ha='center', va='center', fontsize=11,
+                     color='white', fontweight='bold')
+        else:
+            ax1.text(bar.get_x() + bar.get_width() / 2, -0.18,
+                     f'n={int(mailed):,}', ha='center', va='top', fontsize=10,
+                     color=_MUTED, fontweight='bold')
 
     _overall_rate = holder_age_summary['responded'].sum() / holder_age_summary['mailed'].sum() * 100
     ax1.axhline(_overall_rate, color=_MUTED, linewidth=1.5, linestyle='--', zorder=2)

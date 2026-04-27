@@ -104,7 +104,7 @@ ax2.set_title("Accounts by OD Limit Band", fontsize=18,
 
 fig.suptitle("Overdraft Limit Distribution",
              fontsize=26, fontweight='bold',
-             color=GEN_COLORS['dark_text'], y=1.04)
+             color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
 fig.text(0.5, 0.99,
          f"Current OD limit amounts across all accounts | {DATASET_LABEL}",
          fontsize=14, color=GEN_COLORS['muted'], style='italic',

@@ -90,8 +90,8 @@ else:
 
     fig.suptitle("MCC Category Breadth per Account",
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
-    fig.text(0.5, 0.96, "Do active accounts use more merchant categories?",
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
+    fig.text(0.5, GEN_SUBTITLE_Y, "Do active accounts use more merchant categories?",
              ha='center', fontsize=15, color=GEN_COLORS['muted'], style='italic')
 
     plt.tight_layout()
