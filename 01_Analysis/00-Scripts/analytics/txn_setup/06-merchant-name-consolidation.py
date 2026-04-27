@@ -669,9 +669,47 @@ def standardize_merchant_name(merchant_name):
     if 'UPSTART' in merchant_upper:
         return 'UPSTART'
     
-    if 'ROCKET' in merchant_upper and ('MORTGAGE' in merchant_upper or 'LOANS' in merchant_upper):
+    if 'ROCKET' in merchant_upper:
+        # Catches: ``ROCKET MORTGAGE'', ``ROCKET LOANS'', ``ROCKET SAVINGS DEPOSIT'',
+        # ``ROCKET MTG''. Previously the AND clause missed ``ROCKET SAVINGS DEPOSIT''
+        # (saw 2,314 of these untagged in 1441).
+        if 'SAVINGS' in merchant_upper:
+            return 'ROCKET MONEY'
         return 'ROCKET MORTGAGE'
-    
+
+    if 'LENDINGCLUB' in merchant_upper or 'LENDING CLUB' in merchant_upper:
+        return 'LENDING CLUB'
+
+    # ============================================================================
+    # CREDIT CARDS / SUBPRIME (additional rules added based on 1441 diagnostic)
+    # ============================================================================
+
+    # Apple Card -- shows up as ``APPLECARD GSBANK PAYMENT'' on 1441 (11,521 txns).
+    # GS Bank = Goldman Sachs Bank, Apple's card issuer. Collapse all variants.
+    if 'APPLECARD' in merchant_upper or 'APPLE CARD' in merchant_upper:
+        return 'APPLE CARD'
+
+    if 'MERRICK BANK' in merchant_upper:
+        return 'MERRICK BANK'
+
+    # ============================================================================
+    # ADDITIONAL FINANCIAL SERVICES (added based on 1441 diagnostic)
+    # ============================================================================
+
+    # Treasury Direct: appears as ``TREASURY DIRECT'', ``TREASURYDIRECT'',
+    # ``US TREASURY''. Collapse so the merchant chart shows one row.
+    if 'TREASURY' in merchant_upper and ('DIRECT' in merchant_upper or merchant_upper.startswith('US TREASURY')):
+        return 'TREASURY DIRECT'
+
+    # GM Financial -- already collapsed below in Auto Loans section, but
+    # add here too in case the Auto block hasn't loaded yet (defensive).
+    if 'GM FINANCIAL' in merchant_upper:
+        return 'GM FINANCIAL'
+
+    # New York Life: ``NYLIFE FINANCIAL INSPAYMENT'', ``NEW YORK LIFE'' etc.
+    if 'NYLIFE' in merchant_upper or 'NEW YORK LIFE' in merchant_upper:
+        return 'NEW YORK LIFE'
+
     # Student Loans
     if 'DEPT EDUCATION' in merchant_upper or 'DEPARTMENT OF EDUCATION' in merchant_upper or 'ED FINANCIAL' in merchant_upper:
         return 'DEPT OF EDUCATION (STUDENT LOANS)'
