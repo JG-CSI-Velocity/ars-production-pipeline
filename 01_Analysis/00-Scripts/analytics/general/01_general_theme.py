@@ -165,3 +165,77 @@ print("General portfolio theme loaded.")
 print(f"  Palettes: {len(BRACKET_PALETTE)} bracket, {len(AGE_PALETTE)} age, {len(ENGAGE_PALETTE)} engagement, {len(ACCT_AGE_PALETTE)} account age, {len(SPEND_TIER_PALETTE)} spend tier, {len(SWIPE_PALETTE)} swipe")
 print(f"  Font base: {plt.rcParams['font.size']}pt bold")
 print(f"  DPI: {plt.rcParams['figure.dpi']}")
+
+
+# ===========================================================================
+# CLIENT TYPE + DYNAMIC LANGUAGE (CU = members, Bank = customers)
+# ===========================================================================
+# Auto-detect from CLIENT_NAME + CLIENT_TYPE override (per-client config or
+# env var). Every cell that displays "members" / "customers" should reference
+# these variables instead of hardcoding either word, so a single client config
+# entry flips the whole deck's terminology.
+#
+# Manual override: set CLIENT_TYPE = 'cu' | 'bank' env var, otherwise
+# heuristic on CLIENT_NAME (CU / Credit Union / FCU / Federal Credit -> 'cu').
+
+import os as _os_lang
+
+def _detect_client_type():
+    explicit = (_os_lang.environ.get('CLIENT_TYPE', '') or '').strip().lower()
+    if explicit in ('cu', 'credit_union', 'creditunion'):
+        return 'cu'
+    if explicit in ('bank',):
+        return 'bank'
+    name = (globals().get('CLIENT_NAME') or _os_lang.environ.get('CLIENT_NAME', '') or '').upper()
+    if 'CREDIT UNION' in name or 'FEDERAL CREDIT' in name or ' FCU' in name + ' ' or name.endswith(' CU') or ' CU ' in f' {name} ':
+        return 'cu'
+    return 'bank'
+
+CLIENT_TYPE = _detect_client_type()
+
+# Singular + plural noun forms used in slide copy and chart annotations
+if CLIENT_TYPE == 'cu':
+    MEMBER_NOUN          = 'member'
+    MEMBER_NOUN_PLURAL   = 'members'
+    MEMBER_NOUN_TITLE    = 'Member'
+    MEMBER_NOUN_TITLE_PL = 'Members'
+    POSSESSIVE           = "the credit union's"
+    INSTITUTION_NOUN     = 'credit union'
+else:
+    MEMBER_NOUN          = 'customer'
+    MEMBER_NOUN_PLURAL   = 'customers'
+    MEMBER_NOUN_TITLE    = 'Customer'
+    MEMBER_NOUN_TITLE_PL = 'Customers'
+    POSSESSIVE           = "the bank's"
+    INSTITUTION_NOUN     = 'bank'
+
+
+def member_word(n=None, plural=None, title=False):
+    """Return ``member''/``members''/``customer''/``customers'' based on the
+    active CLIENT_TYPE. Pass n for auto-pluralization, or plural=True/False
+    explicitly. title=True returns the capitalized form."""
+    if n is not None:
+        plural = (n != 1)
+    if plural is None:
+        plural = True
+    if title:
+        return MEMBER_NOUN_TITLE_PL if plural else MEMBER_NOUN_TITLE
+    return MEMBER_NOUN_PLURAL if plural else MEMBER_NOUN
+
+
+# ===========================================================================
+# UNIVERSAL TITLE / SUBTITLE LAYOUT CONSTANTS
+# ===========================================================================
+# Many cells were placing fig.suptitle at y=1.04 (above the figure box)
+# with a fig.text subtitle at y=0.96 -- subtitle ended up inside the title's
+# whitespace, causing visual overlap. Use these constants instead so every
+# cell ends up with the same breathing room.
+#
+#     fig.suptitle("...", y=GEN_TITLE_Y)
+#     fig.text(0.5, GEN_SUBTITLE_Y, "subtitle...", ha='center', ...)
+#     plt.subplots_adjust(top=GEN_TOP_PAD)
+GEN_TITLE_Y    = 0.97
+GEN_SUBTITLE_Y = 0.92
+GEN_TOP_PAD    = 0.85
+
+print(f"  CLIENT_TYPE: {CLIENT_TYPE}  (terminology: {MEMBER_NOUN_PLURAL})")
