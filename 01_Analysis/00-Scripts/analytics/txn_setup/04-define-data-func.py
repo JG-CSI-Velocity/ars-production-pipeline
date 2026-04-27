@@ -121,6 +121,50 @@ def load_transaction_file(filepath):
     if len(df.columns) != len(EXPECTED_COLUMNS):
         print(f"  WARNING: {filepath.name} has {len(df.columns)} columns (expected {len(EXPECTED_COLUMNS)})")
 
+    # ----------------------------------------------------------
+    # Drop header rows that survived skiprows=1
+    # ----------------------------------------------------------
+    # Some clients (e.g. FNB Alaska / 1441) deliver TXN files with a
+    # metadata banner BEFORE the actual header line:
+    #
+    #   "Report: Debit Card Transactions; Generated 2026-04-26"   <- banner
+    #   "Transaction Date<TAB>Account<TAB>Type<TAB>Amount..."     <- header
+    #   "2026-04-01<TAB>12345<TAB>PIN<TAB>5.00..."                <- data
+    #
+    # skiprows=1 strips the banner; the header row survives as ``row 0''
+    # and breaks every downstream type coercion (date parse fails on the
+    # literal string "Transaction Date", amount becomes NaN, etc.).
+    #
+    # Detect-and-drop: if the first 1-2 rows contain values matching known
+    # header keywords (case-insensitive substring), drop them. Safe for
+    # files that do NOT have a banner -- they parsed cleanly to begin with
+    # and these rows simply don't match.
+    _header_keywords = (
+        'transaction date', 'transaction_date', 'trans date', 'date',
+        'account number', 'account_number', 'primary account', 'acct',
+        'transaction type', 'trans type', 'type code',
+        'amount', 'mcc', 'merchant', 'terminal', 'institution',
+    )
+    _max_rows_to_check = 2
+    _dropped_header_rows = 0
+    for _ in range(_max_rows_to_check):
+        if len(df) == 0:
+            break
+        # Build a single concatenated lowercase string of the first row's
+        # non-null values, then check if any header-keyword appears in it.
+        try:
+            _first_row = df.iloc[0].astype(str).str.lower()
+            _joined = ' '.join(v for v in _first_row.values if v and v != 'nan')
+        except Exception:
+            break
+        _looks_like_header = any(kw in _joined for kw in _header_keywords)
+        if not _looks_like_header:
+            break
+        df = df.iloc[1:].reset_index(drop=True)
+        _dropped_header_rows += 1
+    if _dropped_header_rows:
+        print(f"  Dropped {_dropped_header_rows} surviving header row(s) from {filepath.name}")
+
     # Assign column names
     df.columns = EXPECTED_COLUMNS[:len(df.columns)]
 
