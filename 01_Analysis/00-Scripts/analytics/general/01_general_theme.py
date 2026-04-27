@@ -87,7 +87,9 @@ SPEND_TIER_PALETTE = {
 }
 SPEND_TIER_ORDER = ['Very High', 'High', 'Medium', 'Low']
 
-# Swipe category palette (default labels -- data cell auto-discovers actual values)
+# Swipe category palette (LEGACY 5-bucket -- kept for backward compatibility
+# with cells that still reference these names; new analyses should prefer
+# the ARS_SWIPE_* buckets defined immediately below).
 SWIPE_PALETTE = {
     'Very High': '#E63946',
     'High':      '#FF9F1C',
@@ -96,6 +98,121 @@ SWIPE_PALETTE = {
     'Inactive':  '#6C757D',
 }
 SWIPE_ORDER = ['Very High', 'High', 'Medium', 'Low', 'Inactive']
+
+# ---------------------------------------------------------------------------
+# ARS-standard swipe-volume segmentation (per user spec, 4/27 review)
+# ---------------------------------------------------------------------------
+# 7 buckets aligned to the ARS playbook -- monthly swipes per account.
+# Used as both 3-month rolling average and 12-month average so the deck
+# can show ``recent activity vs steady state'' side-by-side.
+ARS_SWIPE_BUCKETS = [
+    # (lower_inclusive, upper_inclusive_or_None, label)
+    (0,    0,    '<1 (Inactive)'),
+    (1,    5,    '1-5'),
+    (6,    10,   '6-10'),
+    (11,   15,   '11-15'),
+    (16,   20,   '16-20'),
+    (21,   25,   '21-25'),
+    (26,   None, '25+'),
+]
+ARS_SWIPE_ORDER = [b[2] for b in ARS_SWIPE_BUCKETS]
+ARS_SWIPE_PALETTE = {
+    '<1 (Inactive)': '#6C757D',   # gray
+    '1-5':           '#457B9D',   # steel blue
+    '6-10':          '#2EC4B6',   # teal
+    '11-15':         '#A8DADC',   # mint
+    '16-20':         '#FF9F1C',   # amber
+    '21-25':         '#F4A261',   # warm orange
+    '25+':           '#E63946',   # red
+}
+
+
+def bucket_swipes_per_month(n):
+    """Map a per-month-average swipe count to its ARS bucket label.
+    Accepts int/float (rounded to nearest int for bucketing). NaN -> first
+    bucket (treated as inactive). Use on a Series via .apply()."""
+    try:
+        if n is None:
+            return ARS_SWIPE_BUCKETS[0][2]
+        if isinstance(n, float) and (n != n):  # NaN check
+            return ARS_SWIPE_BUCKETS[0][2]
+        x = int(round(float(n)))
+    except (TypeError, ValueError):
+        return ARS_SWIPE_BUCKETS[0][2]
+    if x <= 0:
+        return ARS_SWIPE_BUCKETS[0][2]
+    for lo, hi, label in ARS_SWIPE_BUCKETS:
+        if hi is None:
+            if x >= lo:
+                return label
+        elif lo <= x <= hi:
+            return label
+    return ARS_SWIPE_BUCKETS[-1][2]
+
+
+def compute_swipe_segmentation(df, txn_type_col='transaction_type',
+                               acct_col='primary_account_num',
+                               month_col='year_month',
+                               window_months=3):
+    """Compute per-account swipe averages over a window and return a DataFrame
+    with one row per account containing:
+        avg_swipes_3m       (most recent ``window_months'' avg)
+        avg_swipes_12m      (full 12-month avg)
+        bucket_3m           ARS bucket label using avg_swipes_3m
+        bucket_12m          ARS bucket label using avg_swipes_12m
+
+    Counts only PIN / SIG transactions (debit-card swipes). Falls back to
+    counting ALL rows if transaction_type is missing.
+
+    Use this when you want the user-spec ``3-month rolling vs 12-month''
+    side-by-side view in a segmentation chart.
+    """
+    import pandas as _pd
+    if df is None or len(df) == 0:
+        return _pd.DataFrame(columns=[
+            acct_col, 'avg_swipes_3m', 'avg_swipes_12m',
+            'bucket_3m', 'bucket_12m',
+        ])
+
+    work = df
+    # Restrict to PIN/SIG transactions when txn_type_col is present.
+    if txn_type_col in work.columns:
+        _ttype = work[txn_type_col].astype(str).str.upper().str.strip()
+        _swipe_mask = _ttype.isin(['PIN', 'SIG', 'POS', 'DEBIT'])
+        if _swipe_mask.any():
+            work = work[_swipe_mask]
+
+    if month_col not in work.columns or acct_col not in work.columns:
+        return _pd.DataFrame(columns=[
+            acct_col, 'avg_swipes_3m', 'avg_swipes_12m',
+            'bucket_3m', 'bucket_12m',
+        ])
+
+    # Per-account, per-month txn count
+    monthly = (
+        work.groupby([acct_col, month_col]).size()
+        .reset_index(name='swipes')
+    )
+
+    # Most-recent N months for the 3m window
+    months_sorted = sorted(monthly[month_col].unique())
+    recent_months = months_sorted[-window_months:]
+
+    avg_3m = (
+        monthly[monthly[month_col].isin(recent_months)]
+        .groupby(acct_col)['swipes'].mean()
+        .reset_index().rename(columns={'swipes': 'avg_swipes_3m'})
+    )
+    avg_12m = (
+        monthly.groupby(acct_col)['swipes'].mean()
+        .reset_index().rename(columns={'swipes': 'avg_swipes_12m'})
+    )
+
+    out = avg_12m.merge(avg_3m, on=acct_col, how='left')
+    out['avg_swipes_3m'] = out['avg_swipes_3m'].fillna(0)
+    out['bucket_3m']  = out['avg_swipes_3m'].apply(bucket_swipes_per_month)
+    out['bucket_12m'] = out['avg_swipes_12m'].apply(bucket_swipes_per_month)
+    return out
 
 # ---------------------------------------------------------------------------
 # Matplotlib global theme
