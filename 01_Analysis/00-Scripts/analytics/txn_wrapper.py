@@ -378,6 +378,89 @@ def _optimize_combined_df(namespace: dict[str, Any]) -> None:
     )
 
 
+def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> None:
+    """Filter combined_df and rewards_df to eligible accounts only.
+
+    Why: TXN scripts compute rates against the raw TXN universe, producing
+    KPI cards labeled "Eligible Accounts" whose underlying base does not
+    match the ARS-side eligible denominator. This injection enforces the
+    4-denominator framework (Eligible / Eligible Personal / Eligible
+    Business / Open) defined in pipeline/steps/subsets.py.
+
+    Exposes:
+        ELIGIBLE_ACCOUNTS         set[str]      -- canonical eligible account IDs
+        ELIGIBLE_FILTER_APPLIED   bool          -- True iff filtering happened
+        combined_df               filtered      -- replaces unfiltered version
+        rewards_df                filtered      -- replaces unfiltered version
+        combined_df_all           original      -- pre-filter, escape hatch
+        rewards_df_all            original      -- pre-filter, escape hatch
+
+    No-ops (logs warning) if ctx.subsets.eligible_data is unavailable, so
+    legacy clients without proper eligible config don't break the pipeline.
+    """
+    if ctx.subsets is None or ctx.subsets.eligible_data is None:
+        logger.warning(
+            "Eligible filter NOT applied -- ctx.subsets.eligible_data is unavailable. "
+            "TXN denominators will use unfiltered combined_df. Check client EligibleStatusCodes config."
+        )
+        namespace["ELIGIBLE_ACCOUNTS"] = set()
+        namespace["ELIGIBLE_FILTER_APPLIED"] = False
+        return
+
+    elig_df = ctx.subsets.eligible_data
+
+    acct_col = None
+    for candidate in ("Acct Number", " Acct Number", "Account Number", "AcctNumber"):
+        if candidate in elig_df.columns:
+            acct_col = candidate
+            break
+    if acct_col is None:
+        logger.warning(
+            "Eligible filter NOT applied -- no recognized account column in eligible_data. "
+            "Columns: {cols}",
+            cols=list(elig_df.columns)[:15],
+        )
+        namespace["ELIGIBLE_ACCOUNTS"] = set()
+        namespace["ELIGIBLE_FILTER_APPLIED"] = False
+        return
+
+    eligible_set = set(elig_df[acct_col].astype(str).str.strip())
+    namespace["ELIGIBLE_ACCOUNTS"] = eligible_set
+    namespace["ELIGIBLE_FILTER_APPLIED"] = True
+
+    combined = namespace.get("combined_df")
+    if combined is not None and hasattr(combined, "columns") and "primary_account_num" in combined.columns:
+        namespace["combined_df_all"] = combined
+        before = len(combined)
+        mask = combined["primary_account_num"].astype(str).str.strip().isin(eligible_set)
+        namespace["combined_df"] = combined[mask]
+        after = len(namespace["combined_df"])
+        logger.info(
+            "combined_df filtered to eligible: {before:,} -> {after:,} rows ({pct:.1f}% retained)",
+            before=before, after=after,
+            pct=(after / before * 100) if before > 0 else 0,
+        )
+
+    rewards = namespace.get("rewards_df")
+    if rewards is not None and hasattr(rewards, "columns"):
+        rewards_acct_col = None
+        for candidate in ("Acct Number", " Acct Number", "Account Number"):
+            if candidate in rewards.columns:
+                rewards_acct_col = candidate
+                break
+        if rewards_acct_col is not None:
+            namespace["rewards_df_all"] = rewards
+            before = len(rewards)
+            mask = rewards[rewards_acct_col].astype(str).str.strip().isin(eligible_set)
+            namespace["rewards_df"] = rewards[mask]
+            after = len(namespace["rewards_df"])
+            logger.info(
+                "rewards_df filtered to eligible: {before:,} -> {after:,} rows ({pct:.1f}% retained)",
+                before=before, after=after,
+                pct=(after / before * 100) if before > 0 else 0,
+            )
+
+
 def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     """Build namespace and run txn_setup ONCE for all sections.
 
@@ -385,6 +468,10 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     (millions of rows x up to 12 months), concatenates them into combined_df,
     loads the ODD file, and merges. Previously this ran 22 times (once per
     section). Now it runs once and the namespace is shared.
+
+    After txn_setup builds combined_df + rewards_df, the eligible filter is
+    applied so all downstream TXN scripts compute rates against the correct
+    denominator (see _inject_eligible_filter).
 
     Returns:
         Fully initialized namespace with combined_df, rewards_df, helper
@@ -405,6 +492,9 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
 
     # Optimize memory after the heavy data loading
     _optimize_combined_df(namespace)
+
+    # Apply 4-denominator framework to TXN data (Audit 2026-04-27 Entry 1)
+    _inject_eligible_filter(namespace, ctx)
 
     elapsed = time.time() - t0
     row_count = 0
