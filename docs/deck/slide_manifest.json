@@ -29,9 +29,9 @@
     {"n": 7,  "id": "rege_status",          "layout": 9,  "story": "ars_performance",     "modules": ["rege.status"]},
     {"n": 8,  "id": "mailer_response_wave", "layout": 2,  "story": "ars_performance",     "modules": ["mailer.response"]},
     {"n": 9,  "id": "responder_lift_did",   "layout": 9,  "story": "ars_performance",     "modules": ["mailer.impact"]},
-    {"n": 10, "id": "cohort_persistence",   "layout": 2,  "story": "ars_performance",     "modules": ["mailer.cohort"]},
-    {"n": 11, "id": "ars_roi",              "layout": 2,  "story": "ars_performance",     "modules": ["insights.effectiveness"]},
-    {"n": 12, "id": "attrition_impact",     "layout": 2,  "story": "ars_performance",     "modules": ["attrition.impact"]},
+    {"n": 10, "id": "cohort_persistence",   "layout": 2,  "story": "ars_performance",     "modules": ["mailer.cohort"], "scripts": ["cross_cohort/73_response_persistence.py"]},
+    {"n": 11, "id": "ars_roi",              "layout": 2,  "story": "ars_performance",     "modules": ["insights.effectiveness"], "scripts": ["cross_cohort/60_revenue_per_account.py"]},
+    {"n": 12, "id": "attrition_impact",     "layout": 2,  "story": "ars_performance",     "modules": ["attrition.impact"], "scripts": ["cross_cohort/80_attrition_by_ics.py"]},
     {"n": 13, "id": "dormant_recoverable",  "layout": 2,  "story": "ars_performance",     "modules": ["insights.dormant"]},
     {"n": 14, "id": "ars_so_what",          "layout": 12, "story": "ars_performance",     "modules": ["insights.conclusions"], "filter": "ars"},
 
@@ -39,7 +39,7 @@
     {"n": 16, "id": "ics_hero",             "layout": 2,  "story": "ics",                 "scripts": ["ICS_cohort/ics-40-exec-summary"], "conditional": "ics"},
     {"n": 17, "id": "ics_three_panel",      "layout": 9,  "story": "ics",                 "scripts": ["ICS_cohort/ics-09-debit-by-branch", "ICS_cohort/ics-08-debit-by-product", "ICS_cohort/ics-16-age-by-ics-status"], "conditional": "ics"},
     {"n": 18, "id": "ics_vs_nonics",        "layout": 2,  "story": "ics",                 "scripts": ["ICS_cohort/ics-41-ics-vs-nonics-activity", "ICS_cohort/ics-44-vis-headline-comparison"], "conditional": "ics"},
-    {"n": 19, "id": "ics_so_what",          "layout": 12, "story": "ics",                 "modules": ["insights.conclusions"], "filter": "ics", "conditional": "ics"},
+    {"n": 19, "id": "ics_competition_overlay", "layout": 2,  "story": "ics",              "scripts": ["cross_cohort/50_ics_competition_overlay.py"], "conditional": "ics"},
 
     {"n": 20, "id": "competition_divider",  "layout": 4,  "story": "competition",         "modules": []},
     {"n": 21, "id": "wallet_share_hero",    "layout": 2,  "story": "competition",         "scripts": ["competition/29_wallet_share.py"]},
@@ -57,7 +57,7 @@
 
     {"n": 32, "id": "recommendations_divider", "layout": 4,  "story": null,               "modules": []},
     {"n": 33, "id": "top_3_priorities",     "layout": 12, "story": null,                  "modules": ["insights.conclusions"], "filter": "top3"},
-    {"n": 34, "id": "opportunity_stack",    "layout": 2,  "story": null,                  "scripts": ["NEW:executive/opportunity_stack.py"], "build_required": true},
+    {"n": 34, "id": "opportunity_stack",    "layout": 2,  "story": null,                  "scripts": ["executive/04_opportunity_waterfall.py"]},
     {"n": 35, "id": "what_we_need",         "layout": 12, "story": null,                  "modules": []},
     {"n": 36, "id": "thank_you",            "layout": 0,  "story": null,                  "modules": []},
 
@@ -73,10 +73,9 @@
   ],
   "todo": [
     "Run validator after each manifest edit: python3 docs/deck/validate_manifest.py",
-    "Create NEW:executive/opportunity_stack.py (waterfall summing 4 story-level $ opportunities)",
     "Add 'top3', 'ars', 'ics', 'competition', 'financial_services' filter support to insights.conclusions",
     "Track source_script in AnalysisResult so deck filter can be per-script (currently per-section)",
-    "Implement conditional ICS insertion (predicate: ICS_cohort produced any output)"
+    "End-to-end pilot: run --deck-mode=client against a real client; verify slide count = 32 (no ICS) or 38 (with ICS)"
   ],
   "shipped": [
     "Manifest validator (docs/deck/validate_manifest.py)",
@@ -91,12 +90,14 @@
       "cross_cohort/20_ars_response_lift.py -> slide 5 (ARS hero, supporting)",
       "cross_cohort/96_composite_scorecard.py -> slide 3 (exec scorecard)"
     ],
-    "promotion_recommended": [
-      "cross_cohort/73_response_persistence.py -> swap with mailer.cohort on slide 10 (more rigorous cohort-matched analysis)",
-      "cross_cohort/60_revenue_per_account.py -> add to slide 11 ROI (interchange proxy with cohort matching)",
-      "cross_cohort/80_attrition_by_ics.py -> swap with attrition.impact on slide 12 IF ICS data present",
-      "cross_cohort/50_ics_competition_overlay.py -> NEW slide between Story 2 (ICS) and Story 3 (Competition) -- bridges them",
-      "cross_cohort/02_cohort_kpi_panel.py -> add to slide 8 (response by wave) as supporting view"
+    "promoted_this_session": [
+      "cross_cohort/73_response_persistence.py -> slide 10 (alongside mailer.cohort)",
+      "cross_cohort/60_revenue_per_account.py -> slide 11 (alongside insights.effectiveness)",
+      "cross_cohort/80_attrition_by_ics.py -> slide 12 (alongside attrition.impact; ICS conditional handled by deck_filter)",
+      "cross_cohort/50_ics_competition_overlay.py -> slide 19 (replaces ics_so_what; bridges ICS->Competition)"
+    ],
+    "promotion_deferred": [
+      "cross_cohort/02_cohort_kpi_panel.py -> potential add to slide 8 (response by wave)"
     ],
     "supplementary_only": [
       "cross_cohort/10_activation_speed.py",

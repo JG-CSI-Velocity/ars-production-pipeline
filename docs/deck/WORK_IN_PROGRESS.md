@@ -70,15 +70,19 @@ Compresses the current ~70-80 slide combined output into a focused **<40 slide**
 - ~~Add `--mode=client` / `--mode=supplementary` flags~~ → `--deck-mode` in `run.py` + `deck_filter.py` step
 - ~~Audit cross_cohort/~~ → 12 scripts catalogued in manifest under `cross_cohort_promotion_candidates`
 
-**Remaining:**
-1. **Track `source_script` in `AnalysisResult`** so deck filter can match per-script (currently per-section). Small change in `txn_wrapper._execute_scripts`.
-2. **Build `analytics/executive/opportunity_stack.py`** (waterfall summing 4 story-level $ opportunities)
-3. **Add filter support to `insights.conclusions`** (`filter='top3'|'ars'|'ics'|'competition'|'financial_services'`) so the four "So what" slides emit the right bullets per story.
-4. **Implement conditional ICS insertion** (predicate: `ICS_cohort` produced any output → include slides 15-19, else skip)
-5. **Promote cross_cohort scripts** flagged in `slide_manifest.json` `cross_cohort_promotion_candidates.promotion_recommended` (5 candidates).
-6. **End-to-end pilot:** run `--deck-mode=client` against a real client. Verify slide count = 32 (no ICS) or 38 (with ICS). Side-by-side vs old ~70-slide deck.
+**Done:**
+- ~~Validate manifest module IDs match registered modules~~ → `docs/deck/validate_manifest.py`
+- ~~Add `--mode=client` / `--mode=supplementary` flags~~ → `--deck-mode` in `run.py` + `deck_filter.py` step
+- ~~Audit cross_cohort/~~ → 12 scripts catalogued in manifest
+- ~~Expose deck-mode in web UI~~ → on-demand + scheduler dropdowns in `05_UI/`
+- ~~Implement conditional ICS skip~~ → `deck_filter.py` excludes `conditional: ics` slides when no ICS_cohort output detected
+- ~~Promote 4 cross_cohort scripts~~ → slides 10, 11, 12, 19 now reference `cross_cohort/73_response_persistence`, `60_revenue_per_account`, `80_attrition_by_ics`, `50_ics_competition_overlay`
+- ~~Wire opportunity-stack waterfall~~ → slide 34 references existing `executive/04_opportunity_waterfall.py` (no new module needed)
 
-**Estimated remaining effort:** ~1 day (down from 2 — foundational plumbing landed this session).
+**Remaining (require user input or live data):**
+1. **Track `source_script` in `AnalysisResult`** so deck filter can match per-script (currently per-section). Small change in `txn_wrapper._execute_scripts` — held back to avoid PR #93 merge conflict.
+2. **Add `filter` param to `insights.conclusions`** (`filter='top3'|'ars'|'ics'|'competition'|'financial_services'`) so the four "So what" slides emit the right bullets per story. Needs `insights.conclusions` source dive — held for next session.
+3. **End-to-end pilot:** run `--deck-mode=client` against a real client. Verify slide count = 32 (no ICS) or 38 (with ICS). Side-by-side vs old ~70-slide deck. **Requires live client data — only you can do this.**
 
 ### Hard dependency
 

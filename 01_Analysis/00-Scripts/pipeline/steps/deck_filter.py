@@ -115,6 +115,18 @@ def step_apply_deck_manifest(ctx: Any) -> None:
     allowed_sections = _allowed_section_ids(manifest)
     allowed_modules = _allowed_module_ids(manifest)
 
+    # Conditional ICS section: when client mode AND no ICS_cohort output was
+    # produced, exclude slides flagged with "conditional": "ics" in manifest.
+    # Predicate: any captured slide_id starting with "TXN-ICS_cohort-" or
+    # "TXN-ics_acquisition-" indicates ICS data is present.
+    has_ics_output = any(
+        ("ICS_cohort" in r.slide_id) or ("ics_acquisition" in r.slide_id.lower())
+        for r in ctx.all_slides
+    )
+    if not has_ics_output:
+        allowed_sections.discard("ICS_cohort")
+        logger.info("deck_filter: no ICS data detected -- ICS slides will be excluded")
+
     before = len(ctx.all_slides)
 
     def _is_in_manifest(result) -> bool:
