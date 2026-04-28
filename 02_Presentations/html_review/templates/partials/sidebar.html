@@ -1,0 +1,15 @@
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <p class="sidebar-mark">CSI Velocity</p>
+    <h1>{{ client.display_name }}</h1>
+    <p class="sidebar-period">{{ client.month_display }}</p>
+  </div>
+  <p class="sidebar-toc-label">Contents</p>
+  {% for section in sections %}
+    <a class="sidebar-section" href="#section-{{ section.id }}" data-section-target="{{ section.id }}">
+      <span class="num">{{ '%02d' % loop.index }}</span>
+      <span class="label">{{ section.title }}</span>
+      <span class="count">{{ section.blocks|length }}</span>
+    </a>
+  {% endfor %}
+</aside>
