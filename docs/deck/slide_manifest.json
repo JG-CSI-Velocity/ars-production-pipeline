@@ -1,0 +1,77 @@
+{
+  "$schema_version": "1.0",
+  "description": "Client-facing 3-story deck manifest. See CLIENT_DECK_PLAN.md for narrative.",
+  "modes": {
+    "client": "Emit only slides listed in 'slides' array. ICS section is conditional on data presence.",
+    "supplementary": "Emit every chart NOT listed in 'slides' (inverse selection).",
+    "full": "Default behavior: emit everything (legacy)."
+  },
+  "stories": {
+    "ars_performance": "Did the program work, what did it return.",
+    "ics": "Conditional on ICS data presence — penetration, revenue impact, referral opportunity.",
+    "competition": "Who is taking your members' wallet.",
+    "financial_services": "Where member dollars flow to other FIs."
+  },
+  "conditional_sections": {
+    "ics": {
+      "predicate": "ctx.results.get('ics.overview') and ctx.results['ics.overview'].kpis.get('n_ics_accounts', 0) > 0",
+      "insert_after_slide": 14
+    }
+  },
+  "slides": [
+    {"n": 1,  "id": "title",                "layout": 18, "story": null,                  "modules": []},
+    {"n": 2,  "id": "agenda",               "layout": 12, "story": null,                  "modules": []},
+    {"n": 3,  "id": "exec_scorecard",       "layout": 8,  "story": null,                  "modules": ["executive.scorecard", "insights.synthesis"]},
+
+    {"n": 4,  "id": "ars_divider",          "layout": 4,  "story": "ars_performance",     "modules": []},
+    {"n": 5,  "id": "ars_hero_funnel",      "layout": 2,  "story": "ars_performance",     "modules": ["mailer.insights", "mailer.reach", "value.analysis"], "combine": true},
+    {"n": 6,  "id": "dctr_combined",        "layout": 2,  "story": "ars_performance",     "modules": ["dctr.penetration", "dctr.trends"], "combine": true},
+    {"n": 7,  "id": "rege_status",          "layout": 9,  "story": "ars_performance",     "modules": ["rege.status"]},
+    {"n": 8,  "id": "mailer_response_wave", "layout": 2,  "story": "ars_performance",     "modules": ["mailer.response"]},
+    {"n": 9,  "id": "responder_lift_did",   "layout": 9,  "story": "ars_performance",     "modules": ["mailer.impact"]},
+    {"n": 10, "id": "cohort_persistence",   "layout": 2,  "story": "ars_performance",     "modules": ["mailer.cohort"]},
+    {"n": 11, "id": "ars_roi",              "layout": 2,  "story": "ars_performance",     "modules": ["insights.effectiveness"]},
+    {"n": 12, "id": "attrition_impact",     "layout": 2,  "story": "ars_performance",     "modules": ["attrition.impact"]},
+    {"n": 13, "id": "dormant_recoverable",  "layout": 2,  "story": "ars_performance",     "modules": ["insights.dormant"]},
+    {"n": 14, "id": "ars_so_what",          "layout": 12, "story": "ars_performance",     "modules": ["insights.conclusions"], "filter": "ars"},
+
+    {"n": 15, "id": "ics_divider",          "layout": 4,  "story": "ics",                 "modules": [], "conditional": "ics"},
+    {"n": 16, "id": "ics_hero",             "layout": 2,  "story": "ics",                 "modules": ["ics.overview", "ics.revenue_impact"], "combine": true, "conditional": "ics"},
+    {"n": 17, "id": "ics_three_panel",      "layout": 9,  "story": "ics",                 "modules": ["ics.branch", "ics.product_mix", "ics.tenure"], "combine": true, "conditional": "ics"},
+    {"n": 18, "id": "ics_referral",         "layout": 2,  "story": "ics",                 "modules": ["ics.referral_intelligence"], "conditional": "ics"},
+    {"n": 19, "id": "ics_so_what",          "layout": 12, "story": "ics",                 "modules": ["insights.conclusions"], "filter": "ics", "conditional": "ics"},
+
+    {"n": 20, "id": "competition_divider",  "layout": 4,  "story": "competition",         "modules": []},
+    {"n": 21, "id": "wallet_share_hero",    "layout": 2,  "story": "competition",         "modules": ["competition.wallet_share"]},
+    {"n": 22, "id": "threat_quadrant",      "layout": 8,  "story": "competition",         "modules": ["competition.threat_quadrant"]},
+    {"n": 23, "id": "top_competitors",      "layout": 2,  "story": "competition",         "modules": ["competition.detection"]},
+    {"n": 24, "id": "external_merchants",   "layout": 2,  "story": "competition",         "modules": ["merchant.top20"], "filter": "external_only", "limit": 10},
+    {"n": 25, "id": "competition_so_what",  "layout": 12, "story": "competition",         "modules": ["insights.conclusions"], "filter": "competition"},
+
+    {"n": 26, "id": "fs_divider",           "layout": 4,  "story": "financial_services",  "modules": []},
+    {"n": 27, "id": "fs_hero",              "layout": 2,  "story": "financial_services",  "modules": ["financial_services.fi_transactions"]},
+    {"n": 28, "id": "fs_by_destination",    "layout": 2,  "story": "financial_services",  "modules": ["financial_services.leakage"]},
+    {"n": 29, "id": "fs_by_segment",        "layout": 9,  "story": "financial_services",  "modules": ["financial_services", "general.engagement_data"], "combine": true},
+    {"n": 30, "id": "fs_trend",             "layout": 2,  "story": "financial_services",  "modules": ["financial_services"], "view": "monthly"},
+    {"n": 31, "id": "fs_so_what",           "layout": 12, "story": "financial_services",  "modules": ["insights.conclusions"], "filter": "financial_services"},
+
+    {"n": 32, "id": "recommendations_divider", "layout": 4,  "story": null,               "modules": []},
+    {"n": 33, "id": "top_3_priorities",     "layout": 12, "story": null,                  "modules": ["executive.priorities"]},
+    {"n": 34, "id": "opportunity_stack",    "layout": 2,  "story": null,                  "modules": ["executive.opportunity_stack"]},
+    {"n": 35, "id": "what_we_need",         "layout": 12, "story": null,                  "modules": []},
+    {"n": 36, "id": "thank_you",            "layout": 0,  "story": null,                  "modules": []},
+
+    {"n": 37, "id": "appendix_divider",     "layout": 6,  "story": null,                  "modules": []},
+    {"n": 38, "id": "methodology",          "layout": 12, "story": null,                  "modules": []},
+    {"n": 39, "id": "supplementary_pointer","layout": 12, "story": null,                  "modules": []}
+  ],
+  "todo": [
+    "Create analytics/executive/ars_hero.py (combines mailer.insights + mailer.reach + value.analysis)",
+    "Create analytics/executive/competition_hero.py",
+    "Create analytics/executive/opportunity_stack.py (waterfall summing 4 story-level $ opportunities)",
+    "Create insights.conclusions filter mechanism (filter='ars'|'ics'|'competition'|'financial_services')",
+    "Add --mode=client / --mode=supplementary flags to runner.py",
+    "Implement conditional ICS insertion logic in deck assembly",
+    "Validate manifest module IDs match registered modules in analytics/registry.py"
+  ]
+}
