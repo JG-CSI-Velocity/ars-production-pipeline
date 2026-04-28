@@ -16,7 +16,9 @@ else:
     _acct_col = rewards_df['Acct Number' if 'Acct Number' in rewards_df.columns
                            else ' Acct Number'].astype(str).str.strip()
 
-    # Total population = all accounts in ODDD (the full portfolio)
+    # Total population = eligible accounts in rewards_df (filtered upstream
+    # by txn_wrapper._inject_eligible_filter; falls back to full ODDD if
+    # ELIGIBLE_FILTER_APPLIED is False).
     total_population = len(_acct_col.unique())
 
     cum_mailed_set = set()
@@ -156,7 +158,8 @@ else:
                   color=GEN_COLORS['accent'], linewidth=3,
                   marker='D', markersize=8, zorder=5,
                   label='Response Penetration (% of portfolio)')
-    ax1_twin.set_ylabel(f"% of Total Portfolio ({total_population:,} accounts)", fontsize=16,
+    _pen_base_label = "Eligible Portfolio" if globals().get('ELIGIBLE_FILTER_APPLIED') else "Total Portfolio"
+    ax1_twin.set_ylabel(f"% of {_pen_base_label} ({total_population:,} accounts)", fontsize=16,
                          fontweight='bold', color=GEN_COLORS['accent'], labelpad=10)
     ax1_twin.yaxis.set_major_formatter(plt.FuncFormatter(gen_fmt_pct))
     ax1_twin.spines['top'].set_visible(False)
@@ -228,10 +231,11 @@ else:
     # Value labels with percentages (all vs total portfolio)
     for j, val in enumerate(funnel_values):
         pct = val / total_population * 100 if total_population > 0 else 0
+        _pen_pct_base = "eligible" if globals().get('ELIGIBLE_FILTER_APPLIED') else "portfolio"
         if j == 0:
             pct_label = f"  {val:,}"
         else:
-            pct_label = f"  {val:,}  ({pct:.1f}% of portfolio)"
+            pct_label = f"  {val:,}  ({pct:.1f}% of {_pen_pct_base})"
         ax2.text(val, j, pct_label, va='center', fontsize=14,
                  fontweight='bold', color=funnel_colors[j])
 
@@ -288,7 +292,7 @@ else:
                 ('padding-bottom', '12px'),
             ]},
         ])
-        .set_caption(f"Campaign Penetration by Period  (Total portfolio: {total_population:,} accounts  |  {DATASET_LABEL})")
+        .set_caption(f"Campaign Penetration by Period  ({'Eligible' if globals().get('ELIGIBLE_FILTER_APPLIED') else 'Total'} portfolio: {total_population:,} accounts  |  {DATASET_LABEL})")
         .bar(subset=['Resp Pen %'], color=GEN_COLORS['success'], vmin=0)
     )
 
@@ -297,11 +301,12 @@ else:
     # -----------------------------------------------------------------
     # 4. Console summary
     # -----------------------------------------------------------------
-    print(f"\n    Penetration Analysis (vs total portfolio of {total_population:,} accounts):")
+    _pen_console_base = "eligible portfolio" if globals().get('ELIGIBLE_FILTER_APPLIED') else "total portfolio"
+    print(f"\n    Penetration Analysis (vs {_pen_console_base} of {total_population:,} accounts):")
     print(f"    Total unique mailed: {total_unique_mailed:,} "
-          f"({repeat_summary['mail_penetration_pct']:.1f}% of portfolio)")
+          f"({repeat_summary['mail_penetration_pct']:.1f}% of {_pen_console_base})")
     print(f"    Total unique responded (ever): {total_unique_responded:,} "
-          f"({repeat_summary['resp_penetration_pct']:.1f}% of portfolio)")
+          f"({repeat_summary['resp_penetration_pct']:.1f}% of {_pen_console_base})")
     print(f"    Cumulative response rate (of mailed): {repeat_summary['response_rate_pct']:.1f}%")
     if total_unique_responded > 0:
         print(f"    Single-response accounts: {single_responders:,} "
