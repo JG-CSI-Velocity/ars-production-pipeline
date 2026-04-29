@@ -1907,7 +1907,10 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         _product_label = "txn"
     else:
         _product_label = "ars"
-    output_path = ctx.paths.pptx_dir / f"{ctx.client.client_id}_{ctx.client.month}_{_product_label}_deck.pptx"
+    # G7 (auxiliary deck): when generate.py invokes build_deck with ctx._aux_build=True,
+    # write to *_aux_deck.pptx so the main deck output is preserved.
+    _suffix = "_aux_deck.pptx" if getattr(ctx, "_aux_build", False) else "_deck.pptx"
+    output_path = ctx.paths.pptx_dir / f"{ctx.client.client_id}_{ctx.client.month}_{_product_label}{_suffix}"
 
     try:
         builder = DeckBuilder(str(template))

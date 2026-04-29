@@ -85,14 +85,51 @@ def _save_run_report(ctx: PipelineContext, report: list[SlideStatus]) -> None:
     )
 
 
+def _drop_empty_slides(ctx: PipelineContext) -> int:
+    """G6: silently skip slides whose underlying data is empty.
+
+    Empty = ran successfully but produced neither a chart nor Excel data.
+    Mutates ctx.all_slides in place. Returns the number dropped.
+    """
+    before = len(ctx.all_slides)
+    kept = []
+    dropped_ids: list[str] = []
+    for r in ctx.all_slides:
+        is_empty = (
+            getattr(r, "success", True)
+            and not (getattr(r, "chart_path", None) and r.chart_path.exists())
+            and not getattr(r, "excel_data", None)
+        )
+        if is_empty:
+            dropped_ids.append(getattr(r, "slide_id", "?"))
+            continue
+        kept.append(r)
+    ctx.all_slides = kept
+    dropped = before - len(kept)
+    if dropped:
+        logger.info(
+            "G6 drop-if-empty: skipped {n} slide(s) with empty data: {ids}",
+            n=dropped,
+            ids=", ".join(dropped_ids[:20]) + ("..." if len(dropped_ids) > 20 else ""),
+        )
+    return dropped
+
+
 def step_generate(ctx: PipelineContext) -> None:
     """Generate all output deliverables from analysis results.
 
-    Order: run report -> Excel workbook -> PowerPoint deck -> archive copy.
+    Order: drop-if-empty -> run report -> Excel workbook -> PowerPoint deck (main + aux).
     Uses single-write pattern: build Excel once, then shutil.copy2 for master.
     """
     if not ctx.all_slides:
         logger.warning("No analysis results to generate deliverables from")
+        return
+
+    # G6: drop slides with empty data before any deliverable is produced.
+    _drop_empty_slides(ctx)
+
+    if not ctx.all_slides:
+        logger.warning("No slides remain after G6 drop-if-empty filter")
         return
 
     # Build and save run report before deck build (diagnostics first)
@@ -102,6 +139,7 @@ def step_generate(ctx: PipelineContext) -> None:
 
     _write_excel(ctx)
     _build_deck(ctx)
+    _build_aux_deck(ctx)
     logger.info("Deliverables generated for {client}", client=ctx.client.client_id)
 
 
@@ -199,3 +237,58 @@ def _build_deck(ctx: PipelineContext) -> None:
         ctx.export_log.append(f"ERROR: {msg}")
         if ctx.progress_callback:
             ctx.progress_callback(msg)
+
+
+def _build_aux_deck(ctx: PipelineContext) -> None:
+    """G7: build a secondary auxiliary deck containing slides routed away from main.
+
+    Routing source: ctx.auxiliary_slide_ids (set of slide_ids).
+    No-op when the set is empty (Wave 1 ships empty; later waves populate).
+    """
+    aux_ids = getattr(ctx, "auxiliary_slide_ids", set()) or set()
+    if not aux_ids:
+        logger.debug("G7 aux deck: no slide IDs routed to aux; skipping")
+        return
+
+    skip_pptx = False
+    if ctx.settings and hasattr(ctx.settings, "pipeline"):
+        skip_pptx = getattr(ctx.settings.pipeline, "skip_pptx", False)
+    if skip_pptx:
+        return
+
+    aux_slides = [r for r in ctx.all_slides if getattr(r, "slide_id", "") in aux_ids]
+    if not aux_slides:
+        logger.info("G7 aux deck: routing set non-empty but no matching slides; skipping")
+        return
+
+    # Swap ctx.all_slides for the aux build, then restore.
+    main_slides = ctx.all_slides
+    try:
+        ctx.all_slides = aux_slides
+        from ars_analysis.output.deck_builder import build_deck
+
+        # Mark this build as aux via a transient attribute the builder can read
+        # to choose the output filename. Fallback: rename here if the builder
+        # does not honor the flag.
+        ctx._aux_build = True  # type: ignore[attr-defined]
+        result = build_deck(ctx)
+        if result and not result.name.endswith("_aux_deck.pptx"):
+            # Builder did not honor _aux_build; rename in-place.
+            aux_path = result.with_name(result.name.replace("_deck.pptx", "_aux_deck.pptx"))
+            try:
+                result.rename(aux_path)
+                if str(result) in ctx.export_log:
+                    ctx.export_log[ctx.export_log.index(str(result))] = str(aux_path)
+                result = aux_path
+            except OSError as exc:
+                logger.warning("Aux deck rename failed: {err}", err=exc)
+        if result:
+            logger.info("G7 aux deck built: {name} ({n} slides)", name=result.name, n=len(aux_slides))
+            if ctx.progress_callback:
+                ctx.progress_callback(f"Aux deck: {result.name}")
+    except Exception as exc:
+        logger.error("G7 aux deck build failed: {err}", err=exc)
+    finally:
+        ctx.all_slides = main_slides
+        if hasattr(ctx, "_aux_build"):
+            delattr(ctx, "_aux_build")
