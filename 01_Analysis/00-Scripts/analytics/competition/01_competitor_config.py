@@ -503,6 +503,61 @@ CLIENT_CONFIGS = {
             'NAVY FEDERAL CU':          'NAVY FEDERAL CREDIT UNION',
         },
     },
+    '1200': {  # Guardians Credit Union (South Florida)
+        'fed_district': '6',
+        'credit_unions': [
+            'TROPICAL FINANCIAL CREDIT UNION', 'TROPICAL FINANCIAL', 'TROPICAL FCU',
+            'ITHINK FINANCIAL CREDIT UNION', 'ITHINK FINANCIAL', 'ITHINK FCU',
+            'BRIGHTSTAR CREDIT UNION', 'BRIGHTSTAR CU',
+            'WE FLORIDA FINANCIAL', 'WE FLORIDA',
+            'POWER FINANCIAL CREDIT UNION', 'POWER FINANCIAL', 'POWER FCU',
+            'SPACE COAST CREDIT UNION', 'SPACE COAST CU',
+            'GOLD COAST FEDERAL CREDIT UNION', 'GOLD COAST FCU',
+            'FIRST CHOICE CREDIT UNION', 'FIRST CHOICE CU',
+            'SUN CREDIT UNION', 'SUN CU',
+            'FLORIDA CONNECT CREDIT UNION', 'FLORIDA CONNECT CU',
+            'VELOCITY COMMUNITY CREDIT UNION', 'VELOCITY CU',
+            'WELLBY FINANCIAL',
+            'NAVY FEDERAL CREDIT UNION', 'NAVY FEDERAL CU',
+        ],
+        'local_banks': [
+            'SEACOAST BANK', 'SEACOAST BANKING', 'SEACOAST NATIONAL',
+            'OCEAN BANK',
+            'CITY NATIONAL BANK OF FLORIDA', 'CITY NATIONAL BANK', 'CITY NATL',
+            'AMERANT BANK', 'AMERANT',
+            'BANKUNITED', 'BANK UNITED',
+            'UNITED COMMUNITY BANK',
+            'FIRST HORIZON',
+            'SYNOVUS', 'SYNOVUS BANK',
+        ],
+        'custom': [],
+        'rollups': {
+            # Credit Unions
+            'TROPICAL FINANCIAL':       'TROPICAL FINANCIAL CREDIT UNION',
+            'TROPICAL FCU':             'TROPICAL FINANCIAL CREDIT UNION',
+            'ITHINK FINANCIAL':         'ITHINK FINANCIAL CREDIT UNION',
+            'ITHINK FCU':               'ITHINK FINANCIAL CREDIT UNION',
+            'BRIGHTSTAR CU':            'BRIGHTSTAR CREDIT UNION',
+            'WE FLORIDA':               'WE FLORIDA FINANCIAL',
+            'POWER FINANCIAL':          'POWER FINANCIAL CREDIT UNION',
+            'POWER FCU':                'POWER FINANCIAL CREDIT UNION',
+            'SPACE COAST CU':           'SPACE COAST CREDIT UNION',
+            'GOLD COAST FCU':           'GOLD COAST FEDERAL CREDIT UNION',
+            'FIRST CHOICE CU':          'FIRST CHOICE CREDIT UNION',
+            'SUN CU':                   'SUN CREDIT UNION',
+            'FLORIDA CONNECT CU':       'FLORIDA CONNECT CREDIT UNION',
+            'VELOCITY CU':              'VELOCITY COMMUNITY CREDIT UNION',
+            'NAVY FEDERAL CU':          'NAVY FEDERAL CREDIT UNION',
+            # Local Banks
+            'SEACOAST BANKING':         'SEACOAST BANK',
+            'SEACOAST NATIONAL':        'SEACOAST BANK',
+            'CITY NATIONAL BANK':       'CITY NATIONAL BANK OF FLORIDA',
+            'CITY NATL':                'CITY NATIONAL BANK OF FLORIDA',
+            'AMERANT':                  'AMERANT BANK',
+            'BANK UNITED':              'BANKUNITED',
+            'SYNOVUS BANK':             'SYNOVUS',
+        },
+    },
 
     # Template for new clients -- copy and fill in:
     # 'XXXX': {  # Client Name (Location)
@@ -579,8 +634,70 @@ ALL_CATEGORIES = list(COMPETITOR_MERCHANTS.keys())
 # SECTION E: DETECTION FUNCTIONS
 # ===========================================================================
 
+# ---------------------------------------------------------------------------
+# Normalization for matching
+# ---------------------------------------------------------------------------
+# Card-network merchant descriptors are typically truncated to ~22-25 chars
+# with prefixes (POS DEBIT, SQ *, etc.) and trailing location/phone garbage.
+# The patterns above use full legal names. We normalize BOTH sides before
+# matching so e.g. 'TROPICAL FINANCIAL CREDIT UNION' (pattern) and
+# 'POS DEBIT TROPICAL FIN CU FT LAUDER FL' (data) collapse to a common form.
+
+import re as _re
+
+_CARD_PREFIX_RE = _re.compile(
+    r'^(?:'
+    r'POS\s+(?:DEBIT|PURCH(?:ASE)?|WITHDRAWAL|CREDIT)|'
+    r'DEBIT\s+(?:CARD\s+(?:PURCHASE|PAYMENT)?|PURCHASE|PMT)|'
+    r'CHECKCARD(?:\s+\d+)?|'
+    r'PURCHASE\s+AUTHORIZED(?:\s+ON\s+\d+/\d+)?|'
+    r'RECURRING\s+(?:DEBIT\s+)?PMT|'
+    r'WEB\s+AUTH(?:ORIZED)?\s+PMT|'
+    r'EXTERNAL\s+WITHDRAWAL|'
+    r'ACH\s+(?:DEBIT|WITHDRAWAL|DEPOSIT|TRANSFER|PMT)|'
+    r'SQ\s*\*|TST\s*\*|PP\s*\*|SP\s*\*|PY\s*\*|EZP\s*\*'
+    r')\s*',
+    _re.IGNORECASE,
+)
+
+# Order matters: longest phrases first so 'FEDERAL CREDIT UNION' is collapsed
+# before 'FEDERAL' alone. Replacements are regex with \b word boundaries so
+# 'FEDERATED' isn't touched by 'FEDERAL'.
+_BANK_ABBREV_RULES = [
+    (r'\bFEDERAL\s+CREDIT\s+UNION\b', 'FED CU'),
+    (r'\bCREDIT\s+UNION\b',           'CU'),
+    (r'\bFCU\b',                      'FED CU'),
+    (r'\bFEDERAL\b',                  'FED'),
+    (r'\bFINANCIAL\b',                'FIN'),
+    (r'\bNATIONAL\s+BANK\b',          'NATL BANK'),
+    (r'\bNATIONAL\b',                 'NATL'),
+    (r'\bN\.A\.\b',                   'NATL'),
+    (r'\bSAVINGS\s+BANK\b',           'SAVINGS BANK'),
+    (r'[^\w\s]',                      ' '),   # drop punctuation
+    (r'\s+',                          ' '),   # collapse whitespace
+]
+_BANK_ABBREV_COMPILED = [(_re.compile(p), r) for p, r in _BANK_ABBREV_RULES]
+
+
+def normalize_for_match(s):
+    """Collapse a merchant or pattern string into a canonical matching form."""
+    s = str(s).upper().strip()
+    s = _CARD_PREFIX_RE.sub('', s)
+    for pat, repl in _BANK_ABBREV_COMPILED:
+        s = pat.sub(repl, s)
+    return s.strip()
+
+
 def tag_competitors(df, merchant_col='merchant_consolidated'):
     """Tag transactions with competitor_category column.
+
+    Matching strategy:
+      - Both patterns and merchant strings are normalized via
+        normalize_for_match() (strips card-descriptor prefixes, collapses
+        FEDERAL CREDIT UNION / FCU / FINANCIAL / etc. to canonical short forms).
+      - Word-boundary regex contains-match (was anchored ^ start-match,
+        which never matched truncated card descriptors like
+        'POS DEBIT TROPICAL FIN CU FT LAUDER FL').
 
     Memory-optimized for large DataFrames (13M+ rows):
       - Drops old columns + gc.collect() before allocating new ones
@@ -599,32 +716,47 @@ def tag_competitors(df, merchant_col='merchant_consolidated'):
     gc.collect()
 
     n = len(df)
-    merchant_upper = df[merchant_col].astype(str).str.upper().str.strip()
+    # Vectorized normalization: apply each rule once across the whole Series
+    merchant_norm = df[merchant_col].astype(str).str.upper().str.strip()
+    merchant_norm = merchant_norm.str.replace(_CARD_PREFIX_RE.pattern, '',
+                                              regex=True, flags=_re.IGNORECASE)
+    for pat, repl in _BANK_ABBREV_RULES:
+        merchant_norm = merchant_norm.str.replace(pat, repl, regex=True)
+    merchant_norm = merchant_norm.str.strip()
 
     tagged = np.zeros(n, dtype=bool)
     cat_names = list(COMPETITOR_MERCHANTS.keys())
     cat_codes = np.full(n, -1, dtype=np.int8)  # -1 -> NaN in Categorical
 
     for cat_idx, (category, patterns) in enumerate(COMPETITOR_MERCHANTS.items()):
-        sw = [p.upper().strip() for p in patterns.get('starts_with', []) if p.strip()]
-        ex = [p.upper().strip() for p in patterns.get('exact', []) if p.strip()]
+        # Normalize patterns the same way data is normalized.
+        sw = [normalize_for_match(p) for p in patterns.get('starts_with', []) if p.strip()]
+        sw = [p for p in sw if p]  # drop any that normalized to empty
+        ex = [normalize_for_match(p) for p in patterns.get('exact', []) if p.strip()]
+        ex = [p for p in ex if p]
+
+        # Deduplicate -- normalization collapses many variants together
+        sw = sorted(set(sw), key=len, reverse=True)
+        ex = sorted(set(ex))
 
         cat_mask = np.zeros(n, dtype=bool)
 
         if sw:
-            regex = '^(?:' + '|'.join(re.escape(p) for p in sw) + ')'
-            cat_mask |= merchant_upper.str.match(regex, na=False).values
+            # Word-boundary contains: matches anywhere in the merchant string
+            # but only at word boundaries (so 'CHASE' won't match inside 'PURCHASE').
+            regex = r'\b(?:' + '|'.join(re.escape(p) for p in sw) + r')\b'
+            cat_mask |= merchant_norm.str.contains(regex, na=False, regex=True).values
 
         if ex:
-            cat_mask |= merchant_upper.isin(ex).values
+            cat_mask |= merchant_norm.isin(ex).values
 
         new_hits = cat_mask & ~tagged
         if new_hits.any():
             cat_codes[new_hits] = cat_idx
             tagged |= new_hits
 
-    # Free the large uppercase Series (~250 MiB) before allocating results
-    del merchant_upper, tagged
+    # Free the large normalized Series (~250 MiB) before allocating results
+    del merchant_norm, tagged
     gc.collect()
 
     # Categorical column: ~13 MiB (int8 codes) vs ~102 MiB (object array)
