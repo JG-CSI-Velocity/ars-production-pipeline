@@ -93,3 +93,60 @@ def test_flush_is_atomic_via_tempfile_rename(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(_os, "replace", boom)
     rm.flush()  # must NOT raise -- flush failures are swallowed
     assert (tmp_path / "run_manifest.json").read_text() == baseline
+
+
+def test_section_recorder_records_ok_path(tmp_path: Path):
+    rm = m.RunManifest(
+        client_id="1200", client_name="Guardians CU",
+        csm="JamesG", month="2026.05", product="combined",
+        output_dir=tmp_path,
+    )
+    rm.start_run()
+    with rm.start_section("Competition") as sec:
+        sec.set_key_numbers({"credit_unions": 2814, "top_25_fed_district": 0})
+        sec.flag(m.FlagLevel.WARN, "top_25_fed_district=0 unexpected for FL")
+        sec.set_slides(38)
+
+    rm.end_run(m.RunStatus.OK)
+
+    data = json.loads((tmp_path / "run_manifest.json").read_text())
+    section = data["sections"][0]
+    assert section["name"] == "Competition"
+    assert section["status"] == "ok"
+    assert section["slides"] == 38
+    assert section["key_numbers"]["credit_unions"] == 2814
+    assert section["anomaly_flags"][0]["level"] == "warn"
+    assert section["elapsed_s"] >= 0
+
+
+def test_section_recorder_marks_failed_on_exception(tmp_path: Path):
+    rm = m.RunManifest(
+        client_id="1200", client_name="Guardians CU",
+        csm="JamesG", month="2026.05", product="combined",
+        output_dir=tmp_path,
+    )
+    rm.start_run()
+    try:
+        with rm.start_section("Competition") as sec:
+            raise RuntimeError("boom")
+    except RuntimeError:
+        pass
+    rm.end_run(m.RunStatus.PARTIAL)
+
+    data = json.loads((tmp_path / "run_manifest.json").read_text())
+    assert data["sections"][0]["status"] == "failed"
+
+
+def test_no_charts_status_when_slides_zero_and_no_scripts(tmp_path: Path):
+    rm = m.RunManifest(
+        client_id="1200", client_name="Guardians CU",
+        csm="JamesG", month="2026.05", product="combined",
+        output_dir=tmp_path,
+    )
+    rm.start_run()
+    with rm.start_section("MCC Categories") as sec:
+        pass  # nothing produced
+    rm.end_run(m.RunStatus.OK)
+
+    data = json.loads((tmp_path / "run_manifest.json").read_text())
+    assert data["sections"][0]["status"] == "no_charts"

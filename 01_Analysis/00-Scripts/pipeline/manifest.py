@@ -194,3 +194,64 @@ class RunManifest:
                 raise
         except Exception as exc:
             logger.warning("manifest flush failed: {err}", err=exc)
+
+
+class SectionRecorder:
+    """Context manager that records one section. Yielded from RunManifest.start_section."""
+
+    def __init__(self, manifest: "RunManifest", record: SectionRecord):
+        self._mf = manifest
+        self._record = record
+        self._t0: float = 0.0
+
+    def __enter__(self) -> "SectionRecorder":
+        self._record.started_at = _utcnow_iso()
+        self._record.status = SectionStatus.RUNNING
+        self._t0 = time.monotonic()
+        self._mf.flush()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        self._record.ended_at = _utcnow_iso()
+        self._record.elapsed_s = round(time.monotonic() - self._t0, 1)
+        if exc is not None:
+            self._record.status = SectionStatus.FAILED
+        else:
+            self._record.status = self._infer_status()
+        self._mf.flush()
+        return False  # do not suppress
+
+    def _infer_status(self) -> SectionStatus:
+        has_failed = any(s.status == ScriptStatus.FAILED for s in self._record.scripts)
+        has_ok = any(s.status == ScriptStatus.OK for s in self._record.scripts)
+        if has_failed and has_ok:
+            return SectionStatus.PARTIAL
+        if has_failed:
+            return SectionStatus.FAILED
+        if self._record.slides == 0 and not has_ok:
+            return SectionStatus.NO_CHARTS
+        return SectionStatus.OK
+
+    # Mutation API used by call sites
+    def set_slides(self, n: int) -> None:
+        self._record.slides = int(n)
+
+    def set_key_numbers(self, numbers: dict[str, Any]) -> None:
+        self._record.key_numbers.update(numbers)
+
+    def flag(self, level: FlagLevel, message: str) -> None:
+        self._record.anomaly_flags.append(AnomalyFlag(level=level, message=message))
+
+    def record_script(self, script: ScriptRecord) -> None:
+        self._record.scripts.append(script)
+        self._mf.flush()
+
+
+# Add as a method on RunManifest -- insert near end_run
+def _start_section_method(self, name: str) -> SectionRecorder:
+    record = SectionRecord(name=name)
+    self.sections.append(record)
+    return SectionRecorder(self, record)
+
+
+RunManifest.start_section = _start_section_method  # type: ignore[attr-defined]
