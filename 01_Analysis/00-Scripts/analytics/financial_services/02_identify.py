@@ -11,8 +11,33 @@ print("Scanning for financial services transactions...\n")
 search_column = 'merchant_consolidated' if 'merchant_consolidated' in combined_df.columns else 'merchant_name'
 
 false_positive_patterns = [
+    # Auto-Loans false positives (prevent AUTO PARTS / AUTOZONE leaking)
     'TOWING', 'TOW SERVICE', 'BODY SHOP', 'AUTO REPAIR',
-    'AUTO PARTS', 'AUTOZONE', 'AUTO TRADER', 'TRADER JOE', "TRADER JOE'S"
+    'AUTO PARTS', 'AUTOZONE', 'AUTO TRADER', 'AUTO ZONE',
+    'AUTO GLASS', 'AUTO BODY', 'AUTO SPA', 'AUTO DETAIL',
+    'OIL CHANGE', 'TIRE', 'TIRES PLUS', 'BIG O TIRES',
+    'TRADER JOE', "TRADER JOE'S",
+    # Insurance false positives
+    'PROGRESSIVE ROOFING', 'PROGRESSIVE PLUMBING', 'PROGRESSIVE DENTAL',
+    'STATE FARMERS MARKET',
+    'NATIONWIDE CONSTRUCTION', 'NATIONWIDE PLUMBING',
+    'AAA SPRINKLER', 'AAA PLUMBING', 'AAA ROOFING', 'AAA AUTO PARTS',
+    'AARP TRAVEL',
+    'LIBERTY TAX',  # tax service, not Liberty Mutual
+    # Generic retail / restaurants that share brand-name words
+    'GUARDIAN STORAGE',  # vs Guardian Life
+    'PRINCIPAL ELEMENTS',  # vs Principal Financial
+    'LINCOLN MEMORIAL',  # vs Lincoln Financial
+    'LINCOLN AUTO',
+    'NEW YORK PIZZA', 'NEW YORK DELI', 'NEW YORK BAGEL',  # vs New York Life
+    # Tech / streaming that look like Schwab/Fidelity etc. — unlikely but
+    # keeps the door closed.
+    'AMAZON', 'NETFLIX', 'HULU', 'DISNEY',
+    # Mortgage false positives
+    'ROCKET LEAGUE', 'ROCKET SCIENCE', 'ROCKET COFFEE',
+    'BETTER HELP',  # vs Better Mortgage
+    # Generic crypto false positives
+    'BITCOIN PIZZA',
 ]
 
 _REGEX_BATCH_SIZE = 80  # avoid massive regex alternations
