@@ -147,6 +147,39 @@ def gen_fmt_dollar(x, _):
     return f"${x:,.0f}"
 
 # ---------------------------------------------------------------------------
+# Helper: consistent title + subtitle placement
+# ---------------------------------------------------------------------------
+# Universal rule: title sits above the figure (y=1.02), subtitle sits inside
+# the figure at y=0.94 (default) — that yields >=0.08 figure-height clearance
+# between them at any normal figsize. Caller can override if needed, but
+# the defaults should be safe everywhere.
+def chart_title(fig, title, subtitle=None, title_size=22, subtitle_size=14,
+                title_y=1.02, subtitle_y=0.94, reserve_top=0.88,
+                title_color=None, subtitle_color=None):
+    """Place a title (and optional subtitle) with consistent spacing.
+
+    Use this in new code instead of bare ``fig.suptitle`` + ``fig.text``
+    so subtitles never end up jammed against the title.
+    """
+    if title_color is None:
+        title_color = GEN_COLORS['dark_text']
+    if subtitle_color is None:
+        subtitle_color = GEN_COLORS['muted']
+
+    fig.suptitle(title, fontsize=title_size, fontweight='bold',
+                 color=title_color, y=title_y)
+    if subtitle:
+        fig.text(0.5, subtitle_y, subtitle, ha='center',
+                 fontsize=subtitle_size, color=subtitle_color, style='italic')
+        # When a subtitle is present, reserve more space at the top so
+        # the axes don't crowd it.
+        try:
+            fig.subplots_adjust(top=reserve_top)
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
 # Helper: remove chart clutter
 # ---------------------------------------------------------------------------
 def gen_clean_axes(ax, keep_left=True, keep_bottom=True):
