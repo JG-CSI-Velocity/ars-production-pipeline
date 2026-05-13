@@ -39,6 +39,11 @@ from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.pipeline.context import PipelineContext
 
 
+class _NullCM:
+    def __enter__(self): return None
+    def __exit__(self, *a): return False
+
+
 # ---------------------------------------------------------------------------
 # Chart capture -- intercept matplotlib savefig and plt.show
 # ---------------------------------------------------------------------------
@@ -114,7 +119,9 @@ class ScriptFailure:
 
 
 def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
-                     chart_dir: Path, section_prefix: str
+                     chart_dir: Path, section_prefix: str,
+                     section_recorder: object = None,
+                     manifest_meta: dict[str, str] | None = None,
                      ) -> tuple[list[Path], list[ScriptFailure]]:
     """Execute all .py scripts in a directory in sorted order, sharing a namespace.
 
@@ -166,20 +173,51 @@ def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
         logger.info("  TXN executing: {name}", name=script_name)
 
         with ChartCapture(chart_dir, prefix=f"{section_prefix}_{script_name}") as capture:
+            import sys as _sys
+            import time as _time
+            from ars_analysis.pipeline.manifest import ScriptRecord, ScriptStatus
+            from ars_analysis.pipeline import error_capture as _ec
+
+            _t0 = _time.monotonic()
+            _failed = False
             try:
                 code = script_path.read_text(encoding="utf-8")
                 namespace["__file__"] = str(script_path)
                 exec(compile(code, str(script_path), "exec"), namespace)
             except Exception as exc:
+                _failed = True
                 logger.error("  TXN script failed: {name}: {err}", name=script_name, err=exc)
                 failures.append(ScriptFailure(
                     script_name=script_name,
                     error_type=type(exc).__name__,
                     error_msg=str(exc)[:200],
                 ))
+                if section_recorder is not None:
+                    meta = manifest_meta or {}
+                    fields = _ec.capture_exception(
+                        exc, _sys.exc_info()[2],
+                        section_name=section_prefix,
+                        script_name=script_name,
+                        client_id=meta.get("client_id", ""),
+                        month=meta.get("month", ""),
+                    )
+                    section_recorder.record_script(ScriptRecord(
+                        name=script_name,
+                        status=ScriptStatus.FAILED,
+                        elapsed_s=round(_time.monotonic() - _t0, 2),
+                        **fields,
+                    ))
                 # Do NOT `continue` here -- falling through lets the ChartCapture
                 # __exit__ run, which closes any partially-created figures. The
                 # next loop iteration proceeds to the next script.
+
+            if not _failed and section_recorder is not None:
+                section_recorder.record_script(ScriptRecord(
+                    name=script_name,
+                    status=ScriptStatus.OK,
+                    elapsed_s=round(_time.monotonic() - _t0, 2),
+                    slides=len(capture.captured) if hasattr(capture, "captured") else 0,
+                ))
 
         all_charts.extend(capture.captured)
 
@@ -314,9 +352,26 @@ class TXNSectionWrapper(AnalysisModule):
 
         # Run section scripts
         chart_dir = ctx.paths.charts_dir / self.section_name
-        charts, self.failures = _execute_scripts(
-            self.section_dir, namespace, chart_dir, self.section_name,
-        )
+        _mf = getattr(ctx, "manifest", None)
+        _section_cm = _mf.start_section(self.display_name) if _mf is not None else _NullCM()
+        _manifest_meta = {
+            "client_id": getattr(ctx.client, "client_id", ""),
+            "month": getattr(ctx.client, "month", ""),
+        } if _mf is not None else None
+
+        with _section_cm as _sec:
+            _recorder = _sec if _mf is not None else None
+            charts, self.failures = _execute_scripts(
+                self.section_dir, namespace, chart_dir, self.section_name,
+                section_recorder=_recorder, manifest_meta=_manifest_meta,
+            )
+            # Record slide count + flag if zero slides on a section that expected them
+            if _mf is not None and _recorder is not None:
+                _recorder.set_slides(len(charts))
+                if len(charts) == 0 and len(self.failures) == 0:
+                    # Section produced nothing without errors -- worth flagging
+                    from ars_analysis.pipeline.manifest import FlagLevel
+                    _recorder.flag(FlagLevel.INFO, "section produced 0 slides without errors")
 
         # Propagate new variables back to shared namespace so later sections
         # can use them (e.g., GEN_COLORS from general, demo_df, acct_txn_counts).
