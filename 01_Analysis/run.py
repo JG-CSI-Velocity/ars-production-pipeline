@@ -85,22 +85,48 @@ def _resolve_csm_name(csm_input, base_path):
 
 
 def _find_odd_file(csm, month, client_id):
-    """Auto-find the formatted ODD file from the standard path structure."""
+    """Auto-find the formatted ODD file regardless of how it landed.
+
+    Tries each candidate CSM folder (exact match first, then fuzzy
+    `startswith`):
+
+      1. `{CSM}/{month}/{client_id}/*.xlsx`           -- canonical
+      2. `{CSM}/{month}/{client_id}-*-ODD.xlsx`       -- file at month level
+      3. `{CSM}/{month}/{client_id}*.xlsx`            -- any xlsx prefixed by
+                                                         client_id at month level
+    """
     if os.name == "nt":
         base = Path(r"M:\ARS\00_Formatting\02-Data-Ready for Analysis")
     else:
         base = Path("/Volumes/M/ARS/00_Formatting/02-Data-Ready for Analysis")
 
-    # Fuzzy match CSM name
-    csm = _resolve_csm_name(csm, base)
-
-    client_dir = base / csm / month / client_id
-    if not client_dir.exists():
+    if not base.exists():
         return None
 
-    xlsx_files = list(client_dir.glob("*.xlsx"))
-    if xlsx_files:
-        return xlsx_files[0]
+    csm_dirs: list[Path] = []
+    exact = base / csm
+    if exact.is_dir():
+        csm_dirs.append(exact)
+    for d in base.iterdir():
+        if d.is_dir() and d.name.lower().startswith(csm.lower()) and d not in csm_dirs:
+            csm_dirs.append(d)
+
+    for csm_dir in csm_dirs:
+        month_dir = csm_dir / month
+        if not month_dir.is_dir():
+            continue
+
+        client_dir = month_dir / client_id
+        if client_dir.is_dir():
+            xlsx_files = sorted(client_dir.glob("*.xlsx"))
+            if xlsx_files:
+                return xlsx_files[0]
+
+        for pattern in (f"{client_id}-*-ODD.xlsx", f"{client_id}-*.xlsx", f"{client_id}*.xlsx"):
+            matches = sorted(f for f in month_dir.glob(pattern) if f.is_file())
+            if matches:
+                return matches[0]
+
     return None
 
 

@@ -119,6 +119,20 @@ def parse_file_date(filepath: Path) -> datetime | None:
     return None
 
 
+def _is_txn_file(p: Path) -> bool:
+    """A TXN file is .txt/.csv, or extensionless ending in `_transaction`.
+
+    The latter covers Dan's `1745_29335_[YYYY.MM.DD][HH.MM.SS]_transaction`
+    files, which have no extension (Path.suffix picks up the trailing
+    `.26]_transaction` from the bracketed timestamp, not a real suffix).
+    """
+    if not p.is_file():
+        return False
+    if p.suffix.lower() in ('.txt', '.csv'):
+        return True
+    return p.name.lower().endswith('_transaction')
+
+
 def gather_all_txn_files(client_root: Path) -> list[Path]:
     """Gather all TXN files from client folder.
 
@@ -132,12 +146,12 @@ def gather_all_txn_files(client_root: Path) -> list[Path]:
     all_files: list[Path] = []
 
     for item in client_root.iterdir():
-        if item.is_file() and item.suffix.lower() in ('.txt', '.csv'):
+        if _is_txn_file(item):
             all_files.append(item)
         elif item.is_dir() and item.name.isdigit() and len(item.name) == 4:
             # Year folder
             for f in item.iterdir():
-                if f.is_file() and f.suffix.lower() in ('.txt', '.csv'):
+                if _is_txn_file(f):
                     all_files.append(f)
 
     return all_files
