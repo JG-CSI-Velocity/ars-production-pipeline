@@ -98,7 +98,8 @@ UNIVERSAL_COMPETITORS = {
             'CURRENT MOBILE', 'CURRENT BANK', 'CURRENT FINANCIAL',
             'ALLY', 'ALLY BANK', 'ALLY FINANCIAL',
             'DISCOVER BANK', 'DISCOVER SAVINGS', 'DISCOVER CARD', 'DISCOVER',
-            'MARCUS', 'MARCUS BY GOLDMAN', 'MARCUS BANK', 'MARCUS PMT', 'MARCUS GOLDMAN',
+            # NOTE: do NOT add 'MARCUS' bare — it false-positives on NEIMAN MARCUS.
+            'MARCUS BY GOLDMAN', 'MARCUS BANK', 'MARCUS PMT', 'MARCUS GOLDMAN',
             'REVOLUT',
             'MONZO',
             'N26',
@@ -871,6 +872,12 @@ def tag_competitors(df, merchant_col='merchant_consolidated'):
         'CHURCH', 'MINISTRY',
         'SCHOOL', 'ACADEMY', 'UNIVERSITY',
         'TRADER JOE',
+        # Brand-name collisions with universal patterns
+        'NEIMAN MARCUS', 'NEIMAN',          # vs digital_banks MARCUS (Goldman)
+        'MARCUS THEATRES', 'MARCUS THEATR', # cinema chain
+        'DISCOVERY',                        # vs digital_banks DISCOVER
+        'CITRUS',                           # vs big_nationals CITI
+        'CHASE FIELD', 'CHASE STADIUM',     # baseball venue, not CHASE bank
     ]
     # Use word boundaries so 'SPA' doesn't match 'SPACE', 'CAFE' doesn't
     # match anything inside another word, etc.
