@@ -92,3 +92,105 @@ class SectionRecord:
 
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+import json
+import os
+import tempfile
+import time
+from pathlib import Path
+
+from loguru import logger
+
+
+@dataclass
+class RunManifest:
+    """Owns the live state of a pipeline run. Flushes to JSON on every update."""
+
+    client_id: str
+    client_name: str
+    csm: str
+    month: str
+    product: str
+    output_dir: Path
+    schema_version: int = 1
+    run_id: str = ""
+    started_at: str = ""
+    ended_at: str = ""
+    elapsed_s: float = 0.0
+    status: RunStatus = RunStatus.RUNNING
+    sections: list[SectionRecord] = field(default_factory=list)
+
+    def __post_init__(self):
+        self._start_monotonic: float = 0.0
+        self.output_dir = Path(self.output_dir)
+
+    @property
+    def path(self) -> Path:
+        return self.output_dir / "run_manifest.json"
+
+    def start_run(self) -> None:
+        self.started_at = _utcnow_iso()
+        self._start_monotonic = time.monotonic()
+        self.run_id = f"{self.client_id}_{self.month}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.status = RunStatus.RUNNING
+        self.flush()
+
+    def end_run(self, status: RunStatus) -> None:
+        self.status = status
+        self.ended_at = _utcnow_iso()
+        if self._start_monotonic:
+            self.elapsed_s = round(time.monotonic() - self._start_monotonic, 1)
+        self.flush()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "run_id": self.run_id,
+            "client_id": self.client_id,
+            "client_name": self.client_name,
+            "csm": self.csm,
+            "month": self.month,
+            "product": self.product,
+            "started_at": self.started_at,
+            "ended_at": self.ended_at,
+            "elapsed_s": self.elapsed_s,
+            "status": self.status.value,
+            "totals": self._totals(),
+            "sections": [s.to_dict() for s in self.sections],
+        }
+
+    def _totals(self) -> dict[str, int]:
+        scripts = [sc for sec in self.sections for sc in sec.scripts]
+        return {
+            "sections_ok": sum(1 for s in self.sections if s.status == SectionStatus.OK),
+            "sections_failed": sum(1 for s in self.sections if s.status == SectionStatus.FAILED),
+            "sections_no_charts": sum(1 for s in self.sections if s.status == SectionStatus.NO_CHARTS),
+            "scripts_total": len(scripts),
+            "scripts_ok": sum(1 for s in scripts if s.status == ScriptStatus.OK),
+            "scripts_failed": sum(1 for s in scripts if s.status == ScriptStatus.FAILED),
+            "slides_built": sum(s.slides for s in self.sections),
+        }
+
+    def flush(self) -> None:
+        """Atomic write. Never raises -- flush failures only log."""
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+            payload = json.dumps(self.to_dict(), indent=2, default=str)
+            fd, tmp_path = tempfile.mkstemp(
+                prefix=".run_manifest_", suffix=".json.tmp",
+                dir=str(self.output_dir),
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(payload)
+                os.replace(tmp_path, self.path)
+            except Exception:
+                # On failure, clean up the temp file but leave the existing manifest alone
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+        except Exception as exc:
+            logger.warning("manifest flush failed: {err}", err=exc)
