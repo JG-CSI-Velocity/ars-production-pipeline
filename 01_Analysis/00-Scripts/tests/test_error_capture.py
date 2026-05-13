@@ -56,3 +56,32 @@ def test_suggest_fix_nameerror():
 def test_suggest_fix_unknown_returns_empty():
     s = ec.suggest_fix("ValueError", "something weird")
     assert s == ""
+
+
+def test_capture_exception_populates_script_record_fields():
+    try:
+        d = {"a": 1}
+        return_value = d[0]  # noqa: F841
+    except KeyError as exc:
+        import sys
+        tb = sys.exc_info()[2]
+        fields = ec.capture_exception(
+            exc, tb,
+            section_name="Competition",
+            script_name="04_build_threat_data",
+            client_id="1200", month="2026.05",
+            project_marker="tests",  # use tests/ so the test file itself is the "project frame"
+        )
+
+    assert fields["error_class"] == "KeyError"
+    assert "0" in fields["error_msg"]
+    assert fields["error_file"].endswith("test_error_capture.py")
+    assert fields["error_line"] > 0
+    assert fields["error_traceback_tail"]
+    assert fields["suggested_fix"]  # KeyError always has a suggestion
+    body = fields["issue_body_md"]
+    assert "Competition" in body
+    assert "04_build_threat_data" in body
+    assert "1200" in body
+    assert "2026.05" in body
+    assert "KeyError" in body

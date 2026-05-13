@@ -73,3 +73,68 @@ def suggest_fix(error_class: str, error_msg: str) -> str:
         if cls == error_class and pattern.search(error_msg or ""):
             return suggestion
     return ""
+
+
+def _format_issue_body(
+    *, error_class: str, error_msg: str, error_file: str, error_line: int,
+    traceback_tail: str, suggested_fix: str,
+    section_name: str, script_name: str,
+    client_id: str, month: str,
+) -> str:
+    suggestion_block = f"**Suggested fix:** {suggested_fix}\n\n" if suggested_fix else ""
+    return (
+        f"## Failure during {client_id} / {month} run\n\n"
+        f"**Section:** {section_name}\n"
+        f"**Script:** {script_name}\n"
+        f"**Error:** {error_class} — {error_msg}\n"
+        f"**Location:** `{error_file}:{error_line}`\n\n"
+        f"{suggestion_block}"
+        f"<details><summary>Traceback tail</summary>\n\n"
+        f"```\n{traceback_tail}\n```\n\n"
+        f"</details>\n"
+    )
+
+
+def capture_exception(
+    exc: BaseException,
+    tb: TracebackType | None,
+    *,
+    section_name: str,
+    script_name: str,
+    client_id: str,
+    month: str,
+    project_marker: str = "analytics",
+) -> dict[str, object]:
+    """Turn an exception + traceback into the structured fields a ScriptRecord wants."""
+    error_class = type(exc).__name__
+    error_msg = str(exc)[:300]
+
+    frame = deepest_project_frame(tb, project_marker=project_marker)
+    error_file = frame.filename if frame else ""
+    error_line = frame.lineno if frame else 0
+
+    if tb is not None:
+        tb_lines = traceback.format_exception(type(exc), exc, tb)
+        traceback_tail = "".join(tb_lines)[-2000:]
+    else:
+        traceback_tail = ""
+
+    suggested = suggest_fix(error_class, error_msg)
+
+    body = _format_issue_body(
+        error_class=error_class, error_msg=error_msg,
+        error_file=error_file, error_line=error_line,
+        traceback_tail=traceback_tail, suggested_fix=suggested,
+        section_name=section_name, script_name=script_name,
+        client_id=client_id, month=month,
+    )
+
+    return {
+        "error_class": error_class,
+        "error_msg": error_msg,
+        "error_file": error_file,
+        "error_line": error_line,
+        "error_traceback_tail": traceback_tail,
+        "suggested_fix": suggested,
+        "issue_body_md": body,
+    }
