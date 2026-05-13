@@ -1,0 +1,485 @@
+"""Attrition Cohort Headline -- A9.0.
+
+Single comprehensive KPI slide answering the questions that the
+per-dimension slides (A9.1-A9.8) don't headline cleanly:
+
+  - How many accounts opened in the last 12 completed months?
+  - How many accounts closed in the last 12 completed months?
+  - Net New = L12M opens - L12M closes
+  - First-Year Close Rate (overall): of accounts opened in L12M,
+    what fraction have already closed within their first 12 months?
+  - L12M Attrition Rate: closes / accounts open at the start of L12M
+  - Active vs. closed-lifetime headcount
+
+Plus a monthly trend showing opens vs. closes by month with a net-new
+line overlay -- so the reader can see whether the portfolio is growing,
+flat, or contracting and where the inflection points are.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+from loguru import logger
+from matplotlib.patches import FancyBboxPatch
+from matplotlib.ticker import FuncFormatter
+
+from ars_analysis.analytics.attrition._helpers import (
+    _safe,
+    prepare_attrition_data,
+)
+from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
+from ars_analysis.analytics.registry import register
+from ars_analysis.charts.guards import chart_figure
+from ars_analysis.charts.style import (
+    BAR_ALPHA,
+    BAR_EDGE,
+    DATA_LABEL_SIZE,
+    NEGATIVE,
+    POSITIVE,
+    TEAL,
+    TICK_SIZE,
+)
+from ars_analysis.pipeline.context import PipelineContext
+
+
+# ---------------------------------------------------------------------------
+# Color palette for the KPI tiles (matches general theme)
+# ---------------------------------------------------------------------------
+
+_DARK = "#1B2A4A"
+_MUTED = "#6C757D"
+_GROWTH = "#2EC4B6"   # teal -- growth signals
+_DECAY = "#E63946"    # red  -- decay signals
+_INFO = "#457B9D"     # steel blue -- neutral count
+
+
+def _fmt_count(n: float | int) -> str:
+    n = int(round(n))
+    if abs(n) >= 1_000_000:
+        return f"{n/1_000_000:.2f}M"
+    if abs(n) >= 1_000:
+        return f"{n/1_000:.1f}K"
+    return f"{n:,}"
+
+
+def _fmt_pct(p: float) -> str:
+    return f"{p * 100:.1f}%" if pd.notna(p) else "n/a"
+
+
+# ---------------------------------------------------------------------------
+# A9.0 -- L12M Cohort Headline
+# ---------------------------------------------------------------------------
+
+
+def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
+    """Top-line attrition KPI panel + monthly opens-vs-closes trend."""
+    all_data, open_accts, closed = prepare_attrition_data(ctx)
+    if all_data.empty:
+        return [
+            AnalysisResult(
+                slide_id="A9.0",
+                title="Attrition Headline (L12M Cohort)",
+                success=False,
+                error="No account data",
+            )
+        ]
+
+    if "Date Opened" not in all_data.columns or "Date Closed" not in all_data.columns:
+        return [
+            AnalysisResult(
+                slide_id="A9.0",
+                title="Attrition Headline (L12M Cohort)",
+                success=False,
+                error="Missing Date Opened / Date Closed",
+            )
+        ]
+
+    # Anchor the L12M window. Prefer the ctx-provided range (matches the rest
+    # of the report); fall back to a 12-month window ending at the latest
+    # Date Closed or today.
+    if ctx.start_date and ctx.end_date:
+        l12m_start = pd.Timestamp(ctx.start_date)
+        l12m_end = pd.Timestamp(ctx.end_date)
+    else:
+        max_close = pd.to_datetime(all_data["Date Closed"], errors="coerce").max()
+        l12m_end = pd.Timestamp(max_close if pd.notna(max_close) else pd.Timestamp.today())
+        l12m_start = l12m_end - pd.DateOffset(months=12)
+
+    do = pd.to_datetime(all_data["Date Opened"], errors="coerce")
+    dc = pd.to_datetime(all_data["Date Closed"], errors="coerce")
+
+    # ---- Headline counts -------------------------------------------------
+    total_accts = len(all_data)
+    total_closed_lifetime = int(dc.notna().sum())
+    total_active = int(dc.isna().sum())
+
+    l12m_opens_mask = (do >= l12m_start) & (do <= l12m_end)
+    l12m_closes_mask = (dc >= l12m_start) & (dc <= l12m_end)
+    n_opens = int(l12m_opens_mask.sum())
+    n_closes = int(l12m_closes_mask.sum())
+    net_new = n_opens - n_closes
+
+    # Accounts open at the START of the L12M window
+    # (opened before start AND not closed before start)
+    open_at_start = int(((do < l12m_start) & ((dc.isna()) | (dc >= l12m_start))).sum())
+    l12m_attrition_rate = (n_closes / open_at_start) if open_at_start > 0 else float("nan")
+
+    # First-Year Close Rate (overall): of accounts opened in L12M,
+    # how many have already closed within their first 12 months?
+    l12m_opens = all_data[l12m_opens_mask]
+    if not l12m_opens.empty:
+        opens_dc = pd.to_datetime(l12m_opens["Date Closed"], errors="coerce")
+        opens_do = pd.to_datetime(l12m_opens["Date Opened"], errors="coerce")
+        days_open = (opens_dc - opens_do).dt.days
+        fy_closed = int(((days_open >= 0) & (days_open <= 365)).sum())
+        first_year_close_rate = fy_closed / n_opens
+    else:
+        fy_closed = 0
+        first_year_close_rate = float("nan")
+
+    # Growth rate: net new as a % of open_at_start
+    growth_rate = (net_new / open_at_start) if open_at_start > 0 else float("nan")
+
+    # ---- Monthly trend ---------------------------------------------------
+    do_l12m = do[l12m_opens_mask]
+    dc_l12m = dc[l12m_closes_mask]
+
+    month_index = pd.date_range(
+        l12m_start.normalize().replace(day=1),
+        l12m_end.normalize().replace(day=1),
+        freq="MS",
+    )
+
+    opens_by_month = (
+        do_l12m.dt.to_period("M")
+        .value_counts()
+        .reindex([p.to_period("M") for p in month_index], fill_value=0)
+        .sort_index()
+    )
+    closes_by_month = (
+        dc_l12m.dt.to_period("M")
+        .value_counts()
+        .reindex([p.to_period("M") for p in month_index], fill_value=0)
+        .sort_index()
+    )
+    net_by_month = opens_by_month - closes_by_month
+
+    # ---- Render ----------------------------------------------------------
+    save_to = ctx.paths.charts_dir / "a9_0_cohort_headline.png"
+    ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
+
+    with chart_figure(figsize=(20, 11), save_path=save_to) as (fig, _ax_unused):
+        _ax_unused.axis("off")
+        gs = fig.add_gridspec(
+            2, 4,
+            height_ratios=[1.0, 1.4],
+            hspace=0.55, wspace=0.18,
+            left=0.04, right=0.97, top=0.88, bottom=0.10,
+        )
+
+        # ----- KPI tiles (top row spans all 4 cols, 2 sub-rows of 4) -----
+        tiles = [
+            (_fmt_count(n_opens),           "L12M Opens",                        _GROWTH),
+            (_fmt_count(n_closes),          "L12M Closes",                       _DECAY),
+            (("+" if net_new >= 0 else "") + _fmt_count(net_new),
+                                            "Net New (L12M)",
+                                            _GROWTH if net_new >= 0 else _DECAY),
+            (_fmt_pct(growth_rate),         "Growth Rate\n(net / open at start)",
+                                            _GROWTH if (net_new >= 0) else _DECAY),
+            (_fmt_pct(first_year_close_rate),
+                                            f"First-Year Close Rate\n({fy_closed:,} of {n_opens:,} new)",
+                                            _DECAY),
+            (_fmt_pct(l12m_attrition_rate), f"L12M Attrition Rate\n({n_closes:,} of {open_at_start:,})",
+                                            _DECAY),
+            (_fmt_count(total_active),      "Active Accounts\n(current)",        _INFO),
+            (_fmt_count(total_closed_lifetime),
+                                            "Total Closed\n(lifetime)",          _MUTED),
+        ]
+
+        # Place the 8 tiles in a 2x4 grid in the TOP gridspec row
+        # gs[0,:] is the top row; carve it into a 2x4 nested grid.
+        from matplotlib.gridspec import GridSpecFromSubplotSpec
+        sub = GridSpecFromSubplotSpec(2, 4, subplot_spec=gs[0, :],
+                                      hspace=0.45, wspace=0.18)
+        for i, (value, label, color) in enumerate(tiles):
+            r, c = divmod(i, 4)
+            ax = fig.add_subplot(sub[r, c])
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.axis("off")
+            card = FancyBboxPatch(
+                (0.03, 0.06), 0.94, 0.88,
+                boxstyle="round,pad=0.04",
+                facecolor=color, alpha=0.10,
+                edgecolor=color, linewidth=2.5,
+            )
+            ax.add_patch(card)
+            ax.text(0.5, 0.66, value, transform=ax.transAxes,
+                    fontsize=32, fontweight="bold", color=color,
+                    ha="center", va="center")
+            ax.text(0.5, 0.18, label, transform=ax.transAxes,
+                    fontsize=12, fontweight="bold", color=_DARK,
+                    ha="center", va="center", linespacing=1.4)
+
+        # ----- Monthly trend (bottom row, spans all 4 cols) -----
+        ax = fig.add_subplot(gs[1, :])
+        x = np.arange(len(month_index))
+        width = 0.4
+        ax.bar(x - width / 2, opens_by_month.values, width,
+               label="Opens", color=_GROWTH, edgecolor=BAR_EDGE,
+               alpha=BAR_ALPHA, zorder=3)
+        ax.bar(x + width / 2, closes_by_month.values, width,
+               label="Closes", color=_DECAY, edgecolor=BAR_EDGE,
+               alpha=BAR_ALPHA, zorder=3)
+
+        ax2 = ax.twinx()
+        ax2.plot(x, net_by_month.values, color=_DARK, linewidth=3,
+                 marker="o", markersize=8, label="Net New", zorder=5)
+        ax2.axhline(0, color=_MUTED, linewidth=1, linestyle="--", zorder=2)
+        ax2.set_ylabel("Net New", fontsize=14, fontweight="bold", color=_DARK)
+        ax2.tick_params(axis="y", labelsize=TICK_SIZE - 4, colors=_DARK)
+
+        ax.set_xticks(x)
+        ax.set_xticklabels([d.strftime("%b %y") for d in month_index],
+                           fontsize=TICK_SIZE - 4, rotation=0)
+        ax.set_ylabel("Accounts", fontsize=14, fontweight="bold")
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _p: f"{int(v):,}"))
+        ax.tick_params(axis="y", labelsize=TICK_SIZE - 4)
+        ax.set_title("Monthly Opens vs Closes (L12M)",
+                     fontsize=18, fontweight="bold", color=_DARK,
+                     pad=10, loc="left")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax2.spines["top"].set_visible(False)
+        ax.yaxis.grid(True, color="#E9ECEF", linewidth=0.5, alpha=0.7)
+        ax.set_axisbelow(True)
+
+        # Combined legend
+        h1, l1 = ax.get_legend_handles_labels()
+        h2, l2 = ax2.get_legend_handles_labels()
+        ax.legend(h1 + h2, l1 + l2, loc="upper left",
+                  fontsize=13, frameon=False, ncol=3)
+
+        # Suptitle + subtitle with safe spacing
+        fig.suptitle("Attrition Headline — L12M Cohort",
+                     fontsize=24, fontweight="bold", color=_DARK, y=0.97)
+        fig.text(0.5, 0.925,
+                 f"Window: {l12m_start.strftime('%b %Y')} – {l12m_end.strftime('%b %Y')}  |  "
+                 f"Opened-at-start basis: {open_at_start:,} accounts",
+                 ha="center", fontsize=13, color=_MUTED, style="italic")
+
+    notes = (
+        f"L12M Opens: {n_opens:,} | Closes: {n_closes:,} | Net New: {net_new:+,} "
+        f"({_fmt_pct(growth_rate)} growth) | First-Year Close: {_fmt_pct(first_year_close_rate)} "
+        f"| L12M Attrition: {_fmt_pct(l12m_attrition_rate)} | "
+        f"Active: {total_active:,} | Closed Lifetime: {total_closed_lifetime:,}"
+    )
+
+    # Stash structured numbers for downstream slides/Excel tabs
+    ctx.results["attrition_cohort"] = {
+        "l12m_start": str(l12m_start.date()),
+        "l12m_end": str(l12m_end.date()),
+        "l12m_opens": n_opens,
+        "l12m_closes": n_closes,
+        "net_new": net_new,
+        "growth_rate": growth_rate,
+        "first_year_close_rate": first_year_close_rate,
+        "first_year_closed_count": fy_closed,
+        "l12m_attrition_rate": l12m_attrition_rate,
+        "open_at_start": open_at_start,
+        "active": total_active,
+        "closed_lifetime": total_closed_lifetime,
+        "total_accounts": total_accts,
+        "monthly_opens": opens_by_month.astype(int).tolist(),
+        "monthly_closes": closes_by_month.astype(int).tolist(),
+        "monthly_net": net_by_month.astype(int).tolist(),
+        "month_labels": [d.strftime("%Y-%m") for d in month_index],
+    }
+
+    return [
+        AnalysisResult(
+            slide_id="A9.0",
+            title="Attrition Headline (L12M Cohort)",
+            chart_path=save_to,
+            notes=notes,
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
+# A9.0b -- Monthly New-Account Cohort Survival
+# ---------------------------------------------------------------------------
+# Per-month cohort table: for accounts opened in each of the last 12
+# completed months, how many are still open vs. already closed -- and
+# the % survival rate. Anchors L12M totals at the bottom.
+
+
+def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
+    """Per open-month cohort: Opens, Still Open, Closed, Survival %."""
+    all_data, _open, _closed = prepare_attrition_data(ctx)
+    if all_data.empty:
+        return [
+            AnalysisResult(
+                slide_id="A9.0b",
+                title="Monthly Cohort Survival",
+                success=False,
+                error="No account data",
+            )
+        ]
+    if "Date Opened" not in all_data.columns or "Date Closed" not in all_data.columns:
+        return [
+            AnalysisResult(
+                slide_id="A9.0b",
+                title="Monthly Cohort Survival",
+                success=False,
+                error="Missing Date Opened / Date Closed",
+            )
+        ]
+
+    if ctx.start_date and ctx.end_date:
+        l12m_start = pd.Timestamp(ctx.start_date)
+        l12m_end = pd.Timestamp(ctx.end_date)
+    else:
+        max_close = pd.to_datetime(all_data["Date Closed"], errors="coerce").max()
+        l12m_end = pd.Timestamp(max_close if pd.notna(max_close) else pd.Timestamp.today())
+        l12m_start = l12m_end - pd.DateOffset(months=12)
+
+    do = pd.to_datetime(all_data["Date Opened"], errors="coerce")
+    dc = pd.to_datetime(all_data["Date Closed"], errors="coerce")
+
+    # Restrict to L12M opens
+    in_window = (do >= l12m_start) & (do <= l12m_end)
+    open_period = do[in_window].dt.to_period("M")
+    closed_at_obs = dc[in_window].notna()
+
+    # Build per-month rows
+    months = pd.period_range(
+        l12m_start.to_period("M"),
+        l12m_end.to_period("M"),
+        freq="M",
+    )
+
+    rows = []
+    for m in months:
+        sel = open_period == m
+        opens = int(sel.sum())
+        closed = int((sel & closed_at_obs).sum())
+        still_open = opens - closed
+        survival = (still_open / opens) if opens > 0 else float("nan")
+        rows.append({
+            "Month Opened": m.strftime("%b %Y"),
+            "Opens": opens,
+            "Still Open": still_open,
+            "Closed": closed,
+            "Survival %": survival,
+        })
+
+    df = pd.DataFrame(rows)
+
+    # Totals
+    tot_opens = int(df["Opens"].sum())
+    tot_closed = int(df["Closed"].sum())
+    tot_still = int(df["Still Open"].sum())
+    tot_survival = (tot_still / tot_opens) if tot_opens > 0 else float("nan")
+
+    # ----- Render as a styled table figure -----
+    save_to = ctx.paths.charts_dir / "a9_0b_monthly_cohort_survival.png"
+    ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
+
+    n_rows = len(df) + 2  # header + data + totals
+    row_h = 0.50
+    fig_h = max(8.0, 2.0 + n_rows * row_h)
+
+    with chart_figure(figsize=(15, fig_h), save_path=save_to) as (fig, ax):
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, n_rows + 1)
+        ax.axis("off")
+        ax.invert_yaxis()
+
+        # Title + subtitle (safe spacing)
+        fig.suptitle("New-Account Monthly Cohort Survival",
+                     fontsize=22, fontweight="bold", color=_DARK, y=0.98)
+        fig.text(0.5, 0.935,
+                 f"Of accounts opened each month in {l12m_start.strftime('%b %Y')}–"
+                 f"{l12m_end.strftime('%b %Y')}, how many are still open?",
+                 ha="center", fontsize=13, color=_MUTED, style="italic")
+
+        col_x = [0.06, 0.40, 0.55, 0.70, 0.85]
+        headers = ["Month Opened", "Opens", "Still Open", "Closed", "% Survived"]
+        for x, h in zip(col_x, headers):
+            ax.text(x, 0.6, h, fontsize=13, fontweight="bold",
+                    color=_MUTED, ha="left", va="center")
+        ax.plot([0.05, 0.95], [0.9, 0.9], color="#E9ECEF", linewidth=1.4,
+                transform=ax.transAxes)
+
+        for i, row in df.iterrows():
+            y = i + 1.5
+            ax.text(col_x[0], y, row["Month Opened"], fontsize=14,
+                    fontweight="bold", color=_DARK, ha="left", va="center")
+            ax.text(col_x[1], y, f"{row['Opens']:,}", fontsize=14,
+                    color=_INFO, fontweight="bold", ha="left", va="center")
+            ax.text(col_x[2], y, f"{row['Still Open']:,}", fontsize=14,
+                    color=_GROWTH, fontweight="bold", ha="left", va="center")
+            ax.text(col_x[3], y, f"{row['Closed']:,}", fontsize=14,
+                    color=_DECAY, fontweight="bold", ha="left", va="center")
+            survival_txt = _fmt_pct(row["Survival %"]) if pd.notna(row["Survival %"]) else "n/a"
+            ax.text(col_x[4], y, survival_txt, fontsize=14,
+                    fontweight="bold", color=_DARK, ha="left", va="center")
+            # Faint divider
+            ax.plot([0.05, 0.95], [y + 0.5, y + 0.5], color="#F1F3F5",
+                    linewidth=0.5)
+
+        # Totals row
+        ty = len(df) + 1.7
+        ax.plot([0.05, 0.95], [ty - 0.4, ty - 0.4], color=_DARK, linewidth=1.6)
+        ax.text(col_x[0], ty, "L12M TOTAL", fontsize=14, fontweight="bold",
+                color=_DARK, ha="left", va="center")
+        ax.text(col_x[1], ty, f"{tot_opens:,}", fontsize=14,
+                color=_INFO, fontweight="bold", ha="left", va="center")
+        ax.text(col_x[2], ty, f"{tot_still:,}", fontsize=14,
+                color=_GROWTH, fontweight="bold", ha="left", va="center")
+        ax.text(col_x[3], ty, f"{tot_closed:,}", fontsize=14,
+                color=_DECAY, fontweight="bold", ha="left", va="center")
+        ax.text(col_x[4], ty, _fmt_pct(tot_survival), fontsize=14,
+                fontweight="bold", color=_DARK, ha="left", va="center")
+
+    notes = (
+        f"L12M new opens: {tot_opens:,} | still open: {tot_still:,} | "
+        f"closed: {tot_closed:,} | survival: {_fmt_pct(tot_survival)}"
+    )
+
+    # Stash structured data
+    ctx.results["attrition_cohort_monthly"] = df.assign(
+        survival_pct=df["Survival %"].astype(float)
+    ).drop(columns="Survival %").to_dict(orient="records")
+
+    return [
+        AnalysisResult(
+            slide_id="A9.0b",
+            title="Monthly Cohort Survival",
+            chart_path=save_to,
+            notes=notes,
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Module
+# ---------------------------------------------------------------------------
+
+
+@register
+class AttritionCohortHeadline(AnalysisModule):
+    """L12M cohort attrition KPIs (A9.0) + monthly cohort survival (A9.0b)."""
+
+    module_id = "attrition.cohort"
+    display_name = "Attrition Cohort Headline"
+    section = "attrition"
+    required_columns = ("Date Opened", "Date Closed")
+
+    def run(self, ctx: PipelineContext) -> list[AnalysisResult]:
+        results: list[AnalysisResult] = []
+        results += _safe(lambda c: _l12m_cohort(c), "A9.0", ctx)
+        results += _safe(lambda c: _l12m_monthly_cohort(c), "A9.0b", ctx)
+        return results
