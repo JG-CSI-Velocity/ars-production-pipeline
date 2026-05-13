@@ -99,3 +99,4 @@ class PipelineContext:
     ics_dir: Path | None = None  # ICS data directory for ICS module
     debit_column: str = ""  # Auto-detected debit column name (set by step_subsets)
     progress_callback: Callable[[str], None] | None = None
+    manifest: object = None  # ars_analysis.pipeline.manifest.RunManifest | None
