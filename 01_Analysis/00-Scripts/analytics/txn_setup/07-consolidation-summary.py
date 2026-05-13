@@ -17,6 +17,66 @@ print("="*100)
 print("\nApplying merchant name standardization...")
 combined_df['merchant_consolidated'] = combined_df['merchant_name'].apply(standardize_merchant_name)
 
+# ---------------------------------------------------------------------------
+# SMART UNKNOWN-MERCHANT FALLBACK
+# ---------------------------------------------------------------------------
+# When merchant_name is genuinely empty (ATM withdrawals, bank fees, internal
+# transfers), the consolidator returns 'UNKNOWN MERCHANT'. On personal accounts
+# this typically runs ~5-10%; on business it can hit 40% (lots of ACH activity
+# without a recognizable merchant). Lumping them all under one bucket distorts
+# the top-merchant charts and the leakage analysis.
+#
+# Re-label these rows based on the transaction_type column (PIN / SIG / ACH /
+# CHK / ATM / FEE / etc.) so the chart shows what those transactions actually
+# are -- ``ATM WITHDRAWAL'' / ``BANK FEE'' / ``ACH TRANSFER'' / etc. -- rather
+# than one giant ``UNKNOWN MERCHANT'' bucket. This is purely cosmetic relabeling;
+# downstream tagging (tag_competitors, financial_services) treats the new
+# labels exactly the same as Unknown (they don't match any competitor pattern).
+# ---------------------------------------------------------------------------
+_unknown_mask = combined_df['merchant_consolidated'] == 'UNKNOWN MERCHANT'
+_n_unknown_before = int(_unknown_mask.sum())
+if _n_unknown_before > 0 and 'transaction_type' in combined_df.columns:
+    _ttype = combined_df.loc[_unknown_mask, 'transaction_type'].astype(str).str.upper().str.strip()
+
+    # Map common transaction_type codes to descriptive labels. Unknown values
+    # fall through to the generic ``UNKNOWN MERCHANT'' label so we don't
+    # silently invent buckets for codes we haven't seen.
+    def _label_for_ttype(t):
+        if not t or t in ('NAN', 'NONE', ''):
+            return 'UNKNOWN MERCHANT'
+        if 'ATM' in t:
+            return 'ATM WITHDRAWAL'
+        if 'FEE' in t or t in ('SC', 'NSF', 'OD'):
+            return 'BANK FEE'
+        if 'ACH' in t:
+            return 'ACH TRANSFER (NO MERCHANT)'
+        if 'CHK' in t or 'CHECK' in t or t == 'CK':
+            return 'CHECK (NO MERCHANT)'
+        if 'XFER' in t or 'TRANSFER' in t or t in ('TR', 'TRF'):
+            return 'INTERNAL TRANSFER'
+        if t in ('PIN', 'SIG', 'POS', 'DEB'):
+            return 'POS TRANSACTION (NO MERCHANT)'
+        if 'DEP' in t or 'DEPOSIT' in t:
+            return 'DEPOSIT (NO MERCHANT)'
+        if 'WD' in t or 'WTHD' in t or 'WITHDRAW' in t:
+            return 'WITHDRAWAL (NO MERCHANT)'
+        return 'UNKNOWN MERCHANT'
+
+    combined_df.loc[_unknown_mask, 'merchant_consolidated'] = _ttype.apply(_label_for_ttype)
+
+    _n_unknown_after = int((combined_df['merchant_consolidated'] == 'UNKNOWN MERCHANT').sum())
+    _relabeled = _n_unknown_before - _n_unknown_after
+    print(f"  Smart Unknown fallback: relabeled {_relabeled:,} rows by transaction_type")
+    print(f"  ({_n_unknown_before:,} unknowns before -> {_n_unknown_after:,} truly unknown after)")
+    if _relabeled > 0:
+        # Show the breakdown so the user can audit
+        _new_labels = (
+            combined_df.loc[_unknown_mask, 'merchant_consolidated']
+            .value_counts().head(10)
+        )
+        for _label, _count in _new_labels.items():
+            print(f"     {_count:>10,}  {_label}")
+
 # Calculate consolidation impact
 original_count = combined_df['merchant_name'].nunique()
 consolidated_count = combined_df['merchant_consolidated'].nunique()

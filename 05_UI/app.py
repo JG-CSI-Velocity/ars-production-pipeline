@@ -559,18 +559,28 @@ async def start_run(
             cmd = [sys.executable, "-u", str(analysis_run),
                    "--month", month, "--csm", csm, "--client", client_id,
                    "--product", product]
+            # Forward SLIDE_MODE and SLIDE_BUDGET so UI-set deck-size
+            # controls reach the analysis subprocess. Without this, the
+            # child inherits parent env but ARS_UI_PORT and similar
+            # wrapper-only vars can overwrite intended values.
+            import os as _env_os
+            _run_env = _env_os.environ.copy()
+            _run_env["PYTHONUNBUFFERED"] = "1"  # belt+braces with -u
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace",
                 bufsize=1,
                 cwd=str(analysis_run.parent),
+                env=_run_env,
             )
+            runs[run_id]["last_output_at"] = datetime.now().isoformat()
             for line in proc.stdout:
                 line = line.rstrip()
                 if run_id in runs:
                     runs[run_id]["log"].append(line)
                     runs[run_id]["current_step"] = line.strip()
+                    runs[run_id]["last_output_at"] = datetime.now().isoformat()
                     log_len = len(runs[run_id]["log"])
                     runs[run_id]["progress"] = min(95, log_len * 2)
 
@@ -830,16 +840,37 @@ async def run_schedule_now(schedule_id: str):
 
 
 if __name__ == "__main__":
+    import os as _os
     import socket
 
-    port = 8000
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        if s.connect_ex(("127.0.0.1", port)) == 0:
-            print(f"\n  ERROR: Port {port} is already in use.")
-            print(f"  Kill the other process or use a different port:")
-            print(f"    netstat -ano | findstr :{port}")
+    # Auto-pick a free port so a second instance doesn't leave the user
+    # staring at the wrong tab wondering why the pipeline isn't moving
+    # (the root cause of issue #90 yesterday). Start at 8000, walk up to
+    # 8010, then fail with a clear message.
+    preferred_port = int(_os.environ.get("ARS_UI_PORT", "8000"))
+
+    def _is_port_free(p):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(("127.0.0.1", p)) != 0
+
+    port = preferred_port
+    if not _is_port_free(port):
+        print(f"\n  NOTE: Port {port} is already in use (another UI instance?).")
+        for alt in range(preferred_port + 1, preferred_port + 11):
+            if _is_port_free(alt):
+                port = alt
+                print(f"  Using port {port} instead.")
+                break
+        else:
+            print(f"\n  ERROR: Ports {preferred_port}-{preferred_port + 10} all in use.")
+            print(f"  Kill the other process or set ARS_UI_PORT=<n>:")
+            print(f"    netstat -ano | findstr :{preferred_port}")
             print(f"    taskkill /PID <pid> /F")
             sys.exit(1)
+
+    # Remind users that SLIDE_MODE gates deck size. Forwarded to the
+    # analyze subprocess through the environment.
+    slide_mode = _os.environ.get("SLIDE_MODE", "standard")
 
     print()
     print("=" * 60)
@@ -848,7 +879,9 @@ if __name__ == "__main__":
     print(f"  Config:      {CONFIG_PATH} {'[OK]' if CONFIG_PATH.exists() else '[NOT FOUND]'}")
     print(f"  CSMs:        {get_csm_list() or '[none configured]'}")
     print(f"  index.html:  {Path(__file__).parent / 'index.html'} {'[OK]' if (Path(__file__).parent / 'index.html').exists() else '[NOT FOUND]'}")
-    print(f"  http://localhost:{port}")
+    print(f"  SLIDE_MODE:  {slide_mode}  (env SLIDE_MODE=deep|standard|minimal)")
+    print(f"  URL:         http://localhost:{port}")
+    print(f"  PID:         {_os.getpid()}")
     print("=" * 60)
     print()
 

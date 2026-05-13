@@ -90,7 +90,7 @@ if has_attrition:
 
     fig.suptitle("Payroll Status vs Attrition Risk",
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=1.04)
+                 color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=GEN_TITLE_Y)
     fig.text(0.01, 0.99,
              f"Payroll as a retention anchor  --  {DATASET_LABEL}",
              fontsize=13, style='italic', color=GEN_COLORS['muted'],
@@ -223,7 +223,7 @@ else:
     period_label = f"{first_months[0]} to {last_months[-1]}" if first_months and last_months else ""
     fig.suptitle("Payroll as a Retention Anchor: Spend Velocity Analysis",
                  fontsize=24, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=1.06)
+                 color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=GEN_TITLE_Y)
     fig.text(0.01, 1.01,
              f"Activity change {period_label}  --  {DATASET_LABEL}",
              fontsize=13, style='italic', color=GEN_COLORS['muted'],

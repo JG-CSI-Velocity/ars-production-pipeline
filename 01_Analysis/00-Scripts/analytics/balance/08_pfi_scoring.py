@@ -162,7 +162,7 @@ gen_clean_axes(axes[1])
 
 fig.suptitle("Primary Financial Institution (PFI) Score Analysis",
              fontsize=26, fontweight='bold',
-             color=GEN_COLORS['dark_text'], y=1.04)
+             color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
 fig.text(0.01, 1.00,
          f"Score = Balance(0-5) + Activity(0-5) + Tenure(0-3) + Products(0-3) | {DATASET_LABEL}",
          fontsize=12, style='italic', color=GEN_COLORS['muted'])

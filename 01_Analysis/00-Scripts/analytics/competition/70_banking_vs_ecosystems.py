@@ -98,7 +98,7 @@ for ax, (value, label, color) in zip(axes1, kpis):
             ha='center', va='center', linespacing=1.4)
 fig1.suptitle("Banking vs Digital Ecosystems — Account Reach Head-to-Head",
               fontsize=26, fontweight='bold',
-              color=GEN_COLORS['dark_text'], y=1.04)
+              color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
 sub = f"Ecosystem = wallets + P2P.  Banks + BNPL includes Affirm/Klarna/Afterpay."
 if spotlight and top_bank:
     ratio = spotlight_reach / max(top_bank_reach, 0.01)

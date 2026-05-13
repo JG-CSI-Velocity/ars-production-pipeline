@@ -17,10 +17,24 @@ else:
         .reset_index()
     )
 
-    # Get ordered month labels from the data
-    _month_order = monthly_spend_ts['month_label'].unique()
-    # Sort chronologically by parsing MmmYY format
-    _month_sort = sorted(_month_order, key=lambda m: pd.to_datetime(m, format='%b%y'))
+    # Get ordered month labels from the data. Filter out any aggregate
+    # labels (``Total'', ``YTD'', ``Avg'') that can creep in from upstream
+    # rollups -- they crash pd.to_datetime(format='%b%y').
+    _month_order = [
+        m for m in monthly_spend_ts['month_label'].unique()
+        if isinstance(m, str) and m not in ('Total', 'YTD', 'Avg', 'Average', 'All')
+    ]
+    # Sort chronologically by parsing MmmYY format. Skip any label that
+    # doesn't parse instead of crashing the whole script.
+    def _safe_parse_month(label):
+        try:
+            return pd.to_datetime(label, format='%b%y')
+        except (ValueError, TypeError):
+            return pd.Timestamp.max
+    _month_sort = sorted(_month_order, key=_safe_parse_month)
+    # Drop any label that didn't parse (got Timestamp.max) so the x-axis
+    # doesn't show an unsortable bucket at the far right.
+    _month_sort = [m for m in _month_sort if _safe_parse_month(m) != pd.Timestamp.max]
     _tier_monthly['month_label'] = pd.Categorical(
         _tier_monthly['month_label'], categories=_month_sort, ordered=True
     )

@@ -60,8 +60,8 @@ else:
 
     fig.suptitle("Competitive Exposure — Banks + BNPL",
                  fontsize=30, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
-    fig.text(0.5, 0.97, SCOPE_NOTE,
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
+    fig.text(0.5, GEN_SUBTITLE_Y, SCOPE_NOTE,
              ha='center', fontsize=14, color=GEN_COLORS['muted'], style='italic')
 
     plt.tight_layout()

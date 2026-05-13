@@ -11,7 +11,45 @@
 # Everything else is automatic.
 # ===========================================================================
 
+import os
 import pandas as pd
+
+# ---------------------------------------------------------------------------
+# SLIDE_MODE: controls deck size for competition section.
+#   'standard' (default) -- core 7/8/9/11/13/15/16/31/32/33 story  (~25 slides)
+#   'deep'               -- full section including all segment/wallet/banks-only
+#                            parallel views (~89 slides)
+#   'minimal'            -- just top-10 + category donut + momentum (~10 slides)
+#
+# Configured via SLIDE_MODE env var so the UI can expose it per-client.
+# Ignored when the section doesn't have a curated prune list defined here.
+# ---------------------------------------------------------------------------
+SLIDE_MODE = os.environ.get('SLIDE_MODE', 'standard').lower()
+
+# Competition-section prune lists. Prefix match on script stem. The 60-series
+# is two PARALLEL recuts of cells 07/08/09/65 (banks-only + core-competition
+# minus ecosystems). 66/67 are ecosystem deep-dives. 70 is a head-to-head
+# comparison chart. All valuable but duplicative for a client exec review.
+# 18, 20-28 are segment-by-segment slices -- kept in 'deep' only.
+_PRUNE_BY_MODE = {
+    'standard': [
+        '18_', '20_', '21_', '22_', '23_', '24_', '26_', '28_',
+        '60_', '61_', '62_', '65_', '66_', '67_', '70_',
+    ],
+    'minimal': [
+        '10_', '11_', '12_', '13_', '14_', '17_', '18_', '19_',
+        '20_', '21_', '22_', '23_', '24_', '25_', '26_', '27_',
+        '28_', '29_', '30_', '40_', '41_',
+        '60_', '61_', '62_', '65_', '66_', '67_', '68_', '70_',
+    ],
+    'deep': [],
+}
+SKIP_SCRIPT_PATTERNS = _PRUNE_BY_MODE.get(SLIDE_MODE, [])
+if SKIP_SCRIPT_PATTERNS:
+    print(f"    SLIDE_MODE={SLIDE_MODE}: pruning {len(SKIP_SCRIPT_PATTERNS)} "
+          f"competition cell patterns to control deck size")
+elif SLIDE_MODE == 'deep':
+    print(f"    SLIDE_MODE=deep: running ALL competition cells (~89 slides)")
 
 # ===========================================================================
 # SECTION A: UNIVERSAL COMPETITORS (do not edit)

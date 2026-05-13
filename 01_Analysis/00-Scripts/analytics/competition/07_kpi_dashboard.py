@@ -63,7 +63,7 @@ if len(all_competitor_data) > 0:
     fig.suptitle("Competitive Exposure at a Glance",
                  fontsize=28, fontweight='bold',
                  color=GEN_COLORS['dark_text'],
-                 y=1.04)
+                 y=GEN_TITLE_Y)
 
     plt.tight_layout()
     plt.show()
