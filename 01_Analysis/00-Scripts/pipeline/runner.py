@@ -48,6 +48,23 @@ def run_pipeline(
     results: list[StepResult] = []
     client_label = f"{ctx.client.client_id} ({ctx.client.client_name})"
 
+    # Structured run manifest -- writes run_manifest.json next to the log.
+    try:
+        from ars_analysis.pipeline.manifest import RunManifest, RunStatus
+        _manifest = RunManifest(
+            client_id=ctx.client.client_id,
+            client_name=getattr(ctx.client, "client_name", "") or "",
+            csm=getattr(ctx.client, "csm", "") or "",
+            month=getattr(ctx.client, "month", "") or "",
+            product=getattr(ctx.settings, "product", "") if ctx.settings else "",
+            output_dir=ctx.paths.base_dir,
+        )
+        _manifest.start_run()
+        ctx.manifest = _manifest
+    except Exception as _exc:
+        logger.warning("manifest init failed (continuing): {err}", err=_exc)
+        ctx.manifest = None
+
     logger.info(
         "Pipeline start: {client}, {n} steps",
         client=client_label,
@@ -100,6 +117,12 @@ def run_pipeline(
                     t=elapsed,
                     err=error_msg,
                 )
+                if getattr(ctx, "manifest", None) is not None:
+                    try:
+                        from ars_analysis.pipeline.manifest import RunStatus
+                        ctx.manifest.end_run(RunStatus.FAILED)
+                    except Exception:
+                        pass
                 break
             else:
                 logger.warning(
@@ -108,6 +131,18 @@ def run_pipeline(
                     t=elapsed,
                     err=error_msg,
                 )
+
+    # Finalize manifest with the overall run status (only if not already finalized
+    # by the exception path above -- FAILED takes precedence and must not be
+    # overwritten with PARTIAL).
+    if getattr(ctx, "manifest", None) is not None:
+        try:
+            from ars_analysis.pipeline.manifest import RunStatus
+            if ctx.manifest.status == RunStatus.RUNNING:
+                any_failed = any(not r.success and r.name != "archive" for r in results)
+                ctx.manifest.end_run(RunStatus.PARTIAL if any_failed else RunStatus.OK)
+        except Exception as _exc:
+            logger.warning("manifest end_run failed: {err}", err=_exc)
 
     success_count = sum(1 for r in results if r.success)
     total_time = sum(r.elapsed_seconds for r in results)
