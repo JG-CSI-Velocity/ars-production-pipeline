@@ -6,36 +6,55 @@
 
 try:
     import json, os
+    from pathlib import Path as _Path
 
     # ------------------------------------------------------------------
-    # Load branch name mapping from JSON config (branch number -> name)
-    # Expected format: {"1": "Main Office", "2": "West Branch", ...}
-    # Place file as branch_config.json in repo root or 10-branch/ folder.
+    # Load branch name mapping.
+    #
+    # Primary source: 03_Config/clients_config.json -> CLIENT_ID -> BranchMapping
+    # (this is where every other per-client setting already lives).
+    # Fallback: legacy branch_config.json in repo root / 10-branch/ folder
+    # for backward compat with older setups.
+    # Expected format either way: {"1": "Main Office", "2": "West Branch", ...}
     # ------------------------------------------------------------------
     BRANCH_NAME_MAP = {}
-    _br_config_paths = [
-        os.path.join(os.path.dirname(os.getcwd()), 'branch_config.json'),
-        os.path.join(os.getcwd(), 'branch_config.json'),
-        'branch_config.json',
-        os.path.join('10-branch', 'branch_config.json'),
-    ]
-    # Also check the notebook's directory if running from Jupyter
-    try:
-        _nb_dir = os.path.dirname(os.path.abspath(''))
-        _br_config_paths.append(os.path.join(_nb_dir, 'branch_config.json'))
-    except Exception:
-        pass
 
-    for _cfg_path in _br_config_paths:
-        if os.path.exists(_cfg_path):
-            with open(_cfg_path, 'r') as _f:
-                BRANCH_NAME_MAP = json.load(_f)
-            print(f"    Branch config loaded: {_cfg_path} ({len(BRANCH_NAME_MAP)} branches)")
-            break
+    # 1) Read from clients_config.json under this CLIENT_ID's BranchMapping.
+    #    _clients_config + CLIENT_ID are set by txn_setup/02-file-config.py
+    #    which runs before any analysis section.
+    if '_clients_config' in dir() and _clients_config and 'CLIENT_ID' in dir() and CLIENT_ID:
+        _client_block = _clients_config.get(CLIENT_ID, {})
+        _branch_map = _client_block.get('BranchMapping') or _client_block.get('branch_mapping')
+        if isinstance(_branch_map, dict) and _branch_map:
+            # Coerce keys/values to strings -- ODD branch values are strings.
+            BRANCH_NAME_MAP = {str(k): str(v) for k, v in _branch_map.items()}
+            print(f"    Branch config loaded from clients_config.json -> {CLIENT_ID}.BranchMapping "
+                  f"({len(BRANCH_NAME_MAP)} branches)")
+
+    # 2) Fallback: legacy branch_config.json paths.
+    if not BRANCH_NAME_MAP:
+        _br_config_paths = [
+            os.path.join(os.path.dirname(os.getcwd()), 'branch_config.json'),
+            os.path.join(os.getcwd(), 'branch_config.json'),
+            'branch_config.json',
+            os.path.join('10-branch', 'branch_config.json'),
+        ]
+        try:
+            _br_config_paths.append(os.path.join(os.path.dirname(os.path.abspath('')), 'branch_config.json'))
+        except Exception:
+            pass
+        for _cfg_path in _br_config_paths:
+            if os.path.exists(_cfg_path):
+                with open(_cfg_path, 'r') as _f:
+                    BRANCH_NAME_MAP = json.load(_f)
+                print(f"    Branch config loaded (legacy): {_cfg_path} ({len(BRANCH_NAME_MAP)} branches)")
+                break
 
     if not BRANCH_NAME_MAP:
-        print("    WARNING: branch_config.json not found. Branch names will show as numbers.")
-        print("    Place branch_config.json in repo root with format: {\"1\": \"Main Office\", ...}")
+        print(f"    WARNING: no BranchMapping for client {CLIENT_ID if 'CLIENT_ID' in dir() else '?'}.")
+        print("    Branch names will show as numeric codes. Add a 'BranchMapping' object")
+        print("    to this client's entry in 03_Config/clients_config.json:")
+        print("      \"BranchMapping\": {\"1\": \"Main Office\", \"2\": \"West Branch\", ...}")
 
     # Merge Branch onto combined_df
     br_subset = rewards_df[['Acct Number', 'Branch']].copy()
