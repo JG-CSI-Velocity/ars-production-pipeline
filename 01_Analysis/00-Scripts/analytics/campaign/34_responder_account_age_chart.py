@@ -179,11 +179,12 @@ else:
                      color=_DARK, transform=ax3.transAxes, va='top', ha='right')
             _y -= 0.10
 
-    # Main title
-    fig.suptitle('Account Age & Campaign Response',
-                 fontsize=22, fontweight='bold', color=_DARK, y=0.96)
-    fig.text(0.5, 0.915,
-             'How long has the account been open?  |  Accounts < 90 days excluded  |  All mailers pooled',
-             ha='center', fontsize=14, color=_MUTED, style='italic')
+    # Main title (uses chart_title helper for consistent spacing)
+    chart_title(
+        fig,
+        'Account Age & Campaign Response',
+        subtitle='How long has the account been open?  |  Accounts < 90 days excluded  |  All mailers pooled',
+        title_color=_DARK, subtitle_color=_MUTED,
+    )
 
     plt.show()
