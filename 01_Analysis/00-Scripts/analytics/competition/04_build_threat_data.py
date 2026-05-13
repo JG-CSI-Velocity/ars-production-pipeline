@@ -15,7 +15,15 @@ if len(all_competitor_data) > 0:
     raw_rows = []
 
     for competitor, comp_txns in all_competitor_data.items():
-        category = comp_txns['competitor_category'].iloc[0]
+        # Defensive: skip empty groups and missing-category rows.
+        if comp_txns is None or len(comp_txns) == 0:
+            continue
+        if 'competitor_category' not in comp_txns.columns:
+            continue
+        _cat_series = comp_txns['competitor_category'].dropna()
+        if _cat_series.empty:
+            continue
+        category = _cat_series.iloc[0]
         if category not in bank_categories:
             continue
 
