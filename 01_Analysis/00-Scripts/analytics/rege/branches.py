@@ -52,13 +52,27 @@ def _branch_rates(
     if df is None or df.empty or "Branch" not in df.columns:
         return pd.DataFrame()
     bm = branch_mapping or {}
+    # Coerce mapping keys to strings so int/str/float branch values can all hit.
+    bm_keyed = {str(k): v for k, v in bm.items()}
+
+    def _resolve(br):
+        s = str(br).strip()
+        if s in bm_keyed:
+            return bm_keyed[s]
+        # Float-as-string fallback: "1.0" -> "1"
+        if '.' in s:
+            stripped = s.split('.')[0]
+            if stripped in bm_keyed:
+                return bm_keyed[stripped]
+        return br
+
     rows = []
     for br in sorted(df["Branch"].dropna().unique()):
         bd = df[df["Branch"] == br]
         t, oi, r = rege(bd, col, opts)
         rows.append(
             {
-                "Branch": bm.get(str(br), br),
+                "Branch": _resolve(br),
                 "Total Accounts": t,
                 "Opted In": oi,
                 "Opted Out": t - oi,
