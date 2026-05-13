@@ -21,41 +21,60 @@ UNIVERSAL_COMPETITORS = {
 
     'big_nationals': {
         'starts_with': [
-            'BANK OF AMERICA', 'B OF A',
-            'WELLS FARGO', 'WELLS FARGO BANK',
-            'CHASE BANK', 'CHASE CARD', 'CHASE CREDIT',
+            # Bank of America — full + short forms
+            'BANK OF AMERICA', 'B OF A', 'BOFA', 'BAC HOME LOANS',
+            # Wells Fargo — full + collapsed (consolidation drops BANK token)
+            'WELLS FARGO', 'WELLS FARGO BANK', 'WELLS FARGO HM', 'WFB',
+            # Chase / JPMorgan — full + collapsed forms.
+            # standardize_merchant_name collapses 'CHASE BANK …' -> 'CHASE'
+            # so we MUST have 'CHASE' alone here (safe with \b — won't match PURCHASE).
+            'CHASE', 'CHASE BANK', 'CHASE CARD', 'CHASE CREDIT',
             'CHASE PAY', 'CHASE AUTO', 'CHASE MORTGAGE',
             'CHASE TRANSFER', 'CHASE HOME', 'CHASE LOAN',
-            'JPMORGAN CHASE',
-            'US BANK', 'U.S. BANK',
-            'CITIBANK', 'CITI CARD',
-            'CAPITAL ONE BANK', 'CAPITAL ONE',
-            'USAA',
-            'PNC BANK', 'PNC FINANCIAL',
-            'TRUIST', 'TRUIST BANK',
-            'TD BANK',
+            'CHASE CC',
+            'JPMORGAN', 'JPMORGAN CHASE', 'JPM CHASE', 'JP MORGAN',
+            # US Bank
+            'US BANK', 'U.S. BANK', 'USB CARDMEMBER',
+            # Citi
+            'CITIBANK', 'CITI CARD', 'CITICARDS', 'CITI', 'CITIGROUP',
+            # Capital One
+            'CAPITAL ONE BANK', 'CAPITAL ONE', 'CAPITALONE',
+            'CAP ONE', 'CAPONE',
+            # USAA
+            'USAA', 'USAA FSB', 'USAA SVNGS', 'USAA SAVINGS', 'USAA FED SAV',
+            # PNC — full + collapsed
+            'PNC', 'PNC BANK', 'PNC FINANCIAL',
+            # Truist (BB&T + SunTrust merger)
+            'TRUIST', 'TRUIST BANK', 'BB&T', 'BBT', 'SUNTRUST',
+            # TD Bank
+            'TD BANK', 'TD BANK NA',
         ],
         'exact': [],
     },
 
     'digital_banks': {
         'starts_with': [
-            'CHIME', 'CHIME BANK',
-            'SOFI', 'SOFI BANK', 'SOFI MONEY',
-            'VARO BANK', 'VARO MONEY',
-            'CURRENT MOBILE', 'CURRENT BANK',
-            'ALLY BANK', 'ALLY FINANCIAL',
-            'DISCOVER BANK', 'DISCOVER SAVINGS',
-            'MARCUS BY GOLDMAN', 'MARCUS BANK',
+            'CHIME', 'CHIME BANK', 'CHIME MEMBER',
+            'SOFI', 'SOFI BANK', 'SOFI MONEY', 'SOFI FINANCE', 'SOFI LENDING',
+            'VARO', 'VARO BANK', 'VARO MONEY',
+            'CURRENT MOBILE', 'CURRENT BANK', 'CURRENT FINANCIAL',
+            'ALLY', 'ALLY BANK', 'ALLY FINANCIAL',
+            'DISCOVER BANK', 'DISCOVER SAVINGS', 'DISCOVER CARD', 'DISCOVER',
+            'MARCUS', 'MARCUS BY GOLDMAN', 'MARCUS BANK', 'MARCUS PMT', 'MARCUS GOLDMAN',
             'REVOLUT',
             'MONZO',
             'N26',
-            'GREENLIGHT FINANCIAL',
-            'GO2BANK',
+            'GREENLIGHT FINANCIAL', 'GREENLIGHT CARD',
+            'GO2BANK', 'GO 2 BANK',
             'ONE FINANCE',
-            'ASPIRATION',
-            'AXOS BANK',
-            'SYNCHRONY BANK',
+            'ASPIRATION', 'ASPIRATION BANK',
+            'AXOS BANK', 'AXOS FINANCIAL',
+            'SYNCHRONY BANK', 'SYNCHRONY',
+            'DAVE INC', 'DAVE BANKING',
+            'OXYGEN BANK',
+            'STEP MOBILE',
+            'COPPER BANK',
+            'EQ BANK',
         ],
         'exact': [],
     },
@@ -65,31 +84,38 @@ UNIVERSAL_ECOSYSTEMS = {
 
     'wallets': {
         'starts_with': [
-            'APPLE PAY', 'APPLE CASH',
-            'VENMO',
-            'PAYPAL',
-            'CASH APP', 'SQUARE CASH',
-            'GOOGLE PAY', 'GOOGLE WALLET',
+            'APPLE PAY', 'APPLE CASH', 'APPLE COM BILL',
+            'VENMO', 'VENMO PAYMENT', 'VENMO CASHOUT',
+            'PAYPAL', 'PAYPAL INST XFER', 'PAYPAL TRANSFER',
+            'CASH APP', 'CASHAPP', 'SQUARE CASH', 'SQUARE INC',
+            'GOOGLE PAY', 'GOOGLE WALLET', 'GOOGLE PAYMENT',
             'SAMSUNG PAY',
+            'WISE COM', 'WISE US',
+            'PAYONEER',
+            'SKRILL',
         ],
         'exact': [],
     },
 
     'p2p': {
         'starts_with': [
-            'ZELLE',
+            'ZELLE', 'ZELLE TRANSFER', 'ZELLE PAYMENT',
+            'POPMONEY',
         ],
         'exact': [],
     },
 
     'bnpl': {
         'starts_with': [
-            'AFFIRM', 'AFFIRM PAYMENT',
-            'KLARNA',
-            'AFTERPAY',
-            'SEZZLE',
-            'ZIP PAY', 'QUADPAY',
+            'AFFIRM', 'AFFIRM PAYMENT', 'AFFIRM INC',
+            'KLARNA', 'KLARNA PAYMENT', 'KLARNA INC',
+            'AFTERPAY', 'AFTERPAY US',
+            'SEZZLE', 'SEZZLE INC',
+            'ZIP PAY', 'ZIP US', 'QUADPAY',
             'SPLITIT',
+            'PAYBRIGHT',
+            'PERPAY',
+            'BREAD FINANCIAL', 'BREAD PAYMENTS',
         ],
         'exact': [],
     },
@@ -217,21 +243,25 @@ FED_DISTRICT_TOP_25 = {
     # District 6 -- Atlanta (GA, FL, AL, TN, MS, LA)
     '6': {
         'starts_with': [
-            'REGIONS BANK', 'REGIONS FINANCIAL',
-            'SYNOVUS', 'SYNOVUS BANK',
-            'RENASANT BANK',
-            'AMERIS BANK', 'AMERIS BANCORP',
-            'HANCOCK WHITNEY',
-            'TRUSTMARK BANK', 'TRUSTMARK NATIONAL',
-            'SEACOAST BANK', 'SEACOAST BANKING',
+            'REGIONS BANK', 'REGIONS FINANCIAL', 'REGIONS BK',
+            'SYNOVUS', 'SYNOVUS BANK', 'SYNOVUS BK',
+            'RENASANT BANK', 'RENASANT BK',
+            'AMERIS BANK', 'AMERIS BANCORP', 'AMERIS BK',
+            'HANCOCK WHITNEY', 'HANCOCK WHITNEY BANK',
+            'TRUSTMARK BANK', 'TRUSTMARK NATIONAL', 'TRUSTMARK NB',
+            'SEACOAST BANK', 'SEACOAST BANKING', 'SEACOAST NATL',
             'ORIGIN BANK',
-            'PINNACLE FINANCIAL',
-            'FIRSTBANK',
+            'PINNACLE FINANCIAL', 'PINNACLE BANK',
+            'FIRSTBANK', 'FIRST BK',
             'CENTENNIAL BANK',
-            'CADENCE BANK',
+            'CADENCE BANK', 'CADENCE BK',
             'SOUTHERN FIRST BANK',
             'CENTERSTATE BANK',
-            'IBERIA BANK',
+            'IBERIA BANK', 'IBERIABANK',
+            'PROSPERITY BANCSHARES',
+            'SOUTHSIDE BANK', 'SOUTH SIDE BK',
+            'FIRST HORIZON BANK', 'FIRST HORIZON',
+            'TRUIST BANK', 'TRUIST',          # Truist HQ Charlotte but covers SE
         ],
         'exact': [],
     },
@@ -506,29 +536,85 @@ CLIENT_CONFIGS = {
     '1200': {  # Guardians Credit Union (South Florida)
         'fed_district': '6',
         'credit_unions': [
+            # Tropical Financial CU (full + heavy truncations)
             'TROPICAL FINANCIAL CREDIT UNION', 'TROPICAL FINANCIAL', 'TROPICAL FCU',
+            'TROPICAL FIN', 'TROPICAL FIN CU', 'TROP FIN', 'TROP FCU',
+            # iTHINK Financial
             'ITHINK FINANCIAL CREDIT UNION', 'ITHINK FINANCIAL', 'ITHINK FCU',
-            'BRIGHTSTAR CREDIT UNION', 'BRIGHTSTAR CU',
-            'WE FLORIDA FINANCIAL', 'WE FLORIDA',
+            'ITHINK FIN', 'ITHINK FIN CR', 'ITHINK CU',
+            # BrightStar CU
+            'BRIGHTSTAR CREDIT UNION', 'BRIGHTSTAR CU', 'BRIGHTSTAR',
+            'BRIGHT STAR CU',
+            # WE Florida Financial
+            'WE FLORIDA FINANCIAL', 'WE FLORIDA', 'WE FLORIDA FIN',
+            # Power Financial CU
             'POWER FINANCIAL CREDIT UNION', 'POWER FINANCIAL', 'POWER FCU',
-            'SPACE COAST CREDIT UNION', 'SPACE COAST CU',
+            'POWER FIN', 'POWER FIN CU',
+            # Space Coast CU (large FL CU)
+            'SPACE COAST CREDIT UNION', 'SPACE COAST CU', 'SPACE COAST',
+            'SPACE CST', 'SCCU',
+            # Gold Coast FCU
             'GOLD COAST FEDERAL CREDIT UNION', 'GOLD COAST FCU',
+            'GOLD COAST',
+            # First Choice CU
             'FIRST CHOICE CREDIT UNION', 'FIRST CHOICE CU',
+            # Sun CU
             'SUN CREDIT UNION', 'SUN CU',
+            # Florida Connect CU
             'FLORIDA CONNECT CREDIT UNION', 'FLORIDA CONNECT CU',
+            'FLORIDA CONNECT', 'FL CONNECT CU',
+            # Velocity Community CU
             'VELOCITY COMMUNITY CREDIT UNION', 'VELOCITY CU',
-            'WELLBY FINANCIAL',
+            'VELOCITY COMMUNITY',
+            # Wellby Financial
+            'WELLBY FINANCIAL', 'WELLBY FIN', 'WELLBY',
+            # Navy Federal — full + heavy truncations
             'NAVY FEDERAL CREDIT UNION', 'NAVY FEDERAL CU',
+            'NAVY FEDERAL', 'NAVY FED', 'NAVY FCU', 'NFCU',
+            # Major FL CUs commonly seen as cross-shopping competition
+            'SUNCOAST CREDIT UNION', 'SUNCOAST CU', 'SUNCOAST',
+            'GTE FINANCIAL', 'GTE FCU', 'GTE CU',
+            'VYSTAR CREDIT UNION', 'VYSTAR CU', 'VYSTAR',
+            'GROW FINANCIAL', 'GROW FIN', 'GROW FCU',
+            'DADE COUNTY FCU', 'DADE COUNTY FED',
+            'MIDFLORIDA CREDIT UNION', 'MIDFLORIDA CU', 'MIDFLORIDA',
+            'COMMUNITY FIRST CREDIT UNION', 'COMMUNITY FIRST CU',
+            'ADDITION FINANCIAL', 'ADDITION FIN',
+            'FAIRWINDS CREDIT UNION', 'FAIRWINDS CU',
+            'PARTNERSHIP FINANCIAL CU',
         ],
         'local_banks': [
+            # Seacoast — full + truncations
             'SEACOAST BANK', 'SEACOAST BANKING', 'SEACOAST NATIONAL',
-            'OCEAN BANK',
-            'CITY NATIONAL BANK OF FLORIDA', 'CITY NATIONAL BANK', 'CITY NATL',
-            'AMERANT BANK', 'AMERANT',
-            'BANKUNITED', 'BANK UNITED',
-            'UNITED COMMUNITY BANK',
-            'FIRST HORIZON',
-            'SYNOVUS', 'SYNOVUS BANK',
+            'SEACOAST NATL', 'SEACOAST NATL B', 'SEACOAST NB',
+            # Ocean Bank
+            'OCEAN BANK', 'OCEAN BK', 'OCEAN BNK',
+            # City National Bank of Florida
+            'CITY NATIONAL BANK OF FLORIDA', 'CITY NATIONAL BANK',
+            'CITY NATL BANK', 'CITY NATL', 'CITY NATL FL', 'CNB FL',
+            # Amerant
+            'AMERANT BANK', 'AMERANT', 'AMERANT BK',
+            # BankUnited
+            'BANKUNITED', 'BANK UNITED', 'BANKUNITED NA',
+            'BANK UNITED NA', 'BANKUNITED N A',
+            # United Community Bank
+            'UNITED COMMUNITY BANK', 'UCBI', 'UNITED COMMUNITY',
+            # First Horizon
+            'FIRST HORIZON', 'FIRST HORIZON BANK', 'FIRST HORIZON NA',
+            # Synovus
+            'SYNOVUS', 'SYNOVUS BANK', 'SYNOVUS BK', 'SYNOVUS NA',
+            # Other FL community banks frequently seen
+            'FLORIDA COMMUNITY BANK', 'FCB FL',
+            'FIRST FLORIDA INTEGRITY BANK', 'FFIB',
+            'CENTERSTATE BANK',
+            'PROFESSIONAL BANK',
+            'PROSPERA BANK',
+            'TIAA BANK', 'EVERBANK',
+            'STONEGATE BANK',
+            'GIBRALTAR PRIVATE BANK',
+            'PAYROLL BANK',
+            'TOTAL BANK',
+            'INTERCREDIT BANK',
         ],
         'custom': [],
         'rollups': {
@@ -724,6 +810,35 @@ def tag_competitors(df, merchant_col='merchant_consolidated'):
         merchant_norm = merchant_norm.str.replace(pat, repl, regex=True)
     merchant_norm = merchant_norm.str.strip()
 
+    # False-positive exclusions: a merchant name (already normalized) that
+    # matches any of these substrings will NOT be tagged as a competitor,
+    # even if it matched one of the patterns. Targets short generic phrases
+    # that get reused outside finance (FIRST CHOICE / GOLD COAST etc.).
+    _COMP_FP_HINTS = [
+        # Retail / pharmacy / clinics
+        'PHARMACY', 'PHARM', 'DRUGS', 'MEDICAL', 'CLINIC', 'HOSPITAL',
+        'DENTAL', 'DENTIST', 'VETERINARY', 'VET CLINIC',
+        # Food / grocery / restaurants
+        'RESTAURANT', 'CAFE', 'PIZZA', 'BURGER', 'GRILL', 'DINER',
+        'GROCERY', 'MARKET', 'DELI', 'BAKERY',
+        # Auto / repair (avoid AUTO LOAN false-positives leaking)
+        'AUTOMOTIVE', 'AUTO REPAIR', 'AUTO BODY', 'AUTOZONE', 'AUTO PARTS',
+        'TIRES', 'OIL CHANGE', 'BODY SHOP',
+        # Home / property
+        'REALTY', 'REAL ESTATE', 'PROPERTIES', 'CONSTRUCTION',
+        'PLUMBING', 'ROOFING', 'LANDSCAPING',
+        # Services / misc
+        'SALON', 'BARBER', 'SPA', 'NAILS',
+        'CLEANERS', 'LAUNDRY',
+        'CHURCH', 'MINISTRY',
+        'SCHOOL', 'ACADEMY', 'UNIVERSITY',
+        'TRADER JOE',
+    ]
+    # Use word boundaries so 'SPA' doesn't match 'SPACE', 'CAFE' doesn't
+    # match anything inside another word, etc.
+    _comp_fp_regex = r'\b(?:' + '|'.join(re.escape(h) for h in _COMP_FP_HINTS) + r')\b'
+    _fp_mask = merchant_norm.str.contains(_comp_fp_regex, na=False, regex=True).values
+
     tagged = np.zeros(n, dtype=bool)
     cat_names = list(COMPETITOR_MERCHANTS.keys())
     cat_codes = np.full(n, -1, dtype=np.int8)  # -1 -> NaN in Categorical
@@ -749,6 +864,10 @@ def tag_competitors(df, merchant_col='merchant_consolidated'):
 
         if ex:
             cat_mask |= merchant_norm.isin(ex).values
+
+        # Apply false-positive guard: skip clearly non-financial merchants
+        # even if their name contains a competitor brand substring.
+        cat_mask &= ~_fp_mask
 
         new_hits = cat_mask & ~tagged
         if new_hits.any():
