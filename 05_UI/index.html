@@ -517,6 +517,42 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         <button class="btn btn-dark" onclick="runFormat(true)">Force Re-Format (overwrite existing)</button>
     </div>
 
+    <!-- Manual data-drop (#124): for CSMs without shared dump folder access -->
+    <details class="stage-card" style="margin-top:24px;">
+        <summary style="cursor:pointer;font-weight:700;font-size:15px;padding:14px 18px;background:var(--card);border:2px solid var(--border);border-radius:8px;list-style:none;">
+            Don't have access to a CSM's raw dump folder? <span style="color:var(--accent);">Drop pre-formatted ODD files here &rsaquo;</span>
+        </summary>
+        <div class="card" style="margin-top:8px;border-radius:8px;">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Stage pre-formatted ODD files</div>
+                    <div class="card-meta">Skips the 7-step formatter. Use when someone hands you an already-extracted ODD <code>.xlsx</code> for a CSM whose raw dump folder you can't see (Dan, Aaron, etc.).</div>
+                </div>
+            </div>
+            <div class="config-row" style="margin-bottom:16px;">
+                <div class="config-field"><div class="label">Source path</div>
+                    <input type="text" id="stageSrcPath" class="sel" placeholder="e.g. C:\Users\you\Downloads\1745_ODDD or a single .xlsx file" />
+                </div>
+            </div>
+            <div class="config-row" style="margin-bottom:16px;">
+                <div class="config-field"><div class="label">CSM</div>
+                    <select class="sel" id="stageCsmSel"><option value="">Loading...</option></select>
+                </div>
+                <div class="config-field"><div class="label">Period</div>
+                    <input type="text" id="stageMonth" class="sel" placeholder="2026.05" />
+                </div>
+                <div class="config-field"><div class="label">Client ID</div>
+                    <input type="text" id="stageClientId" class="sel" placeholder="1745" />
+                </div>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">
+                Source path can be a folder (we copy every <code>.xlsx</code> matching ODD naming) or a single file. The destination is <code>02-Data-Ready for Analysis\&lt;CSM&gt;\&lt;period&gt;\&lt;client&gt;\</code> and is created automatically. Once staged, the file shows up in the Generate tab's client list.
+            </div>
+            <button class="btn" id="stageBtn" onclick="runStage()">Stage files</button>
+            <div id="stageResult" style="margin-top:14px;display:none;"></div>
+        </div>
+    </details>
+
     <div class="prog-section card" id="fProg" style="margin-top:24px;">
         <div class="card-header">
             <div class="card-title">Formatting</div>
@@ -1027,7 +1063,7 @@ async function refreshGenClients() {
 
 async function loadCSMs() {
     // Populate BOTH Format and Generate CSM dropdowns from API
-    const selectors = ['gCsmSel', 'fCsmSel'];
+    const selectors = ['gCsmSel', 'fCsmSel', 'stageCsmSel'];
     try {
         const resp = await fetch('/api/csms');
         if (!resp.ok) throw '';
@@ -1775,6 +1811,59 @@ async function loadResultsClients() {
 
 // Load dashboard data on page load
 loadDashboardData();
+
+// Manual data-drop (#124): stage pre-formatted ODD files for CSMs without
+// shared dump access. Calls POST /api/stage which copies the source
+// .xlsx(es) into the canonical READY_FOR_ANALYSIS folder.
+async function runStage() {
+    const srcPath = (document.getElementById('stageSrcPath').value || '').trim();
+    const csm = document.getElementById('stageCsmSel').value;
+    const month = (document.getElementById('stageMonth').value || '').trim();
+    const clientId = (document.getElementById('stageClientId').value || '').trim();
+
+    const result = document.getElementById('stageResult');
+    result.style.display = 'block';
+
+    if (!srcPath || !csm || !month || !clientId) {
+        result.innerHTML = `<div style="color:#EB2A2E;font-size:14px;">Need all four: source path, CSM, period, and client ID.</div>`;
+        return;
+    }
+
+    const btn = document.getElementById('stageBtn');
+    btn.disabled = true;
+    btn.textContent = 'Staging...';
+    btn.style.opacity = '0.6';
+    result.innerHTML = `<div style="color:var(--muted);font-size:13px;">Copying files…</div>`;
+
+    try {
+        const url = `/api/stage?src_path=${encodeURIComponent(srcPath)}&csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}`;
+        const resp = await fetch(url, {method: 'POST'});
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+            const msg = data.detail || resp.statusText;
+            result.innerHTML = `<div style="color:#EB2A2E;font-size:14px;">Error: ${msg}</div>`;
+            return;
+        }
+        const copied = data.copied || [];
+        const skipped = data.skipped || [];
+        const dest = data.dest || '';
+        let html = `<div style="color:#2A8B3E;font-weight:700;font-size:14px;margin-bottom:8px;">✓ Staged ${copied.length} file(s) to ${dest}</div>`;
+        if (copied.length) {
+            html += `<div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">${copied.map(f => '+ ' + f).join('<br>')}</div>`;
+        }
+        if (skipped.length) {
+            html += `<div style="margin-top:8px;color:#B5651D;font-size:12px;">Skipped (no overwrite): ${skipped.join(', ')}</div>`;
+        }
+        html += `<div style="margin-top:8px;color:var(--muted);font-size:11px;">Client ${clientId} should now appear in the Generate tab's client list for ${csm} / ${month}.</div>`;
+        result.innerHTML = html;
+    } catch(e) {
+        result.innerHTML = `<div style="color:#EB2A2E;font-size:14px;">Could not reach the API: ${e.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Stage files';
+        btn.style.opacity = '';
+    }
+}
 
 async function runFormat(force = false) {
     const csm = document.getElementById('fCsmSel').value;

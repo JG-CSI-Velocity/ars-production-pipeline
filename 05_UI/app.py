@@ -292,6 +292,81 @@ def _clients_from_folder(base: Path, csm: str, month: str) -> set[str]:
     return {d.name for d in csm_dir.iterdir() if d.is_dir()}
 
 
+@app.post("/api/stage")
+async def stage_formatted_odd(
+    src_path: str,
+    csm: str,
+    month: str,
+    client_id: str,
+):
+    """Manually stage pre-formatted ODD files (#124).
+
+    For CSMs whose raw dump folder isn't accessible (Dan, Aaron, etc.),
+    the operator can paste a path to already-extracted ODD .xlsx files
+    and copy them into the canonical READY_FOR_ANALYSIS layout in one
+    click. Skips the 7-step formatting pipeline.
+
+    src_path: file or folder containing one or more .xlsx ODD files.
+    Returns: {copied: [...], skipped: [...], dest: "<destination dir>"}.
+    """
+    src = Path(os.path.expandvars(os.path.expanduser(src_path.strip())))
+    if not src.exists():
+        raise HTTPException(status_code=400, detail=f"Source path does not exist: {src}")
+
+    if not csm or not month or not client_id:
+        raise HTTPException(status_code=400, detail="csm, month, and client_id are all required")
+
+    # Build the destination using the canonical layout. Reuse fuzzy CSM matching
+    # so 'James' picks up the 'JamesG' folder if it already exists.
+    csm_dir = READY_FOR_ANALYSIS / csm
+    if not csm_dir.exists() and READY_FOR_ANALYSIS.exists():
+        for d in READY_FOR_ANALYSIS.iterdir():
+            if d.is_dir() and d.name.lower().startswith(csm.lower()):
+                csm_dir = d
+                break
+    dest_dir = csm_dir / month / client_id
+
+    try:
+        dest_dir.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError) as exc:
+        raise HTTPException(status_code=400, detail=f"Could not create destination {dest_dir}: {exc}")
+
+    # Gather source files. A single .xlsx file or a folder containing them.
+    sources: list[Path] = []
+    if src.is_file():
+        if src.suffix.lower() == ".xlsx":
+            sources = [src]
+        else:
+            raise HTTPException(status_code=400, detail=f"Source file must be .xlsx, got {src.suffix}")
+    else:  # directory
+        sources = sorted(src.glob("*.xlsx"))
+        if not sources:
+            raise HTTPException(status_code=400, detail=f"No .xlsx files found in {src}")
+
+    import shutil
+    copied: list[str] = []
+    skipped: list[str] = []
+    for fp in sources:
+        target = dest_dir / fp.name
+        if target.exists():
+            skipped.append(fp.name)
+            continue
+        try:
+            shutil.copy2(fp, target)
+            copied.append(fp.name)
+        except (PermissionError, OSError) as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to copy {fp.name} to {target}: {exc}",
+            )
+
+    return {
+        "copied": copied,
+        "skipped": skipped,
+        "dest": str(dest_dir),
+    }
+
+
 @app.get("/api/clients")
 async def get_clients(csm: str = "", month: str = ""):
     """Return client list from config.
