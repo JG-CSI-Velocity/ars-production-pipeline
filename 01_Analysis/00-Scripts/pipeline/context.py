@@ -99,3 +99,9 @@ class PipelineContext:
     ics_dir: Path | None = None  # ICS data directory for ICS module
     debit_column: str = ""  # Auto-detected debit column name (set by step_subsets)
     progress_callback: Callable[[str], None] | None = None
+    # G7 (auxiliary deck): slide IDs routed to a secondary aux deck instead of the main deck.
+    # Wave 1 ships this empty (no routing rules wired); later waves populate from manifest or rules.
+    auxiliary_slide_ids: set[str] = field(default_factory=set)
+    # Pipeline product label -- "ars", "txn", or "combined". Used by deck_builder to
+    # name the output PPTX so a TXN run can't overwrite an ARS run.
+    product: str = "ars"

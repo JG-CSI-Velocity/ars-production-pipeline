@@ -12,6 +12,8 @@ Then open: http://localhost:8000
 
 import asyncio
 import json
+import os
+import re
 import subprocess
 import sys
 import threading
@@ -255,12 +257,70 @@ async def get_csms():
     return get_csm_list()
 
 
+_ODDD_CLIENT_ID_RE = re.compile(r"^(\d+)_ODDD", re.IGNORECASE)
+
+
+def _clients_from_raw_dumps(csm: str, month: str) -> set[str]:
+    """Scan M:\\<CSM>\\OD Data Dumps\\<month>\\ for *_ODDD.zip and return client IDs."""
+    cfg = load_ars_config()
+    sources = cfg.get("csm_sources", {}).get("sources", {})
+    src_path = None
+    for name, path in sources.items():
+        if name.lower().startswith(csm.lower()):
+            src_path = Path(path)
+            break
+    if not src_path or not src_path.exists():
+        return set()
+    month_dir = src_path / month
+    if not month_dir.exists():
+        return set()
+    ids = set()
+    for zf in month_dir.iterdir():
+        if not zf.is_file():
+            continue
+        m = _ODDD_CLIENT_ID_RE.match(zf.name)
+        if m:
+            ids.add(m.group(1))
+    return ids
+
+
+def _clients_from_folder(base: Path, csm: str, month: str) -> set[str]:
+    """Return client IDs that have a directory under base/<csm>/<month>/."""
+    csm_dir = _resolve_csm_dir(base, csm) / month
+    if not csm_dir.exists():
+        return set()
+    return {d.name for d in csm_dir.iterdir() if d.is_dir()}
+
+
 @app.get("/api/clients")
-async def get_clients():
-    """Return client list from config."""
+async def get_clients(csm: str = "", month: str = ""):
+    """Return client list from config.
+
+    When csm and month are both provided, filter to clients that show up
+    anywhere in this CSM's pipeline for that month:
+      - Raw dumps: M:\\<CSM>\\OD Data Dumps\\<month>\\<client>_ODDD.zip
+      - Formatted: 02-Data-Ready for Analysis/<csm>/<month>/<client>/
+      - Completed: 01_Completed_Analysis/<csm>/<month>/<client>/
+
+    Union of all three so a client shows up as soon as their raw ZIP lands,
+    and stays visible after formatting/analysis even if the ZIP is moved.
+
+    With no csm/month, returns the full config (used by Results-tab dropdown).
+    """
     config = load_clients_config()
+
+    allowed_ids = None
+    if csm and month:
+        allowed_ids = (
+            _clients_from_raw_dumps(csm, month)
+            | _clients_from_folder(READY_FOR_ANALYSIS, csm, month)
+            | _clients_from_folder(COMPLETED_ANALYSIS, csm, month)
+        )
+
     clients = []
     for cid, data in config.items():
+        if allowed_ids is not None and cid not in allowed_ids:
+            continue
         clients.append({
             "id": cid,
             "name": data.get("ClientName", f"Client {cid}"),
@@ -275,6 +335,18 @@ async def get_clients():
                 "branch_mapping": data.get("BranchMapping", {}),
             },
         })
+
+    # Also surface IDs found in folders but missing from clients_config.json
+    # (so the operator can see something exists even if config is stale).
+    if allowed_ids is not None:
+        known = {c["id"] for c in clients}
+        for cid in sorted(allowed_ids - known):
+            clients.append({
+                "id": cid,
+                "name": f"Client {cid} (not in config)",
+                "config": {},
+            })
+
     return clients
 
 
@@ -490,8 +562,15 @@ async def start_run(
     month: str,
     client_id: str,
     product: str = "ars",
+    local_copy_path: str = "",
 ):
-    """Start a full pipeline run: format (if needed) + analysis + PPTX."""
+    """Start a full pipeline run: format (if needed) + analysis + PPTX.
+
+    Optional local_copy_path: when provided, the final PPTX deck is also
+    copied to this folder on the operator's machine so they don't have to
+    download a large file from the shared M: drive. Validated to be a
+    writable directory before the (long) run starts.
+    """
     run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
     formatting_run = ARS_BASE / "00_Formatting" / "run.py"
@@ -499,6 +578,21 @@ async def start_run(
 
     if not analysis_run.exists():
         raise HTTPException(status_code=500, detail=f"Analysis run.py not found at {analysis_run}")
+
+    # Validate local_copy_path up front so we fail fast, not after 20 min.
+    local_copy_resolved = ""
+    if local_copy_path.strip():
+        candidate = Path(os.path.expandvars(os.path.expanduser(local_copy_path.strip())))
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Local copy path is not writable: {candidate} ({exc})",
+            )
+        if not candidate.is_dir():
+            raise HTTPException(status_code=400, detail=f"Local copy path is not a directory: {candidate}")
+        local_copy_resolved = str(candidate)
 
     runs[run_id] = {
         "status": "running",
@@ -559,12 +653,14 @@ async def start_run(
             cmd = [sys.executable, "-u", str(analysis_run),
                    "--month", month, "--csm", csm, "--client", client_id,
                    "--product", product]
+            if local_copy_resolved:
+                cmd += ["--local-copy", local_copy_resolved]
+
             # Forward SLIDE_MODE and SLIDE_BUDGET so UI-set deck-size
             # controls reach the analysis subprocess. Without this, the
             # child inherits parent env but ARS_UI_PORT and similar
             # wrapper-only vars can overwrite intended values.
-            import os as _env_os
-            _run_env = _env_os.environ.copy()
+            _run_env = os.environ.copy()
             _run_env["PYTHONUNBUFFERED"] = "1"  # belt+braces with -u
             proc = subprocess.Popen(
                 cmd,

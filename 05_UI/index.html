@@ -197,6 +197,125 @@ header {
 .prog-log .done { color: var(--green); }
 .prog-log .active { color: var(--accent); font-weight: 700; }
 
+/* Running-analysis CSM-friendly view */
+.run-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.run-clock { text-align: right; }
+.run-clock-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.run-clock-value { font-family: 'Space Mono', monospace; font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.1; }
+
+.stage-list { list-style: none; padding: 0; margin: 8px 0 0; }
+.stage {
+    display: grid; grid-template-columns: 28px 1fr auto;
+    align-items: center; gap: 12px;
+    padding: 14px 4px; border-bottom: 1px solid var(--border);
+}
+.stage:last-child { border-bottom: none; }
+.stage-icon {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--border); background: var(--card);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    transition: all 0.2s;
+}
+.stage-label { font-size: 15px; font-weight: 600; color: var(--muted); }
+.stage-time { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--muted); }
+
+.stage[data-state="active"] .stage-icon {
+    border-color: var(--accent); background: var(--accent);
+    color: #fff; animation: stage-pulse 1.6s ease-in-out infinite;
+}
+.stage[data-state="active"] .stage-icon::after { content: ""; }
+.stage[data-state="active"] .stage-label { color: var(--text); font-weight: 700; }
+.stage[data-state="done"] .stage-icon {
+    border-color: var(--green, #2A8B3E); background: var(--green, #2A8B3E);
+    color: #fff;
+}
+.stage[data-state="done"] .stage-icon::after { content: "\2713"; }
+.stage[data-state="done"] .stage-label { color: var(--text); }
+.stage[data-state="error"] .stage-icon {
+    border-color: #EB2A2E; background: #EB2A2E; color: #fff;
+}
+.stage[data-state="error"] .stage-icon::after { content: "!"; }
+
+@keyframes stage-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(241, 93, 34, 0.5); }
+    50%      { box-shadow: 0 0 0 8px rgba(241, 93, 34, 0); }
+}
+
+.stage-sub {
+    grid-column: 2 / 4; margin-top: 8px;
+    display: none;
+}
+.stage[data-state="active"] .stage-sub { display: block; }
+.stage-sub-track { width: 100%; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.stage-sub-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s; width: 0%; }
+.stage-sub-meta { font-size: 12px; color: var(--muted); margin-top: 6px; font-family: 'Space Mono', monospace; }
+
+.prog-details { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+.prog-details summary {
+    cursor: pointer; font-size: 12px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; user-select: none;
+    padding: 4px 0;
+}
+.prog-details summary:hover { color: var(--accent); }
+.prog-details[open] summary { margin-bottom: 12px; }
+
+/* Completion card */
+.done-hero {
+    display: flex; align-items: center; gap: 20px;
+    padding: 8px 0 24px; border-bottom: 1px solid var(--border); margin-bottom: 20px;
+}
+.done-check {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--green, #2A8B3E); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; font-weight: 700;
+    flex-shrink: 0;
+}
+.done-title { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 24px; }
+.done-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.done-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.done-stat { background: var(--bg); border-radius: 8px; padding: 14px 16px; border-left: 4px solid var(--border); }
+.done-stat-value { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 24px; color: var(--accent); line-height: 1.1; display: flex; align-items: baseline; gap: 8px; }
+.done-stat-value .icon { font-size: 18px; }
+.done-stat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+.done-stat.success { border-left-color: #2A8B3E; }
+.done-stat.success .done-stat-value { color: #2A8B3E; }
+.done-stat.warn { border-left-color: #F5B461; }
+.done-stat.warn .done-stat-value { color: #B5651D; }
+.done-stat.error { border-left-color: #EB2A2E; }
+.done-stat.error .done-stat-value { color: #EB2A2E; }
+
+.done-warnings.error { background: #FDEAEA; border-color: #EB2A2E; }
+.done-warnings.error .done-warnings-title { color: #B71C1C; }
+.done-warnings.error .done-warnings-detail { color: #8A1A1A; }
+.fail-row { display: grid; grid-template-columns: 90px 1fr; gap: 10px; padding: 4px 0; font-family: 'Space Mono', monospace; font-size: 12px; }
+.fail-row .fail-id { font-weight: 700; }
+
+/* Local copy option */
+.local-copy-row { margin-bottom: 24px; }
+.local-copy-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: var(--text); }
+.local-copy-toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.local-copy-input { margin-top: 10px; margin-left: 28px; }
+.local-copy-input input { font-family: 'Space Mono', monospace; font-size: 13px; }
+.local-copy-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.done-warnings {
+    background: #FFF4E5; border: 1px solid #F5B461; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 20px;
+}
+.done-warnings-title { font-size: 13px; font-weight: 700; color: #B5651D; margin-bottom: 4px; }
+.done-warnings-detail { font-size: 12px; color: #8A4A12; font-family: 'Space Mono', monospace; }
+.done-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.done-action {
+    flex: 1; min-width: 180px;
+    padding: 14px 18px; background: var(--accent); color: #fff;
+    border-radius: 8px; text-align: center; font-weight: 700; font-size: 14px;
+    cursor: pointer; border: none; transition: background 0.2s;
+}
+.done-action:hover { background: var(--accent-dark); }
+.done-action.secondary { background: var(--bg); color: var(--text); border: 2px solid var(--border); }
+.done-action.secondary:hover { border-color: var(--accent); color: var(--accent); }
+
 /* Downloads */
 .dl-grid { display: none; gap: 14px; margin-top: 24px; grid-template-columns: repeat(3, 1fr); }
 .dl-grid.visible { display: grid; }
@@ -421,12 +540,12 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         </div>
         <div class="config-row" style="margin-bottom: 0;">
             <div class="config-field"><div class="label">CSM</div>
-                <select class="sel" id="gCsmSel">
+                <select class="sel" id="gCsmSel" onchange="refreshGenClients()">
                     <option value="">Loading...</option>
                 </select>
             </div>
             <div class="config-field"><div class="label">Period</div>
-                <select class="sel" id="gMonthSel">
+                <select class="sel" id="gMonthSel" onchange="refreshGenClients()">
                     <option value="">Loading...</option>
                 </select>
             </div>
@@ -469,12 +588,24 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             <div class="card-meta">Choose an analysis product and click Generate. The pipeline will run all selected modules and produce a PowerPoint deck and Excel workbook.</div>
         </div>
 
-        <div class="run-bar" style="margin-top: 0; margin-bottom: 24px; border-radius: 8px;">
+        <div class="run-bar" style="margin-top: 0; margin-bottom: 12px; border-radius: 8px;">
             <div>
                 <div class="run-what" id="gRunWhat">Select a client and product</div>
                 <div class="run-meta" id="gRunMeta">--</div>
             </div>
             <button class="btn" id="genRunBtn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
+        </div>
+
+        <!-- Local copy option -->
+        <div class="local-copy-row">
+            <label class="local-copy-toggle">
+                <input type="checkbox" id="gLocalCopyCb" onchange="_toggleLocalCopy()" />
+                <span>Also save deck to a local folder (faster than downloading from the shared drive)</span>
+            </label>
+            <div class="local-copy-input" id="gLocalCopyWrap" style="display:none;">
+                <input type="text" id="gLocalCopyPath" class="sel" placeholder="e.g. C:\Users\you\Documents\Velocity Decks" />
+                <div class="local-copy-hint">The folder will be created if it doesn't exist. We'll save the PowerPoint here as soon as it's built.</div>
+            </div>
         </div>
 
         <div class="grid-4" style="margin-bottom: 0;">
@@ -496,12 +627,58 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
 
     <!-- Progress (hidden until run starts) -->
     <div class="prog-section card" id="gProg">
-        <div class="card-header">
-            <div class="card-title">Running Analysis</div>
-            <div class="card-meta" id="gProgStatus">0%</div>
+        <!-- Running view -->
+        <div id="gRunView">
+            <div class="card-header">
+                <div>
+                    <div class="card-title" id="gRunTitle">Preparing your report&hellip;</div>
+                    <div class="run-sub" id="gRunSub">Hang tight, this can take 15&ndash;25 minutes</div>
+                </div>
+                <div class="run-clock">
+                    <div class="run-clock-label">Elapsed</div>
+                    <div class="run-clock-value" id="gElapsed">0:00</div>
+                </div>
+            </div>
+
+            <!-- Stage checklist -->
+            <ul class="stage-list" id="gStages">
+                <li class="stage" data-stage="read"><span class="stage-icon"></span><span class="stage-label">Read your data</span><span class="stage-time"></span></li>
+                <li class="stage" data-stage="prep"><span class="stage-icon"></span><span class="stage-label">Prepare analyses</span><span class="stage-time"></span></li>
+                <li class="stage" data-stage="analyze">
+                    <span class="stage-icon"></span><span class="stage-label">Run analytics</span><span class="stage-time"></span>
+                    <div class="stage-sub" id="gAnalyzeSub">
+                        <div class="stage-sub-track"><div class="stage-sub-fill" id="gAnalyzeBar"></div></div>
+                        <div class="stage-sub-meta" id="gAnalyzeMeta"></div>
+                    </div>
+                </li>
+                <li class="stage" data-stage="deck"><span class="stage-icon"></span><span class="stage-label">Build PowerPoint deck</span><span class="stage-time"></span></li>
+                <li class="stage" data-stage="finalize"><span class="stage-icon"></span><span class="stage-label">Save and deliver files</span><span class="stage-time"></span></li>
+            </ul>
         </div>
-        <div class="prog-track"><div class="prog-fill" id="gProgBar" style="width:0%"></div></div>
-        <div class="prog-log" id="gProgLog"></div>
+
+        <!-- Completion view (hidden until done) -->
+        <div id="gDoneView" style="display:none;">
+            <div class="done-hero">
+                <div class="done-check">&check;</div>
+                <div>
+                    <div class="done-title" id="gDoneTitle">Report ready</div>
+                    <div class="done-sub" id="gDoneSub">--</div>
+                </div>
+            </div>
+            <div class="done-stats" id="gDoneStats"></div>
+            <div class="done-warnings" id="gDoneWarnings" style="display:none;"></div>
+            <div class="done-actions" id="gDoneActions"></div>
+        </div>
+
+        <!-- Technical log (collapsed by default) -->
+        <details class="prog-details">
+            <summary>Show technical log</summary>
+            <div class="prog-log" id="gProgLog"></div>
+        </details>
+
+        <!-- Hidden legacy progress bar -- kept so other handlers don't break -->
+        <div id="gProgStatus" style="display:none;"></div>
+        <div id="gProgBar" style="display:none;"></div>
     </div>
 
     <!-- Step 3: Downloads (populated after run or from previous outputs) -->
@@ -812,6 +989,42 @@ async function loadClients() {
     }
 }
 
+async function refreshGenClients() {
+    const csm = document.getElementById('gCsmSel')?.value || '';
+    const month = document.getElementById('gMonthSel')?.value || '';
+    const sel = document.getElementById('gClientSel');
+    if (!sel) return;
+    const prev = sel.value;
+    const url = (csm && month)
+        ? `/api/clients?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}`
+        : '/api/clients';
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        sel.innerHTML = '';
+        if (data.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'No clients for this CSM / period';
+            sel.appendChild(opt);
+        } else {
+            data.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.id} — ${c.name}`;
+                opt.dataset.config = JSON.stringify(c.config);
+                opt.dataset.name = c.name;
+                sel.appendChild(opt);
+            });
+            if (prev && [...sel.options].some(o => o.value === prev)) {
+                sel.value = prev;
+            }
+        }
+        updateGenClientFromAPI();
+    } catch(e) {}
+}
+
 async function loadCSMs() {
     // Populate BOTH Format and Generate CSM dropdowns from API
     const selectors = ['gCsmSel', 'fCsmSel'];
@@ -956,109 +1169,395 @@ async function loadRecent() {
     } catch(e) {}
 }
 
+// ─── CSM-friendly running-analysis state machine ───
+
+// Maps backend step names + module IDs into the 5-stage user-facing checklist.
+const RUN_STAGES = ['read', 'prep', 'analyze', 'deck', 'finalize'];
+const STAGE_LABEL = {
+    read: 'Read your data',
+    prep: 'Prepare analyses',
+    analyze: 'Run analytics',
+    deck: 'Build PowerPoint deck',
+    finalize: 'Save and deliver files',
+};
+// Friendly theme names shown under "Currently analyzing: X" during the analyze stage.
+const MODULE_THEME = {
+    overview: 'Account overview',
+    dctr: 'Debit performance',
+    rege: 'Reg E compliance',
+    value: 'Value to members',
+    attrition: 'At-risk accounts',
+    mailer: 'Mailer effectiveness',
+    insights: 'Strategic insights',
+};
+
+function _toggleLocalCopy() {
+    const checked = document.getElementById('gLocalCopyCb').checked;
+    document.getElementById('gLocalCopyWrap').style.display = checked ? '' : 'none';
+    if (checked) document.getElementById('gLocalCopyPath').focus();
+}
+
+function _fmtElapsed(seconds) {
+    if (seconds < 60) return `0:${String(Math.floor(seconds)).padStart(2, '0')}`;
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function _classifyStage(line) {
+    // Map raw log lines to user-facing stage transitions. Returns {stage, event}.
+    // event: 'start' | 'done'
+    if (!line) return null;
+    const l = line.toLowerCase();
+    if (/found:.*odd/i.test(line) || /step 1: formatting/i.test(line)) return {stage: 'read', event: 'start'};
+    if (/step 1.*complete|formatting.*complete/i.test(line)) return {stage: 'read', event: 'done'};
+    if (/starting ars pipeline|step 2: ars analysis/i.test(line)) return {stage: 'prep', event: 'start'};
+    if (/step 'setup_paths' completed|step 'retrieve_data' completed/i.test(line)) return {stage: 'prep', event: 'done'};
+    if (/step 'run_analyses' starting|module 1\/\d+/i.test(line)) return {stage: 'analyze', event: 'start'};
+    if (/step 'run_analyses' completed|analysis complete:/i.test(line)) return {stage: 'analyze', event: 'done'};
+    if (/step 'generate_output' starting|building deck:/i.test(line)) return {stage: 'deck', event: 'start'};
+    if (/deck built:|step 'generate_output' completed/i.test(line)) return {stage: 'deck', event: 'done'};
+    if (/step 2 complete|pipeline done/i.test(line)) return {stage: 'finalize', event: 'done'};
+    return null;
+}
+
+function _parseModuleProgress(line) {
+    // "  [10:12] Module 14/25: mailer.cohort"
+    const m = line.match(/Module\s+(\d+)\s*\/\s*(\d+):\s*([\w.]+)/i);
+    if (!m) return null;
+    const moduleId = m[3];
+    const theme = MODULE_THEME[moduleId.split('.')[0]] || moduleId;
+    return {current: parseInt(m[1], 10), total: parseInt(m[2], 10), moduleId, theme};
+}
+
+function _parseSoftFailure(line) {
+    // "  A8.7: A8.7 -- single positional indexer is out-of-bounds"
+    const m = line.match(/^\s*([A-Z]\d+(?:\.\d+)?):\s*\1\s*--\s*(.+)$/);
+    return m ? {slideId: m[1], reason: m[2].trim()} : null;
+}
+
+function _parseVersionedDeck(line) {
+    // "    Original deck is open -- saved new copy as: 1745_2026.05_ars_deck_v2.pptx"
+    const m = line.match(/saved new copy as:\s*(\S+\.pptx)/i);
+    return m ? m[1] : null;
+}
+
+function _parseLocalCopy(line) {
+    // "    Local copy saved to: C:\Users\...\1745_2026.05_ars_deck.pptx"
+    const m = line.match(/Local copy saved to:\s*(.+\.pptx)\s*$/i);
+    return m ? m[1].trim() : null;
+}
+
+function _resetRunView() {
+    document.getElementById('gRunView').style.display = '';
+    document.getElementById('gDoneView').style.display = 'none';
+    document.querySelectorAll('#gStages .stage').forEach(li => li.removeAttribute('data-state'));
+    document.querySelectorAll('#gStages .stage-time').forEach(el => el.textContent = '');
+    document.getElementById('gAnalyzeBar').style.width = '0%';
+    document.getElementById('gAnalyzeMeta').textContent = '';
+    document.getElementById('gElapsed').textContent = '0:00';
+    document.getElementById('gRunTitle').textContent = 'Preparing your report…';
+    document.getElementById('gRunSub').textContent = 'Hang tight, this can take 15–25 minutes';
+    const log = document.getElementById('gProgLog');
+    log.innerHTML = '';
+}
+
+function _setStageState(stage, state, elapsedSec) {
+    const li = document.querySelector(`#gStages .stage[data-stage="${stage}"]`);
+    if (!li) return;
+    li.setAttribute('data-state', state);
+    if (elapsedSec != null) {
+        li.querySelector('.stage-time').textContent = _fmtElapsed(elapsedSec);
+    }
+}
+
+function _advanceStage(stage, runStart, stageStarts) {
+    // Mark previous stages done, set this stage active.
+    const idx = RUN_STAGES.indexOf(stage);
+    if (idx < 0) return;
+    const now = Date.now();
+    for (let i = 0; i < idx; i++) {
+        const s = RUN_STAGES[i];
+        if (!stageStarts[s]) stageStarts[s] = now;
+        _setStageState(s, 'done', (stageStarts[RUN_STAGES[i + 1]] || now) / 1000 - stageStarts[s] / 1000);
+    }
+    if (!stageStarts[stage]) stageStarts[stage] = now;
+    _setStageState(stage, 'active');
+}
+
+function _translateError(rawError) {
+    // Map known pandas / pipeline errors into plain English for CSMs.
+    if (!rawError) return 'Unknown error';
+    const e = rawError.toLowerCase();
+    if (e.includes('out-of-bounds')) return 'Data range issue';
+    if (e.includes('need 2+ months')) return 'Not enough months of data';
+    if (e.includes('no product code column')) return 'Missing Product Code column';
+    if (e.includes('no.*column found') || /no\s+\w+\s+column/.test(e)) return 'Missing required column';
+    if (e.includes('insufficient upstream')) return 'Not enough data to analyze';
+    if (e.includes('division by zero') || e.includes('zerodivision')) return 'Division by zero in metric';
+    return rawError.length > 80 ? rawError.slice(0, 77) + '…' : rawError;
+}
+
+function _renderCompletion(ctx) {
+    document.getElementById('gRunView').style.display = 'none';
+    const done = document.getElementById('gDoneView');
+    done.style.display = '';
+
+    // Status determination: 'success' | 'partial' | 'error'
+    let status;
+    if (ctx.error) status = 'error';
+    else if (ctx.slidesFailed > 0 || ctx.softFailures.length > 0) status = 'partial';
+    else status = 'success';
+
+    const titles = {
+        success: `Report ready — ${ctx.clientLabel}`,
+        partial: `Report ready (with warnings) — ${ctx.clientLabel}`,
+        error: 'Run did not complete',
+    };
+    document.getElementById('gDoneTitle').textContent = titles[status];
+    document.getElementById('gDoneSub').textContent = status === 'error'
+        ? 'See technical log below for details.'
+        : `Generated in ${_fmtElapsed(ctx.totalSec)}`;
+    const check = document.querySelector('.done-check');
+    if (status === 'error') { check.textContent = '✕'; check.style.background = '#EB2A2E'; }
+    else if (status === 'partial') { check.textContent = '!'; check.style.background = '#F5B461'; }
+    else { check.textContent = '✓'; check.style.background = ''; }
+
+    // Status tiles row -- the high-level success/warning/error counts
+    const stats = document.getElementById('gDoneStats');
+    stats.innerHTML = '';
+    const addStat = (value, label, kind, icon) => {
+        const el = document.createElement('div');
+        el.className = 'done-stat' + (kind ? ' ' + kind : '');
+        const iconHtml = icon ? `<span class="icon">${icon}</span>` : '';
+        el.innerHTML = `<div class="done-stat-value">${iconHtml}${value}</div><div class="done-stat-label">${label}</div>`;
+        stats.appendChild(el);
+    };
+    if (ctx.slidesOK != null) addStat(ctx.slidesOK, 'Slides succeeded', 'success', '✓');
+    if (ctx.slidesNoChart != null && ctx.slidesNoChart > 0) addStat(ctx.slidesNoChart, 'No chart data', 'warn', '⚠');
+    if (ctx.slidesFailed != null && ctx.slidesFailed > 0) addStat(ctx.slidesFailed, 'Slides failed', 'error', '✕');
+    if (ctx.excelSheets != null) addStat(ctx.excelSheets, 'Excel sheets');
+    addStat(_fmtElapsed(ctx.totalSec), 'Total time');
+
+    // Warnings panel: detailed reasons for each failure + the file-lock notice
+    const warn = document.getElementById('gDoneWarnings');
+    warn.classList.remove('error');
+    const warnParts = [];
+    if (ctx.softFailures.length) {
+        const headline = status === 'error'
+            ? `${ctx.softFailures.length} slide(s) failed during this run`
+            : `${ctx.softFailures.length} slide(s) skipped &mdash; your deck is still ready`;
+        const rows = ctx.softFailures.map(f =>
+            `<div class="fail-row"><span class="fail-id">${f.slideId}</span><span>${_translateError(f.reason)}</span></div>`
+        ).join('');
+        warnParts.push(`<div class="done-warnings-title">${headline}</div>${rows}`);
+    }
+    if (ctx.versionedDeck) {
+        warnParts.push(`<div class="done-warnings-title">Previous deck was open in PowerPoint</div><div class="done-warnings-detail">New copy saved as ${ctx.versionedDeck}</div>`);
+    }
+    if (ctx.localCopyPath) {
+        warnParts.push(`<div class="done-warnings-title">✓ Local copy saved</div><div class="done-warnings-detail">${ctx.localCopyPath}</div>`);
+    }
+    if (warnParts.length) {
+        warn.innerHTML = warnParts.join('<hr style="border:none;border-top:1px solid #F5B461;margin:14px 0;">');
+        if (status === 'error') warn.classList.add('error');
+        warn.style.display = '';
+    } else {
+        warn.style.display = 'none';
+    }
+
+    // Actions -- defer to existing loadDownloads which populates #gDl, plus shortcut buttons.
+    const actions = document.getElementById('gDoneActions');
+    actions.innerHTML = '';
+    const open = document.createElement('button');
+    open.className = 'done-action';
+    open.textContent = 'Open downloads';
+    open.onclick = () => document.getElementById('gDl').scrollIntoView({behavior: 'smooth', block: 'start'});
+    actions.appendChild(open);
+    const again = document.createElement('button');
+    again.className = 'done-action secondary';
+    again.textContent = 'Run another report';
+    again.onclick = () => { document.getElementById('gProg').classList.remove('visible'); window.scrollTo({top: 0, behavior: 'smooth'}); };
+    actions.appendChild(again);
+}
+
 // Real pipeline run via API
 async function runGenReal() {
     const clientId = document.getElementById('gClientSel').value;
     const csm = document.getElementById('gCsmSel').value;
     const month = document.getElementById('gMonthSel').value;
+    const clientLabel = document.querySelector('#gClientSel option:checked')?.textContent || `Client ${clientId}`;
 
     if (!csm || !month || !clientId) {
         alert('Please select a CSM, period, and client first.');
         return;
     }
 
-    // Disable button immediately -- prevent duplicate clicks
     const runBtn = document.getElementById('genRunBtn');
     runBtn.disabled = true;
     runBtn.textContent = 'Running...';
     runBtn.style.opacity = '0.6';
     runBtn.style.cursor = 'not-allowed';
 
-    // Show progress immediately
     const prog = document.getElementById('gProg');
     prog.classList.add('visible');
     document.getElementById('gDl').classList.remove('visible');
+    _resetRunView();
+
     const log = document.getElementById('gProgLog');
-    const bar = document.getElementById('gProgBar');
-    const st = document.getElementById('gProgStatus');
-    log.innerHTML = '';
-    bar.style.width = '5%';
-    bar.style.background = '';
-    st.textContent = 'Starting...';
+    const runStart = Date.now();
+    const stageStarts = {};
+    const ctx = {
+        clientLabel, totalSec: 0, slidesOK: null, excelSheets: null,
+        softFailures: [], versionedDeck: null, error: false,
+    };
 
     const startLine = document.createElement('div');
     startLine.className = 'done';
-    startLine.textContent = `Generating ${curProd.toUpperCase()} report for client ${clientId} (${csm} / ${month})...`;
+    startLine.textContent = `Generating ${curProd.toUpperCase()} report for ${clientLabel} (${csm} / ${month})...`;
     log.appendChild(startLine);
 
-    // Start the run
+    // Elapsed clock
+    const clockTimer = setInterval(() => {
+        document.getElementById('gElapsed').textContent = _fmtElapsed((Date.now() - runStart) / 1000);
+    }, 500);
+
+    // Local-copy option
+    const localCopyOn = document.getElementById('gLocalCopyCb')?.checked;
+    const localCopyPath = localCopyOn ? (document.getElementById('gLocalCopyPath')?.value || '').trim() : '';
+    if (localCopyOn && !localCopyPath) {
+        alert('Please enter a local folder path, or uncheck "Also save deck to a local folder".');
+        runBtn.disabled = false;
+        runBtn.textContent = 'Format + Analyze + Build PPTX';
+        runBtn.style.opacity = '';
+        runBtn.style.cursor = '';
+        return;
+    }
+
     try {
-        const resp = await fetch(`/api/run?csm=${csm}&month=${month}&client_id=${clientId}&product=${curProd}`, {method: 'POST'});
+        const runUrl = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
+            + (localCopyPath ? `&local_copy_path=${encodeURIComponent(localCopyPath)}` : '');
+        const resp = await fetch(runUrl, {method: 'POST'});
         if (!resp.ok) {
             const errText = await resp.text();
-            st.textContent = 'Failed to start';
-            const errLine = document.createElement('div');
-            errLine.style.color = '#EB2A2E';
-            errLine.textContent = 'ERROR: ' + (errText || resp.statusText);
-            log.appendChild(errLine);
+            clearInterval(clockTimer);
+            ctx.error = true;
+            _renderCompletion(ctx);
+            log.appendChild(Object.assign(document.createElement('div'), {style: 'color:#EB2A2E', textContent: 'ERROR: ' + (errText || resp.statusText)}));
             return;
         }
         const {run_id} = await resp.json();
-        st.textContent = 'Running...';
-        bar.style.width = '10%';
+        _advanceStage('read', runStart, stageStarts);
 
-        // Poll for progress
+        let lastSeen = 0;
         const pollInterval = setInterval(async () => {
             try {
                 const statusResp = await fetch(`/api/run/${run_id}`);
                 if (!statusResp.ok) return;
                 const run = await statusResp.json();
 
-                // Show new log lines
-                const currentCount = log.children.length - 1;
-                if (run.log && run.log.length > currentCount) {
-                    for (let i = currentCount; i < run.log.length; i++) {
-                        const line = document.createElement('div');
-                        line.className = 'done';
-                        line.textContent = run.log[i];
-                        log.appendChild(line);
+                // Process new log lines for state derivation and append to the technical log
+                if (run.log && run.log.length > lastSeen) {
+                    for (let i = lastSeen; i < run.log.length; i++) {
+                        const line = run.log[i];
+                        // Append to technical log
+                        const el = document.createElement('div');
+                        el.className = 'done';
+                        el.textContent = line;
+                        log.appendChild(el);
+
+                        // Stage transitions
+                        const stageEvt = _classifyStage(line);
+                        if (stageEvt) {
+                            if (stageEvt.event === 'start') {
+                                _advanceStage(stageEvt.stage, runStart, stageStarts);
+                            } else if (stageEvt.event === 'done') {
+                                const elapsed = (Date.now() - (stageStarts[stageEvt.stage] || runStart)) / 1000;
+                                _setStageState(stageEvt.stage, 'done', elapsed);
+                            }
+                        }
+
+                        // Module sub-progress
+                        const mod = _parseModuleProgress(line);
+                        if (mod) {
+                            const pct = Math.round((mod.current / mod.total) * 100);
+                            document.getElementById('gAnalyzeBar').style.width = pct + '%';
+                            document.getElementById('gAnalyzeMeta').textContent = `${mod.current} of ${mod.total} reports complete · ${mod.theme}`;
+                            document.getElementById('gRunTitle').textContent = `Analyzing ${mod.theme.toLowerCase()}…`;
+                            document.getElementById('gRunSub').textContent = `Working through ${mod.total} analytics reports for this client`;
+                        }
+
+                        // Soft failures
+                        const soft = _parseSoftFailure(line);
+                        if (soft) ctx.softFailures.push(soft);
+
+                        // Versioned deck (file lock fallback)
+                        const versioned = _parseVersionedDeck(line);
+                        if (versioned) ctx.versionedDeck = versioned;
+
+                        // Local copy delivered
+                        const localCopy = _parseLocalCopy(line);
+                        if (localCopy) ctx.localCopyPath = localCopy;
+
+                        // Run report breakdown: "Run report: 145/160 slides OK, 2 failed, 13 no chart"
+                        const reportMatch = line.match(/Run report:\s*(\d+)\/(\d+)\s*slides OK,\s*(\d+)\s*failed,\s*(\d+)\s*no chart/i);
+                        if (reportMatch) {
+                            ctx.slidesOK = parseInt(reportMatch[1], 10);
+                            ctx.slidesTotal = parseInt(reportMatch[2], 10);
+                            ctx.slidesFailed = parseInt(reportMatch[3], 10);
+                            ctx.slidesNoChart = parseInt(reportMatch[4], 10);
+                        }
+                        // Fallback: deck-built line gives a slide count if no run report seen
+                        const slidesMatch = line.match(/Deck built:.*\((\d+)\s*slides\)/i);
+                        if (slidesMatch && ctx.slidesOK == null) ctx.slidesOK = parseInt(slidesMatch[1], 10);
+                        // Excel sheets: "Excel written: ... (71 sheets)"
+                        const sheetsMatch = line.match(/Excel written:.*\((\d+)\s*sheets\)/i);
+                        if (sheetsMatch) ctx.excelSheets = parseInt(sheetsMatch[1], 10);
                     }
+                    lastSeen = run.log.length;
                     log.scrollTop = log.scrollHeight;
                 }
 
-                bar.style.width = run.progress + '%';
-                st.textContent = run.current_step || 'Running...';
-
                 if (run.status === 'complete' || run.status === 'error') {
                     clearInterval(pollInterval);
-                    bar.style.width = '100%';
-                    // Re-enable the run button
+                    clearInterval(clockTimer);
+                    // Mark any still-pending stages done if complete
+                    if (run.status === 'complete') {
+                        RUN_STAGES.forEach(s => {
+                            const li = document.querySelector(`#gStages .stage[data-stage="${s}"]`);
+                            if (li && li.getAttribute('data-state') !== 'done') {
+                                _setStageState(s, 'done');
+                            }
+                        });
+                    } else {
+                        // Mark current active stage as error
+                        document.querySelectorAll('#gStages .stage[data-state="active"]').forEach(li => {
+                            li.setAttribute('data-state', 'error');
+                        });
+                        ctx.error = true;
+                    }
+                    ctx.totalSec = (Date.now() - runStart) / 1000;
                     runBtn.disabled = false;
                     runBtn.textContent = 'Format + Analyze + Build PPTX';
                     runBtn.style.opacity = '';
                     runBtn.style.cursor = '';
                     if (run.status === 'complete') {
-                        st.textContent = 'Complete';
-                        bar.style.background = 'var(--accent)';
                         loadDownloads(csm, month, clientId);
                         loadResultsAfterRun(csm, month, clientId);
                         loadDashboardData();
-                    } else {
-                        st.textContent = 'Error -- check log below';
-                        bar.style.background = '#EB2A2E';
                     }
+                    _renderCompletion(ctx);
                 }
             } catch(pollErr) {
                 // Network blip, keep polling
             }
         }, 1000);
     } catch(e) {
-        st.textContent = 'Could not connect to API';
-        const errLine = document.createElement('div');
-        errLine.style.color = '#EB2A2E';
-        errLine.textContent = 'ERROR: ' + e.message;
-        log.appendChild(errLine);
-        // Re-enable the run button on error
+        clearInterval(clockTimer);
+        ctx.error = true;
+        ctx.totalSec = (Date.now() - runStart) / 1000;
+        _renderCompletion(ctx);
+        log.appendChild(Object.assign(document.createElement('div'), {style: 'color:#EB2A2E', textContent: 'ERROR: ' + e.message}));
         runBtn.disabled = false;
         runBtn.textContent = 'Format + Analyze + Build PPTX';
         runBtn.style.opacity = '';
@@ -1576,9 +2075,11 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('rSlideContainer')?.addEventListener('dblclick', openLightbox);
 
 // Load real data on page load
-loadCSMs();
-loadMonths();
-loadClients();
+(async () => {
+    await Promise.all([loadCSMs(), loadMonths()]);
+    await loadClients();
+    refreshGenClients();
+})();
 loadRecent();
 
 // Override the generate button to use real API
