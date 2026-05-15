@@ -227,11 +227,33 @@ async def get_csms():
 
 
 @app.get("/api/clients")
-async def get_clients():
-    """Return client list from config."""
+async def get_clients(csm: str = "", month: str = ""):
+    """Return client list from config.
+
+    When csm and month are both provided, filter to clients whose formatted
+    data exists under READY_FOR_ANALYSIS/{csm}/{month}/. Used by the Generate
+    tab so its client dropdown refreshes when CSM or period changes.
+    """
     config = load_clients_config()
+
+    allowed_ids = None
+    if csm and month:
+        allowed_ids = set()
+        csm_dir = READY_FOR_ANALYSIS / csm / month
+        if not csm_dir.exists() and READY_FOR_ANALYSIS.exists():
+            for d in READY_FOR_ANALYSIS.iterdir():
+                if d.is_dir() and d.name.lower().startswith(csm.lower()):
+                    csm_dir = d / month
+                    break
+        if csm_dir.exists():
+            for client_dir in csm_dir.iterdir():
+                if client_dir.is_dir():
+                    allowed_ids.add(client_dir.name)
+
     clients = []
     for cid, data in config.items():
+        if allowed_ids is not None and cid not in allowed_ids:
+            continue
         clients.append({
             "id": cid,
             "name": data.get("ClientName", f"Client {cid}"),

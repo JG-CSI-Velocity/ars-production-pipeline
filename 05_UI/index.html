@@ -421,12 +421,12 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         </div>
         <div class="config-row" style="margin-bottom: 0;">
             <div class="config-field"><div class="label">CSM</div>
-                <select class="sel" id="gCsmSel">
+                <select class="sel" id="gCsmSel" onchange="refreshGenClients()">
                     <option value="">Loading...</option>
                 </select>
             </div>
             <div class="config-field"><div class="label">Period</div>
-                <select class="sel" id="gMonthSel">
+                <select class="sel" id="gMonthSel" onchange="refreshGenClients()">
                     <option value="">Loading...</option>
                 </select>
             </div>
@@ -810,6 +810,42 @@ async function loadClients() {
     } catch(e) {
         console.log('API not available, using defaults');
     }
+}
+
+async function refreshGenClients() {
+    const csm = document.getElementById('gCsmSel')?.value || '';
+    const month = document.getElementById('gMonthSel')?.value || '';
+    const sel = document.getElementById('gClientSel');
+    if (!sel) return;
+    const prev = sel.value;
+    const url = (csm && month)
+        ? `/api/clients?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}`
+        : '/api/clients';
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        sel.innerHTML = '';
+        if (data.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'No clients for this CSM / period';
+            sel.appendChild(opt);
+        } else {
+            data.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.id} — ${c.name}`;
+                opt.dataset.config = JSON.stringify(c.config);
+                opt.dataset.name = c.name;
+                sel.appendChild(opt);
+            });
+            if (prev && [...sel.options].some(o => o.value === prev)) {
+                sel.value = prev;
+            }
+        }
+        updateGenClientFromAPI();
+    } catch(e) {}
 }
 
 async function loadCSMs() {
@@ -1576,9 +1612,11 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('rSlideContainer')?.addEventListener('dblclick', openLightbox);
 
 // Load real data on page load
-loadCSMs();
-loadMonths();
-loadClients();
+(async () => {
+    await Promise.all([loadCSMs(), loadMonths()]);
+    await loadClients();
+    refreshGenClients();
+})();
 loadRecent();
 
 // Override the generate button to use real API
