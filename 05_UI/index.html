@@ -275,9 +275,22 @@ header {
 .done-title { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 24px; }
 .done-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
 .done-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px; }
-.done-stat { background: var(--bg); border-radius: 8px; padding: 14px 16px; }
-.done-stat-value { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 24px; color: var(--accent); line-height: 1.1; }
+.done-stat { background: var(--bg); border-radius: 8px; padding: 14px 16px; border-left: 4px solid var(--border); }
+.done-stat-value { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 24px; color: var(--accent); line-height: 1.1; display: flex; align-items: baseline; gap: 8px; }
+.done-stat-value .icon { font-size: 18px; }
 .done-stat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+.done-stat.success { border-left-color: #2A8B3E; }
+.done-stat.success .done-stat-value { color: #2A8B3E; }
+.done-stat.warn { border-left-color: #F5B461; }
+.done-stat.warn .done-stat-value { color: #B5651D; }
+.done-stat.error { border-left-color: #EB2A2E; }
+.done-stat.error .done-stat-value { color: #EB2A2E; }
+
+.done-warnings.error { background: #FDEAEA; border-color: #EB2A2E; }
+.done-warnings.error .done-warnings-title { color: #B71C1C; }
+.done-warnings.error .done-warnings-detail { color: #8A1A1A; }
+.fail-row { display: grid; grid-template-columns: 90px 1fr; gap: 10px; padding: 4px 0; font-family: 'Space Mono', monospace; font-size: 12px; }
+.fail-row .fail-id { font-weight: 700; }
 .done-warnings {
     background: #FFF4E5; border: 1px solid #F5B461; border-radius: 8px;
     padding: 12px 16px; margin-bottom: 20px;
@@ -1240,49 +1253,79 @@ function _advanceStage(stage, runStart, stageStarts) {
     _setStageState(stage, 'active');
 }
 
+function _translateError(rawError) {
+    // Map known pandas / pipeline errors into plain English for CSMs.
+    if (!rawError) return 'Unknown error';
+    const e = rawError.toLowerCase();
+    if (e.includes('out-of-bounds')) return 'Data range issue';
+    if (e.includes('need 2+ months')) return 'Not enough months of data';
+    if (e.includes('no product code column')) return 'Missing Product Code column';
+    if (e.includes('no.*column found') || /no\s+\w+\s+column/.test(e)) return 'Missing required column';
+    if (e.includes('insufficient upstream')) return 'Not enough data to analyze';
+    if (e.includes('division by zero') || e.includes('zerodivision')) return 'Division by zero in metric';
+    return rawError.length > 80 ? rawError.slice(0, 77) + '…' : rawError;
+}
+
 function _renderCompletion(ctx) {
     document.getElementById('gRunView').style.display = 'none';
     const done = document.getElementById('gDoneView');
     done.style.display = '';
-    document.getElementById('gDoneTitle').textContent = ctx.error
-        ? 'Run did not complete'
-        : `Report ready — ${ctx.clientLabel}`;
-    document.getElementById('gDoneSub').textContent = ctx.error
+
+    // Status determination: 'success' | 'partial' | 'error'
+    let status;
+    if (ctx.error) status = 'error';
+    else if (ctx.slidesFailed > 0 || ctx.softFailures.length > 0) status = 'partial';
+    else status = 'success';
+
+    const titles = {
+        success: `Report ready — ${ctx.clientLabel}`,
+        partial: `Report ready (with warnings) — ${ctx.clientLabel}`,
+        error: 'Run did not complete',
+    };
+    document.getElementById('gDoneTitle').textContent = titles[status];
+    document.getElementById('gDoneSub').textContent = status === 'error'
         ? 'See technical log below for details.'
         : `Generated in ${_fmtElapsed(ctx.totalSec)}`;
-    if (ctx.error) {
-        document.querySelector('.done-check').textContent = '!';
-        document.querySelector('.done-check').style.background = '#EB2A2E';
-    } else {
-        document.querySelector('.done-check').textContent = '✓';
-        document.querySelector('.done-check').style.background = '';
-    }
+    const check = document.querySelector('.done-check');
+    if (status === 'error') { check.textContent = '✕'; check.style.background = '#EB2A2E'; }
+    else if (status === 'partial') { check.textContent = '!'; check.style.background = '#F5B461'; }
+    else { check.textContent = '✓'; check.style.background = ''; }
 
-    // Stats
+    // Status tiles row -- the high-level success/warning/error counts
     const stats = document.getElementById('gDoneStats');
     stats.innerHTML = '';
-    const addStat = (value, label) => {
+    const addStat = (value, label, kind, icon) => {
         const el = document.createElement('div');
-        el.className = 'done-stat';
-        el.innerHTML = `<div class="done-stat-value">${value}</div><div class="done-stat-label">${label}</div>`;
+        el.className = 'done-stat' + (kind ? ' ' + kind : '');
+        const iconHtml = icon ? `<span class="icon">${icon}</span>` : '';
+        el.innerHTML = `<div class="done-stat-value">${iconHtml}${value}</div><div class="done-stat-label">${label}</div>`;
         stats.appendChild(el);
     };
-    if (ctx.slidesOK != null) addStat(ctx.slidesOK, 'Slides generated');
+    if (ctx.slidesOK != null) addStat(ctx.slidesOK, 'Slides succeeded', 'success', '✓');
+    if (ctx.slidesNoChart != null && ctx.slidesNoChart > 0) addStat(ctx.slidesNoChart, 'No chart data', 'warn', '⚠');
+    if (ctx.slidesFailed != null && ctx.slidesFailed > 0) addStat(ctx.slidesFailed, 'Slides failed', 'error', '✕');
     if (ctx.excelSheets != null) addStat(ctx.excelSheets, 'Excel sheets');
     addStat(_fmtElapsed(ctx.totalSec), 'Total time');
 
-    // Warnings
+    // Warnings panel: detailed reasons for each failure + the file-lock notice
     const warn = document.getElementById('gDoneWarnings');
+    warn.classList.remove('error');
     const warnParts = [];
     if (ctx.softFailures.length) {
-        const ids = ctx.softFailures.map(f => f.slideId).join(', ');
-        warnParts.push(`<div class="done-warnings-title">${ctx.softFailures.length} slide(s) skipped &mdash; your deck is still ready</div><div class="done-warnings-detail">${ids}</div>`);
+        const headline = status === 'error'
+            ? `${ctx.softFailures.length} slide(s) failed during this run`
+            : `${ctx.softFailures.length} slide(s) skipped &mdash; your deck is still ready`;
+        const rows = ctx.softFailures.map(f =>
+            `<div class="fail-row"><span class="fail-id">${f.slideId}</span><span>${_translateError(f.reason)}</span></div>`
+        ).join('');
+        warnParts.push(`<div class="done-warnings-title">${headline}</div>${rows}`);
     }
     if (ctx.versionedDeck) {
         warnParts.push(`<div class="done-warnings-title">Previous deck was open in PowerPoint</div><div class="done-warnings-detail">New copy saved as ${ctx.versionedDeck}</div>`);
     }
     if (warnParts.length) {
-        warn.innerHTML = warnParts.join('<hr style="border:none;border-top:1px solid #F5B461;margin:10px 0;">');
+        warn.innerHTML = warnParts.join('<hr style="border:none;border-top:1px solid #F5B461;margin:14px 0;">');
+        if (status === 'error') warn.classList.add('error');
         warn.style.display = '';
     } else {
         warn.style.display = 'none';
@@ -1403,9 +1446,17 @@ async function runGenReal() {
                         const versioned = _parseVersionedDeck(line);
                         if (versioned) ctx.versionedDeck = versioned;
 
-                        // Stats from the deck builder line: "Deck built: ... (158 slides)"
+                        // Run report breakdown: "Run report: 145/160 slides OK, 2 failed, 13 no chart"
+                        const reportMatch = line.match(/Run report:\s*(\d+)\/(\d+)\s*slides OK,\s*(\d+)\s*failed,\s*(\d+)\s*no chart/i);
+                        if (reportMatch) {
+                            ctx.slidesOK = parseInt(reportMatch[1], 10);
+                            ctx.slidesTotal = parseInt(reportMatch[2], 10);
+                            ctx.slidesFailed = parseInt(reportMatch[3], 10);
+                            ctx.slidesNoChart = parseInt(reportMatch[4], 10);
+                        }
+                        // Fallback: deck-built line gives a slide count if no run report seen
                         const slidesMatch = line.match(/Deck built:.*\((\d+)\s*slides\)/i);
-                        if (slidesMatch) ctx.slidesOK = parseInt(slidesMatch[1], 10);
+                        if (slidesMatch && ctx.slidesOK == null) ctx.slidesOK = parseInt(slidesMatch[1], 10);
                         // Excel sheets: "Excel written: ... (71 sheets)"
                         const sheetsMatch = line.match(/Excel written:.*\((\d+)\s*sheets\)/i);
                         if (sheetsMatch) ctx.excelSheets = parseInt(sheetsMatch[1], 10);
