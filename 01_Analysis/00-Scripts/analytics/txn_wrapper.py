@@ -76,7 +76,11 @@ class ChartCapture:
         return self
 
     def __exit__(self, *args):
-        # Capture any remaining open figures
+        # Capture any remaining open figures left behind when a script ended
+        # without calling plt.show() (or crashed mid-render). Savefig errors
+        # here used to be DEBUG-level silent drops -- upgraded to WARNING so
+        # partial-chart losses don't disappear from the run report.
+        self.save_errors: list[str] = []
         for fig_num in plt.get_fignums():
             fig = plt.figure(fig_num)
             self._fig_count += 1
@@ -87,7 +91,9 @@ class ChartCapture:
                             facecolor="white", edgecolor="none")
                 self.captured.append(path)
             except Exception as exc:
-                logger.debug("Failed to save chart {name}: {err}", name=name, err=exc)
+                msg = f"{name}: {type(exc).__name__}: {str(exc)[:120]}"
+                logger.warning("Chart save failed in __exit__: {msg}", msg=msg)
+                self.save_errors.append(msg)
         plt.close("all")
 
         # Restore original plt.show
@@ -99,18 +105,46 @@ class ChartCapture:
 # Script executor -- runs scripts in a shared namespace
 # ---------------------------------------------------------------------------
 
+@dataclass
+class ScriptFailure:
+    """One failed script execution. Surfaced so the summary shows real status."""
+    script_name: str
+    error_type: str
+    error_msg: str
+
+
 def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
-                     chart_dir: Path, section_prefix: str) -> list[Path]:
+                     chart_dir: Path, section_prefix: str
+                     ) -> tuple[list[Path], list[ScriptFailure]]:
     """Execute all .py scripts in a directory in sorted order, sharing a namespace.
 
-    Returns list of captured chart paths.
+    Returns:
+        (captured_charts, failures). Failures used to be silently logged-only,
+        which made the TXN summary report ``22/22 OK'' when there were actual
+        crashes. Callers MUST propagate failures to the section-level summary
+        so users see them.
     """
     scripts = sorted(script_dir.glob("*.py"))
     if not scripts:
         logger.warning("No .py scripts found in {dir}", dir=script_dir)
-        return []
+        return [], []
 
     all_charts: list[Path] = []
+    failures: list[ScriptFailure] = []
+
+    # Preserve the parent namespace's __file__ so we can restore it after this
+    # batch finishes. Without this, the last script's __file__ leaks into
+    # the next section and any subsequent `Path(__file__).parent` is wrong.
+    saved_file = namespace.get("__file__")
+
+    # Per-script skip patterns (prefix-match on script name). Configured by
+    # earlier cells to prune duplicate / optional cells without deleting code.
+    # Example: competition/01 sets SKIP_SCRIPT_PATTERNS=['60_', '61_', '62_']
+    # when SLIDE_MODE='standard' to drop the parallel banks-only / core-
+    # competition variants (each a ~5-slide duplicate view of 07-09). Keeps
+    # the deep-dive cells available for clients who want them via
+    # SLIDE_MODE='deep'.
+    skip_patterns = namespace.get("SKIP_SCRIPT_PATTERNS", [])
 
     for script_path in scripts:
         script_name = script_path.stem
@@ -121,24 +155,60 @@ def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
             logger.info("  TXN skipping: {name} (SKIP_SECTION set)", name=script_name)
             continue
 
+        # Check script-level skip patterns
+        if any(script_name.startswith(pat) for pat in skip_patterns):
+            logger.info(
+                "  TXN skipping: {name} (matches SKIP_SCRIPT_PATTERNS)",
+                name=script_name,
+            )
+            continue
+
         logger.info("  TXN executing: {name}", name=script_name)
 
         with ChartCapture(chart_dir, prefix=f"{section_prefix}_{script_name}") as capture:
             try:
                 code = script_path.read_text(encoding="utf-8")
-                # Set __file__ so scripts can resolve relative paths
                 namespace["__file__"] = str(script_path)
                 exec(compile(code, str(script_path), "exec"), namespace)
             except Exception as exc:
                 logger.error("  TXN script failed: {name}: {err}", name=script_name, err=exc)
-                continue
+                failures.append(ScriptFailure(
+                    script_name=script_name,
+                    error_type=type(exc).__name__,
+                    error_msg=str(exc)[:200],
+                ))
+                # Do NOT `continue` here -- falling through lets the ChartCapture
+                # __exit__ run, which closes any partially-created figures. The
+                # next loop iteration proceeds to the next script.
 
         all_charts.extend(capture.captured)
 
-    # Reset skip flag for next section
-    namespace.pop("SKIP_SECTION", None)
+        # Memory hygiene between scripts. Campaign section was hitting ``bad
+        # allocation'' and ``not enough free memory for image buffer'' because
+        # matplotlib figures accumulated across 30+ scripts. plt.close('all')
+        # + gc.collect() at the boundary releases those buffers.
+        try:
+            plt.close("all")
+        except Exception:
+            pass
+        try:
+            import gc
+            gc.collect()
+        except Exception:
+            pass
 
-    return all_charts
+    # Restore/clean up __file__ so it doesn't leak to the next section
+    if saved_file is None:
+        namespace.pop("__file__", None)
+    else:
+        namespace["__file__"] = saved_file
+
+    # Reset skip flags for next section -- each section controls its own
+    # pruning via its own 01_*.py setting SKIP_SCRIPT_PATTERNS.
+    namespace.pop("SKIP_SECTION", None)
+    namespace.pop("SKIP_SCRIPT_PATTERNS", None)
+
+    return all_charts, failures
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +259,9 @@ class TXNSectionWrapper(AnalysisModule):
         self.section = "transaction"
         self.execution_order = meta.get("order", 500)
         self.required_columns = ()  # TXN scripts handle their own validation
+        # Populated by .run() so runner.py can print real per-section status
+        # instead of always saying ``OK''. Was a silent ERROR-log-only before.
+        self.failures: list[ScriptFailure] = []
 
     def validate(self, ctx: PipelineContext) -> list[str]:
         """Check that section directory exists and has scripts."""
@@ -228,12 +301,22 @@ class TXNSectionWrapper(AnalysisModule):
             setup_dir = self.section_dir.parent / "txn_setup"
             if setup_dir.exists() and "_txn_setup_done" not in namespace:
                 logger.info("  Running txn_setup...")
-                _execute_scripts(setup_dir, namespace, ctx.paths.charts_dir, "txn_setup")
+                _setup_charts, _setup_failures = _execute_scripts(
+                    setup_dir, namespace, ctx.paths.charts_dir, "txn_setup",
+                )
+                if _setup_failures:
+                    logger.error(
+                        "txn_setup had {n} failed scripts: {names}",
+                        n=len(_setup_failures),
+                        names=", ".join(f.script_name for f in _setup_failures),
+                    )
                 namespace["_txn_setup_done"] = True
 
         # Run section scripts
         chart_dir = ctx.paths.charts_dir / self.section_name
-        charts = _execute_scripts(self.section_dir, namespace, chart_dir, self.section_name)
+        charts, self.failures = _execute_scripts(
+            self.section_dir, namespace, chart_dir, self.section_name,
+        )
 
         # Propagate new variables back to shared namespace so later sections
         # can use them (e.g., GEN_COLORS from general, demo_df, acct_txn_counts).
@@ -255,7 +338,18 @@ class TXNSectionWrapper(AnalysisModule):
                 success=True,
             ))
 
-        logger.info("TXN section {name}: {n} charts captured", name=self.section_name, n=len(results))
+        if self.failures:
+            logger.warning(
+                "TXN section {name}: {n} charts captured, {f} script(s) FAILED ({names})",
+                name=self.section_name, n=len(results),
+                f=len(self.failures),
+                names=", ".join(f.script_name for f in self.failures),
+            )
+        else:
+            logger.info(
+                "TXN section {name}: {n} charts captured",
+                name=self.section_name, n=len(results),
+            )
         return results
 
 
@@ -400,7 +494,19 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
         return namespace
 
     logger.info("Running txn_setup once for all sections...")
-    _execute_scripts(setup_dir, namespace, ctx.paths.charts_dir, "txn_setup")
+    _charts, setup_failures = _execute_scripts(
+        setup_dir, namespace, ctx.paths.charts_dir, "txn_setup",
+    )
+    if setup_failures:
+        # txn_setup failures are CRITICAL -- combined_df may not exist and
+        # every downstream section will fail. Log loudly but keep going so
+        # later diagnostics still run and the user can see the chain.
+        logger.error(
+            "txn_setup FAILURES ({n}): {names} -- downstream sections likely broken",
+            n=len(setup_failures),
+            names=", ".join(f.script_name for f in setup_failures),
+        )
+        namespace["_txn_setup_failures"] = setup_failures
     namespace["_txn_setup_done"] = True
 
     # Optimize memory after the heavy data loading
@@ -411,10 +517,29 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     df = namespace.get("combined_df")
     if df is not None and hasattr(df, "__len__"):
         row_count = len(df)
-    logger.info(
-        "txn_setup complete: {rows:,} rows in {sec:.1f}s",
-        rows=row_count, sec=elapsed,
-    )
+
+    # Memory telemetry. When the campaign section later hits ``bad
+    # allocation'' / ``not enough free memory for image buffer'' (issue
+    # #92), this baseline helps diagnose whether setup itself is the
+    # problem or something downstream is leaking. psutil is optional.
+    _rss_mb = None
+    try:
+        import psutil as _psutil
+        _rss_mb = _psutil.Process().memory_info().rss / (1024 * 1024)
+    except Exception:
+        pass
+
+    if _rss_mb is not None:
+        logger.info(
+            "txn_setup complete: {rows:,} rows in {sec:.1f}s (process RSS: {rss:,.0f} MB)",
+            rows=row_count, sec=elapsed, rss=_rss_mb,
+        )
+        namespace["_txn_setup_rss_mb"] = _rss_mb
+    else:
+        logger.info(
+            "txn_setup complete: {rows:,} rows in {sec:.1f}s",
+            rows=row_count, sec=elapsed,
+        )
 
     return namespace
 

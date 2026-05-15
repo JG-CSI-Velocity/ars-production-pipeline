@@ -172,8 +172,8 @@ else:
 
         fig.suptitle("Category Breakdown — Banks Only",
                      fontsize=28, fontweight='bold',
-                     color=GEN_COLORS['dark_text'], y=1.02)
-        fig.text(0.5, 0.965,
+                     color=GEN_COLORS['dark_text'], y=1.00)
+        fig.text(0.5, 0.92,
                  f"Excludes wallets / P2P / BNPL ({_eco_txns:,} txns, {_eco_pct:.1f}% of competitor activity)",
                  ha='center', fontsize=14, color=GEN_COLORS['muted'], style='italic')
 

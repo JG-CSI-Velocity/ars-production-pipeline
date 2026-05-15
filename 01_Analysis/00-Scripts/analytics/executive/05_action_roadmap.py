@@ -282,11 +282,36 @@ _folder_counts = {
     'interchange': 10, 'rege_overdraft': 10, 'payroll': 10,
     'relationship': 10, 'segment_evolution': 8, 'executive': 5,
 }
-# Static fallback counts -- the previous "actual count" path pointed at a
-# Mac dev folder ('/private/tmp/txn-visual-test') that doesn't exist on the
-# production M: drive, so it was crashing the whole script on Windows.
+# Folder/cell totals: prefer the baked-in fallback so this cell never crashes
+# on a machine without the legacy /private/tmp/txn-visual-test scratch dir
+# (that path was Mac-dev leftovers -- broke every Windows run as WinError 3).
+# If the script's own parent directory is introspectable, use that to derive
+# a current cell count; otherwise use _folder_counts as the source of truth.
 _actual_total = sum(_folder_counts.values())
-_actual_folders = len(_folder_counts)
+_folder_count = len(_folder_counts)
+try:
+    import os
+    _script_path = globals().get("__file__")
+    if _script_path:
+        _analytics_root = os.path.dirname(os.path.dirname(_script_path))
+        if os.path.isdir(_analytics_root):
+            _live_folders = [
+                d for d in os.listdir(_analytics_root)
+                if os.path.isdir(os.path.join(_analytics_root, d))
+                and not d.startswith(".") and not d.startswith("__")
+            ]
+            _live_total = 0
+            for _fname in _live_folders:
+                _fpath = os.path.join(_analytics_root, _fname)
+                _live_total += len([
+                    f for f in os.listdir(_fpath)
+                    if f.endswith(".py") and not f.startswith("__")
+                ])
+            if _live_total > 0:
+                _actual_total = _live_total
+                _folder_count = len(_live_folders)
+except Exception:
+    pass
 
 print(f"\n{'='*70}")
 print(f"  ACTION ROADMAP SUMMARY")
@@ -297,7 +322,7 @@ print(f"  Strategic (90-365 days):  {_strategic_ct} actions")
 print(f"  Total actions:            {_quick_ct + _medium_ct + _strategic_ct}")
 print(f"{'='*70}")
 
-print(f"\n    Full analysis available across {_actual_folders} folders, "
+print(f"\n    Full analysis available across {_folder_count} folders, "
       f"{_actual_total} total cells.")
 
 print(f"\n    INSIGHT: Quick wins focus on immediate outreach and process improvements "

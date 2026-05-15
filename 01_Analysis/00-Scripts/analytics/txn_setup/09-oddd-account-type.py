@@ -122,14 +122,41 @@ if not SKIP_COMBINE:
 
     def _save_cache():
         try:
-            # Save to local temp first (fast), then move to network
-            _tmp = Path(tempfile.mktemp(suffix='.parquet'))
+            # Ensure parent directory exists (first-run-for-client case).
+            PARQUET_CACHE.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write to a sibling temp file on the SAME filesystem as the
+            # final destination, then atomic rename. Using the OS tempdir
+            # (/tmp or C:\Users\...\Temp) causes shutil.move to do a
+            # slow cross-filesystem copy+delete for a 500MB Parquet --
+            # the dest is on the M: network share in production. A same-
+            # filesystem rename is atomic, takes <1 second.
+            import uuid as _uuid
+            _tmp = PARQUET_CACHE.with_suffix(f'.{_uuid.uuid4().hex[:8]}.tmp')
             combined_df.to_parquet(_tmp, index=False, engine='pyarrow')
-            shutil.move(str(_tmp), str(PARQUET_CACHE))
+            # Atomic rename; if the destination exists, overwrite it.
+            try:
+                _tmp.replace(PARQUET_CACHE)
+            except OSError:
+                # Fallback for edge cases (replace not atomic across some
+                # network filesystems): copy + unlink
+                import shutil as _shutil
+                _shutil.copy2(str(_tmp), str(PARQUET_CACHE))
+                try:
+                    _tmp.unlink()
+                except OSError:
+                    pass
+
             _cache_mb = PARQUET_CACHE.stat().st_size / 1024 / 1024
             print(f"  Parquet cache saved: {PARQUET_CACHE.name} ({_cache_mb:.0f} MB)")
         except Exception as _e:
-            print(f"  WARNING: Could not save Parquet cache: {_e}")
+            print(f"  WARNING: Could not save Parquet cache: {type(_e).__name__}: {_e}")
+            # Clean up stray temp on failure
+            try:
+                for _stray in PARQUET_CACHE.parent.glob(f"{PARQUET_CACHE.stem}.*.tmp"):
+                    _stray.unlink()
+            except Exception:
+                pass
 
     print(f"\nSaving Parquet cache in background (analysis continues)...")
     _cache_thread = threading.Thread(target=_save_cache, daemon=True)

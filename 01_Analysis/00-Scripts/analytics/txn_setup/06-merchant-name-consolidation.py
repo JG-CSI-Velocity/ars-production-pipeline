@@ -669,9 +669,47 @@ def standardize_merchant_name(merchant_name):
     if 'UPSTART' in merchant_upper:
         return 'UPSTART'
     
-    if 'ROCKET' in merchant_upper and ('MORTGAGE' in merchant_upper or 'LOANS' in merchant_upper):
+    if 'ROCKET' in merchant_upper:
+        # Catches: ``ROCKET MORTGAGE'', ``ROCKET LOANS'', ``ROCKET SAVINGS DEPOSIT'',
+        # ``ROCKET MTG''. Previously the AND clause missed ``ROCKET SAVINGS DEPOSIT''
+        # (saw 2,314 of these untagged in 1441).
+        if 'SAVINGS' in merchant_upper:
+            return 'ROCKET MONEY'
         return 'ROCKET MORTGAGE'
-    
+
+    if 'LENDINGCLUB' in merchant_upper or 'LENDING CLUB' in merchant_upper:
+        return 'LENDING CLUB'
+
+    # ============================================================================
+    # CREDIT CARDS / SUBPRIME (additional rules added based on 1441 diagnostic)
+    # ============================================================================
+
+    # Apple Card -- shows up as ``APPLECARD GSBANK PAYMENT'' on 1441 (11,521 txns).
+    # GS Bank = Goldman Sachs Bank, Apple's card issuer. Collapse all variants.
+    if 'APPLECARD' in merchant_upper or 'APPLE CARD' in merchant_upper:
+        return 'APPLE CARD'
+
+    if 'MERRICK BANK' in merchant_upper:
+        return 'MERRICK BANK'
+
+    # ============================================================================
+    # ADDITIONAL FINANCIAL SERVICES (added based on 1441 diagnostic)
+    # ============================================================================
+
+    # Treasury Direct: appears as ``TREASURY DIRECT'', ``TREASURYDIRECT'',
+    # ``US TREASURY''. Collapse so the merchant chart shows one row.
+    if 'TREASURY' in merchant_upper and ('DIRECT' in merchant_upper or merchant_upper.startswith('US TREASURY')):
+        return 'TREASURY DIRECT'
+
+    # GM Financial -- already collapsed below in Auto Loans section, but
+    # add here too in case the Auto block hasn't loaded yet (defensive).
+    if 'GM FINANCIAL' in merchant_upper:
+        return 'GM FINANCIAL'
+
+    # New York Life: ``NYLIFE FINANCIAL INSPAYMENT'', ``NEW YORK LIFE'' etc.
+    if 'NYLIFE' in merchant_upper or 'NEW YORK LIFE' in merchant_upper:
+        return 'NEW YORK LIFE'
+
     # Student Loans
     if 'DEPT EDUCATION' in merchant_upper or 'DEPARTMENT OF EDUCATION' in merchant_upper or 'ED FINANCIAL' in merchant_upper:
         return 'DEPT OF EDUCATION (STUDENT LOANS)'
@@ -791,10 +829,131 @@ def standardize_merchant_name(merchant_name):
     
     if 'FORD MOTOR CREDIT' in merchant_upper:
         return 'FORD MOTOR CREDIT'
-    
+
     if 'HONDA FINANCE' in merchant_upper:
         return 'HONDA FINANCE'
-        
+
+    # ============================================================================
+    # GENERIC ADDRESS/LOCATION SUFFIX STRIPPING (fallthrough)
+    # ============================================================================
+    # Many transactions append address/city/state/ZIP/store-number/phone
+    # to the brand name, so ONE merchant appears as many distinct rows in
+    # top-N tables and aggregation breaks. Examples that should collapse:
+    #   'TIAA BANK 121 W MAIN ST JACKSONVILLE FL'  -> 'TIAA BANK'
+    #   'CHASE 4500 BISCAYNE BLVD MIAMI FL 33137'  -> 'CHASE'
+    #   'BANK OF AMERICA #00231 FT LAUDERDALE FL'  -> 'BANK OF AMERICA'
+    # Strategy: trim trailing tokens that look like location/noise data
+    # (state codes, ZIPs, phone numbers, street suffixes, store numbers,
+    # common Florida cities) until a brand-ish token remains.
+    import re as _re
+
+    # Country-agnostic location vocab. No city dictionary -- cities are
+    # detected positionally (one alpha token immediately before a state
+    # code), so this works for clients in any region.
+    _STATE_CODES = {
+        'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN',
+        'IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV',
+        'NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN',
+        'TX','UT','VT','VA','WA','WV','WI','WY','DC',
+    }
+    _STREET_SUFFIXES = {
+        'ST','STREET','AVE','AVENUE','BLVD','BOULEVARD','RD','ROAD','DR','DRIVE',
+        'LN','LANE','CT','COURT','PL','PLACE','PKWY','PARKWAY','HWY','HIGHWAY',
+        'WAY','TER','TERRACE','CIR','CIRCLE','TRL','TRAIL','SQ','SQUARE',
+        'N','S','E','W','NE','NW','SE','SW',
+        'STE','SUITE','APT','UNIT','BLDG','BUILDING','FLR','FLOOR',
+    }
+    _LOCATION_NOISE = {
+        'BRANCH','BRCH','ATM','LOBBY','DRIVETHRU',
+        'STORE','LOCATION','LOC','POS','SVCS',
+    }
+    # Multi-word city patterns that show up nationwide. Single-word cities
+    # are handled by the positional "1 alpha token before state" rule.
+    _COMPOUND_CITY_TAILS = [
+        ('FT', 'LAUDERDALE'), ('FORT', 'LAUDERDALE'),
+        ('NEW', 'YORK'), ('NEW', 'ORLEANS'), ('NEW', 'HAVEN'),
+        ('LAS', 'VEGAS'), ('LOS', 'ANGELES'),
+        ('SAN', 'FRANCISCO'), ('SAN', 'DIEGO'), ('SAN', 'JOSE'), ('SAN', 'ANTONIO'),
+        ('PALM', 'BEACH'), ('BOCA', 'RATON'), ('BAL', 'HARBOUR'),
+        ('LONG', 'BEACH'), ('LONG', 'ISLAND'),
+        ('KANSAS', 'CITY'), ('OKLAHOMA', 'CITY'), ('SALT', 'LAKE'),
+        ('LITTLE', 'ROCK'), ('SAINT', 'LOUIS'), ('SAINT', 'PAUL'),
+        ('ST', 'LOUIS'), ('ST', 'PAUL'), ('ST', 'PETE'), ('ST', 'PETERSBURG'),
+        ('LAKE', 'WORTH'), ('PEMBROKE', 'PINES'),
+    ]
+
+    def _is_basic_location_token(tok):
+        """Tokens that are ALWAYS location/noise regardless of context."""
+        if not tok:
+            return True
+        if _re.fullmatch(r'\d{5}(-\d{4})?', tok):       # ZIP / ZIP+4
+            return True
+        if _re.fullmatch(r'[\d\-()]{7,}', tok) and \
+                sum(c.isdigit() for c in tok) >= 7:       # phone-ish
+            return True
+        if _re.fullmatch(r'#?\d{1,6}', tok):             # store/street number
+            return True
+        if tok in _STATE_CODES:
+            return True
+        if tok in _STREET_SUFFIXES:
+            return True
+        if tok in _LOCATION_NOISE:
+            return True
+        if len(tok) == 1 and tok.isalpha():              # stray letter
+            return True
+        return False
+
+    _tokens = merchant_upper.split()
+
+    # Pass 1: right-to-left strip of context-free location/noise tokens.
+    # Tracks whether a state code was popped so Pass 2 can do positional
+    # city stripping.
+    _state_popped = False
+    while len(_tokens) > 1 and _is_basic_location_token(_tokens[-1]):
+        if _tokens[-1] in _STATE_CODES:
+            _state_popped = True
+        _tokens.pop()
+
+    # Pass 2: if we stripped a state code, one alpha token immediately
+    # preceding it is almost always the city. Strip ONE such token (and
+    # extend to 2 tokens for the well-known compound patterns above).
+    # This is country-agnostic and doesn't depend on a city list.
+    if _state_popped and len(_tokens) >= 2:
+        _last = _tokens[-1]
+        _prev = _tokens[-2] if len(_tokens) >= 2 else ''
+        # Compound city tail (e.g. FT LAUDERDALE)
+        if (_prev, _last) in _COMPOUND_CITY_TAILS and len(_tokens) > 2:
+            _tokens = _tokens[:-2]
+        # Single-word city: trailing alpha-only token of length >= 3 that
+        # isn't already a brand-suffix keyword.
+        elif (_last.isalpha() and len(_last) >= 3 and
+              _last not in ('BANK','CARD','LOAN','CREDIT','UNION','SAVINGS',
+                            'FINANCIAL','MORTGAGE','TRUST','CAPITAL','GROUP',
+                            'CORP','INC','LLC','CO','SVCS','SERVICES','PMT',
+                            'PAYMENT','MEMBER','FCU','CU','NA','FSB')):
+            _tokens.pop()
+
+    # Pass 3: left-to-right truncate at the first numeric token that looks
+    # like a street/store number. Catches embedded addresses that the
+    # right-side passes can't reach because brand words sit after them
+    # (e.g. 'TIAA BANK 121 W MAIN ST JACKSONVILLE FL' -> 'TIAA BANK').
+    _cut_idx = None
+    for _idx, _tok in enumerate(_tokens):
+        if _idx == 0:
+            continue  # never strip the first token
+        if _re.fullmatch(r'#?\d{1,6}', _tok):       # 121, #4521
+            _cut_idx = _idx
+            break
+        if _re.fullmatch(r'\d{1,5}-\d{1,5}', _tok): # 4500-100
+            _cut_idx = _idx
+            break
+    if _cut_idx is not None:
+        _tokens = _tokens[:_cut_idx]
+
+    _cleaned = ' '.join(_tokens).strip()
+    if _cleaned and _cleaned != merchant_upper:
+        return _cleaned
+
     # ============================================================================
     # If no match, return original
     # ============================================================================

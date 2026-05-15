@@ -90,8 +90,8 @@ else:
 
     fig.suptitle("Category Breakdown — Banks + BNPL (Ex Wallets + P2P)",
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.02)
-    fig.text(0.5, 0.965, SCOPE_NOTE,
+                 color=GEN_COLORS['dark_text'], y=1.00)
+    fig.text(0.5, 0.92, SCOPE_NOTE,
              ha='center', fontsize=13, color=GEN_COLORS['muted'], style='italic')
 
     plt.tight_layout()

@@ -108,7 +108,7 @@ else:
     fig, axes = plt.subplots(1, 4, figsize=(20, 4.5))
     fig.patch.set_facecolor('#FFFFFF')
     fig.suptitle("Competitor Detection Results",
-                 fontsize=26, fontweight='bold', color=GEN_COLORS['dark_text'], y=1.04)
+                 fontsize=26, fontweight='bold', color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
 
     for ax, (value, label, color) in zip(axes, kpis):
         ax.set_xlim(0, 1)

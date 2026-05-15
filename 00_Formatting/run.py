@@ -226,12 +226,17 @@ def gather_trans_files(src_directory, txn_output_base, csm_name, client_filter=N
     #   1562_..._velocity.ars.transactions.YYYY.MM.DD.txt
     #   1585_..._monthly_transaction_data_mls.txt
     #   1795_..._monthlytran.csv
+    #   1745_29335_[YYYY.MM.DD][HH.MM.SS]_transaction  (no extension)
     trans_files = []
     for f in os.listdir(src_directory):
         if os.path.isdir(os.path.join(src_directory, f)):
             continue
         f_lower = f.lower()
-        if 'tran' in f_lower and f_lower.endswith(('.txt', '.csv')):
+        is_txn = (
+            ('tran' in f_lower and f_lower.endswith(('.txt', '.csv')))
+            or f_lower.endswith('_transaction')
+        )
+        if is_txn:
             # Extract client ID: either leading digits before _ or before -
             client_match = re.match(r'^(\d+)', f)
             if client_match:

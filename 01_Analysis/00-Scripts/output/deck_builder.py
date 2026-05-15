@@ -1898,14 +1898,24 @@ def build_deck(ctx: PipelineContext) -> Path | None:
 
     # Build the PPTX
     ctx.paths.pptx_dir.mkdir(parents=True, exist_ok=True)
-    # Use the pipeline's known product label rather than inspecting slide IDs.
-    # The previous detection inspected slide_id on final_slides, but final_slides
-    # contains SlideContent objects (built by _result_to_slide) which don't carry
-    # slide_id forward -- so every TXN run was misdetected as 'ars' and overwrote
-    # the prior ARS deck.
-    _product_label = getattr(ctx, "product", "ars") or "ars"
+    # Product label for the output filename. Both this branch (#128 fix) and
+    # origin/main independently fixed the bug where final_slides (SlideContent
+    # objects without slide_id) were being inspected and every TXN deck was
+    # mislabeled '_ars_deck.pptx', overwriting the ARS deck. We use the
+    # pipeline's known product (set by run.py from --product) as the primary
+    # signal since it's explicit and reliable; fall back to inspecting the
+    # original AnalysisResult slide_ids in ctx.all_slides for safety.
+    _product_label = (getattr(ctx, "product", "") or "").strip().lower()
     if _product_label not in ("ars", "txn", "combined"):
-        _product_label = "ars"
+        _original = getattr(ctx, "all_slides", []) or []
+        _has_ars = any(not getattr(s, "slide_id", "").startswith("TXN-") for s in _original)
+        _has_txn = any(getattr(s, "slide_id", "").startswith("TXN-") for s in _original)
+        if _has_ars and _has_txn:
+            _product_label = "combined"
+        elif _has_txn:
+            _product_label = "txn"
+        else:
+            _product_label = "ars"
     # G7 (auxiliary deck): when generate.py invokes build_deck with ctx._aux_build=True,
     # write to *_aux_deck.pptx so the main deck output is preserved.
     _suffix = "_aux_deck.pptx" if getattr(ctx, "_aux_build", False) else "_deck.pptx"

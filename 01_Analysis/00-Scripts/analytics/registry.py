@@ -25,6 +25,7 @@ MODULE_ORDER: list[str] = [
     "rege.status",
     "rege.branches",
     "rege.dimensions",
+    "attrition.cohort",
     "attrition.rates",
     "attrition.dimensions",
     "attrition.impact",

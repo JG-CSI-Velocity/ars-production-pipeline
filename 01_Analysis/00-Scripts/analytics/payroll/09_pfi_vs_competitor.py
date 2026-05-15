@@ -99,7 +99,7 @@ if has_competitor:
 
         fig.suptitle("PFI Tier vs Competitor Leakage",
                      fontsize=26, fontweight='bold',
-                     color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=1.06)
+                     color=GEN_COLORS['dark_text'], x=0.01, ha='left', y=GEN_TITLE_Y)
         fig.text(0.01, 1.01,
                  f"Weaker PFI relationships correlate with more competitor activity  --  {DATASET_LABEL}",
                  fontsize=13, style='italic', color=GEN_COLORS['muted'],

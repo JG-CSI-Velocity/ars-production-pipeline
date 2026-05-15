@@ -339,7 +339,12 @@ def branch_dctr(
     dc["Branch"] = dc["Branch"].astype(str)
     if branch_mapping:
         str_mapping = {str(k): v for k, v in branch_mapping.items()}
+        # Float-as-string fallback so "1.0" hits mapping key "1".
         mapped = dc["Branch"].map(str_mapping)
+        unmapped_mask = mapped.isna()
+        if unmapped_mask.any():
+            stripped = dc.loc[unmapped_mask, "Branch"].str.split('.').str[0]
+            mapped.loc[unmapped_mask] = stripped.map(str_mapping)
         dc["Branch Name"] = mapped.where(mapped.notna(), dc["Branch"])
     else:
         dc["Branch Name"] = dc["Branch"]

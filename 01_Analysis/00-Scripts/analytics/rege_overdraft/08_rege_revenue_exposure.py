@@ -128,7 +128,7 @@ ax2.set_title("Revenue Sensitivity", fontsize=18,
 
 fig.suptitle("Reg E Revenue Exposure Analysis",
              fontsize=26, fontweight='bold',
-             color=GEN_COLORS['dark_text'], y=1.04)
+             color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
 fig.text(0.5, 0.99,
          f"OD fee revenue potential and erosion scenarios | {DATASET_LABEL}",
          fontsize=14, color=GEN_COLORS['muted'], style='italic',

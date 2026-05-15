@@ -11,11 +11,77 @@ print("Scanning for financial services transactions...\n")
 search_column = 'merchant_consolidated' if 'merchant_consolidated' in combined_df.columns else 'merchant_name'
 
 false_positive_patterns = [
+    # Auto-Loans false positives (prevent AUTO PARTS / AUTOZONE leaking)
     'TOWING', 'TOW SERVICE', 'BODY SHOP', 'AUTO REPAIR',
-    'AUTO PARTS', 'AUTOZONE', 'AUTO TRADER', 'TRADER JOE', "TRADER JOE'S"
+    'AUTO PARTS', 'AUTOZONE', 'AUTO TRADER', 'AUTO ZONE',
+    'AUTO GLASS', 'AUTO BODY', 'AUTO SPA', 'AUTO DETAIL',
+    'OIL CHANGE', 'TIRE', 'TIRES PLUS', 'BIG O TIRES',
+    'TRADER JOE', "TRADER JOE'S",
+    # Insurance false positives
+    'PROGRESSIVE ROOFING', 'PROGRESSIVE PLUMBING', 'PROGRESSIVE DENTAL',
+    'STATE FARMERS MARKET',
+    'NATIONWIDE CONSTRUCTION', 'NATIONWIDE PLUMBING',
+    'AAA SPRINKLER', 'AAA PLUMBING', 'AAA ROOFING', 'AAA AUTO PARTS',
+    'AARP TRAVEL',
+    'LIBERTY TAX',  # tax service, not Liberty Mutual
+    # Generic retail / restaurants that share brand-name words
+    'GUARDIAN STORAGE',  # vs Guardian Life
+    'PRINCIPAL ELEMENTS',  # vs Principal Financial
+    'LINCOLN MEMORIAL',  # vs Lincoln Financial
+    'LINCOLN AUTO',
+    'NEW YORK PIZZA', 'NEW YORK DELI', 'NEW YORK BAGEL',  # vs New York Life
+    # Tech / streaming that look like Schwab/Fidelity etc. — unlikely but
+    # keeps the door closed.
+    'AMAZON', 'NETFLIX', 'HULU', 'DISNEY',
+    # Mortgage false positives
+    'ROCKET LEAGUE', 'ROCKET SCIENCE', 'ROCKET COFFEE',
+    'BETTER HELP',  # vs Better Mortgage
+    # Generic crypto false positives
+    'BITCOIN PIZZA',
 ]
 
 _REGEX_BATCH_SIZE = 80  # avoid massive regex alternations
+
+# ---------------------------------------------------------------------------
+# Card-descriptor normalization
+# ---------------------------------------------------------------------------
+# Same root issue as competition tagging: pattern lists hold full merchant
+# names (TURBOTAX, STATE FARM, CHARLES SCHWAB) but card data arrives as
+# 'INTUIT*TURBOTAX FEES', 'POS DEBIT STATE FARM INS', 'SCHWAB BROKERAGE & CO'
+# with prefixes and middle-of-string brand tokens. Anchored ^ str.match
+# misses all of those. Strip common prefixes, then match with \b word
+# boundaries via str.contains.
+
+import re as _re
+
+_FS_CARD_PREFIX_RE = _re.compile(
+    r'^(?:'
+    r'POS\s+(?:DEBIT|PURCH(?:ASE)?|WITHDRAWAL|CREDIT)|'
+    r'DEBIT\s+(?:CARD\s+(?:PURCHASE|PAYMENT)?|PURCHASE|PMT)|'
+    r'CHECKCARD(?:\s+\d+)?|'
+    r'PURCHASE\s+AUTHORIZED(?:\s+ON\s+\d+/\d+)?|'
+    r'RECURRING\s+(?:DEBIT\s+)?PMT|'
+    r'WEB\s+AUTH(?:ORIZED)?\s+PMT|'
+    r'EXTERNAL\s+WITHDRAWAL|'
+    r'ACH\s+(?:DEBIT|WITHDRAWAL|DEPOSIT|TRANSFER|PMT)|'
+    r'SQ\s*\*|TST\s*\*|PP\s*\*|SP\s*\*|PY\s*\*|EZP\s*\*|'
+    r'INTUIT\s*\*|INTUIT\s+'    # 'INTUIT*TURBOTAX', 'INTUIT TURBOTAX'
+    r')\s*',
+    _re.IGNORECASE,
+)
+
+
+def _fs_normalize(s):
+    """Strip card-network prefixes + punctuation, collapse whitespace.
+
+    Drops punctuation so `H&R BLOCK` pattern matches `H R BLOCK ONLINE`
+    in data (and vice versa), and `H.R. BLOCK` lines up too.
+    """
+    s = str(s).upper().strip()
+    s = _FS_CARD_PREFIX_RE.sub('', s)
+    s = _re.sub(r'[^\w\s]', ' ', s)
+    return _re.sub(r'\s+', ' ', s).strip()
+
 
 # ---------------------------------------------------------------------------
 # PERFORMANCE: Match patterns against unique merchants first, then filter.
@@ -23,18 +89,23 @@ _REGEX_BATCH_SIZE = 80  # avoid massive regex alternations
 # ---------------------------------------------------------------------------
 _unique_merchants = combined_df[search_column].dropna().unique()
 _unique_merch_series = pd.Series(_unique_merchants)
+# Normalized form for matching, but keep the originals to filter back into
+# combined_df (isin() needs the originals).
+_unique_norm_series = _unique_merch_series.map(_fs_normalize)
 
 for category, patterns in FINANCIAL_SERVICES_PATTERNS.items():
-    # Match patterns against unique merchant names (much smaller list)
-    # Uses prefix matching (str.match with ^) to be consistent with
-    # section 06's tag_competitors() which also uses starts_with logic.
-    import re as _re
-    _merch_mask = pd.Series(False, index=_unique_merch_series.index)
-    for _i in range(0, len(patterns), _REGEX_BATCH_SIZE):
-        _batch = patterns[_i:_i + _REGEX_BATCH_SIZE]
-        _regex = '^(?:' + '|'.join(_re.escape(p) for p in _batch) + ')'
-        _merch_mask |= _unique_merch_series.str.match(
-            _regex, case=False, na=False
+    # Match patterns against unique merchant names (much smaller list).
+    # Word-boundary contains (was anchored ^ str.match): catches
+    # mid-string brand names like 'INTUIT*TURBOTAX' or 'SCHWAB BROKERAGE'.
+    _merch_mask = pd.Series(False, index=_unique_norm_series.index)
+    # Normalize patterns the same way data is normalized.
+    _norm_patterns = [_fs_normalize(p) for p in patterns if p.strip()]
+    _norm_patterns = sorted({p for p in _norm_patterns if p}, key=len, reverse=True)
+    for _i in range(0, len(_norm_patterns), _REGEX_BATCH_SIZE):
+        _batch = _norm_patterns[_i:_i + _REGEX_BATCH_SIZE]
+        _regex = r'\b(?:' + '|'.join(_re.escape(p) for p in _batch) + r')\b'
+        _merch_mask |= _unique_norm_series.str.contains(
+            _regex, case=False, na=False, regex=True
         )
     _matched_merchants = set(_unique_merch_series[_merch_mask].values)
 

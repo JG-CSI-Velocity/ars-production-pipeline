@@ -290,6 +290,11 @@ class DCTRBranches(AnalysisModule):
             ]
         ].copy()
 
+        # Streamlined per stakeholder feedback: drop historical-DCTR line and
+        # per-bar +/- pp change labels. Single-story chart now:
+        #   Bars  -> eligible accounts opened in L12M, per branch
+        #   Dots  -> L12M DCTR (debit card take rate) for those accounts
+        #   Line  -> portfolio L12M DCTR (volume-weighted average)
         chart_path = None
         charts_dir = ctx.paths.charts_dir
         if charts_dir != ctx.paths.base_dir:
@@ -297,112 +302,108 @@ class DCTRBranches(AnalysisModule):
             save_to = charts_dir / "dctr_branch_trend.png"
             try:
                 n = len(merged)
-                fig_w = max(14, n * 1.2 + 2)
+                fig_w = max(14, n * 1.0 + 2)
+                vol_arr = merged["L12M Volume"].values
+                rate_arr = merged["L12M DCTR %"].values
+                tot = vol_arr.sum()
+                portfolio_rate = (
+                    (merged["L12M DCTR"] * merged["L12M Volume"]).sum() / tot * 100
+                    if tot > 0 else 0.0
+                )
+
                 with chart_figure(
-                    figsize=(fig_w, 10), save_path=save_to
+                    figsize=(fig_w, 9), save_path=save_to
                 ) as (fig, ax):
                     x = np.arange(n)
 
-                    # Primary axis: vertical bars for eligible accounts
+                    # Volume bars (eligible accounts opened in L12M)
                     ax.bar(
-                        x,
-                        merged["L12M Volume"],
-                        color="#B0C4DE",
-                        edgecolor="#4A6FA5",
-                        alpha=0.7,
-                        width=0.6,
-                        label="Eligible Accounts",
-                        zorder=1,
+                        x, vol_arr,
+                        color="#2E86AB",
+                        edgecolor="white", linewidth=1.5,
+                        width=0.62,
+                        label="Eligible Accounts Opened (L12M)",
+                        zorder=2,
                     )
+                    vol_max = vol_arr.max() if len(vol_arr) > 0 else 1
+                    for i, v in enumerate(vol_arr):
+                        ax.text(
+                            i, v + vol_max * 0.015, f"{int(v):,}",
+                            ha="center", va="bottom",
+                            fontsize=13, fontweight="bold",
+                            color="#1B2A4A",
+                        )
+
                     ax.set_ylabel(
-                        "Eligible Accounts", fontsize=20, fontweight="bold"
+                        "Eligible Accounts Opened (L12M)",
+                        fontsize=18, fontweight="bold",
                     )
                     ax.set_xticks(x)
                     ax.set_xticklabels(
                         merged["Branch"].values,
-                        fontsize=16,
-                        fontweight="bold",
-                        rotation=45,
-                        ha="right",
+                        fontsize=15, fontweight="bold",
+                        rotation=35, ha="right",
                     )
                     ax.yaxis.set_major_formatter(
-                        FuncFormatter(lambda v, p: f"{int(v):,}")
+                        FuncFormatter(lambda v, _p: f"{int(v):,}")
                     )
-                    ax.tick_params(axis="y", labelsize=16)
+                    ax.tick_params(axis="y", labelsize=14)
+                    ax.set_ylim(0, vol_max * 1.20)
                     ax.spines["top"].set_visible(False)
                     ax.spines["right"].set_visible(False)
+                    ax.yaxis.grid(True, color="#E9ECEF", linewidth=0.5, alpha=0.7)
                     ax.set_axisbelow(True)
 
-                    # Secondary right axis: DCTR rate dot-line overlays
+                    # Right axis: single L12M DCTR dot per branch
                     ax2 = ax.twinx()
                     ax2.plot(
-                        x,
-                        merged["Historical DCTR %"].values,
-                        "o--",
-                        color="black",
-                        linewidth=2.5,
-                        markersize=10,
-                        label="Historical DCTR",
-                        zorder=3,
+                        x, rate_arr,
+                        "o-", color="#1B2A4A",
+                        linewidth=2.5, markersize=12,
+                        markerfacecolor="#1B2A4A",
+                        markeredgecolor="white", markeredgewidth=2,
+                        label="DCTR (L12M)",
+                        zorder=5,
                     )
-                    ax2.plot(
-                        x,
-                        merged["L12M DCTR %"].values,
-                        "o-",
-                        color="#1B4F72",
-                        linewidth=3.5,
-                        markersize=12,
-                        label="TTM DCTR",
-                        zorder=4,
+                    for i, r in enumerate(rate_arr):
+                        ax2.text(
+                            i, r + 1.5, f"{r:.1f}%",
+                            ha="center", va="bottom",
+                            fontsize=12, fontweight="bold",
+                            color="#1B2A4A",
+                        )
+                    ax2.axhline(
+                        portfolio_rate, color="#E63946",
+                        linewidth=1.8, linestyle="--",
+                        alpha=0.85, zorder=3,
+                        label=f"Portfolio L12M Avg ({portfolio_rate:.1f}%)",
                     )
                     ax2.set_ylabel(
-                        "DCTR (%)", fontsize=20, fontweight="bold"
+                        "DCTR", fontsize=18, fontweight="bold",
                     )
                     ax2.yaxis.set_major_formatter(
-                        FuncFormatter(lambda v, p: f"{int(v)}%")
+                        FuncFormatter(lambda v, _p: f"{int(v)}%")
                     )
-                    ax2.tick_params(axis="y", labelsize=16)
+                    ax2.tick_params(axis="y", labelsize=14)
+                    r_min = max(0, rate_arr.min() - 5) if len(rate_arr) > 0 else 0
+                    r_max = min(100, max(rate_arr.max(), portfolio_rate) + 8) if len(rate_arr) > 0 else 100
+                    ax2.set_ylim(r_min, r_max)
+                    ax2.spines["top"].set_visible(False)
 
-                    ax.set_title(
-                        "Branch DCTR: Volume & Rates",
-                        fontsize=24,
-                        fontweight="bold",
-                        pad=20,
-                    )
+                    fig.suptitle("Branch DCTR (L12M)",
+                                 fontsize=22, fontweight="bold",
+                                 color="#1B2A4A", y=1.00)
+                    fig.text(0.5, 0.945,
+                             "Bars: eligible accounts opened in last 12 completed months  |  "
+                             "Dots: debit card take rate of those accounts  |  "
+                             f"Red line: portfolio avg ({portfolio_rate:.1f}%)",
+                             ha="center", fontsize=12, color="#6C757D", style="italic")
 
-                    # Combined legend at bottom center
-                    handles1, labels1 = ax.get_legend_handles_labels()
-                    handles2, labels2 = ax2.get_legend_handles_labels()
-                    ax.legend(
-                        handles1 + handles2,
-                        labels1 + labels2,
-                        loc="upper center",
-                        bbox_to_anchor=(0.5, -0.15),
-                        ncol=3,
-                        fontsize=14,
-                    )
-
-                    # Change indicators above each bar
-                    bar_max = merged["L12M Volume"].max()
-                    for i, (_, row) in enumerate(merged.iterrows()):
-                        chg = row["Change pp"]
-                        clr = (
-                            "#27AE60"
-                            if chg > 0
-                            else "#E74C3C"
-                            if chg < 0
-                            else "#666666"
-                        )
-                        sign = "+" if chg > 0 else ""
-                        ax.text(
-                            i,
-                            row["L12M Volume"] + bar_max * 0.01,
-                            f"{sign}{chg:.1f}pp",
-                            ha="center",
-                            fontsize=14,
-                            color=clr,
-                            fontweight="bold",
-                        )
+                    h1, l1 = ax.get_legend_handles_labels()
+                    h2, l2 = ax2.get_legend_handles_labels()
+                    ax.legend(h1 + h2, l1 + l2,
+                              loc="upper right", fontsize=12,
+                              frameon=False, ncol=1)
 
                 chart_path = save_to
             except Exception as exc:

@@ -140,7 +140,7 @@ if _bal_col and _bal_col in rege_df.columns:
 
     fig.suptitle("Reg E Opt-In vs Account Balance",
                  fontsize=26, fontweight='bold',
-                 color=GEN_COLORS['dark_text'], y=1.04)
+                 color=GEN_COLORS['dark_text'], y=GEN_TITLE_Y)
     fig.text(0.5, 0.99,
              f"Where does opt-in status matter most? | {DATASET_LABEL}",
              fontsize=14, color=GEN_COLORS['muted'], style='italic',
