@@ -24,6 +24,16 @@ from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
 
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.output.manifest import ManifestDecisions, load_manifest_decisions
+
+# Module-level state set by build_deck() before composition and read by
+# _result_to_slide() to filter slides per SLIDE_MANIFEST.xlsx decisions (#129).
+# _CURRENT_MANIFEST = None means the manifest is missing or empty -- legacy
+# behavior (keep everything). _CURRENT_AUX_BUILD is True only during the G7
+# aux-deck pass, where A-marked slides are kept (they belong here) while
+# N-marked slides still drop.
+_CURRENT_MANIFEST: ManifestDecisions | None = None
+_CURRENT_AUX_BUILD: bool = False
 
 # Embedded fallback template (ships with the package)
 _FALLBACK_TEMPLATE = Path(__file__).parent / "template" / "2025-CSI-PPT-Template.pptx"
@@ -1554,6 +1564,17 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
     layout_idx = getattr(result, "layout_index", LAYOUT_CUSTOM)
     slide_type = getattr(result, "slide_type", "screenshot")
 
+    # SLIDE_MANIFEST.xlsx Keep? filtering (#129). build_deck() sets
+    # _CURRENT_MANIFEST and _CURRENT_AUX_BUILD before composition.
+    #   N-marked: drop from every deck
+    #   A-marked: drop from main deck (kept during aux build only)
+    #   Y/blank:  keep
+    if slide_id and _CURRENT_MANIFEST is not None:
+        if slide_id in _CURRENT_MANIFEST.drop_ids:
+            return None
+        if not _CURRENT_AUX_BUILD and slide_id in _CURRENT_MANIFEST.aux_ids:
+            return None
+
     # Fall back to SLIDE_LAYOUT_MAP if module used defaults
     if layout_idx == LAYOUT_CUSTOM and slide_type == "screenshot":
         mapped = SLIDE_LAYOUT_MAP.get(slide_id)
@@ -1718,6 +1739,24 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     if not ctx.all_slides:
         logger.warning("No slides to build deck from")
         return None
+
+    # SLIDE_MANIFEST.xlsx Keep? decisions (#129). Loader returns an empty
+    # ManifestDecisions when the file is missing -- legacy behavior preserved.
+    # Set module-level state so _result_to_slide() can read it during composition.
+    # During the G7 aux-deck pass (_aux_build=True) we DON'T reload -- we keep
+    # the same decisions but flip _CURRENT_AUX_BUILD so A-marked slides are
+    # kept (they belong in the aux deck) while N-marked still drop.
+    global _CURRENT_MANIFEST, _CURRENT_AUX_BUILD
+    _CURRENT_AUX_BUILD = bool(getattr(ctx, "_aux_build", False))
+    if not _CURRENT_AUX_BUILD:
+        _CURRENT_MANIFEST = load_manifest_decisions()
+        logger.info(_CURRENT_MANIFEST.summary())
+        # Print to stdout so the UI's run-log polling picks up a "SLIDE MANIFEST: ..."
+        # line for the completion-card breakdown (parsed client-side in index.html).
+        print(f"  {_CURRENT_MANIFEST.summary()}")
+        # Route A-marked slides into the existing G7 aux-deck mechanism.
+        if _CURRENT_MANIFEST.aux_ids:
+            ctx.auxiliary_slide_ids = set(ctx.auxiliary_slide_ids) | set(_CURRENT_MANIFEST.aux_ids)
 
     # Resolve template
     template = _FALLBACK_TEMPLATE
