@@ -74,6 +74,21 @@ _ars_pkg.__package__ = "ars_analysis"
 sys.modules["ars_analysis"] = _ars_pkg
 
 
+def _versioned_path(dest: Path) -> Path:
+    """Return dest with _v2/_v3/... suffix until a free filename is found.
+
+    Used when the original deck is open in PowerPoint and the destination
+    is locked -- we want the new deck delivered under a different name so
+    a long-running analysis doesn't have to be redone.
+    """
+    stem, suffix, parent = dest.stem, dest.suffix, dest.parent
+    for v in range(2, 100):
+        candidate = parent / f"{stem}_v{v}{suffix}"
+        if not candidate.exists():
+            return candidate
+    return parent / f"{stem}_{datetime.now().strftime('%H%M%S')}{suffix}"
+
+
 def _resolve_csm_name(csm_input, base_path):
     """Fuzzy match CSM name: 'James' matches 'JamesG' folder."""
     if not base_path.exists():
@@ -374,10 +389,12 @@ def main():
             pptx_files = []
         for pf in pptx_files:
             dest = pptx_dir / pf.name
+            moved = False
             for _attempt in range(3):
                 try:
                     shutil.copy2(pf, dest)
                     pf.unlink()
+                    moved = True
                     break
                 except PermissionError:
                     if _attempt < 2:
@@ -385,10 +402,20 @@ def main():
                         print(f"    File locked, retrying in 2s... ({pf.name})")
                         time.sleep(2)
                         gc.collect()
-                    else:
-                        print(f"    WARNING: Could not move {pf.name} (file locked)")
-                        print(f"    PPTX remains at: {pf}")
-                        print(f"    Copy it manually to: {dest}")
+
+            if not moved:
+                # Destination is locked (deck open in PowerPoint). Write a
+                # versioned filename so the new run still gets delivered.
+                versioned_dest = _versioned_path(dest)
+                try:
+                    shutil.copy2(pf, versioned_dest)
+                    pf.unlink()
+                    print(f"    Original deck is open -- saved new copy as: {versioned_dest.name}")
+                    print(f"    Location: {versioned_dest}")
+                except (PermissionError, OSError) as _e:
+                    print(f"    WARNING: Could not move {pf.name} ({_e})")
+                    print(f"    PPTX remains at: {pf}")
+                    print(f"    Copy it manually to: {dest}")
 
         _total_elapsed = _time_mod.time() - _run_start
         _total_mins = int(_total_elapsed // 60)
