@@ -481,14 +481,44 @@ class RegEDimensions(AnalysisModule):
         result = result.sort_values("Total Accounts", ascending=False)
         result = total_row(result, "Product Code")
 
+        # Defensive: in 1745/2026.05 this hit pandas IndexError "single positional
+        # indexer is out-of-bounds" because the TOTAL filter returned an empty
+        # Series. Compute overall safely, fall back to a weighted average over the
+        # real rows if total_row didn't add one, and emit a meaningful error
+        # instead of a bare pandas traceback when neither is possible. (#125)
+        _total_rows = result[result["Product Code"] == "TOTAL"]
+        if not _total_rows.empty:
+            overall = float(_total_rows["Opt-In Rate"].iloc[0]) * 100
+        elif not result.empty and float(result["Total Accounts"].sum()) > 0:
+            _ta = float(result["Total Accounts"].sum())
+            _oi = float(result["Opted In"].sum()) if "Opted In" in result.columns else 0.0
+            overall = (_oi / _ta) * 100
+        else:
+            return [
+                AnalysisResult(
+                    slide_id="A8.7",
+                    title="Reg E Opt-In Rate by Product Code (Eligible Personal)",
+                    success=False,
+                    error="Could not compute overall opt-in rate (no product code groups with accounts)",
+                )
+            ]
+
         # Chart -- top 15
         chart_path = None
         save_to = ctx.paths.charts_dir / "a8_7_reg_e_product.png"
         ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
 
         chart = result[result["Product Code"] != "TOTAL"].head(15).copy()
+        if chart.empty:
+            return [
+                AnalysisResult(
+                    slide_id="A8.7",
+                    title="Reg E Opt-In Rate by Product Code (Eligible Personal)",
+                    success=False,
+                    error="No product code rows to chart after filtering TOTAL row",
+                )
+            ]
         chart = chart.sort_values("Opt-In Rate", ascending=True)
-        overall = result[result["Product Code"] == "TOTAL"]["Opt-In Rate"].iloc[0] * 100
 
         with chart_figure(figsize=(14, max(8, len(chart) * 0.6)), save_path=save_to) as (fig, ax):
             ax.barh(
