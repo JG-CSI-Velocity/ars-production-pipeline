@@ -12,6 +12,7 @@ Then open: http://localhost:8000
 
 import asyncio
 import json
+import re
 import subprocess
 import sys
 import threading
@@ -226,29 +227,65 @@ async def get_csms():
     return get_csm_list()
 
 
+_ODDD_CLIENT_ID_RE = re.compile(r"^(\d+)_ODDD", re.IGNORECASE)
+
+
+def _clients_from_raw_dumps(csm: str, month: str) -> set[str]:
+    """Scan M:\\<CSM>\\OD Data Dumps\\<month>\\ for *_ODDD.zip and return client IDs."""
+    cfg = load_ars_config()
+    sources = cfg.get("csm_sources", {}).get("sources", {})
+    src_path = None
+    for name, path in sources.items():
+        if name.lower().startswith(csm.lower()):
+            src_path = Path(path)
+            break
+    if not src_path or not src_path.exists():
+        return set()
+    month_dir = src_path / month
+    if not month_dir.exists():
+        return set()
+    ids = set()
+    for zf in month_dir.iterdir():
+        if not zf.is_file():
+            continue
+        m = _ODDD_CLIENT_ID_RE.match(zf.name)
+        if m:
+            ids.add(m.group(1))
+    return ids
+
+
+def _clients_from_folder(base: Path, csm: str, month: str) -> set[str]:
+    """Return client IDs that have a directory under base/<csm>/<month>/."""
+    csm_dir = _resolve_csm_dir(base, csm) / month
+    if not csm_dir.exists():
+        return set()
+    return {d.name for d in csm_dir.iterdir() if d.is_dir()}
+
+
 @app.get("/api/clients")
 async def get_clients(csm: str = "", month: str = ""):
     """Return client list from config.
 
-    When csm and month are both provided, filter to clients whose formatted
-    data exists under READY_FOR_ANALYSIS/{csm}/{month}/. Used by the Generate
-    tab so its client dropdown refreshes when CSM or period changes.
+    When csm and month are both provided, filter to clients that show up
+    anywhere in this CSM's pipeline for that month:
+      - Raw dumps: M:\\<CSM>\\OD Data Dumps\\<month>\\<client>_ODDD.zip
+      - Formatted: 02-Data-Ready for Analysis/<csm>/<month>/<client>/
+      - Completed: 01_Completed_Analysis/<csm>/<month>/<client>/
+
+    Union of all three so a client shows up as soon as their raw ZIP lands,
+    and stays visible after formatting/analysis even if the ZIP is moved.
+
+    With no csm/month, returns the full config (used by Results-tab dropdown).
     """
     config = load_clients_config()
 
     allowed_ids = None
     if csm and month:
-        allowed_ids = set()
-        csm_dir = READY_FOR_ANALYSIS / csm / month
-        if not csm_dir.exists() and READY_FOR_ANALYSIS.exists():
-            for d in READY_FOR_ANALYSIS.iterdir():
-                if d.is_dir() and d.name.lower().startswith(csm.lower()):
-                    csm_dir = d / month
-                    break
-        if csm_dir.exists():
-            for client_dir in csm_dir.iterdir():
-                if client_dir.is_dir():
-                    allowed_ids.add(client_dir.name)
+        allowed_ids = (
+            _clients_from_raw_dumps(csm, month)
+            | _clients_from_folder(READY_FOR_ANALYSIS, csm, month)
+            | _clients_from_folder(COMPLETED_ANALYSIS, csm, month)
+        )
 
     clients = []
     for cid, data in config.items():
@@ -268,6 +305,18 @@ async def get_clients(csm: str = "", month: str = ""):
                 "branch_mapping": data.get("BranchMapping", {}),
             },
         })
+
+    # Also surface IDs found in folders but missing from clients_config.json
+    # (so the operator can see something exists even if config is stale).
+    if allowed_ids is not None:
+        known = {c["id"] for c in clients}
+        for cid in sorted(allowed_ids - known):
+            clients.append({
+                "id": cid,
+                "name": f"Client {cid} (not in config)",
+                "config": {},
+            })
+
     return clients
 
 
