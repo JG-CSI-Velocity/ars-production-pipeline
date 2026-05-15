@@ -18,3 +18,8 @@ __pycache__/
 
 # Claude Code working notes — local-only, not for the operator's work folder
 CLAUDE.md
+
+# Operator's working slide manifest — tracked as SLIDE_MANIFEST.template.xlsx
+# only. Each operator keeps their own SLIDE_MANIFEST.xlsx with their Keep?
+# decisions and per-slide notes; git pull will never overwrite it.
+SLIDE_MANIFEST.xlsx

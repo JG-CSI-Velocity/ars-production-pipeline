@@ -1,5 +1,17 @@
 # Velocity Pipeline Setup
 
+## Your slide manifest is NOT tracked by git
+
+`SLIDE_MANIFEST.xlsx` is your personal working copy -- edit it freely, mark `Keep? Y/N/A`, add notes. Pulls will never overwrite it.
+
+The repo ships `SLIDE_MANIFEST.template.xlsx` as a fresh starting point. On a new machine, seed your working copy once:
+
+```
+copy SLIDE_MANIFEST.template.xlsx SLIDE_MANIFEST.xlsx
+```
+
+From then on it's yours -- nothing in git can clobber it.
+
 ## M: Drive Structure
 
 ```
