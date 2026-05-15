@@ -91,6 +91,21 @@ cd M:\ARS\01_Analysis
 python run.py --month 2026.03 --csm James --client 1780
 ```
 
+#### `--product` flag
+
+ARS is the main product. TXN is additive and entirely opt-in.
+
+| Flag | What runs | Deck filename |
+|---|---|---|
+| _(no flag)_ | ARS only -- default behavior | `<id>_<month>_ars_deck.pptx` |
+| `--product=ars` | ARS only -- same as default | `<id>_<month>_ars_deck.pptx` |
+| `--product=txn` | TXN only -- transaction analysis sections | `<id>_<month>_txn_deck.pptx` |
+| `--product=combined` | ARS + TXN together | `<id>_<month>_combined_deck.pptx` |
+
+The three products produce separate deck files, so running TXN doesn't overwrite an existing ARS deck for the same client + month.
+
+From the UI, the product is set by clicking one of the four product cards on the Generate tab (ARS Full Suite / Transaction / Combined / Deposits). The Generate button forwards the choice to `run.py --product=...` under the hood.
+
 **Output folders created:**
 ```
 M:\ARS\01_Analysis\01_Completed_Analysis\JamesG\2026.03\1780\           <- Excel + data
