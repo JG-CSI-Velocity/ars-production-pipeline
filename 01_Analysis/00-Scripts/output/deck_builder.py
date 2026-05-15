@@ -1898,14 +1898,13 @@ def build_deck(ctx: PipelineContext) -> Path | None:
 
     # Build the PPTX
     ctx.paths.pptx_dir.mkdir(parents=True, exist_ok=True)
-    # Detect product type from slide IDs to avoid overwriting different runs
-    _has_ars = any(not getattr(s, "slide_id", "").startswith("TXN-") for s in final_slides)
-    _has_txn = any(getattr(s, "slide_id", "").startswith("TXN-") for s in final_slides)
-    if _has_ars and _has_txn:
-        _product_label = "combined"
-    elif _has_txn:
-        _product_label = "txn"
-    else:
+    # Use the pipeline's known product label rather than inspecting slide IDs.
+    # The previous detection inspected slide_id on final_slides, but final_slides
+    # contains SlideContent objects (built by _result_to_slide) which don't carry
+    # slide_id forward -- so every TXN run was misdetected as 'ars' and overwrote
+    # the prior ARS deck.
+    _product_label = getattr(ctx, "product", "ars") or "ars"
+    if _product_label not in ("ars", "txn", "combined"):
         _product_label = "ars"
     # G7 (auxiliary deck): when generate.py invokes build_deck with ctx._aux_build=True,
     # write to *_aux_deck.pptx so the main deck output is preserved.

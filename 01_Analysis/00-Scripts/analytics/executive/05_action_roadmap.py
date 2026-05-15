@@ -282,20 +282,11 @@ _folder_counts = {
     'interchange': 10, 'rege_overdraft': 10, 'payroll': 10,
     'relationship': 10, 'segment_evolution': 8, 'executive': 5,
 }
-# Try to get actual counts
-try:
-    import os
-    _actual_total = 0
-    _base = '/private/tmp/txn-visual-test'
-    for _folder in os.listdir(_base):
-        _fpath = os.path.join(_base, _folder)
-        if os.path.isdir(_fpath):
-            _actual_total += len([
-                f for f in os.listdir(_fpath)
-                if not f.startswith('.') and os.path.isfile(os.path.join(_fpath, f))
-            ])
-except Exception:
-    _actual_total = sum(_folder_counts.values())
+# Static fallback counts -- the previous "actual count" path pointed at a
+# Mac dev folder ('/private/tmp/txn-visual-test') that doesn't exist on the
+# production M: drive, so it was crashing the whole script on Windows.
+_actual_total = sum(_folder_counts.values())
+_actual_folders = len(_folder_counts)
 
 print(f"\n{'='*70}")
 print(f"  ACTION ROADMAP SUMMARY")
@@ -306,7 +297,7 @@ print(f"  Strategic (90-365 days):  {_strategic_ct} actions")
 print(f"  Total actions:            {_quick_ct + _medium_ct + _strategic_ct}")
 print(f"{'='*70}")
 
-print(f"\n    Full analysis available across {len([d for d in os.listdir(_base) if os.path.isdir(os.path.join(_base, d))])} folders, "
+print(f"\n    Full analysis available across {_actual_folders} folders, "
       f"{_actual_total} total cells.")
 
 print(f"\n    INSIGHT: Quick wins focus on immediate outreach and process improvements "

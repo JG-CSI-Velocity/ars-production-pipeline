@@ -303,9 +303,14 @@ def main():
         except Exception:
             pass
 
+    _product_header = {
+        "ars": "ARS ANALYSIS + POWERPOINT GENERATION",
+        "txn": "TXN ANALYSIS + POWERPOINT GENERATION",
+        "combined": "ARS + TXN ANALYSIS + POWERPOINT GENERATION",
+    }.get(args.product, "ANALYSIS + POWERPOINT GENERATION")
     print()
     print("=" * 70)
-    print("  STEP 2: ARS ANALYSIS + POWERPOINT GENERATION")
+    print(f"  STEP 2: {_product_header}")
     print("=" * 70)
     print(f"  Client:    {client_id} - {client_name}")
     print(f"  CSM:       {csm_name or 'unknown'}")
@@ -356,6 +361,7 @@ def main():
 
     # Run the pipeline based on --product flag
     product = args.product
+    ctx.product = product  # so deck_builder names the PPTX correctly (was misdetecting as 'ars')
 
     if product == "txn":
         from runner import run_txn
