@@ -50,3 +50,21 @@ When filing or commenting on issues in this repo:
 - Commit message style: conventional commits (`feat(...)`, `fix(...)`, `docs(...)`)
 - Always push after committing
 - Issues closed by a commit: reference with `Closes #NNN` in the commit body
+
+## Operator Environment (the work machine)
+
+The work machine is **Windows**. The repo lives at **`M:\ARS\`** (not under a user directory). The UI is launched by double-clicking **`Start Here.bat`** at the repo root, which:
+1. `cd`s into `05_UI` and runs `python app.py` in the background
+2. Waits for `http://localhost:8000` to respond
+3. Opens the browser to the UI
+4. Closing the terminal window stops the server
+
+**When telling the operator how to apply a code change**, the workflow is always:
+1. `git pull` from `M:\ARS\`
+2. Close the existing **Velocity Pipeline** terminal window
+3. Double-click `Start Here.bat` to relaunch
+4. Hard-refresh the browser (Ctrl+Shift+R) for HTML/JS changes
+
+**Never tell the operator to run `python app.py` directly, `cd 05_UI`, or use a Unix-style path** — that's the dev environment, not theirs.
+
+See `SETUP.md` for the canonical M: drive layout and first-time setup commands.
