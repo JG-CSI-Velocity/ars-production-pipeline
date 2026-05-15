@@ -35,10 +35,12 @@ except Exception:
 
 if _out_root is None:
     # Notebook / standalone fallback. Use CWD-relative path so this cell
-    # never silently writes to a surprising location.
+    # never silently writes to a surprising location. The parent folder
+    # is named "Actionable Lists for Clients" so CSMs can find these
+    # exports without spelunking through generic "output" directories.
     _client_id = globals().get('CLIENT_ID', 'unknown')
     _client_name = globals().get('CLIENT_NAME', 'client')
-    _out_root = Path(f"output/{_client_id}_{_client_name}/cross_sell_lists")
+    _out_root = Path(f"Actionable Lists for Clients/{_client_id}_{_client_name}/cross_sell_lists")
 
 _out_root.mkdir(parents=True, exist_ok=True)
 

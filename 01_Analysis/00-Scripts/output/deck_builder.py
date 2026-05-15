@@ -1898,26 +1898,28 @@ def build_deck(ctx: PipelineContext) -> Path | None:
 
     # Build the PPTX
     ctx.paths.pptx_dir.mkdir(parents=True, exist_ok=True)
-    # Detect product type from the ORIGINAL AnalysisResult objects in
-    # ctx.all_slides. Previously this checked final_slides (SlideContent)
-    # which has no slide_id attribute -- getattr(..., "") always returned
-    # "", so _has_txn was always False and every deck got mislabeled
-    # ``{client}_{month}_ars_deck.pptx'' even on pure-TXN runs (issue:
-    # 1776 2026.04 run produced 328 TXN slides but was named _ars_deck).
-    _original = getattr(ctx, "all_slides", []) or []
-    _has_ars = any(
-        not getattr(s, "slide_id", "").startswith("TXN-") for s in _original
-    )
-    _has_txn = any(
-        getattr(s, "slide_id", "").startswith("TXN-") for s in _original
-    )
-    if _has_ars and _has_txn:
-        _product_label = "combined"
-    elif _has_txn:
-        _product_label = "txn"
-    else:
-        _product_label = "ars"
-    output_path = ctx.paths.pptx_dir / f"{ctx.client.client_id}_{ctx.client.month}_{_product_label}_deck.pptx"
+    # Product label for the output filename. Both this branch (#128 fix) and
+    # origin/main independently fixed the bug where final_slides (SlideContent
+    # objects without slide_id) were being inspected and every TXN deck was
+    # mislabeled '_ars_deck.pptx', overwriting the ARS deck. We use the
+    # pipeline's known product (set by run.py from --product) as the primary
+    # signal since it's explicit and reliable; fall back to inspecting the
+    # original AnalysisResult slide_ids in ctx.all_slides for safety.
+    _product_label = (getattr(ctx, "product", "") or "").strip().lower()
+    if _product_label not in ("ars", "txn", "combined"):
+        _original = getattr(ctx, "all_slides", []) or []
+        _has_ars = any(not getattr(s, "slide_id", "").startswith("TXN-") for s in _original)
+        _has_txn = any(getattr(s, "slide_id", "").startswith("TXN-") for s in _original)
+        if _has_ars and _has_txn:
+            _product_label = "combined"
+        elif _has_txn:
+            _product_label = "txn"
+        else:
+            _product_label = "ars"
+    # G7 (auxiliary deck): when generate.py invokes build_deck with ctx._aux_build=True,
+    # write to *_aux_deck.pptx so the main deck output is preserved.
+    _suffix = "_aux_deck.pptx" if getattr(ctx, "_aux_build", False) else "_deck.pptx"
+    output_path = ctx.paths.pptx_dir / f"{ctx.client.client_id}_{ctx.client.month}_{_product_label}{_suffix}"
 
     try:
         builder = DeckBuilder(str(template))

@@ -99,4 +99,13 @@ class PipelineContext:
     ics_dir: Path | None = None  # ICS data directory for ICS module
     debit_column: str = ""  # Auto-detected debit column name (set by step_subsets)
     progress_callback: Callable[[str], None] | None = None
-    manifest: object = None  # ars_analysis.pipeline.manifest.RunManifest | None
+    # G7 (auxiliary deck): slide IDs routed to a secondary aux deck instead of the main deck.
+    # Wave 1 ships this empty (no routing rules wired); later waves populate from manifest or rules.
+    auxiliary_slide_ids: set[str] = field(default_factory=set)
+    # Pipeline product label -- "ars", "txn", or "combined". Used by deck_builder to
+    # name the output PPTX so a TXN run can't overwrite an ARS run.
+    product: str = "ars"
+    # Structured run manifest (#121). Populated by runner.start_run() / SectionRecorder
+    # contexts in txn_wrapper. Typed as `object` to avoid a circular import; actual
+    # type is ars_analysis.pipeline.manifest.RunManifest | None.
+    manifest: object = None

@@ -3,22 +3,22 @@
 Counters the objection "ARS is ineffective" by showing:
 - A18.1: DCTR progression over time (with program start marker if available)
 - A18.2: Cumulative value delivered timeline
-- A18.3: Industry benchmarks comparison (CU vs PULSE data)
 
-Slide IDs: A18.1, A18.2, A18.3.
+Slide IDs: A18.1, A18.2.
+
+A18.3 (Industry Benchmarks) was retired -- the underlying benchmarks.json
+source was fabricated, so the comparison was misleading. See git history
+for the prior implementation if real benchmark data ever becomes available.
 """
 
 from __future__ import annotations
-
-import json
-from pathlib import Path
 
 import matplotlib.ticker as mticker
 import numpy as np
 from loguru import logger
 
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
-from ars_analysis.analytics.insights._data import get_dctr_1, get_dctr_3, get_reg_e_1
+from ars_analysis.analytics.insights._data import get_dctr_1, get_dctr_3
 from ars_analysis.analytics.mailer._helpers import (
     RESPONSE_SEGMENTS,
     discover_metric_cols,
@@ -27,35 +27,8 @@ from ars_analysis.analytics.mailer._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import NEGATIVE, POSITIVE, SILVER, TEAL
+from ars_analysis.charts.style import NEGATIVE, POSITIVE, TEAL
 from ars_analysis.pipeline.context import PipelineContext
-
-_BENCHMARKS_PATH = Path(__file__).parents[4] / "config" / "benchmarks.json"
-
-
-# ---------------------------------------------------------------------------
-# Benchmark loader
-# ---------------------------------------------------------------------------
-
-
-def _load_benchmarks() -> dict:
-    """Load industry benchmarks from config/benchmarks.json."""
-    # Try multiple paths (installed vs dev layout)
-    for candidate in [
-        _BENCHMARKS_PATH,
-        Path("config/benchmarks.json"),
-        Path(__file__).parents[5] / "config" / "benchmarks.json",
-    ]:
-        if candidate.exists():
-            with open(candidate) as f:
-                return json.load(f)
-    logger.warning("benchmarks.json not found; using defaults")
-    return {
-        "debit_penetration_rate": 0.805,
-        "active_card_rate": 0.663,
-        "member_acquisition_cost": 562.50,
-        "direct_mail_response_rate": 0.045,
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -206,94 +179,6 @@ def _draw_cumulative_value(
     return f"${total_ic:,.0f} cumulative IC from {total_act:,} activations"
 
 
-def _draw_benchmarks(
-    ax,
-    ctx: PipelineContext,
-    benchmarks: dict,
-) -> str:
-    """Draw horizontal bar comparison of CU vs industry benchmarks. Returns insight."""
-    dctr_1 = get_dctr_1(ctx)
-    dctr_3 = get_dctr_3(ctx)
-    reg_e = get_reg_e_1(ctx)
-
-    cu_dctr = dctr_3.get("dctr", dctr_1.get("overall_dctr", 0))
-    cu_rege = reg_e.get("opt_in_rate", 0)
-    bench_active = benchmarks.get("active_card_rate", 0.663)
-
-    # Build comparison data
-    metrics = []
-    if cu_dctr > 0:
-        metrics.append(("DCTR", cu_dctr * 100, bench_active * 100))
-    if cu_rege > 0:
-        metrics.append(("Reg E Opt-In", cu_rege * 100, 50.0))  # Industry avg ~50%
-
-    if not metrics:
-        return ""
-
-    labels = [m[0] for m in metrics]
-    cu_vals = [m[1] for m in metrics]
-    bench_vals = [m[2] for m in metrics]
-
-    y = np.arange(len(labels))
-    height = 0.35
-
-    ax.barh(y - height / 2, cu_vals, height, label="Your Credit Union", color=TEAL)
-    ax.barh(y + height / 2, bench_vals, height, label="Industry Benchmark", color=SILVER)
-
-    # Data labels
-    for yi, (cv, bv) in enumerate(zip(cu_vals, bench_vals)):
-        ax.text(
-            cv,
-            yi - height / 2,
-            f" {cv:.1f}%",
-            va="center",
-            fontsize=14,
-            fontweight="bold",
-            color=TEAL,
-        )
-        ax.text(
-            bv,
-            yi + height / 2,
-            f" {bv:.1f}%",
-            va="center",
-            fontsize=14,
-            fontweight="bold",
-            color="#555",
-        )
-
-    ax.set_yticks(y)
-    ax.set_yticklabels(labels, fontsize=16)
-    ax.set_xlabel("Rate (%)", fontsize=14)
-    ax.set_title("Your Performance vs Industry Benchmarks", fontsize=20, fontweight="bold")
-    ax.legend(fontsize=14, loc="lower right", frameon=True)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.grid(axis="x", alpha=0.2, linestyle="--")
-    ax.set_axisbelow(True)
-    ax.tick_params(axis="both", labelsize=12)
-
-    # Source footnote
-    source = benchmarks.get("source", "Industry data")
-    ax.text(
-        0.99,
-        0.01,
-        f"Source: {source}",
-        transform=ax.transAxes,
-        ha="right",
-        va="bottom",
-        fontsize=10,
-        color="#999999",
-        fontstyle="italic",
-    )
-
-    insights = []
-    for label, cv, bv in metrics:
-        delta = cv - bv
-        sign = "+" if delta >= 0 else ""
-        insights.append(f"{label}: {sign}{delta:.1f}pp vs benchmark")
-    return " | ".join(insights)
-
-
 # ---------------------------------------------------------------------------
 # Module
 # ---------------------------------------------------------------------------
@@ -341,20 +226,7 @@ class EffectivenessProof(AnalysisModule):
                 )
             )
 
-        # A18.3 -- Industry Benchmarks
-        benchmarks = _load_benchmarks()
-        save_to = ctx.paths.charts_dir / "a18_3_benchmarks.png"
-        with chart_figure(figsize=(14, 8), save_path=save_to) as (_fig, ax):
-            insight = _draw_benchmarks(ax, ctx, benchmarks)
-        if insight:
-            results.append(
-                AnalysisResult(
-                    slide_id="A18.3",
-                    title="Industry Benchmark Comparison",
-                    chart_path=save_to,
-                    notes=insight,
-                )
-            )
+        # A18.3 (Industry Benchmarks) retired -- source data was fabricated.
 
         if not results:
             return [

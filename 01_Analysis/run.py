@@ -74,6 +74,21 @@ _ars_pkg.__package__ = "ars_analysis"
 sys.modules["ars_analysis"] = _ars_pkg
 
 
+def _versioned_path(dest: Path) -> Path:
+    """Return dest with _v2/_v3/... suffix until a free filename is found.
+
+    Used when the original deck is open in PowerPoint and the destination
+    is locked -- we want the new deck delivered under a different name so
+    a long-running analysis doesn't have to be redone.
+    """
+    stem, suffix, parent = dest.stem, dest.suffix, dest.parent
+    for v in range(2, 100):
+        candidate = parent / f"{stem}_v{v}{suffix}"
+        if not candidate.exists():
+            return candidate
+    return parent / f"{stem}_{datetime.now().strftime('%H%M%S')}{suffix}"
+
+
 def _resolve_csm_name(csm_input, base_path):
     """Fuzzy match CSM name: 'James' matches 'JamesG' folder."""
     if not base_path.exists():
@@ -153,6 +168,10 @@ def main():
     parser.add_argument("--product", type=str, default="ars",
                         choices=["ars", "txn", "combined"],
                         help="Analysis product: ars (default), txn (transaction only), combined (both)")
+    parser.add_argument("--local-copy", type=str, default=None,
+                        help="Optional folder path. After the deck is written to M:, also copy "
+                             "it here so the operator gets a fast local copy without downloading "
+                             "from the shared drive.")
     args = parser.parse_args()
 
     # Resolve fuzzy CSM name early so logs and paths all use the same name
@@ -310,9 +329,14 @@ def main():
         except Exception:
             pass
 
+    _product_header = {
+        "ars": "ARS ANALYSIS + POWERPOINT GENERATION",
+        "txn": "TXN ANALYSIS + POWERPOINT GENERATION",
+        "combined": "ARS + TXN ANALYSIS + POWERPOINT GENERATION",
+    }.get(args.product, "ANALYSIS + POWERPOINT GENERATION")
     print()
     print("=" * 70)
-    print("  STEP 2: ARS ANALYSIS + POWERPOINT GENERATION")
+    print(f"  STEP 2: {_product_header}")
     print("=" * 70)
     print(f"  Client:    {client_id} - {client_name}")
     print(f"  CSM:       {csm_name or 'unknown'}")
@@ -363,6 +387,7 @@ def main():
 
     # Run the pipeline based on --product flag
     product = args.product
+    ctx.product = product  # so deck_builder names the PPTX correctly (was misdetecting as 'ars')
 
     if product == "txn":
         from runner import run_txn
@@ -400,10 +425,14 @@ def main():
             pptx_files = []
         for pf in pptx_files:
             dest = pptx_dir / pf.name
+            final_pptx = None  # path of the deck after server-side delivery
+            moved = False
             for _attempt in range(3):
                 try:
                     shutil.copy2(pf, dest)
                     pf.unlink()
+                    moved = True
+                    final_pptx = dest
                     break
                 except PermissionError:
                     if _attempt < 2:
@@ -411,10 +440,35 @@ def main():
                         print(f"    File locked, retrying in 2s... ({pf.name})")
                         time.sleep(2)
                         gc.collect()
-                    else:
-                        print(f"    WARNING: Could not move {pf.name} (file locked)")
-                        print(f"    PPTX remains at: {pf}")
-                        print(f"    Copy it manually to: {dest}")
+
+            if not moved:
+                # Destination is locked (deck open in PowerPoint). Write a
+                # versioned filename so the new run still gets delivered.
+                versioned_dest = _versioned_path(dest)
+                try:
+                    shutil.copy2(pf, versioned_dest)
+                    pf.unlink()
+                    final_pptx = versioned_dest
+                    print(f"    Original deck is open -- saved new copy as: {versioned_dest.name}")
+                    print(f"    Location: {versioned_dest}")
+                except (PermissionError, OSError) as _e:
+                    print(f"    WARNING: Could not move {pf.name} ({_e})")
+                    print(f"    PPTX remains at: {pf}")
+                    print(f"    Copy it manually to: {dest}")
+                    final_pptx = pf
+
+            # Optional local copy -- gives the operator a fast local deck
+            # without having to download a large file from the shared M: drive.
+            if final_pptx and args.local_copy:
+                local_dir = Path(os.path.expandvars(os.path.expanduser(args.local_copy)))
+                try:
+                    local_dir.mkdir(parents=True, exist_ok=True)
+                    local_target = local_dir / final_pptx.name
+                    shutil.copy2(final_pptx, local_target)
+                    print(f"    Local copy saved to: {local_target}")
+                except (PermissionError, OSError, FileNotFoundError) as _le:
+                    print(f"    WARNING: Could not save local copy to {local_dir} ({_le})")
+                    print(f"    Server copy is at: {final_pptx}")
 
         _total_elapsed = _time_mod.time() - _run_start
         _total_mins = int(_total_elapsed // 60)
