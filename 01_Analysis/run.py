@@ -142,6 +142,10 @@ def main():
     parser.add_argument("--product", type=str, default="ars",
                         choices=["ars", "txn", "combined"],
                         help="Analysis product: ars (default), txn (transaction only), combined (both)")
+    parser.add_argument("--local-copy", type=str, default=None,
+                        help="Optional folder path. After the deck is written to M:, also copy "
+                             "it here so the operator gets a fast local copy without downloading "
+                             "from the shared drive.")
     args = parser.parse_args()
 
     # Resolve fuzzy CSM name early so logs and paths all use the same name
@@ -389,12 +393,14 @@ def main():
             pptx_files = []
         for pf in pptx_files:
             dest = pptx_dir / pf.name
+            final_pptx = None  # path of the deck after server-side delivery
             moved = False
             for _attempt in range(3):
                 try:
                     shutil.copy2(pf, dest)
                     pf.unlink()
                     moved = True
+                    final_pptx = dest
                     break
                 except PermissionError:
                     if _attempt < 2:
@@ -410,12 +416,27 @@ def main():
                 try:
                     shutil.copy2(pf, versioned_dest)
                     pf.unlink()
+                    final_pptx = versioned_dest
                     print(f"    Original deck is open -- saved new copy as: {versioned_dest.name}")
                     print(f"    Location: {versioned_dest}")
                 except (PermissionError, OSError) as _e:
                     print(f"    WARNING: Could not move {pf.name} ({_e})")
                     print(f"    PPTX remains at: {pf}")
                     print(f"    Copy it manually to: {dest}")
+                    final_pptx = pf
+
+            # Optional local copy -- gives the operator a fast local deck
+            # without having to download a large file from the shared M: drive.
+            if final_pptx and args.local_copy:
+                local_dir = Path(os.path.expandvars(os.path.expanduser(args.local_copy)))
+                try:
+                    local_dir.mkdir(parents=True, exist_ok=True)
+                    local_target = local_dir / final_pptx.name
+                    shutil.copy2(final_pptx, local_target)
+                    print(f"    Local copy saved to: {local_target}")
+                except (PermissionError, OSError, FileNotFoundError) as _le:
+                    print(f"    WARNING: Could not save local copy to {local_dir} ({_le})")
+                    print(f"    Server copy is at: {final_pptx}")
 
         _total_elapsed = _time_mod.time() - _run_start
         _total_mins = int(_total_elapsed // 60)

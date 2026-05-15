@@ -291,6 +291,14 @@ header {
 .done-warnings.error .done-warnings-detail { color: #8A1A1A; }
 .fail-row { display: grid; grid-template-columns: 90px 1fr; gap: 10px; padding: 4px 0; font-family: 'Space Mono', monospace; font-size: 12px; }
 .fail-row .fail-id { font-weight: 700; }
+
+/* Local copy option */
+.local-copy-row { margin-bottom: 24px; }
+.local-copy-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: var(--text); }
+.local-copy-toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.local-copy-input { margin-top: 10px; margin-left: 28px; }
+.local-copy-input input { font-family: 'Space Mono', monospace; font-size: 13px; }
+.local-copy-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .done-warnings {
     background: #FFF4E5; border: 1px solid #F5B461; border-radius: 8px;
     padding: 12px 16px; margin-bottom: 20px;
@@ -580,12 +588,24 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             <div class="card-meta">Choose an analysis product and click Generate. The pipeline will run all selected modules and produce a PowerPoint deck and Excel workbook.</div>
         </div>
 
-        <div class="run-bar" style="margin-top: 0; margin-bottom: 24px; border-radius: 8px;">
+        <div class="run-bar" style="margin-top: 0; margin-bottom: 12px; border-radius: 8px;">
             <div>
                 <div class="run-what" id="gRunWhat">Select a client and product</div>
                 <div class="run-meta" id="gRunMeta">--</div>
             </div>
             <button class="btn" id="genRunBtn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
+        </div>
+
+        <!-- Local copy option -->
+        <div class="local-copy-row">
+            <label class="local-copy-toggle">
+                <input type="checkbox" id="gLocalCopyCb" onchange="_toggleLocalCopy()" />
+                <span>Also save deck to a local folder (faster than downloading from the shared drive)</span>
+            </label>
+            <div class="local-copy-input" id="gLocalCopyWrap" style="display:none;">
+                <input type="text" id="gLocalCopyPath" class="sel" placeholder="e.g. C:\Users\you\Documents\Velocity Decks" />
+                <div class="local-copy-hint">The folder will be created if it doesn't exist. We'll save the PowerPoint here as soon as it's built.</div>
+            </div>
         </div>
 
         <div class="grid-4" style="margin-bottom: 0;">
@@ -1171,6 +1191,12 @@ const MODULE_THEME = {
     insights: 'Strategic insights',
 };
 
+function _toggleLocalCopy() {
+    const checked = document.getElementById('gLocalCopyCb').checked;
+    document.getElementById('gLocalCopyWrap').style.display = checked ? '' : 'none';
+    if (checked) document.getElementById('gLocalCopyPath').focus();
+}
+
 function _fmtElapsed(seconds) {
     if (seconds < 60) return `0:${String(Math.floor(seconds)).padStart(2, '0')}`;
     const m = Math.floor(seconds / 60);
@@ -1214,6 +1240,12 @@ function _parseVersionedDeck(line) {
     // "    Original deck is open -- saved new copy as: 1745_2026.05_ars_deck_v2.pptx"
     const m = line.match(/saved new copy as:\s*(\S+\.pptx)/i);
     return m ? m[1] : null;
+}
+
+function _parseLocalCopy(line) {
+    // "    Local copy saved to: C:\Users\...\1745_2026.05_ars_deck.pptx"
+    const m = line.match(/Local copy saved to:\s*(.+\.pptx)\s*$/i);
+    return m ? m[1].trim() : null;
 }
 
 function _resetRunView() {
@@ -1323,6 +1355,9 @@ function _renderCompletion(ctx) {
     if (ctx.versionedDeck) {
         warnParts.push(`<div class="done-warnings-title">Previous deck was open in PowerPoint</div><div class="done-warnings-detail">New copy saved as ${ctx.versionedDeck}</div>`);
     }
+    if (ctx.localCopyPath) {
+        warnParts.push(`<div class="done-warnings-title">✓ Local copy saved</div><div class="done-warnings-detail">${ctx.localCopyPath}</div>`);
+    }
     if (warnParts.length) {
         warn.innerHTML = warnParts.join('<hr style="border:none;border-top:1px solid #F5B461;margin:14px 0;">');
         if (status === 'error') warn.classList.add('error');
@@ -1387,8 +1422,22 @@ async function runGenReal() {
         document.getElementById('gElapsed').textContent = _fmtElapsed((Date.now() - runStart) / 1000);
     }, 500);
 
+    // Local-copy option
+    const localCopyOn = document.getElementById('gLocalCopyCb')?.checked;
+    const localCopyPath = localCopyOn ? (document.getElementById('gLocalCopyPath')?.value || '').trim() : '';
+    if (localCopyOn && !localCopyPath) {
+        alert('Please enter a local folder path, or uncheck "Also save deck to a local folder".');
+        runBtn.disabled = false;
+        runBtn.textContent = 'Format + Analyze + Build PPTX';
+        runBtn.style.opacity = '';
+        runBtn.style.cursor = '';
+        return;
+    }
+
     try {
-        const resp = await fetch(`/api/run?csm=${csm}&month=${month}&client_id=${clientId}&product=${curProd}`, {method: 'POST'});
+        const runUrl = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
+            + (localCopyPath ? `&local_copy_path=${encodeURIComponent(localCopyPath)}` : '');
+        const resp = await fetch(runUrl, {method: 'POST'});
         if (!resp.ok) {
             const errText = await resp.text();
             clearInterval(clockTimer);
@@ -1445,6 +1494,10 @@ async function runGenReal() {
                         // Versioned deck (file lock fallback)
                         const versioned = _parseVersionedDeck(line);
                         if (versioned) ctx.versionedDeck = versioned;
+
+                        // Local copy delivered
+                        const localCopy = _parseLocalCopy(line);
+                        if (localCopy) ctx.localCopyPath = localCopy;
 
                         // Run report breakdown: "Run report: 145/160 slides OK, 2 failed, 13 no chart"
                         const reportMatch = line.match(/Run report:\s*(\d+)\/(\d+)\s*slides OK,\s*(\d+)\s*failed,\s*(\d+)\s*no chart/i);

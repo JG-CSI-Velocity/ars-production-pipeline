@@ -12,6 +12,7 @@ Then open: http://localhost:8000
 
 import asyncio
 import json
+import os
 import re
 import subprocess
 import sys
@@ -532,8 +533,15 @@ async def start_run(
     month: str,
     client_id: str,
     product: str = "ars",
+    local_copy_path: str = "",
 ):
-    """Start a full pipeline run: format (if needed) + analysis + PPTX."""
+    """Start a full pipeline run: format (if needed) + analysis + PPTX.
+
+    Optional local_copy_path: when provided, the final PPTX deck is also
+    copied to this folder on the operator's machine so they don't have to
+    download a large file from the shared M: drive. Validated to be a
+    writable directory before the (long) run starts.
+    """
     run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
     formatting_run = ARS_BASE / "00_Formatting" / "run.py"
@@ -541,6 +549,21 @@ async def start_run(
 
     if not analysis_run.exists():
         raise HTTPException(status_code=500, detail=f"Analysis run.py not found at {analysis_run}")
+
+    # Validate local_copy_path up front so we fail fast, not after 20 min.
+    local_copy_resolved = ""
+    if local_copy_path.strip():
+        candidate = Path(os.path.expandvars(os.path.expanduser(local_copy_path.strip())))
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Local copy path is not writable: {candidate} ({exc})",
+            )
+        if not candidate.is_dir():
+            raise HTTPException(status_code=400, detail=f"Local copy path is not a directory: {candidate}")
+        local_copy_resolved = str(candidate)
 
     runs[run_id] = {
         "status": "running",
@@ -601,6 +624,8 @@ async def start_run(
             cmd = [sys.executable, "-u", str(analysis_run),
                    "--month", month, "--csm", csm, "--client", client_id,
                    "--product", product]
+            if local_copy_resolved:
+                cmd += ["--local-copy", local_copy_resolved]
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
