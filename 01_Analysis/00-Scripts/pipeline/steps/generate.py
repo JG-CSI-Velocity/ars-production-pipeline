@@ -142,6 +142,18 @@ def step_generate(ctx: PipelineContext) -> None:
     _build_aux_deck(ctx)
     logger.info("Deliverables generated for {client}", client=ctx.client.client_id)
 
+    # Post-run scorecard derived from the manifest. Optional: only runs if
+    # the manifest was set up. Failures here never break the pipeline.
+    _mf = getattr(ctx, "manifest", None)
+    if _mf is not None:
+        try:
+            from ars_analysis.pipeline.scorecard import write as _scorecard_write
+            _scorecard_path = ctx.paths.base_dir / "run_scorecard.md"
+            _scorecard_write(_mf, _scorecard_path)
+            logger.info("Run scorecard written: {p}", p=_scorecard_path)
+        except Exception as _exc:
+            logger.warning("scorecard write failed: {err}", err=_exc)
+
 
 def step_archive(ctx: PipelineContext) -> None:
     """Copy deliverables to archive location. Non-critical step."""

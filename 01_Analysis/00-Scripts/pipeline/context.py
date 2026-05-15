@@ -105,3 +105,7 @@ class PipelineContext:
     # Pipeline product label -- "ars", "txn", or "combined". Used by deck_builder to
     # name the output PPTX so a TXN run can't overwrite an ARS run.
     product: str = "ars"
+    # Structured run manifest (#121). Populated by runner.start_run() / SectionRecorder
+    # contexts in txn_wrapper. Typed as `object` to avoid a circular import; actual
+    # type is ars_analysis.pipeline.manifest.RunManifest | None.
+    manifest: object = None
