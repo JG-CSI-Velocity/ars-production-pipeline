@@ -1431,6 +1431,39 @@ function DoneState({ run, client }) {
   const { queueAnother, runAgain, setPage, now } = useApp();
   const duration = run.finishedAt - run.startedAt;
   const st = runState(run, now);
+
+  // Outputs: real backend listing in LIVE mode.
+  const [outputs, setOutputs] = React.useState(null);
+  React.useEffect(() => {
+    if (!window.LIVE) return;
+    const csm = run.csm || (MockData.csms[0]?.id) || '';
+    const month = new Date().toISOString().slice(0, 7).replace('-', '.');
+    window.api.getOutputs(csm, month, run.clientId).then(setOutputs).catch((e) => {
+      console.error('[velocity] getOutputs failed:', e);
+      setOutputs([]);
+    });
+  }, []);
+
+  // Group outputs by category for the download grid.
+  const downloads = React.useMemo(() => {
+    if (!window.LIVE) {
+      return [
+        { ext: 'PPTX', name: `${client.id}_${productName(run.product)}_2026.05.pptx`, size: '14.2 MB' },
+        { ext: 'XLSX', name: `${client.id}_data_2026.05.xlsx`, size: '3.8 MB' },
+        { ext: 'PDF',  name: `${client.id}_run_report_2026.05.pdf`, size: '412 KB' },
+      ];
+    }
+    if (!outputs) return [];
+    // Surface PPTX and XLSX/JSON files; skip per-chart PNGs (too noisy here).
+    return outputs
+      .filter((f) => f.type === 'pptx' || f.type === 'xlsx' || f.type === 'json')
+      .map((f) => ({ ext: f.type.toUpperCase(), name: f.name, size: `${f.size_mb} MB`, href: window.api.downloadUrl(f.path) }));
+  }, [outputs]);
+
+  // Slide count derived from manifest if available; otherwise unknown.
+  const slideCount = window.LIVE ? '—' : '78';
+  const sheetCount = window.LIVE ? (outputs?.filter((f) => f.type === 'xlsx').length ?? '—') : '6';
+
   return (
     <Page>
       <Card padding={0} style={{ overflow: 'hidden', marginBottom: 16 }}>
@@ -1448,17 +1481,21 @@ function DoneState({ run, client }) {
         </div>
         <div style={{ padding: '24px 36px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 24 }}>
-            <DoneStat color={C.green}   label="Slides succeeded" value="78" icon="✓" />
+            <DoneStat color={C.green}   label="Slides succeeded" value={String(slideCount)} icon="✓" />
             <DoneStat color={C.amber}   label="No-chart slides"  value="0"  icon="⚠" />
             <DoneStat color={C.red}     label="Slides failed"    value="0"  icon="✗" />
-            <DoneStat color={C.text}    label="Excel sheets"     value="6" />
+            <DoneStat color={C.text}    label="Excel sheets"     value={String(sheetCount)} />
             <DoneStat color={C.text}    label="Total time"       value={fmtMmss(duration)} />
           </div>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Downloads</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-            <DownloadCard ext="PPTX" name={`${client.id}_${productName(run.product)}_2026.05.pptx`} size="14.2 MB" />
-            <DownloadCard ext="XLSX" name={`${client.id}_data_2026.05.xlsx`} size="3.8 MB" />
-            <DownloadCard ext="PDF"  name={`${client.id}_run_report_2026.05.pdf`} size="412 KB" />
+            {downloads.length === 0 && window.LIVE && outputs == null && (
+              <div style={{ gridColumn: '1 / -1', color: C.muted, fontSize: 12, padding: '12px 0' }}>Loading files…</div>
+            )}
+            {downloads.length === 0 && window.LIVE && outputs != null && (
+              <div style={{ gridColumn: '1 / -1', color: C.muted, fontSize: 12, padding: '12px 0' }}>No output files found yet.</div>
+            )}
+            {downloads.map((d, i) => <DownloadCard key={i} {...d} />)}
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <Btn onClick={queueAnother}>+ Run another report</Btn>
@@ -1492,9 +1529,12 @@ function DoneStat({ color, label, value, icon }) {
   );
 }
 
-function DownloadCard({ ext, name, size }) {
+function DownloadCard({ ext, name, size, href }) {
+  const Tag = href ? 'a' : 'div';
+  const linkProps = href ? { href, target: '_blank', rel: 'noopener noreferrer' } : {};
   return (
-    <div style={{ background: C.cardSoft, border: `1px solid ${C.border}`, borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'border-color .15s' }}
+    <Tag {...linkProps}
+      style={{ background: C.cardSoft, border: `1px solid ${C.border}`, borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'border-color .15s', textDecoration: 'none', color: 'inherit' }}
       onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.orange)}
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}>
       <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: C.orange, background: C.orangeSoft, padding: '6px 10px', borderRadius: 6 }}>{ext}</div>
@@ -1503,7 +1543,7 @@ function DownloadCard({ ext, name, size }) {
         <div style={{ fontFamily: MONO, fontSize: 10, color: C.muted, marginTop: 2 }}>{size}</div>
       </div>
       <span style={{ color: C.muted, display: 'flex' }}><Icon.download size={14} /></span>
-    </div>
+    </Tag>
   );
 }
 
