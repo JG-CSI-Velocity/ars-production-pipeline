@@ -302,6 +302,15 @@ function App() {
   return (
     <AppCtx.Provider value={ctx}>
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg }}>
+        {window.LIVE && (
+          <div style={{ background: C.orangeSoft, color: C.orangeDark, borderBottom: `1px solid ${C.orange}`, padding: '8px 16px', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <strong>Preview UI</strong> — wired to the real backend, but still being shaken out.
+              The legacy UI at <a href="/" style={{ color: C.orangeDark, fontWeight: 700 }}>/</a> is the production surface.
+            </div>
+            <a href="/" style={{ color: C.orangeDark, fontWeight: 700, fontSize: 11, textDecoration: 'underline' }}>Open legacy UI →</a>
+          </div>
+        )}
         <Header />
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           {page === 'dashboard'   && <Dashboard />}
