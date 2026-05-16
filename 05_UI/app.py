@@ -251,6 +251,23 @@ async def jsx_prototype_extras():
     return _serve_jsx("prototype-extras.jsx")
 
 
+def _serve_js(filename: str):
+    asset_path = Path(__file__).parent / filename
+    if not asset_path.exists():
+        return HTMLResponse("Not found", status_code=404)
+    return FileResponse(asset_path, media_type="application/javascript")
+
+
+@app.get("/api.js")
+async def js_api():
+    return _serve_js("api.js")
+
+
+@app.get("/adapters.js")
+async def js_adapters():
+    return _serve_js("adapters.js")
+
+
 @app.get("/api/csms")
 async def get_csms():
     """Return CSM names from ars_config.json (dynamic, not hardcoded)."""
