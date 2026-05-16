@@ -3,49 +3,1701 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Velocity — Working Prototype</title>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
-
+<title>Velocity | CSI</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; background: #f4f3f0; font-family: 'Montserrat', system-ui, sans-serif; color: #1A1A1A; }
-  button { font-family: inherit; }
-  input { font-family: inherit; }
-  @keyframes pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(241,93,34,0.6); }
-    50% { box-shadow: 0 0 0 6px rgba(241,93,34,0); }
-  }
-  @keyframes ringPulse {
-    0%, 100% { opacity: 0.4; }
-    50% { opacity: 0.8; }
-  }
-  @keyframes flash {
-    from { background: rgba(241,93,34,0.18); }
-    to { background: transparent; }
-  }
-  .flash-in { animation: flash 1.2s ease-out; }
-  summary::-webkit-details-marker { display: none; }
-  summary { list-style: none; }
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: #d4d0c8; border-radius: 6px; border: 2px solid #f4f3f0; }
-  ::-webkit-scrollbar-thumb:hover { background: #b7b1a8; }
-  ::-webkit-scrollbar-track { background: transparent; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+    --bg: #EFEFEF;
+    --card: #ffffff;
+    --border: #d6d6d6;
+    --text: #000000;
+    --muted: #9F9EA2;
+    --faint: #c8c8c8;
+    --accent: #F15D22;
+    --accent-light: #fef0e8;
+    --accent-dark: #d14e1a;
+    --gold: #FBAE40;
+    --green: #2e7d32;
+    --green-bg: #e8f5e9;
+    --red: #c0392b;
+    --red-bg: #fdecea;
+    --dark: #00274C;
+    --dark-muted: #9F9EA2;
+}
+body { font-family: 'Montserrat', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ─── HEADER ─── */
+header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 40px; background: var(--dark); color: var(--bg);
+    position: sticky; top: 0; z-index: 100;
+}
+.h-brand { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 26px; font-style: normal; }
+.h-nav { display: flex; gap: 0; list-style: none; }
+.h-nav li {
+    padding: 8px 20px; font-size: 14px; font-weight: 500; color: #a39e98;
+    cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+}
+.h-nav li:hover { color: var(--bg); }
+.h-nav li.on { color: var(--bg); border-bottom-color: var(--accent); }
+.h-user { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--dark-muted); }
+
+/* ─── PAGES ─── */
+.page { display: none; padding: 32px 40px; }
+.page.active { display: block; }
+.page-title {
+    font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 40px;
+    font-weight: 400; font-style: normal; margin-bottom: 4px;
+}
+.page-sub { font-size: 15px; color: var(--muted); margin-bottom: 28px; }
+
+/* ─── SHARED COMPONENTS ─── */
+.card {
+    background: var(--card); border: 2px solid var(--border);
+    border-radius: 12px; padding: 24px; margin-bottom: 20px;
+}
+.card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+}
+.card-title { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 20px; font-style: normal; }
+.card-meta { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+.label {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px;
+}
+.sel {
+    width: 100%; padding: 10px 14px; background: var(--bg); border: 2px solid var(--border);
+    border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px;
+    color: var(--text); appearance: none; cursor: pointer;
+}
+.sel:focus { outline: none; border-color: var(--accent); }
+.badge {
+    font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+    padding: 3px 10px; border-radius: 6px; display: inline-block;
+}
+.badge-green { color: var(--green); background: var(--green-bg); }
+.badge-red { color: var(--red); background: var(--red-bg); }
+.badge-accent { color: var(--accent); background: var(--accent-light); }
+.btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 12px 32px; font-family: 'Montserrat', sans-serif; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: background 0.2s;
+}
+.btn:hover { background: var(--accent-dark); }
+.btn-dark { background: var(--dark); }
+.btn-dark:hover { background: #444; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.mono { font-family: 'Space Mono', monospace; }
+
+/* ─── DASHBOARD PAGE ─── */
+.kpi-card { text-align: center; }
+.kpi-val { font-family: 'Space Mono', monospace; font-size: 32px; font-weight: 700; }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+.kpi-delta { font-size: 12px; margin-top: 4px; }
+.kpi-up { color: var(--green); }
+.kpi-down { color: var(--red); }
+
+.chart-container { position: relative; height: 280px; margin-top: 8px; }
+
+.recent-table { width: 100%; border-collapse: collapse; }
+.recent-table th {
+    text-align: left; font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; padding: 8px 12px;
+    border-bottom: 2px solid var(--border);
+}
+.recent-table td {
+    padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px;
+}
+.recent-table tr:hover td { background: var(--bg); }
+
+/* ─── GENERATE PAGE ─── */
+.config-row { display: flex; gap: 14px; margin-bottom: 24px; }
+.config-field { flex: 1; }
+
+.client-banner {
+    background: var(--card); border: 2px solid var(--border); border-radius: 12px;
+    padding: 22px 28px; margin-bottom: 24px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.cb-name { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 24px; font-style: normal; }
+.cb-id { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.cb-stats { display: flex; gap: 32px; }
+.cb-val { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; }
+.cb-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+/* Config details */
+.config-detail {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin-bottom: 24px;
+}
+.cd-item { background: var(--bg); border-radius: 8px; padding: 12px 16px; }
+.cd-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.cd-value { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 500; }
+
+/* Products */
+.p-card {
+    background: var(--card); border: 2px solid var(--border); border-radius: 12px;
+    padding: 22px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+}
+.p-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: transparent; transition: 0.2s; }
+.p-card:hover { border-color: var(--accent); }
+.p-card.on { border-color: var(--accent); }
+.p-card.on::before { background: var(--accent); }
+.p-name { font-size: 14px; font-weight: 600; }
+.p-count { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 38px; font-style: normal; color: var(--accent); line-height: 1; margin: 6px 0 2px; }
+.p-card:not(.on) .p-count { color: var(--faint); }
+.p-unit { font-size: 12px; color: var(--muted); }
+.p-time { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--faint); margin-top: 4px; }
+
+/* Modules */
+.modules-panel { background: var(--card); border: 2px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+.modules-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; background: #f5f5f5; border-bottom: 1px solid var(--border);
+}
+.modules-body { padding: 20px 24px; }
+.m-group { margin-bottom: 16px; }
+.m-group:last-child { margin-bottom: 0; }
+.m-group-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.m-group-name { font-size: 13px; font-weight: 600; }
+.m-group-ct { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); }
+.m-group-desc { font-size: 12px; color: var(--muted); margin-bottom: 8px; line-height: 1.4; }
+.m-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.m-pill {
+    font-size: 12px; font-weight: 500; padding: 6px 14px;
+    border: 1.5px solid var(--border); border-radius: 100px;
+    color: var(--muted); cursor: pointer; transition: all 0.15s; background: transparent; user-select: none;
+}
+.m-pill:hover { border-color: var(--accent); color: var(--accent); }
+.m-pill.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Run bar */
+.run-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--dark); border-radius: 12px; padding: 20px 28px; color: var(--bg);
+}
+.run-what { font-size: 16px; font-weight: 600; }
+.run-meta { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--dark-muted); margin-top: 3px; }
+
+/* Progress */
+.prog-section { display: none; margin-top: 24px; }
+.prog-section.visible { display: block; }
+.prog-track { width: 100%; height: 6px; background: var(--border); border-radius: 3px; margin: 14px 0; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.5s; }
+.prog-log {
+    margin-top: 12px; max-height: 220px; overflow-y: auto;
+    font-family: 'Space Mono', monospace; font-size: 11px; color: var(--dark-muted);
+    line-height: 1.9; padding: 12px 16px; background: #f5f5f5; border-radius: 8px;
+}
+.prog-log .done { color: var(--green); }
+.prog-log .active { color: var(--accent); font-weight: 700; }
+
+/* Downloads */
+.dl-grid { display: none; gap: 14px; margin-top: 24px; grid-template-columns: repeat(3, 1fr); }
+.dl-grid.visible { display: grid; }
+.dl-card { text-align: center; cursor: pointer; transition: all 0.2s; }
+.dl-card:hover { border-color: var(--accent); }
+.dl-ext { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; color: var(--accent); background: var(--accent-light); padding: 5px 14px; border-radius: 6px; display: inline-block; margin-bottom: 10px; }
+.dl-name { font-size: 15px; font-weight: 600; }
+.dl-meta { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* ─── RESULTS PAGE ─── */
+.results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.result-card {
+    background: var(--card); border: 2px solid var(--border); border-radius: 10px;
+    overflow: hidden; cursor: pointer; transition: all 0.2s;
+}
+.result-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+.result-img { width: 100%; height: 180px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; }
+.result-info { padding: 14px 16px; }
+.result-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
+.result-module { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--accent); margin-top: 4px; }
+
+/* ─── RESULTS VIEWER ─── */
+.rsec-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; cursor: pointer; transition: all 0.15s;
+    border-left: 3px solid transparent; font-size: 13px; color: var(--dark-muted);
+}
+.rsec-item:hover { background: rgba(0,0,0,0.03); color: var(--text); }
+.rsec-item.active { border-left-color: var(--accent); color: var(--text); font-weight: 600; background: rgba(198,122,60,0.06); }
+.rsec-count { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--accent); margin-left: auto; }
+.rsec-divider { height: 1px; background: var(--border); margin: 8px 16px; }
+
+.rthumb {
+    width: 100px; height: 60px; border: 2px solid var(--border); border-radius: 6px;
+    overflow: hidden; cursor: pointer; flex-shrink: 0; transition: border-color 0.15s;
+    background: #f5f5f5; display: flex; align-items: center; justify-content: center;
+}
+.rthumb:hover { border-color: var(--accent); }
+.rthumb.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+.rthumb img { width: 100%; height: 100%; object-fit: cover; }
+.rthumb-label { font-size: 8px; color: var(--muted); text-align: center; padding: 2px; }
+
+/* Lightbox */
+.lightbox {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85); z-index: 1000; display: none;
+    align-items: center; justify-content: center; cursor: pointer;
+}
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+.lightbox-close {
+    position: absolute; top: 24px; right: 32px;
+    font-size: 28px; color: #fff; cursor: pointer; opacity: 0.7;
+}
+.lightbox-close:hover { opacity: 1; }
+.lightbox-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    font-size: 36px; color: #fff; cursor: pointer; opacity: 0.5;
+    padding: 16px; user-select: none;
+}
+.lightbox-nav:hover { opacity: 1; }
+.lightbox-prev { left: 16px; }
+.lightbox-next { right: 16px; }
+.lightbox-info {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.6); color: #fff; padding: 12px 24px;
+    border-radius: 8px; text-align: center; max-width: 600px;
+    font-family: 'Montserrat', sans-serif;
+}
+.lightbox-info-title { font-size: 15px; font-weight: 600; }
+.lightbox-info-module { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); margin-top: 4px; }
+
+/* ─── FOOTER ─── */
+footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint); border-top: 1px solid var(--border); margin-top: 40px; }
 </style>
 </head>
 <body>
 
-<div id="root"></div>
+<header>
+    <div class="h-brand">Velocity</div>
+    <ul class="h-nav">
+        <li class="on" onclick="showPage('dashboard')">Dashboard</li>
+        <li onclick="showPage('format')">Format</li>
+        <li onclick="showPage('generate')">Generate</li>
+        <li onclick="showPage('results')">Results</li>
+        <li onclick="showPage('history')">History</li>
+        <li onclick="showPage('schedules')">Schedules</li>
+    </ul>
+    <div class="h-user">james.gilmore</div>
+</header>
 
-<script src="shared.jsx" type="text/babel"></script>
-<script src="prototype-extras.jsx" type="text/babel"></script>
-<script src="prototype.jsx" type="text/babel"></script>
+<!-- ═══════════════ DASHBOARD ═══════════════ -->
+<div class="page active" id="page-dashboard">
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub">Pipeline overview. Data populates as reports are generated.</div>
 
+    <div class="grid-4" style="margin-bottom: 24px;">
+        <div class="card kpi-card">
+            <div class="kpi-val" id="kpiClients">--</div>
+            <div class="kpi-label">Active Clients</div>
+        </div>
+        <div class="card kpi-card">
+            <div class="kpi-val" id="kpiReports">--</div>
+            <div class="kpi-label">Reports Generated</div>
+        </div>
+        <div class="card kpi-card">
+            <div class="kpi-val" id="kpiAvgTime">--</div>
+            <div class="kpi-label">Avg Run Time</div>
+        </div>
+        <div class="card kpi-card">
+            <div class="kpi-val" id="kpiSuccess">--</div>
+            <div class="kpi-label">Success Rate</div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Reports by Product</div>
+                <div class="card-meta" id="dashPeriod"></div>
+            </div>
+            <div class="chart-container" id="chartProductsContainer" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;">Charts populate as reports are generated.</div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Reports by CSM</div>
+                <div class="card-meta"></div>
+            </div>
+            <div class="chart-container" id="chartAnalystsContainer" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;">Charts populate as reports are generated.</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Recent Runs</div>
+            <div class="card-meta">Last 10</div>
+        </div>
+        <table class="recent-table">
+            <thead><tr><th>Client</th><th>Product</th><th>CSM</th><th>Date</th><th>Duration</th><th>Status</th></tr></thead>
+            <tbody id="recentRunsBody">
+                <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">Run history will appear here after reports are generated.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══════════════ FORMAT ═══════════════ -->
+<div class="page" id="page-format">
+    <div class="page-title">Format ODD Files</div>
+    <div class="page-sub">Extract and format raw ODD files from the CSM data dump folder. This prepares the data for analysis.</div>
+
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <div class="card-title">Select What to Format</div>
+            <div class="card-meta">Choose your name, the period, and optionally a specific client. Leave client blank to format all.</div>
+        </div>
+        <div class="config-row" style="margin-bottom: 0;">
+            <div class="config-field"><div class="label">CSM</div>
+                <select class="sel" id="fCsmSel">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Period</div>
+                <select class="sel" id="fMonthSel">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Client ID (blank = all)</div>
+                <input class="sel" type="text" id="fClientId" placeholder="e.g. 1200 or leave blank for all">
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <div class="card-title">What This Does</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+            <div style="text-align:center;padding:16px;">
+                <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">1</div>
+                <div style="font-weight:600;margin-bottom:4px;">Extract</div>
+                <div style="font-size:13px;color:var(--muted);">Copies ZIP from your CSM data dump folder. Extracts the ODD CSV. Never modifies the original.</div>
+            </div>
+            <div style="text-align:center;padding:16px;">
+                <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">2</div>
+                <div style="font-weight:600;margin-bottom:4px;">Format</div>
+                <div style="font-size:13px;color:var(--muted);">Runs the 7-step formatting: totals, averages, swipe categories, ages, response grouping, segmentation.</div>
+            </div>
+            <div style="text-align:center;padding:16px;">
+                <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">3</div>
+                <div style="font-weight:600;margin-bottom:4px;">Save</div>
+                <div style="font-size:13px;color:var(--muted);">Writes the formatted Excel to 02-Data-Ready for Analysis, verified and ready for the Generate step.</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:12px;">
+        <button class="btn" onclick="runFormat()">Format ODD Files</button>
+        <button class="btn btn-dark" onclick="runFormat(true)">Force Re-Format (overwrite existing)</button>
+    </div>
+
+    <div class="prog-section card" id="fProg" style="margin-top:24px;">
+        <div class="card-header">
+            <div class="card-title">Formatting</div>
+            <div class="card-meta" id="fProgStatus">--</div>
+        </div>
+        <div class="prog-track"><div class="prog-fill" id="fProgBar" style="width:0%"></div></div>
+        <div class="prog-log" id="fProgLog"></div>
+    </div>
+</div>
+
+<!-- ═══════════════ GENERATE ═══════════════ -->
+<div class="page" id="page-generate">
+    <div class="page-title">Generate Reports</div>
+    <div class="page-sub">Create a presentation-ready PowerPoint deck for any client in three steps: select your client, choose an analysis product, and click Generate.</div>
+
+    <!-- Step 1: Who and What -->
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <div class="card-title">Step 1: Select Your Client</div>
+            <div class="card-meta">Choose your name, the reporting period, and the client you want to analyze.</div>
+        </div>
+        <div class="config-row" style="margin-bottom: 0;">
+            <div class="config-field"><div class="label">CSM</div>
+                <select class="sel" id="gCsmSel">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Period</div>
+                <select class="sel" id="gMonthSel">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Client</div>
+                <select class="sel" id="gClientSel" onchange="updateGenClientFromAPI()">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client info + config -->
+    <div class="client-banner">
+        <div>
+            <div class="cb-name" id="gCbName">Select a client above</div>
+            <div class="cb-id" id="gCbId"></div>
+        </div>
+        <div class="cb-stats">
+            <div><div class="cb-val" id="gCbAcct">--</div><div class="cb-label">Accounts</div></div>
+            <div><div class="cb-val" id="gCbLast">--</div><div class="cb-label">Last Run</div></div>
+        </div>
+        <div id="gFileStatus" style="display:flex;gap:6px;"></div>
+    </div>
+
+    <div class="config-detail" id="gConfigDetail">
+        <div class="cd-item"><div class="cd-label">IC Rate</div><div class="cd-value" id="cdIcRate">--</div></div>
+        <div class="cd-item"><div class="cd-label">NSF/OD Fee</div><div class="cd-value" id="cdNsfFee">--</div></div>
+        <div class="cd-item"><div class="cd-label">Eligible Stat Codes</div><div class="cd-value" id="cdStatCodes">--</div></div>
+        <div class="cd-item"><div class="cd-label">Eligible Product Codes</div><div class="cd-value" id="cdProdCodes">--</div></div>
+        <div class="cd-item"><div class="cd-label">Reg E Opt-In Code</div><div class="cd-value" id="cdRegeOptIn">--</div></div>
+        <div class="cd-item"><div class="cd-label">Eligible Mail Code</div><div class="cd-value" id="cdMailCode">--</div></div>
+        <div class="cd-item"><div class="cd-label">Branch Mapping</div><div class="cd-value" id="cdBranch">--</div></div>
+        <div class="cd-item"><div class="cd-label">Client ID</div><div class="cd-value" id="cdClientId">--</div></div>
+    </div>
+
+    <!-- Step 2: Generate -->
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <div class="card-title">Step 2: Generate Your Report</div>
+            <div class="card-meta">Choose an analysis product and click Generate. The pipeline will run all selected modules and produce a PowerPoint deck and Excel workbook.</div>
+        </div>
+
+        <div class="run-bar" style="margin-top: 0; margin-bottom: 24px; border-radius: 8px;">
+            <div>
+                <div class="run-what" id="gRunWhat">Select a client and product</div>
+                <div class="run-meta" id="gRunMeta">--</div>
+            </div>
+            <button class="btn" id="genRunBtn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
+        </div>
+
+        <div class="grid-4" style="margin-bottom: 0;">
+            <div class="p-card on" onclick="selectProd('ars')"><div class="p-name">ARS Full Suite</div><div class="p-count">22</div><div class="p-unit">modules</div><div class="p-time">~ 15-25 min</div></div>
+            <div class="p-card" onclick="selectProd('txn')"><div class="p-name">Transaction</div><div class="p-count">22</div><div class="p-unit">sections</div><div class="p-time">~ 20-35 min</div></div>
+            <div class="p-card" onclick="selectProd('combined')"><div class="p-name">Combined</div><div class="p-count">47</div><div class="p-unit">ARS + TXN</div><div class="p-time">~ 35-55 min</div></div>
+            <div class="p-card" onclick="selectProd('dep')"><div class="p-name">Deposits</div><div class="p-count">15</div><div class="p-unit">modules</div><div class="p-time">~ 10-20 min</div></div>
+        </div>
+    </div>
+
+    <!-- Module details (expandable) -->
+    <div class="modules-panel">
+        <div class="modules-head">
+            <div class="card-title" id="gModTitle">ARS Full Suite</div>
+            <div class="card-meta" id="gModCount">22 modules selected</div>
+        </div>
+        <div class="modules-body" id="gModBody"></div>
+    </div>
+
+    <!-- Progress (hidden until run starts) -->
+    <div class="prog-section card" id="gProg">
+        <div class="card-header">
+            <div class="card-title">Running Analysis</div>
+            <div class="card-meta" id="gProgStatus">0%</div>
+        </div>
+        <div class="prog-track"><div class="prog-fill" id="gProgBar" style="width:0%"></div></div>
+        <div class="prog-log" id="gProgLog"></div>
+    </div>
+
+    <!-- Step 3: Downloads (populated after run or from previous outputs) -->
+    <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+        <button class="btn btn-dark" onclick="checkPreviousOutputs()" style="font-size:12px;padding:8px 16px;">Check Previous Outputs</button>
+    </div>
+    <div class="dl-grid" id="gDl">
+    </div>
+</div>
+
+<!-- ═══════════════ RESULTS ═══════════════ -->
+<div class="page" id="page-results">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px;">
+        <div>
+            <div class="page-title">Results Gallery</div>
+            <div class="page-sub">Browse slides from completed analysis runs. Use arrow keys or click to navigate.</div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;">
+            <select class="sel" id="rClientSel" onchange="loadResults()" style="width:280px;">
+                <option value="">Select a client...</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="resultsViewer" style="display:none;">
+        <div style="display:grid;grid-template-columns:240px 1fr;gap:0;background:var(--card);border:2px solid var(--border);border-radius:12px;overflow:hidden;min-height:600px;">
+
+            <!-- Section nav (left) -->
+            <div id="resultsSidebar" style="background:#f5f5f5;border-right:1px solid var(--border);padding:16px 0;overflow-y:auto;max-height:700px;">
+                <div style="padding:0 16px 12px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px;">Sections</div>
+                <div id="resultsSections"></div>
+            </div>
+
+            <!-- Main slide view (center) -->
+            <div style="padding:24px;display:flex;flex-direction:column;">
+                <!-- Slide header -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <div>
+                        <div id="rSlideTitle" style="font-family:'Instrument Serif',serif;font-size:22px;font-style:italic;line-height:1.3;">Select a slide</div>
+                        <div id="rSlideModule" style="font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);margin-top:4px;"></div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <span id="rSlideCounter" style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);"></span>
+                        <button onclick="prevSlide()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 14px;cursor:pointer;font-size:16px;">&larr;</button>
+                        <button onclick="nextSlide()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 14px;cursor:pointer;font-size:16px;">&rarr;</button>
+                    </div>
+                </div>
+
+                <!-- Slide image -->
+                <div id="rSlideContainer" style="flex:1;background:#f5f5f5;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;min-height:450px;position:relative;overflow:hidden;cursor:pointer;" onclick="nextSlide()">
+                    <div id="rSlideEmpty" style="text-align:center;color:var(--muted);padding:48px;">
+                        <div style="font-size:48px;margin-bottom:16px;opacity:0.3;">&#9654;</div>
+                        <div style="font-size:16px;">Select a client above to view their analysis slides.</div>
+                        <div style="font-size:13px;margin-top:8px;">Charts will load from the most recent completed run.</div>
+                    </div>
+                    <img id="rSlideImg" style="max-width:100%;max-height:100%;object-fit:contain;display:none;" />
+                    <canvas id="rSlideCanvas" style="display:none;max-width:100%;"></canvas>
+                </div>
+
+                <!-- Slide strip (thumbnails) -->
+                <div id="rSlideStrip" style="display:flex;gap:8px;margin-top:16px;overflow-x:auto;padding:8px 0;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty state when no client selected -->
+    <div id="resultsEmpty" class="card" style="text-align:center;padding:64px 48px;">
+        <div style="font-size:48px;margin-bottom:16px;opacity:0.15;">&#128202;</div>
+        <div style="font-family:'Instrument Serif',serif;font-size:24px;font-style:italic;margin-bottom:8px;">No Results to Display</div>
+        <div style="color:var(--muted);font-size:14px;max-width:400px;margin:0 auto;">Select a client above to browse their analysis results. Charts and slides from the most recent run will appear here.</div>
+    </div>
+</div>
+
+<!-- ═══════════════ HISTORY ═══════════════ -->
+<div class="page" id="page-history">
+    <div class="page-title">Run History</div>
+    <div class="page-sub">All reports generated across all analysts.</div>
+
+    <div class="card">
+        <table class="recent-table">
+            <thead><tr><th>Client</th><th>Product</th><th>Modules</th><th>CSM</th><th>Date</th><th>Duration</th><th>Slides</th><th>Status</th></tr></thead>
+            <tbody id="historyBody">
+                <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">Run history will appear here after reports are generated.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══════════════ SCHEDULES ═══════════════ -->
+<div class="page" id="page-schedules">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px;">
+        <div>
+            <div class="page-title">Schedules</div>
+            <div class="page-sub">Set up recurring monthly report generation. Schedules run automatically on the specified day.</div>
+        </div>
+        <button class="btn" onclick="showAddSchedule()">+ New Schedule</button>
+    </div>
+
+    <!-- Add/Edit form (hidden by default) -->
+    <div class="card" id="scheduleForm" style="display:none;margin-bottom:24px;">
+        <div class="card-header">
+            <div class="card-title" id="schedFormTitle">New Schedule</div>
+            <button onclick="hideAddSchedule()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);">&times;</button>
+        </div>
+        <div class="config-row" style="margin-bottom:16px;">
+            <div class="config-field"><div class="label">CSM</div>
+                <select class="sel" id="schedCsm"><option value="">Loading...</option></select>
+            </div>
+            <div class="config-field"><div class="label">Client</div>
+                <select class="sel" id="schedClient"><option value="">Loading...</option></select>
+            </div>
+            <div class="config-field"><div class="label">Product</div>
+                <select class="sel" id="schedProduct">
+                    <option value="ars">ARS Full Suite</option>
+                    <option value="txn">Transaction</option>
+                    <option value="combined">Combined (ARS + TXN)</option>
+                </select>
+            </div>
+        </div>
+        <div class="config-row" style="margin-bottom:16px;">
+            <div class="config-field"><div class="label">Run on Day of Month</div>
+                <select class="sel" id="schedDay">
+                    <option value="1">1st</option><option value="5">5th</option>
+                    <option value="10">10th</option><option value="15">15th</option>
+                    <option value="20">20th</option><option value="25">25th</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Include Extras</div>
+                <select class="sel" id="schedExtras">
+                    <option value="none">None</option>
+                    <option value="trans">Transaction files</option>
+                    <option value="all">All (trans + deferred + workbook)</option>
+                </select>
+            </div>
+            <div class="config-field" style="display:flex;align-items:flex-end;">
+                <button class="btn" onclick="saveSchedule()" style="width:100%;">Save Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedules table -->
+    <div class="card">
+        <table class="recent-table">
+            <thead><tr><th>Client</th><th>CSM</th><th>Product</th><th>Day</th><th>Extras</th><th>Last Run</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="schedulesBody">
+                <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">No schedules configured. Click "+ New Schedule" to add one.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Lightbox overlay -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+    <div class="lightbox-close" onclick="closeLightbox()">&times;</div>
+    <div class="lightbox-nav lightbox-prev" onclick="event.stopPropagation();prevSlide();">&larr;</div>
+    <div class="lightbox-nav lightbox-next" onclick="event.stopPropagation();nextSlide();">&rarr;</div>
+    <img id="lightboxImg" />
+    <div class="lightbox-info">
+        <div class="lightbox-info-title" id="lightboxTitle"></div>
+        <div class="lightbox-info-module" id="lightboxModule"></div>
+    </div>
+</div>
+
+<footer>Computer Services, Inc. &middot; Velocity Report Pipeline &middot; 2026</footer>
+
+<script>
+// ─── NAV ───
+function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.querySelectorAll('.h-nav li').forEach(li => li.classList.remove('on'));
+    event.target.classList.add('on');
+}
+
+// ─── DASHBOARD CHARTS ───
+const accent = '#F15D22';
+const green = '#2e7d32';
+const muted = '#c8c3bc';
+
+// Dashboard charts will be populated from API data when available
+
+// ─── GENERATE PAGE ───
+const prodData = {
+    ars: { name:'ARS Full Suite', count:22, time:'15-25 min', groups: [
+        { name:'Overview', count:3, desc:'Foundation: eligibility, stat codes, product codes.', mods:['Stat Codes','Product Codes','Eligibility'] },
+        { name:'Debit Card Throughput', count:5, desc:'Card usage penetration, trends, branches, funnel, overlays.', mods:['Penetration','Trends','Branches','Funnel','Overlays'] },
+        { name:'Reg E / Overdraft', count:3, desc:'Overdraft opt-in rates by branch and demographics.', mods:['Opt-in Status','Branch Rates','Dimensions'] },
+        { name:'Attrition', count:3, desc:'Account closures: who, how many, and revenue impact.', mods:['Closure Rates','Demographics','Revenue Impact'] },
+        { name:'Mailer Campaign', count:5, desc:'Program effectiveness: response, lift, cohort, reach.', mods:['Response','Impact','Cohort Lift','Reach','Insights'] },
+        { name:'Value & Insights', count:3, desc:'Revenue attribution, findings synthesis, recommendations.', mods:['Revenue','Synthesis','Recommendations'] },
+    ]},
+    txn: { name:'Transaction Analysis', count:35, time:'25-40 min', groups: [
+        { name:'Portfolio', count:5, desc:'Big picture: KPIs, engagement, demographics, seasonal.', mods:['KPIs','Engagement','Demographics','Seasonal','Monthly'] },
+        { name:'Merchant', count:8, desc:'Where members spend: top merchants, MCC, business vs personal.', mods:['Top Merchants','Concentration','MCC','Business','Personal','Trends','By Age','Lifecycle'] },
+        { name:'Competition', count:6, desc:'Competitors capturing member spend, wallet share, threats.', mods:['Detection','Wallet Share','Threat Quadrant','Categories','FI Transactions','Leakage'] },
+        { name:'Operations', count:8, desc:'Branch, PIN/SIG, product, interchange, payroll.', mods:['Branch Rank','Branch Spend','PIN vs SIG','Channels','Products','IC Revenue','IC Opportunity','Payroll'] },
+        { name:'Risk', count:5, desc:'Attrition, balance, retention, early warning.', mods:['Attrition','Balance','PFI Score','Retention','Early Warning'] },
+        { name:'Executive', count:3, desc:'Scorecard, priorities, action roadmap.', mods:['Scorecard','Priorities','Roadmap'] },
+    ]},
+    dep: { name:'Deposits', count:15, time:'10-20 min', groups: [
+        { name:'Baseline', count:4, desc:'Portfolio deposit metrics, tiers, segmentation.', mods:['Baseline','Tiers','Segmentation','Cross-check'] },
+        { name:'Campaign Impact', count:5, desc:'Did the mailer affect deposits? DID, segments, lift.', mods:['Response','Cohort DID','Segments','By Offer','By Segment'] },
+        { name:'Evidence', count:4, desc:'Distribution, trajectory, growth proof, NU conversion.', mods:['Distribution','Trajectory','Growth Proof','NU Conversion'] },
+        { name:'Presentation', count:2, desc:'Executive summary and presentation visuals.', mods:['Summary','Visuals'] },
+    ]},
+};
+
+let curProd = 'ars';
+let selMods = new Set();
+
+function selectProd(key) {
+    curProd = key;
+    document.querySelectorAll('.p-card').forEach((c,i) => {
+        c.classList.toggle('on', ['ars','txn','dep','custom'][i] === key);
+    });
+    renderModules();
+}
+
+function renderModules() {
+    const p = prodData[curProd];
+    if (!p) { document.getElementById('gModBody').innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-style:italic;">Select modules from any product.</div>'; return; }
+    selMods.clear();
+    document.getElementById('gModTitle').textContent = p.name;
+    const body = document.getElementById('gModBody');
+    body.innerHTML = '';
+    p.groups.forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'm-group';
+        div.innerHTML = `<div class="m-group-head"><span class="m-group-name">${g.name}</span><span class="m-group-ct">${g.count}</span></div><div class="m-group-desc">${g.desc}</div><div class="m-pills">${g.mods.map(m => { selMods.add(m); return `<div class="m-pill on" onclick="togMod(this,'${m}')">${m}</div>`; }).join('')}</div>`;
+        body.appendChild(div);
+    });
+    updRunBar();
+}
+
+function togMod(el, name) {
+    el.classList.toggle('on');
+    el.classList.contains('on') ? selMods.add(name) : selMods.delete(name);
+    updRunBar();
+}
+
+function updRunBar() {
+    const p = prodData[curProd] || { name:'Custom', time:'varies' };
+    const c = document.getElementById('gClientSel');
+    const cname = c.options[c.selectedIndex].text.split(' — ')[1];
+    document.getElementById('gModCount').textContent = selMods.size + ' modules selected';
+    document.getElementById('gRunWhat').textContent = `${p.name} for ${cname}`;
+    document.getElementById('gRunMeta').textContent = `${selMods.size} modules // est. ${p.time}`;
+}
+
+function updateGenClient() { updRunBar(); }
+
+function runGen() {
+    const prog = document.getElementById('gProg');
+    prog.classList.add('visible');
+    document.getElementById('gDl').classList.remove('visible');
+    const log = document.getElementById('gProgLog');
+    const bar = document.getElementById('gProgBar');
+    const st = document.getElementById('gProgStatus');
+    log.innerHTML = '';
+    const steps = ['Loading ODD file','Validating columns','Creating subsets','Overview: Stat codes','Overview: Product codes','Overview: Eligibility','DCTR: Penetration','DCTR: Trends','DCTR: Branches','DCTR: Funnel','DCTR: Overlays','Reg E: Status','Reg E: Branches','Reg E: Dimensions','Attrition: Rates','Attrition: Demographics','Attrition: Impact','Mailer: Response','Mailer: Impact','Mailer: Cohort','Mailer: Reach','Mailer: Insights','Value: Revenue','Insights: Synthesis','Insights: Recommendations','Excel workbook','PowerPoint deck','Saving outputs'];
+    let i = 0;
+    function next() {
+        if (i > 0) { const prev = log.lastElementChild; if (prev) { prev.className = 'done'; prev.textContent = '\u2713 ' + prev.textContent.replace('\u25B8 ',''); } }
+        if (i >= steps.length) { st.textContent = 'Complete'; bar.style.width = '100%'; document.getElementById('gDl').classList.add('visible'); return; }
+        const pct = Math.round(i/steps.length*100);
+        bar.style.width = pct+'%'; st.textContent = pct+'%';
+        const line = document.createElement('div'); line.className = 'active'; line.textContent = '\u25B8 ' + steps[i]; log.appendChild(line); log.scrollTop = log.scrollHeight;
+        i++; setTimeout(next, 250 + Math.random()*350);
+    }
+    next();
+}
+
+selectProd('ars');
+
+// ─── API INTEGRATION ───
+// Load real client data from the backend when available
+
+async function loadClients() {
+    try {
+        const resp = await fetch('/api/clients');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const sel = document.getElementById('gClientSel');
+        if (!sel || data.length === 0) return;
+        sel.innerHTML = '';
+        data.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `${c.id} — ${c.name}`;
+            opt.dataset.config = JSON.stringify(c.config);
+            opt.dataset.name = c.name;
+            sel.appendChild(opt);
+        });
+        updateGenClientFromAPI();
+        // Also populate results client selector
+        const rSel = document.getElementById('rClientSel');
+        if (rSel) {
+            rSel.innerHTML = '<option value="">Select a client...</option>';
+            data.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.id} — ${c.name}`;
+                rSel.appendChild(opt);
+            });
+        }
+    } catch(e) {
+        console.log('API not available, using defaults');
+    }
+}
+
+async function loadCSMs() {
+    // Populate BOTH Format and Generate CSM dropdowns from API
+    const selectors = ['gCsmSel', 'fCsmSel'];
+    try {
+        const resp = await fetch('/api/csms');
+        if (!resp.ok) throw '';
+        const data = await resp.json();
+        if (data.length > 0) {
+            selectors.forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                sel.innerHTML = '';
+                data.forEach(name => {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name;
+                    sel.appendChild(opt);
+                });
+            });
+        }
+    } catch(e) {
+        // If API fails, show error in dropdowns
+        selectors.forEach(id => {
+            const sel = document.getElementById(id);
+            if (sel) sel.innerHTML = '<option value="">API unavailable</option>';
+        });
+    }
+}
+
+async function loadMonths() {
+    const now = new Date();
+    const curMonth = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}`;
+
+    // Format page: scan raw CSM source folders (all available data dumps)
+    const fSel = document.getElementById('fMonthSel');
+    if (fSel) {
+        fSel.innerHTML = `<option value="${curMonth}">${curMonth}</option>`;
+        try {
+            const resp = await fetch('/api/months?source=raw');
+            if (!resp.ok) throw '';
+            const data = await resp.json();
+            if (data.length > 0) {
+                fSel.innerHTML = '';
+                data.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    fSel.appendChild(opt);
+                });
+            }
+        } catch(e) {}
+    }
+
+    // Generate page: scan all sources (raw + formatted)
+    const gSel = document.getElementById('gMonthSel');
+    if (gSel) {
+        gSel.innerHTML = `<option value="${curMonth}">${curMonth}</option>`;
+        try {
+            const resp = await fetch('/api/months?source=all');
+            if (!resp.ok) throw '';
+            const data = await resp.json();
+            if (data.length > 0) {
+                gSel.innerHTML = '';
+                data.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    gSel.appendChild(opt);
+                });
+            }
+        } catch(e) {}
+    }
+}
+
+function updateGenClientFromAPI() {
+    const sel = document.getElementById('gClientSel');
+    if (!sel || !sel.selectedOptions[0] || !sel.value) return;
+    const opt = sel.selectedOptions[0];
+    const name = opt.dataset.name || opt.textContent.split(' — ')[1] || '';
+
+    document.getElementById('gCbName').textContent = name || `Client ${sel.value}`;
+    document.getElementById('gCbId').textContent = `#${sel.value}`;
+    document.getElementById('cdClientId').textContent = sel.value;
+
+    // Try dataset first (populated by API), otherwise fetch directly
+    if (opt.dataset.config) {
+        _applyConfig(JSON.parse(opt.dataset.config));
+    } else {
+        // Fetch config from API for this specific client
+        fetch(`/api/clients`).then(r => r.json()).then(clients => {
+            const match = clients.find(c => c.id === sel.value);
+            if (match) {
+                document.getElementById('gCbName').textContent = match.name;
+                _applyConfig(match.config);
+            }
+        }).catch(() => {});
+    }
+
+    // Check file availability
+    const csm = document.getElementById('gCsmSel')?.value || '';
+    const month = document.getElementById('gMonthSel')?.value || '';
+    if (csm && month && sel.value) {
+        fetch(`/api/files/${csm}/${month}/${sel.value}`).then(r => r.json()).then(files => {
+            const status = document.getElementById('gFileStatus');
+            if (!status) return;
+            status.innerHTML = '';
+            if (files.odd?.status === 'ready') {
+                status.innerHTML += '<span class="badge badge-green">ODD READY</span>';
+            } else {
+                status.innerHTML += '<span class="badge badge-red">ODD MISSING</span>';
+            }
+        }).catch(() => {});
+    }
+
+    updRunBar();
+}
+
+function _applyConfig(cfg) {
+    if (!cfg) return;
+    document.getElementById('cdIcRate').textContent = cfg.ic_rate ? (parseFloat(cfg.ic_rate) * 100).toFixed(2) + '%' : '--';
+    document.getElementById('cdNsfFee').textContent = cfg.nsf_od_fee ? '$' + cfg.nsf_od_fee : '--';
+    document.getElementById('cdStatCodes').textContent =
+        cfg.stat_codes && cfg.stat_codes.length ? cfg.stat_codes.join(', ') : '--';
+    document.getElementById('cdProdCodes').textContent =
+        cfg.prod_codes && cfg.prod_codes.length ? cfg.prod_codes.join(', ') : '--';
+    document.getElementById('cdRegeOptIn').textContent =
+        cfg.reg_e_opt_in && cfg.reg_e_opt_in.length ? cfg.reg_e_opt_in.join(', ') : '--';
+    document.getElementById('cdMailCode').textContent = cfg.eligible_mail || '--';
+    if (cfg.branch_mapping) {
+        const count = typeof cfg.branch_mapping === 'object' ? Object.keys(cfg.branch_mapping).length : 0;
+        document.getElementById('cdBranch').textContent = count > 0 ? count + ' branches' : '--';
+    }
+}
+
+async function loadRecent() {
+    try {
+        const resp = await fetch('/api/recent');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        // Could populate the recent runs table here
+        console.log('Recent runs:', data.length);
+    } catch(e) {}
+}
+
+// Real pipeline run via API
+async function runGenReal() {
+    const clientId = document.getElementById('gClientSel').value;
+    const csm = document.getElementById('gCsmSel').value;
+    const month = document.getElementById('gMonthSel').value;
+
+    if (!csm || !month || !clientId) {
+        alert('Please select a CSM, period, and client first.');
+        return;
+    }
+
+    // Disable button immediately -- prevent duplicate clicks
+    const runBtn = document.getElementById('genRunBtn');
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running...';
+    runBtn.style.opacity = '0.6';
+    runBtn.style.cursor = 'not-allowed';
+
+    // Show progress immediately
+    const prog = document.getElementById('gProg');
+    prog.classList.add('visible');
+    document.getElementById('gDl').classList.remove('visible');
+    const log = document.getElementById('gProgLog');
+    const bar = document.getElementById('gProgBar');
+    const st = document.getElementById('gProgStatus');
+    log.innerHTML = '';
+    bar.style.width = '5%';
+    bar.style.background = '';
+    st.textContent = 'Starting...';
+
+    const startLine = document.createElement('div');
+    startLine.className = 'done';
+    startLine.textContent = `Generating ${curProd.toUpperCase()} report for client ${clientId} (${csm} / ${month})...`;
+    log.appendChild(startLine);
+
+    // Start the run
+    try {
+        const resp = await fetch(`/api/run?csm=${csm}&month=${month}&client_id=${clientId}&product=${curProd}`, {method: 'POST'});
+        if (!resp.ok) {
+            const errText = await resp.text();
+            st.textContent = 'Failed to start';
+            const errLine = document.createElement('div');
+            errLine.style.color = '#EB2A2E';
+            errLine.textContent = 'ERROR: ' + (errText || resp.statusText);
+            log.appendChild(errLine);
+            return;
+        }
+        const {run_id} = await resp.json();
+        st.textContent = 'Running...';
+        bar.style.width = '10%';
+
+        // Poll for progress
+        const pollInterval = setInterval(async () => {
+            try {
+                const statusResp = await fetch(`/api/run/${run_id}`);
+                if (!statusResp.ok) return;
+                const run = await statusResp.json();
+
+                // Show new log lines
+                const currentCount = log.children.length - 1;
+                if (run.log && run.log.length > currentCount) {
+                    for (let i = currentCount; i < run.log.length; i++) {
+                        const line = document.createElement('div');
+                        line.className = 'done';
+                        line.textContent = run.log[i];
+                        log.appendChild(line);
+                    }
+                    log.scrollTop = log.scrollHeight;
+                }
+
+                bar.style.width = run.progress + '%';
+                st.textContent = run.current_step || 'Running...';
+
+                if (run.status === 'complete' || run.status === 'error') {
+                    clearInterval(pollInterval);
+                    bar.style.width = '100%';
+                    // Re-enable the run button
+                    runBtn.disabled = false;
+                    runBtn.textContent = 'Format + Analyze + Build PPTX';
+                    runBtn.style.opacity = '';
+                    runBtn.style.cursor = '';
+                    if (run.status === 'complete') {
+                        st.textContent = 'Complete';
+                        bar.style.background = 'var(--accent)';
+                        loadDownloads(csm, month, clientId);
+                        loadResultsAfterRun(csm, month, clientId);
+                        loadDashboardData();
+                    } else {
+                        st.textContent = 'Error -- check log below';
+                        bar.style.background = '#EB2A2E';
+                    }
+                }
+            } catch(pollErr) {
+                // Network blip, keep polling
+            }
+        }, 1000);
+    } catch(e) {
+        st.textContent = 'Could not connect to API';
+        const errLine = document.createElement('div');
+        errLine.style.color = '#EB2A2E';
+        errLine.textContent = 'ERROR: ' + e.message;
+        log.appendChild(errLine);
+        // Re-enable the run button on error
+        runBtn.disabled = false;
+        runBtn.textContent = 'Format + Analyze + Build PPTX';
+        runBtn.style.opacity = '';
+        runBtn.style.cursor = '';
+    }
+}
+
+// ─── REAL DATA LOADERS ───
+
+async function loadDownloads(csm, month, clientId) {
+    try {
+        const resp = await fetch(`/api/outputs/${csm}/${month}/${clientId}`);
+        if (!resp.ok) return;
+        const files = await resp.json();
+        const dlGrid = document.getElementById('gDl');
+        dlGrid.innerHTML = '';
+
+        if (files.length === 0) {
+            dlGrid.innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;padding:24px;color:var(--muted);">No output files found.</div>';
+            dlGrid.classList.add('visible');
+            return;
+        }
+
+        files.forEach(f => {
+            const card = document.createElement('div');
+            card.className = 'card dl-card';
+            const btnClass = f.type === 'pptx' ? 'btn' : 'btn btn-dark';
+            card.innerHTML = `
+                <div class="dl-ext">.${f.type}</div>
+                <div class="dl-name">${f.name}</div>
+                <div class="dl-meta">${f.size_mb} MB</div>
+                <a href="/api/download?path=${encodeURIComponent(f.path)}" download="${f.name}" style="text-decoration:none;">
+                    <button class="${btnClass}" style="margin-top:12px;width:100%;">Download</button>
+                </a>
+            `;
+            dlGrid.appendChild(card);
+        });
+        dlGrid.classList.add('visible');
+    } catch(e) {
+        console.error('Failed to load downloads:', e);
+    }
+}
+
+async function loadResultsAfterRun(csm, month, clientId) {
+    // Switch to results page and load charts
+    const rSel = document.getElementById('rClientSel');
+    if (rSel) {
+        rSel.value = clientId;
+        loadResults();
+    }
+}
+
+async function loadDashboardData() {
+    try {
+        // Load stats
+        const statsResp = await fetch('/api/stats');
+        if (statsResp.ok) {
+            const stats = await statsResp.json();
+            document.getElementById('kpiClients').textContent = stats.total_clients;
+            document.getElementById('kpiReports').textContent = stats.reports_generated;
+            document.getElementById('kpiAvgTime').textContent = stats.avg_time || '--';
+            document.getElementById('kpiSuccess').textContent = stats.success_rate || '--';
+
+            // Build CSM chart if data exists
+            if (stats.csm_counts && Object.keys(stats.csm_counts).length > 0) {
+                const container = document.getElementById('chartAnalystsContainer');
+                container.innerHTML = '<canvas id="chartAnalysts"></canvas>';
+                new Chart(document.getElementById('chartAnalysts'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(stats.csm_counts),
+                        datasets: [{
+                            label: 'Reports',
+                            data: Object.values(stats.csm_counts),
+                            backgroundColor: accent,
+                            borderRadius: 6,
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    }
+                });
+            }
+        }
+
+        // Load recent runs
+        const resp = await fetch('/api/recent');
+        if (!resp.ok) return;
+        const runs = await resp.json();
+
+        // Update recent runs table (dashboard)
+        const tbody = document.getElementById('recentRunsBody');
+        if (tbody && runs.length > 0) {
+            tbody.innerHTML = '';
+            runs.forEach(r => {
+                const statusBadge = r.status === 'complete'
+                    ? '<span class="badge badge-green">Complete</span>'
+                    : '<span class="badge badge-accent">Warning</span>';
+                const name = r.client_name ? ` - ${r.client_name}` : '';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${r.client_id}</strong>${name}</td>
+                    <td>ARS</td>
+                    <td>${r.csm}</td>
+                    <td>${r.month}</td>
+                    <td class="mono">${r.duration || '--'}</td>
+                    <td>${statusBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Update history table
+        const hbody = document.getElementById('historyBody');
+        if (hbody && runs.length > 0) {
+            hbody.innerHTML = '';
+            runs.forEach(r => {
+                const statusBadge = r.status === 'complete'
+                    ? '<span class="badge badge-green">Complete</span>'
+                    : '<span class="badge badge-accent">Warning</span>';
+                const name = r.client_name ? ` - ${r.client_name}` : '';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${r.client_id}</strong>${name}</td>
+                    <td>ARS</td>
+                    <td class="mono">${r.slides || '--'}</td>
+                    <td>${r.csm}</td>
+                    <td>${r.month}</td>
+                    <td class="mono">${r.duration || '--'}</td>
+                    <td class="mono">${r.slides || '--'}</td>
+                    <td>${statusBadge}</td>
+                `;
+                hbody.appendChild(tr);
+            });
+        }
+
+        // Populate Results tab client dropdown
+        loadResultsClients();
+
+    } catch(e) {
+        console.error('Dashboard data not available (API may not be running)');
+    }
+}
+
+async function loadResultsClients() {
+    try {
+        const resp = await fetch('/api/results/clients');
+        if (!resp.ok) return;
+        const clients = await resp.json();
+        const sel = document.getElementById('rClientSel');
+        if (!sel || clients.length === 0) return;
+        sel.innerHTML = '<option value="">Select a client...</option>';
+        clients.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.client_id;
+            opt.dataset.csm = c.csm;
+            opt.dataset.month = c.month;
+            opt.textContent = c.label;
+            sel.appendChild(opt);
+        });
+    } catch(e) {}
+}
+
+// Load dashboard data on page load
+loadDashboardData();
+
+async function runFormat(force = false) {
+    const csm = document.getElementById('fCsmSel').value;
+    const month = document.getElementById('fMonthSel').value;
+    const clientId = document.getElementById('fClientId').value.trim();
+
+    if (!csm || !month) {
+        alert('Please select a CSM and period first.');
+        return;
+    }
+
+    const prog = document.getElementById('fProg');
+    prog.classList.add('visible');
+    const log = document.getElementById('fProgLog');
+    const bar = document.getElementById('fProgBar');
+    const st = document.getElementById('fProgStatus');
+    log.innerHTML = '';
+    bar.style.width = '5%';
+    st.textContent = 'Starting...';
+
+    // Show what we're doing immediately
+    const startLine = document.createElement('div');
+    startLine.className = 'done';
+    startLine.textContent = `Formatting ${clientId || 'all clients'} for ${csm} / ${month}...`;
+    log.appendChild(startLine);
+
+    try {
+        const url = `/api/format?csm=${csm}&month=${month}&client_id=${clientId}&force=${force}`;
+        st.textContent = 'Connecting...';
+        const resp = await fetch(url, {method: 'POST'});
+        if (!resp.ok) {
+            const errText = await resp.text();
+            st.textContent = 'Failed to start';
+            const errLine = document.createElement('div');
+            errLine.style.color = '#EB2A2E';
+            errLine.textContent = 'ERROR: ' + (errText || resp.statusText);
+            log.appendChild(errLine);
+            return;
+        }
+        const {run_id} = await resp.json();
+        st.textContent = 'Running...';
+        bar.style.width = '10%';
+
+        // Poll for progress instead of SSE (more reliable on Windows)
+        const pollInterval = setInterval(async () => {
+            try {
+                const statusResp = await fetch(`/api/run/${run_id}`);
+                if (!statusResp.ok) return;
+                const run = await statusResp.json();
+
+                // Show new log lines
+                const currentCount = log.children.length - 1; // minus the start line
+                if (run.log && run.log.length > currentCount) {
+                    for (let i = currentCount; i < run.log.length; i++) {
+                        const line = document.createElement('div');
+                        line.className = 'done';
+                        line.textContent = run.log[i];
+                        log.appendChild(line);
+                    }
+                    log.scrollTop = log.scrollHeight;
+                }
+
+                // Update progress bar
+                bar.style.width = run.progress + '%';
+                st.textContent = run.current_step || 'Running...';
+
+                // Done?
+                if (run.status === 'complete' || run.status === 'error') {
+                    clearInterval(pollInterval);
+                    bar.style.width = '100%';
+                    if (run.status === 'complete') {
+                        st.textContent = 'Formatting Complete';
+                        bar.style.background = 'var(--accent)';
+                    } else {
+                        st.textContent = 'Error -- check log below';
+                        bar.style.background = '#EB2A2E';
+                    }
+                }
+            } catch(pollErr) {
+                // Network blip, keep polling
+            }
+        }, 1000);
+
+    } catch(e) {
+        st.textContent = 'Could not connect to API';
+        const errLine = document.createElement('div');
+        errLine.style.color = '#EB2A2E';
+        errLine.textContent = 'ERROR: ' + e.message;
+        log.appendChild(errLine);
+    }
+}
+
+async function checkPreviousOutputs() {
+    const csm = document.getElementById('gCsmSel')?.value || '';
+    const month = document.getElementById('gMonthSel')?.value || '';
+    const clientId = document.getElementById('gClientSel')?.value || '';
+    if (!csm || !month || !clientId) {
+        alert('Select a CSM, period, and client first.');
+        return;
+    }
+    await loadDownloads(csm, month, clientId);
+}
+
+// ─── RESULTS VIEWER ───
+
+// Demo slide data (replaced by API when connected)
+const demoSlides = [
+    { section: 'Overview', module: 'overview.stat_codes', title: 'Account status breakdown shows strong portfolio health', hasChart: true },
+    { section: 'Overview', module: 'overview.product_codes', title: 'Product distribution across eligible accounts', hasChart: true },
+    { section: 'Overview', module: 'overview.eligibility', title: 'Eligibility funnel from total to active accounts', hasChart: true },
+    { section: 'DCTR', module: 'dctr.penetration', title: 'Debit card penetration across eligible accounts', hasChart: true },
+    { section: 'DCTR', module: 'dctr.trends', title: 'Monthly card usage trends over the past 12 months', hasChart: true },
+    { section: 'DCTR', module: 'dctr.branches', title: 'Branch-level penetration comparison', hasChart: true },
+    { section: 'DCTR', module: 'dctr.funnel', title: 'Enrollment to activation conversion funnel', hasChart: true },
+    { section: 'DCTR', module: 'dctr.overlays', title: 'PIN vs signature transaction overlays', hasChart: true },
+    { section: 'Reg E', module: 'rege.status', title: 'Reg E opt-in status distribution', hasChart: true },
+    { section: 'Reg E', module: 'rege.branches', title: 'Reg E opt-in rates by branch', hasChart: true },
+    { section: 'Reg E', module: 'rege.dimensions', title: 'Reg E patterns by account age and product', hasChart: true },
+    { section: 'Attrition', module: 'attrition.rates', title: 'Account closure rates and monthly trend', hasChart: true },
+    { section: 'Attrition', module: 'attrition.dimensions', title: 'Who is closing accounts — by demographics', hasChart: true },
+    { section: 'Attrition', module: 'attrition.impact', title: 'Revenue impact of closed accounts', hasChart: true },
+    { section: 'Mailer', module: 'mailer.insights', title: 'Campaign overview — mailed, responded, rates', hasChart: true },
+    { section: 'Mailer', module: 'mailer.response', title: 'Response rates by challenge segment per wave', hasChart: true },
+    { section: 'Mailer', module: 'mailer.impact', title: 'Spend and swipe lift from campaign responders', hasChart: true },
+    { section: 'Mailer', module: 'mailer.cohort', title: 'Before vs after analysis by mail wave cohort', hasChart: true },
+    { section: 'Mailer', module: 'mailer.reach', title: 'Cumulative program penetration across waves', hasChart: true },
+    { section: 'Value', module: 'value.analysis', title: 'Interchange revenue attribution from program', hasChart: true },
+    { section: 'Insights', module: 'insights.synthesis', title: 'Key findings across all analysis modules', hasChart: false },
+    { section: 'Insights', module: 'insights.conclusions', title: 'Recommended actions and priorities', hasChart: false },
+];
+
+let currentSlides = [];
+let currentSlideIdx = 0;
+let currentResultSection = 'all';
+
+function loadResults() {
+    const sel = document.getElementById('rClientSel');
+    if (!sel.value) {
+        document.getElementById('resultsViewer').style.display = 'none';
+        document.getElementById('resultsEmpty').style.display = 'block';
+        return;
+    }
+    document.getElementById('resultsViewer').style.display = 'block';
+    document.getElementById('resultsEmpty').style.display = 'none';
+
+    // Clear and show loading state
+    currentSlides = [];
+    currentSlideIdx = 0;
+    currentResultSection = 'all';
+    document.getElementById('rSlideTitle').textContent = 'Loading charts...';
+    document.getElementById('rSlideModule').textContent = '';
+
+    // Load real charts from API
+    tryLoadRealResults(sel.value);
+}
+
+async function tryLoadRealResults(clientId) {
+    try {
+        const rSel = document.getElementById('rClientSel');
+        const selectedOpt = rSel?.selectedOptions[0];
+        const csm = selectedOpt?.dataset?.csm || document.getElementById('gCsmSel')?.value || '';
+        const month = selectedOpt?.dataset?.month || document.getElementById('gMonthSel')?.value || '';
+        const resp = await fetch(`/api/outputs/${csm}/${month}/${clientId}`);
+        if (!resp.ok) {
+            document.getElementById('rSlideTitle').textContent = 'No results found';
+            return;
+        }
+        const files = await resp.json();
+
+        // Charts become browsable slides
+        const charts = files.filter(f => f.type === 'png');
+        // Downloadable files (Excel, PPTX)
+        const downloads = files.filter(f => f.type === 'xlsx' || f.type === 'pptx');
+
+        if (charts.length > 0) {
+            currentSlides = charts.map(c => ({
+                section: c.name.split('_')[0] || c.category || 'Analysis',
+                module: c.name.replace('.png', ''),
+                title: c.name.replace('.png', '').replace(/_/g, ' '),
+                hasChart: true,
+                imgUrl: `/api/download?path=${encodeURIComponent(c.path)}`,
+            }));
+            renderResultsSidebar();
+            showSlide(0);
+        } else {
+            document.getElementById('rSlideTitle').textContent = 'No chart images found';
+            document.getElementById('rSlideModule').textContent = `${files.length} file(s) available for download`;
+        }
+
+        // Show download links for Excel/PPTX
+        if (downloads.length > 0) {
+            const dlGrid = document.getElementById('gDl');
+            if (dlGrid) {
+                dlGrid.classList.add('visible');
+                dlGrid.innerHTML = '';
+                downloads.forEach(f => {
+                    const card = document.createElement('div');
+                    card.className = 'dl-card card';
+                    card.onclick = () => window.open(`/api/download?path=${encodeURIComponent(f.path)}`);
+                    card.innerHTML = `
+                        <div class="dl-ext">${f.type.toUpperCase()}</div>
+                        <div class="dl-name">${f.name}</div>
+                        <div class="dl-meta">${f.size_mb} MB</div>
+                    `;
+                    dlGrid.appendChild(card);
+                });
+            }
+        }
+    } catch(e) {
+        document.getElementById('rSlideTitle').textContent = 'Error loading results';
+    }
+}
+
+function renderResultsSidebar() {
+    const sidebar = document.getElementById('resultsSections');
+    const sections = {};
+    currentSlides.forEach((s, i) => {
+        if (!sections[s.section]) sections[s.section] = [];
+        sections[s.section].push(i);
+    });
+
+    let html = '';
+    html += `<div class="rsec-item ${currentResultSection === 'all' ? 'active' : ''}" onclick="filterSection('all')">All Slides<span class="rsec-count">${currentSlides.length}</span></div>`;
+    html += '<div class="rsec-divider"></div>';
+
+    for (const [name, indices] of Object.entries(sections)) {
+        html += `<div class="rsec-item ${currentResultSection === name ? 'active' : ''}" onclick="filterSection('${name}')">${name}<span class="rsec-count">${indices.length}</span></div>`;
+    }
+
+    sidebar.innerHTML = html;
+}
+
+function filterSection(section) {
+    currentResultSection = section;
+    renderResultsSidebar();
+
+    // Find first slide in this section
+    if (section === 'all') {
+        showSlide(0);
+    } else {
+        const idx = currentSlides.findIndex(s => s.section === section);
+        if (idx >= 0) showSlide(idx);
+    }
+    renderThumbnails();
+}
+
+function getFilteredSlides() {
+    if (currentResultSection === 'all') return currentSlides.map((s, i) => ({ ...s, idx: i }));
+    return currentSlides.map((s, i) => ({ ...s, idx: i })).filter(s => s.section === currentResultSection);
+}
+
+function showSlide(idx) {
+    if (idx < 0 || idx >= currentSlides.length) return;
+    currentSlideIdx = idx;
+    const slide = currentSlides[idx];
+
+    document.getElementById('rSlideTitle').textContent = slide.title;
+    document.getElementById('rSlideModule').textContent = slide.module;
+    document.getElementById('rSlideCounter').textContent = `${idx + 1} / ${currentSlides.length}`;
+
+    const img = document.getElementById('rSlideImg');
+    const empty = document.getElementById('rSlideEmpty');
+
+    if (slide.imgUrl) {
+        img.src = slide.imgUrl;
+        img.style.display = 'block';
+        empty.style.display = 'none';
+    } else {
+        img.style.display = 'none';
+        empty.style.display = 'block';
+        empty.innerHTML = `
+            <div style="font-size:20px;margin-bottom:12px;color:var(--accent);font-weight:600;">${slide.module}</div>
+            <div style="font-family:'Instrument Serif',serif;font-size:24px;font-style:italic;line-height:1.4;">${slide.title}</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:16px;">Chart will appear here when the analysis pipeline has been run for this client.</div>
+        `;
+    }
+
+    renderThumbnails();
+
+    // Update lightbox
+    document.getElementById('lightboxTitle').textContent = slide.title;
+    document.getElementById('lightboxModule').textContent = slide.module;
+    if (slide.imgUrl) {
+        document.getElementById('lightboxImg').src = slide.imgUrl;
+    }
+}
+
+function renderThumbnails() {
+    const strip = document.getElementById('rSlideStrip');
+    const filtered = getFilteredSlides();
+    strip.innerHTML = '';
+
+    filtered.forEach(slide => {
+        const thumb = document.createElement('div');
+        thumb.className = `rthumb ${slide.idx === currentSlideIdx ? 'active' : ''}`;
+        thumb.onclick = () => showSlide(slide.idx);
+
+        if (slide.imgUrl) {
+            thumb.innerHTML = `<img src="${slide.imgUrl}" />`;
+        } else {
+            thumb.innerHTML = `<div class="rthumb-label" style="font-size:9px;padding:4px;">${slide.module.split('.').pop()}</div>`;
+        }
+
+        strip.appendChild(thumb);
+    });
+}
+
+function nextSlide() {
+    const filtered = getFilteredSlides();
+    const curPos = filtered.findIndex(s => s.idx === currentSlideIdx);
+    if (curPos < filtered.length - 1) {
+        showSlide(filtered[curPos + 1].idx);
+    }
+}
+
+function prevSlide() {
+    const filtered = getFilteredSlides();
+    const curPos = filtered.findIndex(s => s.idx === currentSlideIdx);
+    if (curPos > 0) {
+        showSlide(filtered[curPos - 1].idx);
+    }
+}
+
+function openLightbox() {
+    const slide = currentSlides[currentSlideIdx];
+    if (!slide || !slide.imgUrl) return;
+    document.getElementById('lightbox').classList.add('open');
+}
+
+function closeLightbox(event) {
+    if (event && event.target !== document.getElementById('lightbox') && event.target !== document.querySelector('.lightbox-close')) return;
+    document.getElementById('lightbox').classList.remove('open');
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'f' || e.key === 'F') {
+        const lb = document.getElementById('lightbox');
+        if (lb.classList.contains('open')) closeLightbox();
+        else openLightbox();
+    }
+});
+
+// Double-click slide to go fullscreen
+document.getElementById('rSlideContainer')?.addEventListener('dblclick', openLightbox);
+
+// Load real data on page load
+loadCSMs();
+loadMonths();
+loadClients();
+loadRecent();
+
+// Override the generate button to use real API
+async function smartRunGen() {
+    try {
+        const test = await fetch('/api/csms');
+        if (test.ok) {
+            await runGenReal();
+            return;
+        }
+    } catch(e) {}
+    // No mock fallback -- show real error
+    alert('Cannot connect to the pipeline server. Make sure app.py is running.');
+}
+
+// ─── SCHEDULES ───
+function showAddSchedule() {
+    document.getElementById('scheduleForm').style.display = 'block';
+    document.getElementById('schedFormTitle').textContent = 'New Schedule';
+    // Populate CSM dropdown
+    fetch('/api/csms').then(r => r.json()).then(csms => {
+        const sel = document.getElementById('schedCsm');
+        sel.innerHTML = csms.map(c => `<option value="${c}">${c}</option>`).join('');
+    }).catch(() => {});
+    // Populate client dropdown
+    fetch('/api/clients').then(r => r.json()).then(clients => {
+        const sel = document.getElementById('schedClient');
+        sel.innerHTML = clients.map(c => `<option value="${c.id}">${c.id} - ${c.name}</option>`).join('');
+    }).catch(() => {});
+}
+
+function hideAddSchedule() {
+    document.getElementById('scheduleForm').style.display = 'none';
+}
+
+async function saveSchedule() {
+    const sched = {
+        csm: document.getElementById('schedCsm').value,
+        client_id: document.getElementById('schedClient').value,
+        product: document.getElementById('schedProduct').value,
+        day: parseInt(document.getElementById('schedDay').value),
+        extras: document.getElementById('schedExtras').value,
+    };
+    if (!sched.csm || !sched.client_id) {
+        alert('Please select a CSM and client.');
+        return;
+    }
+    try {
+        const resp = await fetch('/api/schedules', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(sched),
+        });
+        if (resp.ok) {
+            hideAddSchedule();
+            loadSchedules();
+        } else {
+            alert('Failed to save schedule.');
+        }
+    } catch(e) {
+        alert('Error saving schedule: ' + e);
+    }
+}
+
+async function deleteSchedule(id) {
+    if (!confirm('Delete this schedule?')) return;
+    try {
+        await fetch(`/api/schedules/${id}`, {method: 'DELETE'});
+        loadSchedules();
+    } catch(e) {}
+}
+
+async function runScheduleNow(id) {
+    try {
+        const resp = await fetch(`/api/schedules/${id}/run`, {method: 'POST'});
+        if (resp.ok) {
+            const {run_id} = await resp.json();
+            alert(`Run started: ${run_id}`);
+            loadSchedules();
+        }
+    } catch(e) {}
+}
+
+async function loadSchedules() {
+    try {
+        const resp = await fetch('/api/schedules');
+        if (!resp.ok) return;
+        const schedules = await resp.json();
+        const tbody = document.getElementById('schedulesBody');
+        if (!schedules.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">No schedules configured. Click "+ New Schedule" to add one.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
+        schedules.forEach(s => {
+            const statusBadge = s.enabled
+                ? '<span class="badge badge-green">Active</span>'
+                : '<span class="badge badge-accent">Paused</span>';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${s.client_id}</strong></td>
+                <td>${s.csm}</td>
+                <td>${s.product.toUpperCase()}</td>
+                <td class="mono">${s.day}${['th','st','nd','rd'][s.day%10>3?0:(s.day%100-s.day%10!=10)*s.day%10] || 'th'}</td>
+                <td>${s.extras || 'none'}</td>
+                <td class="mono">${s.last_run || '--'}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <button onclick="runScheduleNow('${s.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;margin-right:4px;">Run Now</button>
+                    <button onclick="deleteSchedule('${s.id}')" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {}
+}
+
+// Load schedules on page load
+loadSchedules();
+</script>
 </body>
 </html>

@@ -220,13 +220,13 @@ async def index():
     return HTMLResponse("<h1>Velocity</h1><p>index.html not found</p>")
 
 
-@app.get("/legacy")
-async def legacy_index():
-    """Serve the pre-redesign UI (kept for fallback)."""
-    html_path = Path(__file__).parent / "index.legacy.html"
+@app.get("/preview")
+async def preview_index():
+    """Serve the redesign prototype (work-in-progress; being wired to /api/*)."""
+    html_path = Path(__file__).parent / "prototype.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
-    return HTMLResponse("<h1>Velocity</h1><p>index.legacy.html not found</p>")
+    return HTMLResponse("<h1>Velocity</h1><p>prototype.html not found</p>")
 
 
 def _serve_jsx(filename: str):
