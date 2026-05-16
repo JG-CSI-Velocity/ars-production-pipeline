@@ -53,8 +53,40 @@ function genId() { return 'r-' + Math.random().toString(16).slice(2, 9); }
 function App() {
   const D = MockData;
 
-  // Seed two runs already in flight + one queued.
+  // LIVE mode (Phase 1+): fetch CSMs/clients/products from /api/* on mount
+  // and mutate MockData in place so the existing components -- all of which
+  // read D.csms / D.clients / D.products -- pick up the real data on next
+  // render. When window.LIVE is false (e.g. design preview) we leave the
+  // seed data alone.
+  const [bootstrapped, setBootstrapped] = React.useState(!window.LIVE);
+  const [bootError, setBootError] = React.useState(null);
+  React.useEffect(() => {
+    if (!window.LIVE) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [csms, clients, products] = await Promise.all([
+          window.api.getCsms(),
+          window.api.getClients(),
+          window.api.getProducts(),
+        ]);
+        if (cancelled) return;
+        D.csms     = (csms     || []).map(window.adapters.enrichCsm);
+        D.clients  = (clients  || []).map((c) => window.adapters.enrichClient(c));
+        D.products = window.adapters.enrichProducts(products);
+        setBootstrapped(true);
+      } catch (e) {
+        console.error('[velocity] live bootstrap failed:', e);
+        if (!cancelled) setBootError(e.message || String(e));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // In LIVE mode we don't seed phantom in-flight runs -- runs come from the
+  // backend (Phase 2 wires /api/recent for live indicators).
   const initialRuns = React.useMemo(() => {
+    if (window.LIVE) return [];
     const now = Date.now();
     return [
       { id: genId(), clientId: '1226', product: 'ars_full', csm: 'JamesG', status: 'running', startedAt: now - 6500 },
@@ -139,6 +171,20 @@ function App() {
                 startRun, queueAnother, runAgain, page, setPage,
                 libTab, setLibTab, schedView, setSchedView, prefill, setPrefill,
                 paletteOpen, setPaletteOpen, bulkOpen, setBulkOpen };
+
+  if (!bootstrapped) {
+    return (
+      <div style={{ width: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg, color: C.muted, fontFamily: FONT }}>
+        {bootError
+          ? <div style={{ maxWidth: 480, textAlign: 'center' }}>
+              <div style={{ fontWeight: 700, color: C.text, marginBottom: 8 }}>Couldn't reach the backend.</div>
+              <div style={{ fontSize: 13, fontFamily: MONO }}>{bootError}</div>
+              <div style={{ fontSize: 12, marginTop: 12 }}>The legacy UI at <code>/</code> may still work.</div>
+            </div>
+          : <div>Loading Velocity…</div>}
+      </div>
+    );
+  }
 
   return (
     <AppCtx.Provider value={ctx}>

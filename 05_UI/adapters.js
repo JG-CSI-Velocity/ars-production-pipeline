@@ -37,11 +37,20 @@ window.adapters = (() => {
   const enrichProduct = (p) => ({
     id: p.id || PRODUCT_ID[p.name] || (p.name || '').toLowerCase().replace(/\s+/g, '_'),
     name: p.name || p.id,
-    slides: p.slides || p.slide_count || 0,
-    modules: p.modules || p.module_count || 0,
+    slides: p.slides || p.slide_count || p.count || 0,
+    modules: p.modules || p.module_count || (p.groups ? p.groups.reduce((a, g) => a + (g.count || 0), 0) : 0),
     time: p.time || p.est_time || '—',
-    desc: p.desc || p.description || '',
+    desc: p.desc || p.description || (p.groups ? p.groups.map((g) => g.name).join(' · ') : ''),
   });
+
+  // /api/products returns { id: {...} } -- normalize to array.
+  const enrichProducts = (resp) => {
+    if (Array.isArray(resp)) return resp.map(enrichProduct);
+    if (resp && typeof resp === 'object') {
+      return Object.entries(resp).map(([id, p]) => enrichProduct({ id, ...p }));
+    }
+    return [];
+  };
 
   // ---------- Client ----------
   // `recentByClient` and `scheduleByClient` are lookups keyed by client id.
@@ -193,6 +202,7 @@ window.adapters = (() => {
   return {
     enrichCsm,
     enrichProduct,
+    enrichProducts,
     enrichClient,
     classifyStage,
     parseModuleProgress,
