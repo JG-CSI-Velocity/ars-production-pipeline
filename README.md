@@ -147,8 +147,7 @@ M:\ARS\
 |
 |-- 03_Config/
 |   |-- ars_config.json                   Pipeline paths, CSM source folders
-|   |-- clients_config.json               Per-client settings (multi-tenant)
-|   `-- branch_configs/{CLIENT_ID}.json   Per-client branch ID -> name map
+|   `-- clients_config.json               Per-client settings (multi-tenant) -- includes BranchMapping
 |
 |-- 04_Logs/                          Per-run log files
 |-- 05_UI/                            FastAPI backend + single-page UI
@@ -236,8 +235,21 @@ Pipeline paths and CSM source folders.
 ### `03_Config/clients_config.json`
 Per-client settings: IC rates, NSF fees, status codes, product codes, branch mappings. Multi-tenant; flat list across all CSMs.
 
-### `03_Config/branch_configs/<CLIENT_ID>.json`
-Per-client branch ID &rarr; name mapping. Without this, the Branch Performance section shows numeric IDs. Sample at `01_Analysis/00-Scripts/analytics/branch_txn/branch_config.sample.json`.
+### Branch mapping
+Lives inside `clients_config.json` as the `BranchMapping` field on each client entry &mdash; a dict of `"branch_id": "Branch Name"`. The Branch Performance section reads it directly:
+
+```json
+"1776": {
+  "ClientName": "CoastHills",
+  "BranchMapping": {
+    "10": "Base",
+    "20": "Lompoc",
+    "30": "Santa Maria"
+  }
+}
+```
+
+No separate per-client branch file is needed. The pipeline prints a clear warning if a client's `BranchMapping` is missing.
 
 ### `01_Analysis/00-Scripts/analytics/competition/01_competitor_config.py`
 Per-client competitor patterns (`credit_unions`, `local_banks`, `custom`, `rollups`). New clients onboard by adding an entry to `CLIENT_CONFIGS`. The pipeline prints a loud warning if your `CLIENT_ID` is missing.
@@ -289,26 +301,36 @@ Per-client competitor patterns (`credit_unions`, `local_banks`, `custom`, `rollu
 
 ## Development
 
-Mac for dev, Windows work PC for production runs against `M:\ARS\`. GitHub is the bridge.
+Everything runs on the Windows work PC at `M:\ARS\`. GitHub is the source of truth &mdash; pull to update, push to share.
 
-### On Mac
+### Pull updates and restart the UI
 ```
-cd ~/Desktop/RPE-Workflow
-git checkout -b feature/<name>
-# edit
+M:
+cd \ARS
+git pull
+```
+Then close the Velocity Pipeline terminal window, double-click `Start Here.bat` to relaunch, and **Ctrl+Shift+R** in the browser to clear cached HTML/JS.
+
+### Push your own changes
+```
+M:
+cd \ARS
+git checkout -b feature/<short-name>
+git add <files>
+git commit -m "<conventional message>"
 git push
 gh pr create
 ```
 
-### On the work PC
+### Edits made via Claude Code
+Changes pushed to GitHub from a Claude session land on a branch in the same repo. Pull on the work PC the same way:
 ```
-M:
-cd \ARS
-git checkout feature/txn-deck-restructure   # or whichever branch
+git fetch
+git checkout <branch-name>
 git pull
 ```
 
-Then close the Velocity Pipeline terminal window, double-click `Start Here.bat` to relaunch, and **Ctrl+Shift+R** in the browser to clear cached HTML/JS.
+Restart `Start Here.bat`. Ctrl+Shift+R in the browser.
 
 ### Files that are operator-local (gitignored)
 - `SLIDE_MANIFEST.xlsx` &mdash; your Keep? decisions
