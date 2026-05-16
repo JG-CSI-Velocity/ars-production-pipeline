@@ -53,8 +53,9 @@ window.adapters = (() => {
   };
 
   // ---------- Client ----------
-  // `recentByClient` and `scheduleByClient` are lookups keyed by client id.
-  // Both are optional -- if missing we fill with sensible empties.
+  // recentByClient: client_id -> recent run record (latest)
+  // scheduleByClient: client_id -> schedule record
+  // Both optional; missing values fall back to sensible empties.
   const enrichClient = (c, recentByClient = {}, scheduleByClient = {}) => {
     const recent = recentByClient[c.id];
     const sched = scheduleByClient[c.id];
@@ -62,25 +63,28 @@ window.adapters = (() => {
     const branchCount = cfg.branch_mapping
       ? (Array.isArray(cfg.branch_mapping) ? cfg.branch_mapping.length : Object.keys(cfg.branch_mapping).length)
       : 0;
-    const fmtDate = (iso) => {
-      if (!iso) return '—';
-      try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
-      catch { return '—'; }
+    // The legacy backend's "timestamp" is the log filename stem
+    // (e.g. "1776_2026-05-08_071234"); try to parse a date out of it.
+    const parseTimestamp = (ts) => {
+      if (!ts) return null;
+      const m = String(ts).match(/(\d{4})[-_.](\d{2})[-_.](\d{2})/);
+      if (!m) return null;
+      return new Date(`${m[1]}-${m[2]}-${m[3]}`);
     };
+    const fmtDate = (d) => d ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
     return {
       id: c.id,
-      name: c.name,
+      name: c.name && c.name !== `Client ${c.id}` ? c.name : (recent?.client_name || c.name),
       csm: recent?.csm || sched?.csm || '',
-      accounts: recent?.account_count || 0,
+      accounts: branchCount ? branchCount * 1000 : 0,  // placeholder; backend has no per-client account count
       branches: branchCount,
-      lastRun: fmtDate(recent?.finished_at || recent?.started_at),
-      nextSched: sched?.next_run || sched?.day ? (sched.next_run || `Day ${sched.day}`) : '—',
+      lastRun: fmtDate(parseTimestamp(recent?.timestamp)),
+      nextSched: sched?.day ? `Day ${sched.day}` : '—',
       product: recent?.product || sched?.product || '',
       status: (() => {
         if (!recent) return 'ready';
-        if (recent.status === 'error')    return 'error';
-        if (recent.status === 'running')  return 'running';
-        if (recent.status === 'complete') return 'ready';
+        if (recent.status === 'error')   return 'error';
+        if (recent.status === 'warning') return 'warning';
         return 'ready';
       })(),
     };
@@ -186,14 +190,15 @@ window.adapters = (() => {
     return out;
   };
   // Pick the most-recent run per client_id from a recent-runs array.
+  // /api/recent's `timestamp` is a sortable log-filename stem.
   const latestPerClient = (recentArr) => {
     const out = {};
     for (const r of recentArr || []) {
       const cid = String(r.client_id || r.client || '');
       if (!cid) continue;
       const prev = out[cid];
-      const t = r.finished_at || r.started_at || '';
-      const prevT = prev?.finished_at || prev?.started_at || '';
+      const t = r.timestamp || r.finished_at || r.started_at || '';
+      const prevT = prev?.timestamp || prev?.finished_at || prev?.started_at || '';
       if (!prev || t > prevT) out[cid] = r;
     }
     return out;

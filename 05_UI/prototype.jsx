@@ -65,15 +65,24 @@ function App() {
     let cancelled = false;
     (async () => {
       try {
-        const [csms, clients, products] = await Promise.all([
+        const [csms, clients, products, recent, stats, schedules] = await Promise.all([
           window.api.getCsms(),
           window.api.getClients(),
           window.api.getProducts(),
+          window.api.getRecent().catch(() => []),
+          window.api.getStats().catch(() => ({})),
+          window.api.getSchedules().catch(() => []),
         ]);
         if (cancelled) return;
-        D.csms     = (csms     || []).map(window.adapters.enrichCsm);
-        D.clients  = (clients  || []).map((c) => window.adapters.enrichClient(c));
-        D.products = window.adapters.enrichProducts(products);
+        const recentByClient   = window.adapters.latestPerClient(recent);
+        const scheduleByClient = window.adapters.indexBy(schedules, 'client_id');
+        D.csms      = (csms     || []).map(window.adapters.enrichCsm);
+        D.clients   = (clients  || []).map((c) =>
+          window.adapters.enrichClient(c, recentByClient, scheduleByClient));
+        D.products  = window.adapters.enrichProducts(products);
+        D.recent    = recent    || [];
+        D.stats     = stats     || {};
+        D.schedules = schedules || [];
         setBootstrapped(true);
       } catch (e) {
         console.error('[velocity] live bootstrap failed:', e);
@@ -318,38 +327,84 @@ function Page({ children }) {
 // ─── DASHBOARD ─────────────────────────────────────────────────────────
 function Dashboard() {
   const { D, runs, activeRuns, now, setPage, startRun } = useApp();
-  const [dashCsm, setDashCsm] = React.useState('JamesG');
+  // Default to "all" in LIVE mode -- a single CSM ('JamesG' hardcoded before)
+  // may not exist in the operator's actual config.
+  const defaultCsm = window.LIVE ? 'all' : 'JamesG';
+  const [dashCsm, setDashCsm] = React.useState(defaultCsm);
 
   const csmObj = D.csms.find(c => c.id === dashCsm);
   const inScope = (csmId) => dashCsm === 'all' || csmId === dashCsm;
   const scopedActive = activeRuns.filter(r => inScope(r.csm));
   const scopedClients = D.clients.filter(c => inScope(c.csm));
 
-  // Today's scheduled list — filtered to scope
-  const todayAll = [
-    { c: D.clients[1],  st: 'running', t: '06:00' },
-    { c: D.clients[3],  st: 'running', t: '06:01' },
-    { c: D.clients[5],  st: 'queued',  t: '06:02' },
-    { c: D.clients[7],  st: 'queued',  t: '06:03' },
-    { c: D.clients[10], st: 'queued',  t: '06:04' },
-    { c: D.clients[0],  st: 'queued',  t: '06:05' },
-    { c: D.clients[2],  st: 'queued',  t: '06:06' },
-  ];
-  const today = todayAll.filter(({ c }) => inScope(c.csm)).slice(0, 5);
+  // Today's scheduled list -- live mode uses real schedules filtered to
+  // today's day-of-month; non-live mode keeps the demo seed.
+  const today = React.useMemo(() => {
+    if (window.LIVE) {
+      const todayDay = new Date().getDate();
+      return (D.schedules || [])
+        .filter((s) => Number(s.day) === todayDay)
+        .map((s) => {
+          const c = D.clients.find((c) => c.id === String(s.client_id)) || {
+            id: s.client_id, name: `Client ${s.client_id}`, csm: s.csm, product: s.product,
+          };
+          return { c, st: 'queued', t: '06:00' };
+        })
+        .filter(({ c }) => inScope(c.csm))
+        .slice(0, 5);
+    }
+    const seeded = [
+      { c: D.clients[1],  st: 'running', t: '06:00' },
+      { c: D.clients[3],  st: 'running', t: '06:01' },
+      { c: D.clients[5],  st: 'queued',  t: '06:02' },
+      { c: D.clients[7],  st: 'queued',  t: '06:03' },
+      { c: D.clients[10], st: 'queued',  t: '06:04' },
+      { c: D.clients[0],  st: 'queued',  t: '06:05' },
+      { c: D.clients[2],  st: 'queued',  t: '06:06' },
+    ];
+    return seeded.filter(({ c }) => c && inScope(c.csm)).slice(0, 5);
+  }, [D.schedules, D.clients, dashCsm]);
 
-  const attentionAll = [
-    { kind: 'error',   client: D.clients[9],  msg: 'Missing "Product Code" column in raw dump.', cta: 'Re-fetch data' },
-    { kind: 'warning', client: D.clients[6],  msg: 'Last run had 3 no-chart-data slides.',       cta: 'Review warnings' },
-    { kind: 'pending', client: D.clients[4],  msg: 'Raw dump not yet uploaded for May.',         cta: 'Notify Jordan' },
-  ];
-  const attention = attentionAll.filter(a => inScope(a.client.csm));
+  // Attention items -- live mode derives from recent runs with status=error|warning;
+  // non-live uses the seed.
+  const attention = React.useMemo(() => {
+    if (window.LIVE) {
+      return (D.recent || [])
+        .filter((r) => r.status === 'error' || r.status === 'warning')
+        .map((r) => {
+          const c = D.clients.find((c) => c.id === String(r.client_id)) || {
+            id: r.client_id, name: r.client_name || `Client ${r.client_id}`, csm: r.csm, product: r.product,
+          };
+          return {
+            kind: r.status === 'error' ? 'error' : 'warning',
+            client: c,
+            msg: r.status === 'error' ? 'Last run failed -- check log.' : 'Last run had warnings.',
+            cta: 'Review run',
+          };
+        })
+        .filter((a) => inScope(a.client.csm));
+    }
+    const seeded = [
+      { kind: 'error',   client: D.clients[9],  msg: 'Missing "Product Code" column in raw dump.', cta: 'Re-fetch data' },
+      { kind: 'warning', client: D.clients[6],  msg: 'Last run had 3 no-chart-data slides.',       cta: 'Review warnings' },
+      { kind: 'pending', client: D.clients[4],  msg: 'Raw dump not yet uploaded for May.',         cta: 'Notify Jordan' },
+    ];
+    return seeded.filter((a) => a.client && inScope(a.client.csm));
+  }, [D.recent, D.clients, dashCsm]);
 
-  const totalThisMonth = dashCsm === 'all' ? 73 + activeRuns.length : scopedClients.length;
+  // "Done this month" KPI -- real number when available.
+  const doneThisMonth = window.LIVE
+    ? (D.stats?.reports_generated ?? 0)
+    : 47;
+  const avgTime = window.LIVE ? (D.stats?.avg_time || '--') : '11m 42s';
+  const successRate = window.LIVE ? (D.stats?.success_rate || '--') : '96%';
+
+  const totalThisMonth = dashCsm === 'all' ? doneThisMonth + activeRuns.length : scopedClients.length;
   const titleText = dashCsm === 'all'
     ? `${totalThisMonth} reports queued this month`
-    : `${csmObj.name.split(' ')[0]}'s ${scopedClients.length} clients`;
+    : `${csmObj ? csmObj.name.split(' ')[0] : dashCsm}'s ${scopedClients.length} clients`;
   const subText = dashCsm === 'all'
-    ? '48 ready · 19 awaiting data · 4 paused · 2 needing attention'
+    ? `${doneThisMonth} done · ${scopedActive.length} running · ${today.length} scheduled today · ${attention.length} needing attention`
     : `${scopedActive.length} running · ${today.length} scheduled today · ${attention.length} needing attention`;
 
   return (
@@ -375,8 +430,8 @@ function Dashboard() {
         <KpiTile dotColor={attention.length ? C.red : C.green} value={attention.length} label="Needs attention"
           sub={attention.length ? 'click to review' : 'all clear'}
           highlight={attention.length > 0} />
-        <KpiTile dotColor={C.green} value={47} label="Done this month"
-          sub="avg 11m 42s · success 96%" onClick={() => setPage('library')} />
+        <KpiTile dotColor={C.green} value={doneThisMonth} label="Done this month"
+          sub={`avg ${avgTime} · success ${successRate}`} onClick={() => setPage('library')} />
       </div>
 
       {/* Attention banner — only when there are items */}
@@ -647,18 +702,44 @@ function MonthStrip() {
 
 function RecentRunsTable() {
   const { D, finishedRuns, runAgain } = useApp();
-  const sample = [
-    { client: D.clients[1], product: 'ars_full',  duration: 705, finished: '2h ago',  status: 'done' },
-    { client: D.clients[7], product: 'ars_full',  duration: 728, finished: '3h ago',  status: 'done' },
-    { client: D.clients[6], product: 'txn',       duration: 374, finished: '4h ago',  status: 'warning' },
-    { client: D.clients[9], product: 'deposits',  duration: 38,  finished: '5h ago',  status: 'error' },
-    { client: D.clients[12], product: 'ars_full', duration: 711, finished: '6h ago',  status: 'done' },
-  ];
-  // Merge in finished runs from this session
-  const merged = [
-    ...finishedRuns.map(r => ({ client: D.clients.find(c => c.id === r.clientId), product: r.product, duration: Math.floor((r.finishedAt - r.startedAt)/1000), finished: 'just now', status: 'done' })),
-    ...sample,
-  ];
+  // Parse "30m 24s" / "1h 5m" into seconds for the formatter; fall back to 0.
+  const parseDur = (s) => {
+    if (!s || typeof s !== 'string') return 0;
+    let secs = 0;
+    const h = s.match(/(\d+)\s*h/); if (h) secs += +h[1] * 3600;
+    const m = s.match(/(\d+)\s*m/); if (m) secs += +m[1] * 60;
+    const sec = s.match(/(\d+)\s*s/); if (sec) secs += +sec[1];
+    return secs;
+  };
+  const relTime = (ts) => {
+    const m = String(ts || '').match(/(\d{4})[-_.](\d{2})[-_.](\d{2})/);
+    if (!m) return ts || '—';
+    const d = new Date(`${m[1]}-${m[2]}-${m[3]}`);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  let merged;
+  if (window.LIVE) {
+    merged = (D.recent || []).map((r) => ({
+      client: D.clients.find((c) => c.id === String(r.client_id)) || { id: r.client_id, name: r.client_name || `Client ${r.client_id}`, csm: r.csm },
+      product: r.product || (r.file ? '' : ''),
+      duration: parseDur(r.duration),
+      finished: relTime(r.timestamp),
+      status: r.status === 'error' ? 'error' : r.status === 'warning' ? 'warning' : 'done',
+    }));
+  } else {
+    const sample = [
+      { client: D.clients[1], product: 'ars_full',  duration: 705, finished: '2h ago',  status: 'done' },
+      { client: D.clients[7], product: 'ars_full',  duration: 728, finished: '3h ago',  status: 'done' },
+      { client: D.clients[6], product: 'txn',       duration: 374, finished: '4h ago',  status: 'warning' },
+      { client: D.clients[9], product: 'deposits',  duration: 38,  finished: '5h ago',  status: 'error' },
+      { client: D.clients[12], product: 'ars_full', duration: 711, finished: '6h ago',  status: 'done' },
+    ];
+    merged = [
+      ...finishedRuns.map((r) => ({ client: D.clients.find((c) => c.id === r.clientId), product: r.product, duration: Math.floor((r.finishedAt - r.startedAt)/1000), finished: 'just now', status: 'done' })),
+      ...sample,
+    ];
+  }
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: '80px 1.5fr 1fr 100px 90px 90px 90px', padding: '8px 20px', borderBottom: `1px solid ${C.border}`, background: C.cardSoft, fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>
@@ -1493,19 +1574,44 @@ function ScheduleGantt() {
 
 function HistoryView() {
   const { D, runAgain, finishedRuns } = useApp();
-  const all = [
-    ...finishedRuns.map(r => ({ client: D.clients.find(c => c.id === r.clientId), product: r.product, duration: r.finishedAt - r.startedAt, finished: 'just now', status: 'done' })),
-    { client: D.clients[1],  product: 'ars_full', duration: 705*1000, finished: '2h ago',  status: 'done' },
-    { client: D.clients[7],  product: 'ars_full', duration: 728*1000, finished: '3h ago',  status: 'done' },
-    { client: D.clients[6],  product: 'txn',      duration: 374*1000, finished: '4h ago',  status: 'warning' },
-    { client: D.clients[9],  product: 'deposits', duration: 38*1000,  finished: '5h ago',  status: 'error' },
-    { client: D.clients[12], product: 'ars_full', duration: 711*1000, finished: '6h ago',  status: 'done' },
-    { client: D.clients[5],  product: 'ars_full', duration: 692*1000, finished: '8h ago',  status: 'done' },
-    { client: D.clients[11], product: 'combined', duration: 542*1000, finished: '9h ago',  status: 'done' },
-    { client: D.clients[3],  product: 'combined', duration: 538*1000, finished: '11h ago', status: 'done' },
-    { client: D.clients[2],  product: 'txn',      duration: 368*1000, finished: '1d ago',  status: 'done' },
-    { client: D.clients[8],  product: 'deposits', duration: 234*1000, finished: '1d ago',  status: 'done' },
-  ];
+  const parseDur = (s) => {
+    if (!s || typeof s !== 'string') return 0;
+    let secs = 0;
+    const h = s.match(/(\d+)\s*h/); if (h) secs += +h[1] * 3600;
+    const m = s.match(/(\d+)\s*m/); if (m) secs += +m[1] * 60;
+    const sec = s.match(/(\d+)\s*s/); if (sec) secs += +sec[1];
+    return secs * 1000;
+  };
+  const relTime = (ts) => {
+    const m = String(ts || '').match(/(\d{4})[-_.](\d{2})[-_.](\d{2})/);
+    if (!m) return ts || '—';
+    return new Date(`${m[1]}-${m[2]}-${m[3]}`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  let all;
+  if (window.LIVE) {
+    all = (D.recent || []).map((r) => ({
+      client: D.clients.find((c) => c.id === String(r.client_id)) || { id: r.client_id, name: r.client_name || `Client ${r.client_id}`, csm: r.csm },
+      product: r.product || '',
+      duration: parseDur(r.duration),
+      finished: relTime(r.timestamp),
+      status: r.status === 'error' ? 'error' : r.status === 'warning' ? 'warning' : 'done',
+    }));
+  } else {
+    all = [
+      ...finishedRuns.map(r => ({ client: D.clients.find(c => c.id === r.clientId), product: r.product, duration: r.finishedAt - r.startedAt, finished: 'just now', status: 'done' })),
+      { client: D.clients[1],  product: 'ars_full', duration: 705*1000, finished: '2h ago',  status: 'done' },
+      { client: D.clients[7],  product: 'ars_full', duration: 728*1000, finished: '3h ago',  status: 'done' },
+      { client: D.clients[6],  product: 'txn',      duration: 374*1000, finished: '4h ago',  status: 'warning' },
+      { client: D.clients[9],  product: 'deposits', duration: 38*1000,  finished: '5h ago',  status: 'error' },
+      { client: D.clients[12], product: 'ars_full', duration: 711*1000, finished: '6h ago',  status: 'done' },
+      { client: D.clients[5],  product: 'ars_full', duration: 692*1000, finished: '8h ago',  status: 'done' },
+      { client: D.clients[11], product: 'combined', duration: 542*1000, finished: '9h ago',  status: 'done' },
+      { client: D.clients[3],  product: 'combined', duration: 538*1000, finished: '11h ago', status: 'done' },
+      { client: D.clients[2],  product: 'txn',      duration: 368*1000, finished: '1d ago',  status: 'done' },
+      { client: D.clients[8],  product: 'deposits', duration: 234*1000, finished: '1d ago',  status: 'done' },
+    ];
+  }
   return (
     <Card padding={0}>
       <div style={{ display: 'grid', gridTemplateColumns: '90px 1.5fr 1fr 100px 100px 100px 90px', padding: '10px 22px', borderBottom: `1px solid ${C.border}`, background: C.cardSoft, fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>
