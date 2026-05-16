@@ -1414,13 +1414,25 @@ function DownloadCard({ ext, name, size }) {
 
 // ─── LIBRARY ───────────────────────────────────────────────────────────
 function Library() {
-  const { libTab, setLibTab, schedView, setSchedView, setBulkOpen } = useApp();
+  const { libTab, setLibTab, schedView, setSchedView, setBulkOpen, D } = useApp();
+  const monthLabel = React.useMemo(() => {
+    const d = new Date();
+    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  }, []);
+  const schedCount = window.LIVE ? (D.schedules?.length || 0) : 13;
+  const recentCount = window.LIVE ? (D.recent?.length || 0) : null;
+  const scheduleSub = window.LIVE
+    ? `${schedCount} active schedule${schedCount === 1 ? '' : 's'} · auto-fires daily at 06:00`
+    : '13 active schedules · 71 runs queued · auto-fires daily at 06:00';
+  const historySub = window.LIVE
+    ? `All runs across all CSMs · ${recentCount} record${recentCount === 1 ? '' : 's'}`
+    : 'All runs across all CSMs · last 30 days';
   return (
     <Page>
       <PageHead
         kicker={`Library · ${libTab === 'schedules' ? 'Schedules' : 'History'}`}
-        title={libTab === 'schedules' ? 'June 2026' : 'Run history'}
-        sub={libTab === 'schedules' ? '13 active schedules · 71 runs queued · auto-fires daily at 06:00' : 'All runs across all CSMs · last 30 days'}
+        title={libTab === 'schedules' ? monthLabel : 'Run history'}
+        sub={libTab === 'schedules' ? scheduleSub : historySub}
         right={<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ display: 'inline-flex', padding: 3, background: C.bgDeep, borderRadius: 7, border: `1px solid ${C.border}`, marginRight: 8 }}>
             <SegBtn on={libTab==='schedules'} onClick={() => setLibTab('schedules')}><Icon.calendar size={11} /> Schedules</SegBtn>
@@ -1456,11 +1468,30 @@ function SegBtn({ on, onClick, children }) {
 
 function ScheduleCalendar() {
   const D = MockData;
-  const startDow = 1;
-  const days = Array.from({ length: 30 }, (_, i) => i + 1);
-  const cells = Array.from({ length: startDow }, () => null).concat(days);
+  // Derive month layout from today's actual date.
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const todayDay = today.getDate();
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const cells = Array.from({ length: firstDow }, () => null).concat(days);
   while (cells.length % 7 !== 0) cells.push(null);
-  const schedFor = (d) => D.clients.filter(c => parseInt(c.nextSched.replace('Jun ', '')) === d);
+
+  // Day -> [client...] from real schedules in LIVE mode, falling back to
+  // the nextSched string ("Jun 5") parsed off enriched clients otherwise.
+  const schedFor = (d) => {
+    if (window.LIVE) {
+      const ids = (D.schedules || []).filter((s) => Number(s.day) === d).map((s) => String(s.client_id));
+      return ids.map((id) => D.clients.find((c) => c.id === id))
+        .filter(Boolean);
+    }
+    return D.clients.filter((c) => {
+      const m = String(c.nextSched || '').match(/(\d+)/);
+      return m && Number(m[1]) === d;
+    });
+  };
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, alignItems: 'start' }}>
       <Card padding={16} style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1473,7 +1504,7 @@ function ScheduleCalendar() {
           {cells.map((d, i) => {
             if (!d) return <div key={i} />;
             const runs = schedFor(d);
-            const isToday = d === 15;
+            const isToday = d === todayDay;
             return (
               <div key={i} style={{ background: C.cardSoft, borderRadius: 6, padding: 8, border: isToday ? `1.5px solid ${C.orange}` : `1px solid ${C.border}`, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
@@ -1485,7 +1516,7 @@ function ScheduleCalendar() {
                     const csm = D.csms.find(x => x.id === c.csm);
                     return (
                       <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 6px', borderRadius: 3, background: '#fff', border: `1px solid ${C.border}`, fontSize: 10 }}>
-                        <div style={{ width: 5, height: 5, borderRadius: 99, background: csm.color, flexShrink: 0 }} />
+                        <div style={{ width: 5, height: 5, borderRadius: 99, background: csm?.color || C.muted, flexShrink: 0 }} />
                         <div style={{ fontFamily: MONO, color: C.muted, flexShrink: 0 }}>{c.id}</div>
                       </div>
                     );
@@ -1529,36 +1560,58 @@ function ScheduleCalendar() {
 
 function ScheduleGantt() {
   const D = MockData;
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const todayDay = today.getDate();
+  // In LIVE mode pull day from real schedules; otherwise fall back to client.nextSched.
+  const scheduleDayFor = (clientId) => {
+    if (window.LIVE) {
+      const s = (D.schedules || []).find((s) => String(s.client_id) === String(clientId));
+      return s ? Number(s.day) : null;
+    }
+    const c = D.clients.find((c) => c.id === clientId);
+    const m = String(c?.nextSched || '').match(/(\d+)/);
+    return m ? Number(m[1]) : null;
+  };
+  // In LIVE mode only show clients that actually have schedules; otherwise show all.
+  const visibleClients = window.LIVE
+    ? D.clients.filter((c) => scheduleDayFor(c.id) != null)
+    : D.clients;
   return (
     <Card padding={0} style={{ overflow: 'hidden' }}>
-      <div style={{ padding: '12px 18px', borderBottom: `1px solid ${C.border}`, display: 'grid', gridTemplateColumns: `220px repeat(30, 1fr)`, alignItems: 'center', background: C.cardSoft }}>
+      <div style={{ padding: '12px 18px', borderBottom: `1px solid ${C.border}`, display: 'grid', gridTemplateColumns: `220px repeat(${daysInMonth}, 1fr)`, alignItems: 'center', background: C.cardSoft }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1.4 }}>Client</div>
-        {Array.from({ length: 30 }, (_, i) => (
-          <div key={i} style={{ fontFamily: MONO, fontSize: 10, color: i === 14 ? C.orange : C.muted, textAlign: 'center', fontWeight: i === 14 ? 700 : 500 }}>{i + 1}</div>
+        {Array.from({ length: daysInMonth }, (_, i) => (
+          <div key={i} style={{ fontFamily: MONO, fontSize: 10, color: (i + 1) === todayDay ? C.orange : C.muted, textAlign: 'center', fontWeight: (i + 1) === todayDay ? 700 : 500 }}>{i + 1}</div>
         ))}
       </div>
+      {visibleClients.length === 0 && (
+        <div style={{ padding: '40px 20px', textAlign: 'center', color: C.muted, fontSize: 13 }}>
+          No schedules yet. Use <strong>+ New schedule</strong> to add one.
+        </div>
+      )}
       <div style={{ maxHeight: 540, overflow: 'auto' }}>
-        {D.clients.map((c) => {
-          const day = parseInt(c.nextSched.replace('Jun ', ''));
+        {visibleClients.map((c) => {
+          const day = scheduleDayFor(c.id);
           const csm = D.csms.find(x => x.id === c.csm);
           return (
-            <div key={c.id} style={{ display: 'grid', gridTemplateColumns: `220px repeat(30, 1fr)`, alignItems: 'center', borderBottom: `1px solid ${C.border}`, paddingLeft: 18, paddingRight: 18, minHeight: 48 }}>
+            <div key={c.id} style={{ display: 'grid', gridTemplateColumns: `220px repeat(${daysInMonth}, 1fr)`, alignItems: 'center', borderBottom: `1px solid ${C.border}`, paddingLeft: 18, paddingRight: 18, minHeight: 48 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 12 }}>
-                <Avatar csm={csm} size={22} />
+                {csm && <Avatar csm={csm} size={22} />}
                 <div style={{ overflow: 'hidden' }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-                  <div style={{ fontFamily: MONO, fontSize: 10, color: C.muted, marginTop: 1 }}>{c.id} · {c.product}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 10, color: C.muted, marginTop: 1 }}>{c.id} · {c.product || '—'}</div>
                 </div>
               </div>
-              {Array.from({ length: 30 }, (_, i) => {
+              {Array.from({ length: daysInMonth }, (_, i) => {
                 const d = i + 1;
                 const isRun = d === day;
-                const isToday = d === 15;
+                const isToday = d === todayDay;
                 return (
                   <div key={i} style={{ height: '100%', borderLeft: `1px solid ${C.border}`, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? 'rgba(241,93,34,0.05)' : 'transparent' }}>
                     {isRun && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: csm.color, color: '#fff', borderRadius: 99, fontFamily: MONO, fontSize: 9.5, fontWeight: 700 }}>
-                        {c.product.split(' ')[0].slice(0, 3).toUpperCase()}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: csm?.color || C.muted, color: '#fff', borderRadius: 99, fontFamily: MONO, fontSize: 9.5, fontWeight: 700 }}>
+                        {(c.product || '?').split(' ')[0].slice(0, 3).toUpperCase()}
                       </div>
                     )}
                   </div>
