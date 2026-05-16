@@ -90,6 +90,18 @@ try:
 
     rel_df = acct_products.merge(txn_summary, on='account_number', how='left')
 
+    # Apply BranchMapping so 'branch' shows names not numeric IDs in downstream
+    # groupby. Source of truth: 03_Config/clients_config.json -> BranchMapping.
+    if 'branch' in rel_df.columns:
+        try:
+            from ars_analysis.shared.branch_mapping import apply_branch_names
+            _clients_cfg = globals().get('_clients_config')
+            _cid = globals().get('CLIENT_ID', '')
+            apply_branch_names(rel_df, column='branch',
+                               client_id=_cid, clients_config=_clients_cfg)
+        except Exception as _be:
+            print(f"    WARNING: could not apply branch names to rel_df ({_be}) -- using raw IDs")
+
     # Fill missing transaction data (members with products but no transactions)
     rel_df['txn_count'] = rel_df['txn_count'].fillna(0).astype(int)
     rel_df['total_spend'] = rel_df['total_spend'].fillna(0)

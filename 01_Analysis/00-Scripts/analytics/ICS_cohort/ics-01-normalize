@@ -101,4 +101,20 @@ if 'Date Opened' in data.columns and 'Date Closed' in data.columns:
     if _bad:
         print(f"   ⚠️  {_bad:,} rows have Date Closed < Date Opened")
 
+# Apply BranchMapping from clients_config.json so the 5 downstream
+# ICS_cohort scripts that group by 'Branch' (ics-09, 13, 28, 38, 46) emit
+# operator-friendly names instead of numeric IDs. Single source of truth
+# lives in shared/branch_mapping.py.
+if 'Branch' in data.columns:
+    try:
+        from ars_analysis.shared.branch_mapping import apply_branch_names
+        _clients_cfg = globals().get('_clients_config') or globals().get('clients_config')
+        _cid = globals().get('CLIENT_ID', '')
+        apply_branch_names(data, column='Branch',
+                           client_id=_cid, clients_config=_clients_cfg)
+        _mapped_count = data['Branch'].nunique() if data['Branch'].notna().any() else 0
+        print(f"   Branch names : {_mapped_count} unique (from clients_config.json BranchMapping)")
+    except Exception as _be:
+        print(f"   WARNING: could not apply branch names ({_be}) -- using raw IDs")
+
 print("   ✅ normalization complete")

@@ -208,6 +208,19 @@ if 'rewards_df' in dir() or 'rewards_df' in globals():
             payroll_df['primary_account_num'] = payroll_df['primary_account_num'].astype(str).str.strip()
             payroll_df = payroll_df.merge(demo_df, on='primary_account_num', how='left')
 
+# Apply BranchMapping from clients_config.json so groupby('branch') in
+# downstream payroll scripts surfaces branch NAMES instead of raw numeric IDs.
+# Single source of truth lives in shared/branch_mapping.py.
+if 'branch' in payroll_df.columns:
+    try:
+        from ars_analysis.shared.branch_mapping import apply_branch_names
+        _clients_cfg = globals().get('_clients_config')
+        _cid = globals().get('CLIENT_ID', '')
+        apply_branch_names(payroll_df, column='branch',
+                           client_id=_cid, clients_config=_clients_cfg)
+    except Exception as _be:
+        print(f"    WARNING: could not apply branch names to payroll_df ({_be}) -- using raw IDs")
+
 print(f"  Step 5 demographics merged ({_time.time() - _t0:.1f}s)")
 
 # ---------------------------------------------------------------------------
