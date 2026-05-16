@@ -30,6 +30,15 @@ const STAGE_CUM = (() => {
 const TOTAL_MS = STAGE_CUM.finalize;
 
 function runState(run, now) {
+  // LIVE-mode runs carry a liveState filled by per-run polling. When present,
+  // ignore the elapsed-time simulation and project the polled stage directly.
+  if (run.liveState) {
+    const ls = run.liveState;
+    const stageIdx = Math.max(0, MockData.stages.findIndex((s) => s.id === ls.stage));
+    if (ls.status === 'complete') return { stageIdx: MockData.stages.length, progress: 1, stageId: 'finalize', status: 'done' };
+    if (ls.status === 'error')    return { stageIdx, progress: ls.stageProg || 0.5, stageId: ls.stage, status: 'error' };
+    return { stageIdx, progress: ls.stageProg || 0, stageId: ls.stage, status: 'running' };
+  }
   if (run.status === 'queued') return { stageIdx: -1, progress: 0, stageId: null, status: 'queued' };
   if (run.status === 'done') return { stageIdx: 5, progress: 1, stageId: 'finalize', status: 'done' };
   if (run.status === 'error') return { stageIdx: run.errorAt ?? 0, progress: 0.5, stageId: MockData.stages[run.errorAt ?? 0].id, status: 'error' };
@@ -114,15 +123,16 @@ function App() {
   const [bulkOpen, setBulkOpen] = React.useState(false);
   const [toast, setToast] = React.useState(null);
 
-  // Tick — drives stage progress + auto-completion.
+  // Tick -- in non-LIVE mode drives simulated stage progress + auto-completion.
+  // In LIVE mode the tick only refreshes `now` so clocks update; real run
+  // status comes from per-run polling further down.
   React.useEffect(() => {
     const id = setInterval(() => {
       setNow(Date.now());
+      if (window.LIVE) return;
       setRuns((rs) => rs.map((r) => {
         if (r.status === 'running') {
           const elapsed = Date.now() - r.startedAt;
-          // Simulated failure for runs of clients with status='error' —
-          // fail partway through the analyze stage to demonstrate the FailureDoneState.
           if (r.simulateFail && elapsed > STAGE_CUM.prep + 1800) {
             return { ...r, status: 'error', errorAt: 2, finishedAt: r.startedAt + STAGE_CUM.prep + 1800 };
           }
@@ -133,6 +143,36 @@ function App() {
     }, 200);
     return () => clearInterval(id);
   }, []);
+
+  // Per-run polling -- one setInterval per in-flight LIVE run that has a
+  // backend run_id. Stops itself when the run reaches a terminal state.
+  React.useEffect(() => {
+    if (!window.LIVE) return;
+    const intervals = {};
+    runs.forEach((r) => {
+      if (!r.runId || intervals[r.id]) return;
+      if (r.status !== 'running') return;
+      intervals[r.id] = setInterval(async () => {
+        try {
+          const data = await window.api.getRun(r.runId);
+          const ls = window.adapters.mapRun(data);
+          setRuns((rs) => rs.map((x) => {
+            if (x.id !== r.id) return x;
+            const next = { ...x, liveState: ls };
+            if (ls.status === 'complete') { next.status = 'done';  next.finishedAt = Date.now(); }
+            if (ls.status === 'error')    { next.status = 'error'; next.finishedAt = Date.now(); }
+            return next;
+          }));
+        } catch (e) {
+          console.error('[velocity] poll failed for', r.runId, e);
+        }
+      }, 1000);
+    });
+    return () => Object.values(intervals).forEach(clearInterval);
+  // We intentionally re-run on every runs change so new runs start polling
+  // and finished runs stop. React handles cleanup of stale intervals.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runs.map((r) => r.id + ':' + r.status).join('|')]);
 
   // ⌘K / Ctrl+K opens the command palette globally.
   React.useEffect(() => {
@@ -146,12 +186,39 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Map a prototype product id (or backend product id) to the canonical id
+  // the backend's /api/run accepts. Falls back to whatever was given.
+  const _backendProductId = (p) => {
+    const m = { ars_full: 'ars', combined: 'ars', deposits: 'dep', txn: 'txn', dep: 'dep', ars: 'ars' };
+    return m[p] || p;
+  };
+
   // Helpers exposed via context
-  const startRun = (clientId, product) => {
-    const client = D.clients.find(c => c.id === clientId);
+  const startRun = async (clientId, product) => {
+    const client = D.clients.find(c => c.id === clientId) || { id: clientId, csm: '' };
     const id = genId();
+    if (window.LIVE) {
+      // Spawn a "pending" run immediately so the UI flips to In-Progress;
+      // backend run_id arrives via the awaited POST.
+      const pending = {
+        id, clientId, product, csm: client.csm, status: 'running',
+        startedAt: Date.now(), liveState: { stage: 'read', stageProg: 0, themeNow: '—', moduleNow: '—', status: 'running', log: [] },
+      };
+      setRuns((rs) => [...rs, pending]);
+      setFocusedRunId(id);
+      setPage('in-progress');
+      try {
+        const csm = client.csm || (D.csms[0]?.id) || '';
+        const month = new Date().toISOString().slice(0, 7).replace('-', '.');
+        const body = await window.api.startRun(csm, month, clientId, _backendProductId(product));
+        setRuns((rs) => rs.map((r) => r.id === id ? { ...r, runId: body.run_id } : r));
+      } catch (e) {
+        console.error('[velocity] startRun failed:', e);
+        setRuns((rs) => rs.map((r) => r.id === id ? { ...r, status: 'error', liveState: { ...r.liveState, status: 'error', log: [String(e.message || e)] } } : r));
+      }
+      return;
+    }
     const newRun = { id, clientId, product, csm: client.csm, status: 'running', startedAt: Date.now(),
-                     // Realistic: clients flagged as last-failed will likely fail again until fixed.
                      simulateFail: client.status === 'error' };
     setRuns((rs) => [...rs, newRun]);
     setFocusedRunId(id);
@@ -577,7 +644,13 @@ function CsmFilter({ value, onChange }) {
 
 // Helper — name → product id (mirrors prototype-extras).
 function productIdFor(name) {
-  return ({ 'ARS Full Suite': 'ars_full', 'Transaction': 'txn', 'Combined': 'combined', 'Deposits': 'deposits' })[name] || 'ars_full';
+  if (!name) return MockData.products[0]?.id || 'ars';
+  // Prefer a match against the loaded product list (works for both LIVE backend
+  // ids like 'ars' / 'txn' / 'dep' and the prototype's seed ids).
+  const hit = MockData.products.find((p) => p.id === name || p.name === name);
+  if (hit) return hit.id;
+  return ({ 'ARS Full Suite': 'ars_full', 'Transaction': 'txn', 'Combined': 'combined', 'Deposits': 'deposits' })[name]
+    || MockData.products[0]?.id || 'ars';
 }
 
 function LegendDot({ color, children }) {
@@ -767,9 +840,13 @@ function RecentRunsTable() {
 // ─── RUN STUDIO ────────────────────────────────────────────────────────
 function RunStudio() {
   const { D, startRun, prefill, setPrefill } = useApp();
-  const [csmFilter, setCsmFilter] = React.useState('JamesG');
-  const [pickId, setPickId] = React.useState(prefill?.clientId || '1776');
-  const [product, setProduct] = React.useState(prefill?.product || 'ars_full');
+  // Pick safe defaults: first CSM, first client (filtered by CSM), first product.
+  const _firstCsm = D.csms[0]?.id || 'JamesG';
+  const _firstClient = D.clients.find((c) => c.csm === _firstCsm) || D.clients[0];
+  const _firstProduct = D.products[0]?.id || 'ars_full';
+  const [csmFilter, setCsmFilter] = React.useState(_firstCsm);
+  const [pickId, setPickId] = React.useState(prefill?.clientId || _firstClient?.id || '1776');
+  const [product, setProduct] = React.useState(prefill?.product || _firstProduct);
   const [customPath, setCustomPath] = React.useState(null); // null = use default; string = override path
   const [editingPath, setEditingPath] = React.useState(false);
   const [pathDraft, setPathDraft] = React.useState('');
@@ -1223,34 +1300,52 @@ function BuildLog({ run, st }) {
   React.useEffect(() => { if (ref.current) ref.current.scrollTop = ref.current.scrollHeight; }, [events.length, st.progress]);
 
   // ── Build the raw technical log (kept behind a disclosure)
-  const rawLines = [];
+  let rawLines = [];
   const ts = (offsetMs) => new Date(run.startedAt + offsetMs).toTimeString().slice(0, 8);
-  rawLines.push([ts(0), 'info', `Run ${run.id} dispatched · client=${run.clientId} product=${run.product}`]);
-  rawLines.push([ts(50), 'ok', `stage[read] reading 4 ODD files (2.1 GB)…`]);
-  if (st.stageIdx >= 1 || (st.stageIdx === 0 && st.progress > 0.9)) {
-    rawLines.push([ts(STAGE_CUM.read), 'ok', `stage[read] complete · 4,218 accounts loaded`]);
-    rawLines.push([ts(STAGE_CUM.read + 10), 'ok', `stage[prep] starting retrieve_data`]);
-  }
-  if (st.stageIdx >= 2) {
-    rawLines.push([ts(STAGE_CUM.prep), 'ok', `stage[prep] complete`]);
-    rawLines.push([ts(STAGE_CUM.prep + 10), 'ok', `stage[analyze] starting · 25 modules across 7 themes`]);
-    const done = moduleCount(st);
-    for (let i = 0; i < Math.min(done, 5); i++) {
-      rawLines.push([ts(STAGE_CUM.prep + 200 + i * 600), 'dim', `Module ${String(i+1).padStart(2,'0')}/25: overview_${['summary','account','branch','behavior'][i % 4]} · ok (${Math.round(80 + Math.random()*350)}ms)`]);
+  if (window.LIVE && run.liveState?.log) {
+    // Real backend log lines. Color-code by simple keyword heuristic.
+    const classify = (line) => {
+      const l = line.toLowerCase();
+      if (/error|failed|exception|traceback/.test(l)) return 'err';
+      if (/warn/.test(l)) return 'warn';
+      if (/complete|done|saved|ok/.test(l)) return 'ok';
+      if (/module\s+\d+\/\d+/.test(l)) return 'run';
+      return 'dim';
+    };
+    rawLines = run.liveState.log.map((line) => {
+      // Try to lift the timestamp out of "2026-05-15 17:59:09.769 | INFO ..." style;
+      // otherwise fall back to relative elapsed.
+      const m = String(line).match(/(\d{2}:\d{2}:\d{2})/);
+      return [m ? m[1] : ts(Date.now() - run.startedAt), classify(line), line];
+    });
+  } else {
+    rawLines.push([ts(0), 'info', `Run ${run.id} dispatched · client=${run.clientId} product=${run.product}`]);
+    rawLines.push([ts(50), 'ok', `stage[read] reading 4 ODD files (2.1 GB)…`]);
+    if (st.stageIdx >= 1 || (st.stageIdx === 0 && st.progress > 0.9)) {
+      rawLines.push([ts(STAGE_CUM.read), 'ok', `stage[read] complete · 4,218 accounts loaded`]);
+      rawLines.push([ts(STAGE_CUM.read + 10), 'ok', `stage[prep] starting retrieve_data`]);
     }
-    if (done > 5 && done < 25) {
-      rawLines.push([ts(STAGE_CUM.prep + 3500), 'dim', `… ${done - 5} more modules complete …`]);
-      rawLines.push([ts(Date.now() - run.startedAt - 1000), 'run', `Module ${String(done).padStart(2,'0')}/25: mailer_response_rate · in progress`]);
+    if (st.stageIdx >= 2) {
+      rawLines.push([ts(STAGE_CUM.prep), 'ok', `stage[prep] complete`]);
+      rawLines.push([ts(STAGE_CUM.prep + 10), 'ok', `stage[analyze] starting · 25 modules across 7 themes`]);
+      const done = moduleCount(st);
+      for (let i = 0; i < Math.min(done, 5); i++) {
+        rawLines.push([ts(STAGE_CUM.prep + 200 + i * 600), 'dim', `Module ${String(i+1).padStart(2,'0')}/25: overview_${['summary','account','branch','behavior'][i % 4]} · ok (${Math.round(80 + Math.random()*350)}ms)`]);
+      }
+      if (done > 5 && done < 25) {
+        rawLines.push([ts(STAGE_CUM.prep + 3500), 'dim', `… ${done - 5} more modules complete …`]);
+        rawLines.push([ts(Date.now() - run.startedAt - 1000), 'run', `Module ${String(done).padStart(2,'0')}/25: mailer_response_rate · in progress`]);
+      }
+      if (done >= 25) rawLines.push([ts(STAGE_CUM.analyze), 'ok', `stage[analyze] complete · 25 modules`]);
     }
-    if (done >= 25) rawLines.push([ts(STAGE_CUM.analyze), 'ok', `stage[analyze] complete · 25 modules`]);
-  }
-  if (st.stageIdx >= 3) {
-    rawLines.push([ts(STAGE_CUM.analyze + 10), 'ok', `stage[deck] starting · composing slides`]);
-    if (st.stageIdx > 3) rawLines.push([ts(STAGE_CUM.deck), 'ok', `stage[deck] complete · 78 slides, 142 charts`]);
-  }
-  if (st.stageIdx >= 4) {
-    rawLines.push([ts(STAGE_CUM.deck + 10), 'ok', `stage[finalize] writing outputs`]);
-    if (st.status === 'done') rawLines.push([ts(STAGE_CUM.finalize), 'ok', `Run complete · 4 files saved`]);
+    if (st.stageIdx >= 3) {
+      rawLines.push([ts(STAGE_CUM.analyze + 10), 'ok', `stage[deck] starting · composing slides`]);
+      if (st.stageIdx > 3) rawLines.push([ts(STAGE_CUM.deck), 'ok', `stage[deck] complete · 78 slides, 142 charts`]);
+    }
+    if (st.stageIdx >= 4) {
+      rawLines.push([ts(STAGE_CUM.deck + 10), 'ok', `stage[finalize] writing outputs`]);
+      if (st.status === 'done') rawLines.push([ts(STAGE_CUM.finalize), 'ok', `Run complete · 4 files saved`]);
+    }
   }
 
   return (
