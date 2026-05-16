@@ -236,8 +236,45 @@ function App() {
     else if (a.type === 'run') startRun(a.clientId, a.product);
   };
 
-  const handleBulkConfirm = (cfg) => {
-    setToast(`Scheduled ${cfg.count} clients to auto-run on the ${ordinal(cfg.day)} of every month, starting ${cfg.startMonth}.`);
+  const refreshSchedules = async () => {
+    if (!window.LIVE) return;
+    try {
+      const next = await window.api.getSchedules();
+      D.schedules = next || [];
+      // Force a re-render by bumping `now`.
+      setNow(Date.now());
+    } catch (e) { console.error('[velocity] refreshSchedules failed:', e); }
+  };
+
+  const handleBulkConfirm = async (cfg) => {
+    if (!window.LIVE) {
+      setToast(`Scheduled ${cfg.count} clients to auto-run on the ${ordinal(cfg.day)} of every month, starting ${cfg.startMonth}.`);
+      return;
+    }
+    // Targets: all clients for the selected CSM (or all clients if 'all').
+    const targets = D.clients.filter((c) => cfg.csmId === 'all' || c.csm === cfg.csmId);
+    const product = cfg.product === 'client_default' ? null : cfg.product;
+    let ok = 0, fail = 0;
+    for (const c of targets) {
+      try {
+        await window.api.createSchedule({
+          csm: c.csm || cfg.csmId,
+          client_id: c.id,
+          day: Number(cfg.day),
+          product: product || c.product || (D.products[0]?.id),
+          cadence: cfg.cadence || 'monthly',
+        });
+        ok += 1;
+      } catch (e) {
+        console.error('[velocity] createSchedule failed for', c.id, e);
+        fail += 1;
+      }
+    }
+    await refreshSchedules();
+    const msg = fail === 0
+      ? `Scheduled ${ok} client${ok === 1 ? '' : 's'} on day ${cfg.day} of every month.`
+      : `Scheduled ${ok} of ${targets.length} (${fail} failed -- see console).`;
+    setToast(msg);
   };
 
   const activeRuns = runs.filter(r => r.status === 'running');
@@ -1579,7 +1616,7 @@ function Library() {
               <SegBtn on={schedView==='gantt'}    onClick={() => setSchedView('gantt')}>Gantt</SegBtn>
             </div>
             <Btn kind="ghost" onClick={() => setBulkOpen(true)}><Icon.bolt size={11} /> Bulk schedule</Btn>
-            <Btn kind="ghost">+ New schedule</Btn>
+            <Btn kind="ghost" onClick={() => setBulkOpen(true)}>+ New schedule</Btn>
           </React.Fragment>}
         </div>}
       />
@@ -1699,14 +1736,37 @@ function ScheduleGantt() {
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const todayDay = today.getDate();
   // In LIVE mode pull day from real schedules; otherwise fall back to client.nextSched.
+  const scheduleFor = (clientId) => {
+    if (!window.LIVE) return null;
+    return (D.schedules || []).find((s) => String(s.client_id) === String(clientId));
+  };
   const scheduleDayFor = (clientId) => {
     if (window.LIVE) {
-      const s = (D.schedules || []).find((s) => String(s.client_id) === String(clientId));
+      const s = scheduleFor(clientId);
       return s ? Number(s.day) : null;
     }
     const c = D.clients.find((c) => c.id === clientId);
     const m = String(c?.nextSched || '').match(/(\d+)/);
     return m ? Number(m[1]) : null;
+  };
+  const handlePillClick = async (clientId) => {
+    if (!window.LIVE) return;
+    const s = scheduleFor(clientId);
+    if (!s) return;
+    const choice = window.prompt(`Schedule for ${clientId} on day ${s.day}.\n\nType "delete" to remove it, "run" to run now, or cancel.`);
+    if (!choice) return;
+    try {
+      if (choice.toLowerCase() === 'delete') {
+        await window.api.deleteSchedule(s.id);
+        D.schedules = (D.schedules || []).filter((x) => x.id !== s.id);
+        window.location.reload();
+      } else if (choice.toLowerCase() === 'run') {
+        await window.api.runScheduleNow(s.id);
+        window.alert('Schedule queued -- check the In-Progress page.');
+      }
+    } catch (e) {
+      window.alert(`Action failed: ${e.message || e}`);
+    }
   };
   // In LIVE mode only show clients that actually have schedules; otherwise show all.
   const visibleClients = window.LIVE
@@ -1745,9 +1805,11 @@ function ScheduleGantt() {
                 return (
                   <div key={i} style={{ height: '100%', borderLeft: `1px solid ${C.border}`, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isToday ? 'rgba(241,93,34,0.05)' : 'transparent' }}>
                     {isRun && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: csm?.color || C.muted, color: '#fff', borderRadius: 99, fontFamily: MONO, fontSize: 9.5, fontWeight: 700 }}>
+                      <button onClick={() => handlePillClick(c.id)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: csm?.color || C.muted, color: '#fff', borderRadius: 99, fontFamily: MONO, fontSize: 9.5, fontWeight: 700, border: 'none', cursor: window.LIVE ? 'pointer' : 'default' }}
+                        title={window.LIVE ? 'Click for actions (delete / run now)' : ''}>
                         {(c.product || '?').split(' ')[0].slice(0, 3).toUpperCase()}
-                      </div>
+                      </button>
                     )}
                   </div>
                 );
