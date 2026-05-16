@@ -220,6 +220,37 @@ async def index():
     return HTMLResponse("<h1>Velocity</h1><p>index.html not found</p>")
 
 
+@app.get("/legacy")
+async def legacy_index():
+    """Serve the pre-redesign UI (kept for fallback)."""
+    html_path = Path(__file__).parent / "index.legacy.html"
+    if html_path.exists():
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Velocity</h1><p>index.legacy.html not found</p>")
+
+
+def _serve_jsx(filename: str):
+    asset_path = Path(__file__).parent / filename
+    if not asset_path.exists():
+        return HTMLResponse("Not found", status_code=404)
+    return FileResponse(asset_path, media_type="text/babel")
+
+
+@app.get("/shared.jsx")
+async def jsx_shared():
+    return _serve_jsx("shared.jsx")
+
+
+@app.get("/prototype.jsx")
+async def jsx_prototype():
+    return _serve_jsx("prototype.jsx")
+
+
+@app.get("/prototype-extras.jsx")
+async def jsx_prototype_extras():
+    return _serve_jsx("prototype-extras.jsx")
+
+
 @app.get("/api/csms")
 async def get_csms():
     """Return CSM names from ars_config.json (dynamic, not hardcoded)."""
