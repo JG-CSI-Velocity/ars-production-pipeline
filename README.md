@@ -138,7 +138,7 @@ M:\ARS\
 |   |   |-- charts/                       Chart styling and guards
 |   |   |-- output/                       Deck builder, manifest loader, headlines
 |   |   |-- pipeline/                     Runner, steps, context, run_manifest
-|   |   |-- shared/                       Utilities, format_odd, helpers
+|   |   |-- shared/                       Utilities: branch_mapping, format_odd, helpers
 |   |   `-- tests/                        pytest test suite
 |   `-- 01_Completed_Analysis/        Excel + charts + JSON per client per run
 |
@@ -343,7 +343,7 @@ cd 01_Analysis/00-Scripts
 python -m pytest tests/ -q
 ```
 
-Covers the run manifest (`pipeline/manifest.py`), error-capture utilities (`pipeline/error_capture.py`), scorecard generator (`pipeline/scorecard.py`), slide-manifest loader (`output/manifest.py`), and pipeline integration.
+Covers the run manifest (`pipeline/manifest.py`), error-capture utilities (`pipeline/error_capture.py`), scorecard generator (`pipeline/scorecard.py`), slide-manifest loader (`output/manifest.py`), branch ID &rarr; name helper (`shared/branch_mapping.py`), and pipeline integration.
 
 ---
 
