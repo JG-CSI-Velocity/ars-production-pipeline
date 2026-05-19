@@ -23,3 +23,33 @@ CLAUDE.md
 # only. Each operator keeps their own SLIDE_MANIFEST.xlsx with their Keep?
 # decisions and per-slide notes; git pull will never overwrite it.
 SLIDE_MANIFEST.xlsx
+
+# Local planning / dev scratch — per-developer, never shipped
+.planning/
+Legacy/
+
+# Formatting working directories — contain client data
+00_Formatting/Incoming/
+00_Formatting/Unprocessed ODDs/
+00_Formatting/01-Data-Ready for Formatting/
+00_Formatting/02-Data-Ready for Analysis/
+
+# Analysis outputs — generated per run, contain client data
+01_Analysis/output/
+01_Analysis/00-Scripts/output/
+01_Analysis/01_Completed_Analysis/
+01_Analysis/Actionable Lists for Clients/
+01_Analysis/sample holder/
+01_Analysis/**/sample holder/
+01_Analysis/run_log.txt
+01_Analysis/competition_*.png
+01_Analysis/competition_diagnostic.txt
+output/
+
+# Recordings, decks, archives parked at repo root
+/*.mp4
+/*.pptx
+_archive/
+
+# Windows shortcuts
+*.lnk
