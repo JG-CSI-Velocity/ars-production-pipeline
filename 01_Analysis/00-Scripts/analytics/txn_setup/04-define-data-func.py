@@ -33,10 +33,18 @@ DTYPE_HINTS = {
 
 
 def _read_with_sep(filepath, sep):
-    """Single attempt to read a TXN file with the given delimiter."""
+    """Single attempt to read a TXN file with the given delimiter.
+
+    on_bad_lines='skip' drops rows whose field count doesn't match the
+    header. Real TXN dumps occasionally contain a single malformed row
+    (an unescaped comma in a merchant_name, a truncated line, etc.) and
+    we'd rather lose that one row than fail the whole file -- and by
+    extension the whole client's TXN run.
+    """
     return pd.read_csv(filepath, sep=sep, skiprows=1, header=None,
                        dtype=DTYPE_HINTS, low_memory=False,
-                       na_values=['', 'NA', 'N/A'])
+                       na_values=['', 'NA', 'N/A'],
+                       on_bad_lines='skip')
 
 
 def load_transaction_file(filepath):
@@ -155,10 +163,19 @@ else:
     SKIP_COMBINE = False
     print(f"Loading {len(files_to_load)} transaction files...\n")
 
+    _skipped_files = []
     for file_path in sorted(files_to_load):
-        df = load_transaction_file(file_path)
-        transaction_files.append(df)
-        print(f"  Loaded: {file_path.name} ({len(df):,} rows)")
+        try:
+            df = load_transaction_file(file_path)
+            transaction_files.append(df)
+            print(f"  Loaded: {file_path.name} ({len(df):,} rows)")
+        except Exception as _exc:
+            print(f"  SKIPPED: {file_path.name} -- {_exc.__class__.__name__}: {_exc}")
+            _skipped_files.append((file_path.name, str(_exc)))
+            continue
+    if _skipped_files:
+        print(f"\n  WARNING: {len(_skipped_files)} file(s) skipped due to read errors; "
+              f"continuing with the {len(transaction_files)} that loaded successfully.")
 
     print(f"\n{'='*50}")
     print(f"Total transactions loaded: {sum(len(df) for df in transaction_files):,}")
