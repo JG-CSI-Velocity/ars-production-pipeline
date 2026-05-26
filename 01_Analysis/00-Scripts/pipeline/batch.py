@@ -118,7 +118,12 @@ def _run_one_client(
             work_file = scanned.file_path
 
         paths = OutputPaths.from_base(work_base, scanned.client_id, scanned.month)
-        ctx = PipelineContext(client=client_info, paths=paths, settings=settings)
+        ctx = PipelineContext(
+            client=client_info,
+            paths=paths,
+            settings=settings,
+            product=getattr(settings, "product", "ars"),
+        )
 
         steps = _build_steps(work_file, module_ids)
         step_results = run_pipeline(ctx, steps)

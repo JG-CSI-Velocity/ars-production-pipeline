@@ -231,6 +231,7 @@ def run_ars(ctx: SharedContext) -> dict[str, SharedResult]:
         client=client_info,
         paths=paths,
         progress_callback=ctx.progress_callback,
+        product="ars",
     )
 
     # 3b. Resolve PPTX template (M: drive > config > embedded fallback)
@@ -382,6 +383,7 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
         client=client_info,
         paths=paths,
         progress_callback=ctx.progress_callback,
+        product="txn",
     )
 
     # Resolve template
