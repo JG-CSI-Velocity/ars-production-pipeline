@@ -999,6 +999,10 @@ async function loadClients() {
         const data = await resp.json();
         const sel = document.getElementById('gClientSel');
         if (!sel || data.length === 0) return;
+        // Preserve any selection the user has already made; rebuilding the
+        // <select> in place would otherwise default to the first option
+        // (typically 1776) and silently change which client runs.
+        const prevG = sel.value;
         sel.innerHTML = '';
         data.forEach(c => {
             const opt = document.createElement('option');
@@ -1008,10 +1012,14 @@ async function loadClients() {
             opt.dataset.name = c.name;
             sel.appendChild(opt);
         });
+        if (prevG && [...sel.options].some(o => o.value === prevG)) {
+            sel.value = prevG;
+        }
         updateGenClientFromAPI();
-        // Also populate results client selector
+        // Also populate results client selector -- same preservation logic.
         const rSel = document.getElementById('rClientSel');
         if (rSel) {
+            const prevR = rSel.value;
             rSel.innerHTML = '<option value="">Select a client...</option>';
             data.forEach(c => {
                 const opt = document.createElement('option');
@@ -1019,6 +1027,9 @@ async function loadClients() {
                 opt.textContent = `${c.id} — ${c.name}`;
                 rSel.appendChild(opt);
             });
+            if (prevR && [...rSel.options].some(o => o.value === prevR)) {
+                rSel.value = prevR;
+            }
         }
     } catch(e) {
         console.log('API not available, using defaults');
