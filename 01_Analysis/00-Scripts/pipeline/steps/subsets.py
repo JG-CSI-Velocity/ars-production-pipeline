@@ -95,8 +95,12 @@ def step_subsets(ctx: PipelineContext) -> None:
         _open_df = subs.open_accounts if subs.open_accounts is not None and len(subs.open_accounts) > 0 else df
         _open_stat = _open_df[_stat_col].astype(str).str.strip().str.replace(r'\.0$', '', regex=True).str.upper()
 
-        # Case-insensitive matching: uppercase both config values and data
-        _cfg_upper = [s.strip().upper() for s in eligible_stats]
+        # Case-insensitive matching: uppercase both config values and data.
+        # Config entries may be ints (e.g. 1) or strings ('1') -- Excel-typed
+        # status codes show up both ways in different ODDs, so the config
+        # often lists both forms. str()-coerce before stripping to tolerate
+        # both without an AttributeError on the int form.
+        _cfg_upper = [str(s).strip().upper() for s in eligible_stats]
         mask = _open_stat.isin(_cfg_upper)
         _match_count = mask.sum()
         logger.info(
