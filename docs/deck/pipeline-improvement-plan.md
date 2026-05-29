@@ -104,7 +104,8 @@ A18, A18.1, A18.2, A18.3, A19, A19.1, A19.2, A20, A20.1, A20.2, A20.3
 
 For each: inspect the matching analytics module, see which insights keys it populates in `ctx.results`, and write a generator that formats those into an action title (SLIDE_DESIGN §1.2 — title is the insight, not the category).
 
-- **Files touched:** `output/headlines.py` (add ~31 functions); some modules may need to populate additional insights keys.
+- **Files touched:** `output/headlines.py` (full replacement — see `docs/deck/phase-18-patches/headlines_replacement.py`). Generators for every `_noop` slide are implemented with utility helpers (`_fmt_pct`, `_fmt_currency`, `_trend_word`, `_try_adaptive`) and fall back gracefully on missing data.
+- **Dependency:** each generator assumes the matching analytics module populates the expected insights keys. Modules that don't yet emit those keys will fall through to the headline's default-title fallback — file follow-ups per module as gaps surface during Stream-1 verification.
 
 #### 18.5 — Section-specific speaker notes
 
@@ -237,7 +238,9 @@ Single-process FastAPI on Windows — no thread-safety concerns at this volume.
 | `03_Config/section_registry.json` | NEW: section → slide_prefix mapping | 17 |
 | `03_Config/schedules.json` | NEW: persisted schedules | 17 |
 | `03_Config/overnight_whitelist.json` | NEW: opt-in CSM list | 19 |
-| `docs/deck/phase-18-patches/*.py` | Reference patches for the deck_builder + notes changes | 18 |
+| `docs/deck/phase-18-patches/deck_builder_patch.py` | Reference patch for deck_builder (callout, footer, section divider) | 18 |
+| `docs/deck/phase-18-patches/notes_replacement.py` | Full replacement for `output/notes.py` (section-keyed talking points) | 18 |
+| `docs/deck/phase-18-patches/headlines_replacement.py` | Full replacement for `output/headlines.py` (all 31 `_noop` generators implemented) | 18 |
 | `docs/deck/task-scheduler-setup.md` | One-time Task Scheduler config for 17.3 + Stream 4 | 17, 19 |
 
 ---

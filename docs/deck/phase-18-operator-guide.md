@@ -7,12 +7,13 @@
 
 ## What's changing in Phase 18
 
-The deck builder gets four upgrades. Operator-facing, the UI doesn't change — you run the same Generate-tab flow. The output deck looks different (and better):
+The deck builder gets five upgrades. Operator-facing, the UI doesn't change — you run the same Generate-tab flow. The output deck looks different (and better):
 
 1. **Callout boxes** — every content slide has a teal hero-KPI box bottom-right
 2. **Footer bands** — every content slide has a two-line footer (source + `Client | Month | Slide n | STRICTLY CONFIDENTIAL`)
 3. **Section dividers** — full-bleed navy slides with white title and lead-in sentence
 4. **Speaker notes** — section-specific talking points in Presenter View, not the old generic prompt
+5. **Action-title headlines** — the 31 slides that used to get a generic category title now get a sentence-level finding (e.g. "Debit Card Take Rate held at 34% — 8 of 19 branches under 30%")
 
 ---
 
@@ -69,6 +70,7 @@ Open each deck in PowerPoint and confirm:
 | Footer band | Bottom of any content slide | Two lines: source on top, `Client \| Month \| Slide n \| STRICTLY CONFIDENTIAL` on bottom |
 | Section dividers | Between sections (e.g. before DCTR) | Full navy background, teal section number ("02"), white title, white lead-in sentence — **no chart, no logo, no template placeholders** |
 | Speaker notes | Switch to Presenter View on a DCTR slide | Notes start with `KEY FINDING:`, then bullet KPIs, then `TALKING POINTS:` with DCTR-specific prompts (e.g. about activation process, onboarding flow) |
+| Action-title headlines | A8.7, A18.x, A19.x, A20.x, A7.5–A7.15 slides | Slide title reads like a finding (numbers + context), not a generic category like "Reg E Opt-In Rates by Branch" |
 
 ### What should **not** change
 
@@ -86,6 +88,7 @@ Open each deck in PowerPoint and confirm:
 | Run errored on the Results tab | Click the red row → error message panel opens in UI | Share screenshot in Slack |
 | Deck opens but has zero callout boxes | Check you hard-refreshed (Ctrl+Shift+R) and the new terminal window is the one running | Re-run step 2–4 above |
 | Speaker notes still say generic "What actions has the client taken?" | The `notes.py` import path on this PC may be pointing at a stale install | Flag for dev — needs a Python path check, not an operator fix |
+| Headlines still say generic category text on A8.x / A18.x / A19.x / A20.x | The analytics module isn't populating the insights keys the new generator expects | Flag for dev with the slide_id — Phase 18.4 generator falls back to default title when data is missing |
 | Footer band missing on some content slides | Note which slide IDs | Flag for dev — `_add_slide` skipped a slide type |
 | Section divider still has placeholders or template text | Note which section | Flag for dev — `_build_section_slide` didn't fully clear the layout |
 
