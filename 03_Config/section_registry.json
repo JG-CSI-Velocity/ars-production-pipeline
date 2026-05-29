@@ -1,0 +1,136 @@
+{
+    "_comment": "Section → slide_prefix mapping for the --sections CLI flag and the UI multi-select (Phase 17.1). Keys are section names used in UI/CLI. slide_prefixes match against the lowercased prefix of slide_id (before '-' or '.'), consistent with _SECTION_MAP in output/deck_builder.py.",
+    "_status_legend": {
+        "active": "Wired into build_deck section grouping. Selecting this section in the UI yields slides.",
+        "routed_elsewhere": "Slides exist but build_deck distributes them INTO another section (see notes). Selecting alone yields no divider+slides until routing is changed.",
+        "aspirational": "Defined in this registry but not yet wired into build_deck section grouping. Currently rolls up under a parent section in _SECTION_MAP."
+    },
+
+    "ars": {
+        "overview": {
+            "display_name": "Overview",
+            "description": "Portfolio composition, eligibility, and program scope",
+            "slide_prefixes": ["a1", "a1b", "a3"],
+            "section_number": "01",
+            "status": "active"
+        },
+        "dctr": {
+            "display_name": "Debit Card Take Rate",
+            "description": "Current penetration, where opportunity sits, and what closing the gap is worth",
+            "slide_prefixes": ["a7", "dctr"],
+            "section_number": "02",
+            "status": "active"
+        },
+        "rege": {
+            "display_name": "Reg E / Overdraft",
+            "description": "Opt-in rates, branch variation, and revenue impact of Reg E enrollment",
+            "slide_prefixes": ["a8", "rege"],
+            "section_number": "03",
+            "status": "active"
+        },
+        "attrition": {
+            "display_name": "Attrition",
+            "description": "Who is leaving, what it costs, and where retention efforts should focus",
+            "slide_prefixes": ["a9", "att"],
+            "section_number": "04",
+            "status": "active"
+        },
+        "mailer": {
+            "display_name": "Mailer Campaign",
+            "description": "Campaign response rates, cohort lift, and mailer program ROI",
+            "slide_prefixes": ["a12", "a13", "a14", "a15", "a16", "a17", "mail"],
+            "section_number": "05",
+            "status": "active"
+        },
+        "value": {
+            "display_name": "Value",
+            "description": "Revenue attribution — what a debit card and Reg E opt-in are worth",
+            "slide_prefixes": ["a10", "a11", "val"],
+            "section_number": "06",
+            "status": "routed_elsewhere",
+            "_note": "build_deck() distributes A11.1 into dctr and A11.2 into rege; the value section has no standalone slides at runtime. Selecting 'value' alone returns nothing until routing changes."
+        },
+        "ics": {
+            "display_name": "ICS Acquisition",
+            "description": "Invitation Checking System acquisition channels and conversion",
+            "slide_prefixes": ["ics"],
+            "section_number": "07",
+            "status": "active"
+        },
+        "insights": {
+            "display_name": "Insights & Recommendations",
+            "description": "Synthesis, recommendations, and quantified action plan",
+            "slide_prefixes": ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "a18", "a19", "a20"],
+            "section_number": "08",
+            "status": "active"
+        }
+    },
+
+    "txn": {
+        "_comment": "TXN sub-sections are aspirational — _SECTION_MAP currently lumps every TXN prefix under one 'transaction' section. Wiring build_deck to honor these subsections is a follow-up.",
+
+        "transaction": {
+            "display_name": "Transactions (all TXN — current behavior)",
+            "description": "Every TXN slide rolls up here today",
+            "slide_prefixes": ["txn", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10", "m11", "m12", "m13", "m14", "m15", "m16", "m17", "m18", "m19", "m20", "m21", "m22", "m23", "m24", "m25", "m26", "b1", "b2", "b3", "b4", "b5", "b8"],
+            "section_number": "T00",
+            "status": "active"
+        },
+        "txn_general": {
+            "display_name": "TXN General",
+            "description": "Portfolio KPIs, demographics, ARS swipe segmentation",
+            "slide_prefixes": ["txn-general"],
+            "section_number": "T01",
+            "status": "aspirational"
+        },
+        "txn_merchant": {
+            "display_name": "TXN Merchant",
+            "description": "Top merchants, concentration, trends",
+            "slide_prefixes": ["txn-merchant", "txn-mcc_code"],
+            "section_number": "T02",
+            "status": "aspirational"
+        },
+        "txn_competition": {
+            "display_name": "TXN Competition",
+            "description": "Competitor detection, wallet share, CU/bank audit",
+            "slide_prefixes": ["txn-competition"],
+            "section_number": "T03",
+            "status": "aspirational"
+        },
+        "txn_campaign": {
+            "display_name": "TXN Campaign",
+            "description": "Mailer + cohort lift from transaction data",
+            "slide_prefixes": ["txn-campaign"],
+            "section_number": "T04",
+            "status": "aspirational"
+        },
+        "txn_branch": {
+            "display_name": "TXN Branch",
+            "description": "Branch-level spend analysis",
+            "slide_prefixes": ["txn-branch"],
+            "section_number": "T05",
+            "status": "aspirational"
+        },
+        "txn_payroll": {
+            "display_name": "TXN Payroll",
+            "description": "Direct deposit detection, PFI scoring",
+            "slide_prefixes": ["txn-payroll"],
+            "section_number": "T06",
+            "status": "aspirational"
+        },
+        "txn_engagement": {
+            "display_name": "TXN Engagement",
+            "description": "Monthly tier classification",
+            "slide_prefixes": ["txn-engagement"],
+            "section_number": "T07",
+            "status": "aspirational"
+        },
+        "txn_executive": {
+            "display_name": "TXN Executive",
+            "description": "KPI scorecard, action roadmap",
+            "slide_prefixes": ["txn-executive"],
+            "section_number": "T08",
+            "status": "aspirational"
+        }
+    }
+}
