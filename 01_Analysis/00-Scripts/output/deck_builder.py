@@ -1740,6 +1740,27 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         logger.warning("No slides to build deck from")
         return None
 
+    # Phase 17.1: section-level filter. run.py sets ctx.section_filter_prefixes
+    # when --sections is passed. Empty/None means include every slide (default).
+    _section_prefixes = getattr(ctx, "section_filter_prefixes", None) or []
+    if _section_prefixes:
+        _normalized = tuple(p.lower() for p in _section_prefixes)
+        _kept = [
+            s for s in ctx.all_slides
+            if str(getattr(s, "slide_id", "")).lower().startswith(_normalized)
+        ]
+        _dropped = len(ctx.all_slides) - len(_kept)
+        logger.info(
+            "Section filter: kept {k} / dropped {d} slides (prefixes={p})",
+            k=len(_kept), d=_dropped, p=", ".join(_section_prefixes),
+        )
+        print(f"  Section filter: kept {len(_kept)} / dropped {_dropped} slides")
+        ctx.all_slides = _kept
+        if not ctx.all_slides:
+            logger.warning("Section filter dropped every slide; nothing to build")
+            print("  WARNING: --sections matched zero slides; deck will be skipped")
+            return None
+
     # SLIDE_MANIFEST.xlsx Keep? decisions (#129). Loader returns an empty
     # ManifestDecisions when the file is missing -- legacy behavior preserved.
     # Set module-level state so _result_to_slide() can read it during composition.

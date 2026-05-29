@@ -172,6 +172,11 @@ def main():
                         help="Optional folder path. After the deck is written to M:, also copy "
                              "it here so the operator gets a fast local copy without downloading "
                              "from the shared drive.")
+    parser.add_argument("--sections", type=str, default="",
+                        help="Comma-separated section keys to include in the deck (Phase 17.1). "
+                             "Empty = all sections (default). Keys come from "
+                             "03_Config/section_registry.json. Analysis still runs for every "
+                             "module; this flag only trims which slides appear in the PPTX.")
     args = parser.parse_args()
 
     # Resolve fuzzy CSM name early so logs and paths all use the same name
@@ -389,6 +394,54 @@ def main():
     product = args.product
     ctx.product = product  # so deck_builder names the PPTX correctly (was misdetecting as 'ars')
 
+    # Phase 17.1: resolve --sections to slide-id prefixes for post-filtering.
+    # Path resolution: prefer 03_Config/ next to the analysis tree (matches
+    # M:\ARS layout), then the repo-relative fallback (dev environments).
+    _section_prefixes: list[str] = []
+    if args.sections.strip():
+        from pathlib import Path as _P
+        import json as _json
+        _reg_candidates = [
+            _P(r"M:\ARS\03_Config\section_registry.json"),
+            _P(__file__).resolve().parent.parent / "03_Config" / "section_registry.json",
+        ]
+        _reg_path = next((p for p in _reg_candidates if p.exists()), None)
+        if _reg_path is None:
+            print(f"  WARNING: --sections={args.sections} but section_registry.json not found.")
+            print(f"    Looked in: {', '.join(str(p) for p in _reg_candidates)}")
+        else:
+            try:
+                _reg = _json.loads(_reg_path.read_text(encoding="utf-8"))
+            except (OSError, _json.JSONDecodeError) as _e:
+                print(f"  WARNING: Could not parse {_reg_path}: {_e}")
+                _reg = {}
+            # combined runs filter against BOTH product blocks; single-product
+            # runs filter only the matching block.
+            _product_blocks = []
+            if product in ("ars", "combined"):
+                _product_blocks.append(_reg.get("ars", {}))
+            if product in ("txn", "combined"):
+                _product_blocks.append(_reg.get("txn", {}))
+            _requested = [k.strip() for k in args.sections.split(",") if k.strip()]
+            _unknown = []
+            for _skey in _requested:
+                _matched = False
+                for _block in _product_blocks:
+                    _info = _block.get(_skey)
+                    if isinstance(_info, dict):
+                        _section_prefixes.extend(_info.get("slide_prefixes", []))
+                        _matched = True
+                        break
+                if not _matched:
+                    _unknown.append(_skey)
+            if _unknown:
+                print(f"  WARNING: --sections referenced unknown keys: {', '.join(_unknown)}")
+            if _section_prefixes:
+                print(f"  Sections: {', '.join(_requested)}")
+                print(f"  Prefixes: {', '.join(_section_prefixes)}")
+            else:
+                print(f"  WARNING: --sections={args.sections} resolved to no prefixes; running all sections.")
+
     if product == "txn":
         from runner import run_txn
         print("  Starting TXN pipeline...")
@@ -404,6 +457,9 @@ def main():
         print("  Starting ARS pipeline...")
         print()
         runner_fn = run_ars
+
+    # Hand the resolved section filter to build_deck via ctx.
+    ctx.section_filter_prefixes = _section_prefixes
 
     try:
         results = runner_fn(ctx)

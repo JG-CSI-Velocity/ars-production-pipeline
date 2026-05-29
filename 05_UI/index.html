@@ -154,6 +154,27 @@ header {
 .p-unit { font-size: 12px; color: var(--muted); }
 .p-time { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--faint); margin-top: 4px; }
 
+/* Section filter (Phase 17.1) */
+.sections-card { background: var(--card); border: 2px solid var(--border); border-radius: 12px; overflow: hidden; margin-top: 16px; }
+.sections-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #f5f5f5; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+.sections-head .card-title { font-size: 13px; }
+.sections-head .card-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.sections-toggle { font-size: 14px; color: var(--muted); transition: transform 0.15s; }
+.sections-toggle.open { transform: rotate(90deg); }
+.sections-body { padding: 16px 20px; }
+.sections-actions { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.sections-hint { font-size: 11px; color: var(--muted); font-style: italic; margin-left: 8px; flex: 1; min-width: 200px; }
+.btn-mini { padding: 4px 10px; font-size: 11px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-family: inherit; }
+.btn-mini:hover { background: #f0f0f0; }
+.sections-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.section-check { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: #fafafa; }
+.section-check input { margin-top: 2px; }
+.section-check.on { background: #fff; border-color: #c8d6e5; }
+.section-check .sc-label { font-size: 12px; font-weight: 500; }
+.section-check .sc-num { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--faint); margin-right: 4px; }
+.section-check .sc-desc { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+.section-check .sc-product { display: inline-block; font-size: 9px; font-weight: 600; color: var(--muted); background: #eef2f5; padding: 1px 5px; border-radius: 3px; margin-left: 4px; text-transform: uppercase; }
+
 /* Modules */
 .modules-panel { background: var(--card); border: 2px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
 .modules-head {
@@ -650,6 +671,25 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             <div class="p-card" onclick="selectProd('combined')"><div class="p-name">Combined</div><div class="p-count">47</div><div class="p-unit">ARS + TXN</div><div class="p-time">~ 35-55 min</div></div>
             <div class="p-card" onclick="selectProd('dep')"><div class="p-name">Deposits</div><div class="p-count">15</div><div class="p-unit">modules</div><div class="p-time">~ 10-20 min</div></div>
         </div>
+
+        <!-- Phase 17.1: Section filter (collapsed by default; all checked = unchanged behavior) -->
+        <div class="sections-card" id="gSectionsCard" style="display:none;">
+            <div class="sections-head" onclick="toggleSectionsPanel()">
+                <div>
+                    <div class="card-title">Sections</div>
+                    <div class="card-meta" id="gSectionsSummary">All sections selected</div>
+                </div>
+                <div class="sections-toggle" id="gSectionsToggle">&#9656;</div>
+            </div>
+            <div class="sections-body" id="gSectionsBody" style="display:none;">
+                <div class="sections-actions">
+                    <button type="button" class="btn-mini" onclick="setAllSections(true)">Select all</button>
+                    <button type="button" class="btn-mini" onclick="setAllSections(false)">Deselect all</button>
+                    <span class="sections-hint">Uncheck sections to leave them out of the deck. Analysis still runs for every module.</span>
+                </div>
+                <div class="sections-grid" id="gSectionsGrid"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Module details (expandable) -->
@@ -928,9 +968,123 @@ let selMods = new Set();
 function selectProd(key) {
     curProd = key;
     document.querySelectorAll('.p-card').forEach((c,i) => {
-        c.classList.toggle('on', ['ars','txn','dep','custom'][i] === key);
+        c.classList.toggle('on', ['ars','txn','combined','dep','custom'][i] === key);
     });
     renderModules();
+    loadSections(key);
+}
+
+// ─── Section filter (Phase 17.1) ─────────────────────────────────────
+let curSections = [];          // last list from /api/sections
+let selSections = new Set();   // currently checked section keys
+let _sectionsLoadToken = 0;    // race-guard for rapid product toggles
+
+async function loadSections(product) {
+    const card = document.getElementById('gSectionsCard');
+    const grid = document.getElementById('gSectionsGrid');
+    const summary = document.getElementById('gSectionsSummary');
+    if (!card || !grid) return;
+
+    // Skip for Deposits / Custom -- registry only covers ars + txn + combined.
+    if (!['ars', 'txn', 'combined'].includes(product)) {
+        card.style.display = 'none';
+        curSections = [];
+        selSections.clear();
+        updRunBar();
+        return;
+    }
+
+    const myToken = ++_sectionsLoadToken;
+    try {
+        const resp = await fetch('/api/sections?product=' + encodeURIComponent(product));
+        if (!resp.ok) throw new Error('fetch failed');
+        const data = await resp.json();
+        if (myToken !== _sectionsLoadToken) return;  // newer request superseded us
+
+        curSections = Array.isArray(data) ? data : [];
+        if (curSections.length === 0) {
+            // Backend or registry missing -- hide gracefully so the run still works.
+            card.style.display = 'none';
+            selSections.clear();
+            updRunBar();
+            return;
+        }
+
+        selSections = new Set(curSections.map(s => s.key));
+        grid.innerHTML = '';
+        curSections.forEach(s => {
+            const id = 'sec-' + s.key;
+            const wrap = document.createElement('label');
+            wrap.className = 'section-check on';
+            wrap.htmlFor = id;
+            const productTag = product === 'combined'
+                ? `<span class="sc-product">${s.product}</span>`
+                : '';
+            wrap.innerHTML = `
+                <input type="checkbox" id="${id}" checked data-key="${s.key}" onchange="onSectionToggle(this)" />
+                <div>
+                    <div class="sc-label"><span class="sc-num">${s.section_number || ''}</span>${s.display_name}${productTag}</div>
+                    <div class="sc-desc">${s.description || ''}</div>
+                </div>`;
+            grid.appendChild(wrap);
+        });
+        card.style.display = '';
+        summary.textContent = `All ${curSections.length} sections selected`;
+        updRunBar();
+    } catch (err) {
+        if (myToken !== _sectionsLoadToken) return;
+        // Endpoint missing (pre-17.1 backend) -- hide and proceed.
+        card.style.display = 'none';
+        curSections = [];
+        selSections.clear();
+        updRunBar();
+    }
+}
+
+function toggleSectionsPanel() {
+    const body = document.getElementById('gSectionsBody');
+    const toggle = document.getElementById('gSectionsToggle');
+    const open = body.style.display === 'none';
+    body.style.display = open ? '' : 'none';
+    toggle.classList.toggle('open', open);
+}
+
+function onSectionToggle(input) {
+    const key = input.getAttribute('data-key');
+    if (input.checked) selSections.add(key); else selSections.delete(key);
+    const wrap = input.closest('.section-check');
+    if (wrap) wrap.classList.toggle('on', input.checked);
+    updateSectionsSummary();
+    updRunBar();
+}
+
+function setAllSections(on) {
+    document.querySelectorAll('#gSectionsGrid input[type=checkbox]').forEach(cb => {
+        cb.checked = on;
+        const key = cb.getAttribute('data-key');
+        if (on) selSections.add(key); else selSections.delete(key);
+        const wrap = cb.closest('.section-check');
+        if (wrap) wrap.classList.toggle('on', on);
+    });
+    updateSectionsSummary();
+    updRunBar();
+}
+
+function updateSectionsSummary() {
+    const total = curSections.length;
+    const summary = document.getElementById('gSectionsSummary');
+    if (!summary) return;
+    if (selSections.size === total) summary.textContent = `All ${total} sections selected`;
+    else if (selSections.size === 0) summary.textContent = `No sections selected — nothing will render`;
+    else summary.textContent = `${selSections.size} of ${total} sections selected`;
+}
+
+function getSelectedSectionsParam() {
+    // Empty string when all are selected = backward-compatible "run everything"
+    // and avoids round-tripping a redundant flag.
+    if (curSections.length === 0) return '';
+    if (selSections.size === curSections.length) return '';
+    return Array.from(selSections).join(',');
 }
 
 function renderModules() {
@@ -961,7 +1115,11 @@ function updRunBar() {
     const cname = c.options[c.selectedIndex].text.split(' — ')[1];
     document.getElementById('gModCount').textContent = selMods.size + ' modules selected';
     document.getElementById('gRunWhat').textContent = `${p.name} for ${cname}`;
-    document.getElementById('gRunMeta').textContent = `${selMods.size} modules // est. ${p.time}`;
+    let meta = `${selMods.size} modules // est. ${p.time}`;
+    if (curSections.length > 0 && selSections.size < curSections.length) {
+        meta += ` // ${selSections.size} of ${curSections.length} sections`;
+    }
+    document.getElementById('gRunMeta').textContent = meta;
 }
 
 function updateGenClient() { updRunBar(); }
@@ -1513,8 +1671,10 @@ async function runGenReal() {
     }
 
     try {
+        const sectionsParam = getSelectedSectionsParam();
         const runUrl = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
-            + (localCopyPath ? `&local_copy_path=${encodeURIComponent(localCopyPath)}` : '');
+            + (localCopyPath ? `&local_copy_path=${encodeURIComponent(localCopyPath)}` : '')
+            + (sectionsParam ? `&sections=${encodeURIComponent(sectionsParam)}` : '');
         const resp = await fetch(runUrl, {method: 'POST'});
         if (!resp.ok) {
             const errText = await resp.text();

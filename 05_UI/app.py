@@ -45,6 +45,7 @@ if not ARS_BASE.exists():
 
 CONFIG_PATH = ARS_BASE / "03_Config" / "clients_config.json"
 ARS_CONFIG_PATH = ARS_BASE / "03_Config" / "ars_config.json"
+SECTION_REGISTRY = ARS_BASE / "03_Config" / "section_registry.json"
 FORMATTING_BASE = ARS_BASE / "00_Formatting"
 ANALYSIS_BASE = ARS_BASE / "01_Analysis"
 PRESENTATIONS_BASE = ARS_BASE / "02_Presentations"
@@ -54,6 +55,31 @@ COMPLETED_ANALYSIS = ANALYSIS_BASE / "01_Completed_Analysis"
 
 # In-memory run tracking
 runs = {}
+
+# In-memory dropdown cache (Phase 17.4). 5-minute TTL on M: drive scans so the
+# Generate tab doesn't re-walk the share on every dropdown click.
+_api_cache: dict[str, dict] = {}
+_API_CACHE_TTL_SEC = 300
+
+
+def _cached(key: str, fetch_fn):
+    """Return cached value if fresh, otherwise call fetch_fn and cache it."""
+    now = time.time()
+    entry = _api_cache.get(key)
+    if entry and (now - entry["ts"]) < _API_CACHE_TTL_SEC:
+        return entry["data"]
+    data = fetch_fn()
+    _api_cache[key] = {"data": data, "ts": now}
+    return data
+
+
+def _invalidate_cache(prefix: str = ""):
+    """Drop cache entries matching prefix, or all entries if prefix is empty."""
+    if not prefix:
+        _api_cache.clear()
+        return
+    for k in [k for k in _api_cache if k.startswith(prefix)]:
+        del _api_cache[k]
 
 
 # ─── HELPERS ──────────────────────────────────────────────────────────
@@ -79,6 +105,28 @@ def get_csm_list():
     if sources:
         return sorted(sources.keys())
     return []
+
+
+def _fetch_clients_all():
+    """Cacheable unfiltered client list (Phase 17.4). Used by Results dropdown."""
+    config = load_clients_config()
+    return [
+        {
+            "id": cid,
+            "name": data.get("ClientName", f"Client {cid}"),
+            "config": {
+                "ic_rate": data.get("ICRate", ""),
+                "nsf_od_fee": data.get("NSF_OD_Fee", ""),
+                "stat_codes": data.get("EligibleStatusCodes", []),
+                "prod_codes": data.get("EligibleProductCodes", []),
+                "ineligible_stat": data.get("IneligibleStatusCodes", []),
+                "eligible_mail": data.get("EligibleMailCode", ""),
+                "reg_e_opt_in": data.get("RegEOptInCode", []),
+                "branch_mapping": data.get("BranchMapping", {}),
+            },
+        }
+        for cid, data in config.items()
+    ]
 
 
 def find_formatted_odd(csm, month, client_id):
@@ -254,7 +302,55 @@ async def index():
 @app.get("/api/csms")
 async def get_csms():
     """Return CSM names from ars_config.json (dynamic, not hardcoded)."""
-    return get_csm_list()
+    return _cached("csms", get_csm_list)
+
+
+@app.get("/api/sections")
+async def get_sections(product: str = "ars"):
+    """Return available sections for the given product (Phase 17.1).
+
+    Reads 03_Config/section_registry.json. Returns a list of
+    {key, display_name, description, section_number, enabled, product}.
+
+    - product=ars      -> ARS sections only
+    - product=txn      -> TXN sections only
+    - product=combined -> both
+    - registry missing -> []  (UI hides the panel gracefully)
+    - status="routed_elsewhere" entries are excluded (no slides to filter on)
+    - status="aspirational" entries are excluded today (not wired into
+      build_deck grouping yet). They'll surface when the routing lands.
+    """
+    if not SECTION_REGISTRY.exists():
+        return []
+
+    try:
+        registry = json.loads(SECTION_REGISTRY.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+
+    products_wanted = []
+    if product in ("ars", "combined"):
+        products_wanted.append("ars")
+    if product in ("txn", "combined"):
+        products_wanted.append("txn")
+
+    out = []
+    for prod_key in products_wanted:
+        for key, info in registry.get(prod_key, {}).items():
+            if not isinstance(info, dict):
+                continue
+            status = info.get("status", "active")
+            if status != "active":
+                continue
+            out.append({
+                "key": key,
+                "display_name": info.get("display_name", key.title()),
+                "description": info.get("description", ""),
+                "section_number": info.get("section_number", ""),
+                "enabled": True,
+                "product": prod_key,
+            })
+    return out
 
 
 _ODDD_CLIENT_ID_RE = re.compile(r"^(\d+)_ODDD", re.IGNORECASE)
@@ -382,6 +478,12 @@ async def get_clients(csm: str = "", month: str = ""):
 
     With no csm/month, returns the full config (used by Results-tab dropdown).
     """
+    # Phase 17.4: only cache the unfiltered fetch. Filtered queries always
+    # walk the live folder layout because new ZIPs/dirs can appear mid-session
+    # and we want them visible immediately on the Generate-tab dropdown.
+    if not csm and not month:
+        return _cached("clients_all", _fetch_clients_all)
+
     config = load_clients_config()
 
     allowed_ids = None
@@ -438,6 +540,11 @@ async def get_months(csm: str = "", source: str = "all"):
     source=formatted: scan 02-Data-Ready for Analysis (already formatted -- for analysis step)
     source=all: combine both
     """
+    cache_key = f"months_{csm}_{source}"
+    cached = _api_cache.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _API_CACHE_TTL_SEC:
+        return cached["data"]
+
     months = set()
 
     # Scan formatted output directory
@@ -463,7 +570,9 @@ async def get_months(csm: str = "", source: str = "all"):
 
     # Cap to most recent 6 months
     sorted_months = sorted(months, reverse=True)
-    return sorted_months[:6] or [datetime.now().strftime("%Y.%m")]
+    result = sorted_months[:6] or [datetime.now().strftime("%Y.%m")]
+    _api_cache[cache_key] = {"data": result, "ts": time.time()}
+    return result
 
 
 @app.get("/api/files/{csm}/{month}/{client_id}")
@@ -638,6 +747,7 @@ async def start_run(
     client_id: str,
     product: str = "ars",
     local_copy_path: str = "",
+    sections: str = "",
 ):
     """Start a full pipeline run: format (if needed) + analysis + PPTX.
 
@@ -645,7 +755,14 @@ async def start_run(
     copied to this folder on the operator's machine so they don't have to
     download a large file from the shared M: drive. Validated to be a
     writable directory before the (long) run starts.
+
+    Optional sections (Phase 17.1): comma-separated section keys (e.g.
+    "dctr,rege"). Empty = run every section (default behavior). All analytics
+    still execute -- this filter only trims which slides end up in the deck.
     """
+    # Drop month/clients caches so any new run shows up immediately in dropdowns.
+    _invalidate_cache("months_")
+    _invalidate_cache("clients_all")
     run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
     formatting_run = ARS_BASE / "00_Formatting" / "run.py"
@@ -730,6 +847,8 @@ async def start_run(
                    "--product", product]
             if local_copy_resolved:
                 cmd += ["--local-copy", local_copy_resolved]
+            if sections.strip():
+                cmd += ["--sections", sections.strip()]
 
             # Forward SLIDE_MODE and SLIDE_BUDGET so UI-set deck-size
             # controls reach the analysis subprocess. Without this, the
@@ -760,6 +879,10 @@ async def start_run(
                 runs[run_id]["status"] = "complete" if proc.returncode == 0 else "error"
                 runs[run_id]["progress"] = 100 if proc.returncode == 0 else runs[run_id]["progress"]
                 runs[run_id]["finished"] = datetime.now().isoformat()
+            # Run finished -- new outputs are now on disk; drop dropdown caches
+            # so the Results tab picks them up next refresh.
+            _invalidate_cache("months_")
+            _invalidate_cache("clients_all")
         except Exception as e:
             if run_id in runs:
                 runs[run_id]["status"] = "error"
