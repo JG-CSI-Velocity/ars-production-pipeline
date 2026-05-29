@@ -154,6 +154,29 @@ header {
 .p-unit { font-size: 12px; color: var(--muted); }
 .p-time { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--faint); margin-top: 4px; }
 
+/* Batch mode (Phase 17.2) */
+.batch-row { margin-top: 12px; padding: 12px 0; border-top: 1px dashed var(--border); }
+.batch-toggle { display: flex; gap: 8px; align-items: center; cursor: pointer; font-size: 13px; color: var(--ink); }
+.batch-toggle input { margin: 0; }
+.batch-picker { margin-top: 10px; padding: 12px; background: #fafafa; border: 1px solid var(--border); border-radius: 8px; }
+.batch-actions { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.batch-hint { font-size: 11px; color: var(--muted); font-style: italic; margin-left: 8px; }
+.batch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; max-height: 240px; overflow-y: auto; }
+.batch-check { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); cursor: pointer; font-size: 12px; }
+.batch-check.on { background: #f5fafa; border-color: #c8d6e5; }
+.batch-check input { margin: 0; }
+
+/* Batch progress panel */
+.batch-progress { background: var(--card); border: 2px solid var(--border); border-radius: 12px; margin-top: 16px; overflow: hidden; }
+.batch-progress-head { padding: 12px 20px; background: #f5f5f5; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.batch-progress-table { width: 100%; border-collapse: collapse; }
+.batch-progress-table th, .batch-progress-table td { padding: 8px 16px; text-align: left; border-bottom: 1px solid #eee; font-size: 12px; }
+.batch-progress-table th { background: #fafafa; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.bp-pending { color: var(--faint); }
+.bp-running { color: #d97706; font-weight: 600; }
+.bp-complete { color: #15803d; font-weight: 600; }
+.bp-error { color: #dc2626; font-weight: 600; }
+
 /* Section filter (Phase 17.1) */
 .sections-card { background: var(--card); border: 2px solid var(--border); border-radius: 12px; overflow: hidden; margin-top: 16px; }
 .sections-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: #f5f5f5; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
@@ -610,6 +633,21 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                 <select class="sel" id="gClientSel" onchange="updateGenClientFromAPI()">
                     <option value="">Loading...</option>
                 </select>
+            </div>
+        </div>
+        <!-- Phase 17.2: batch mode toggle -->
+        <div class="batch-row">
+            <label class="batch-toggle">
+                <input type="checkbox" id="gBatchCb" onchange="toggleBatchMode()" />
+                <span>Run multiple clients in this period (sequential batch)</span>
+            </label>
+            <div class="batch-picker" id="gBatchPicker" style="display:none;">
+                <div class="batch-actions">
+                    <button type="button" class="btn-mini" onclick="setAllBatchClients(true)">Select all</button>
+                    <button type="button" class="btn-mini" onclick="setAllBatchClients(false)">Deselect all</button>
+                    <span class="batch-hint" id="gBatchHint">0 clients selected</span>
+                </div>
+                <div class="batch-grid" id="gBatchGrid"></div>
             </div>
         </div>
     </div>
@@ -1425,9 +1463,17 @@ function _parseModuleProgress(line) {
 }
 
 function _parseSoftFailure(line) {
-    // "  A8.7: A8.7 -- single positional indexer is out-of-bounds"
-    const m = line.match(/^\s*([A-Z]\d+(?:\.\d+)?):\s*\1\s*--\s*(.+)$/);
-    return m ? {slideId: m[1], reason: m[2].trim()} : null;
+    // Old-style line emitted by analytics modules:
+    //   "  A8.7: A8.7 -- single positional indexer is out-of-bounds"
+    let m = line.match(/^\s*([A-Z]\d+(?:\.\d+)?):\s*\1\s*--\s*(.+)$/);
+    if (m) return {slideId: m[1], reason: m[2].trim()};
+
+    // New-style line emitted by build_deck() (issue 2.8):
+    //   "    SOFT FAILURE S1: NoneType has no attribute 'open_records'"
+    m = line.match(/^\s*SOFT FAILURE\s+([A-Z]+\d*(?:\.\w+)*|S\d+|DCTR-\d+|TXN-[A-Z0-9_-]+):\s*(.+)$/);
+    if (m) return {slideId: m[1], reason: m[2].trim()};
+
+    return null;
 }
 
 function _parseVersionedDeck(line) {
@@ -2386,12 +2432,197 @@ async function smartRunGen() {
     try {
         const test = await fetch('/api/csms');
         if (test.ok) {
-            await runGenReal();
+            if (isBatchMode() && selBatchClients.size > 1) {
+                await runBatchReal();
+            } else {
+                await runGenReal();
+            }
             return;
         }
     } catch(e) {}
     // No mock fallback -- show real error
     alert('Cannot connect to the pipeline server. Make sure app.py is running.');
+}
+
+// ─── Batch mode (Phase 17.2) ─────────────────────────────────────────
+let selBatchClients = new Set();
+let batchPollTimer = null;
+
+function isBatchMode() {
+    return !!document.getElementById('gBatchCb')?.checked;
+}
+
+function toggleBatchMode() {
+    const on = isBatchMode();
+    const picker = document.getElementById('gBatchPicker');
+    const single = document.getElementById('gClientSel');
+    if (picker) picker.style.display = on ? '' : 'none';
+    if (single) single.disabled = on;
+    if (on) populateBatchPicker();
+    updateBatchRunBar();
+}
+
+function populateBatchPicker() {
+    const grid = document.getElementById('gBatchGrid');
+    const single = document.getElementById('gClientSel');
+    if (!grid || !single) return;
+    grid.innerHTML = '';
+    selBatchClients.clear();
+    Array.from(single.options).forEach(opt => {
+        if (!opt.value) return;
+        const label = document.createElement('label');
+        label.className = 'batch-check';
+        label.innerHTML = `<input type="checkbox" data-cid="${opt.value}" onchange="onBatchClientToggle(this)" /> <span>${opt.textContent}</span>`;
+        grid.appendChild(label);
+    });
+    updateBatchHint();
+}
+
+function onBatchClientToggle(input) {
+    const cid = input.getAttribute('data-cid');
+    if (input.checked) selBatchClients.add(cid); else selBatchClients.delete(cid);
+    const wrap = input.closest('.batch-check');
+    if (wrap) wrap.classList.toggle('on', input.checked);
+    updateBatchHint();
+    updateBatchRunBar();
+}
+
+function setAllBatchClients(on) {
+    document.querySelectorAll('#gBatchGrid input[type=checkbox]').forEach(cb => {
+        cb.checked = on;
+        const cid = cb.getAttribute('data-cid');
+        if (on) selBatchClients.add(cid); else selBatchClients.delete(cid);
+        const wrap = cb.closest('.batch-check');
+        if (wrap) wrap.classList.toggle('on', on);
+    });
+    updateBatchHint();
+    updateBatchRunBar();
+}
+
+function updateBatchHint() {
+    const hint = document.getElementById('gBatchHint');
+    if (hint) hint.textContent = `${selBatchClients.size} client${selBatchClients.size === 1 ? '' : 's'} selected`;
+}
+
+function updateBatchRunBar() {
+    const btn = document.getElementById('genRunBtn');
+    if (!btn) return;
+    if (isBatchMode() && selBatchClients.size > 1) {
+        btn.textContent = `Run Batch (${selBatchClients.size} clients)`;
+    } else {
+        btn.textContent = 'Format + Analyze + Build PPTX';
+    }
+}
+
+async function runBatchReal() {
+    const csm = document.getElementById('gCsmSel').value;
+    const month = document.getElementById('gMonthSel').value;
+    const product = curProd;
+    const clientIds = Array.from(selBatchClients);
+
+    if (!csm || !month || clientIds.length < 2) {
+        alert('Select a CSM, a month, and at least 2 clients for a batch run.');
+        return;
+    }
+
+    const sections = getSelectedSectionsParam();
+    const localCopyOn = document.getElementById('gLocalCopyCb')?.checked;
+    const localCopyPath = localCopyOn ? (document.getElementById('gLocalCopyPath')?.value || '').trim() : '';
+
+    const btn = document.getElementById('genRunBtn');
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+
+    let batchId = null;
+    try {
+        const resp = await fetch('/api/batch', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                csm, month, product,
+                client_ids: clientIds,
+                sections, local_copy_path: localCopyPath,
+            }),
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+        batchId = data.batch_id;
+    } catch (err) {
+        alert(`Batch start failed: ${err.message || err}`);
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        return;
+    }
+
+    renderBatchProgressShell(batchId, clientIds);
+    if (batchPollTimer) clearInterval(batchPollTimer);
+    batchPollTimer = setInterval(async () => {
+        try {
+            const r = await fetch(`/api/batch/${batchId}`);
+            if (!r.ok) return;
+            const data = await r.json();
+            renderBatchProgressUpdate(data);
+            if (data.status !== 'running') {
+                clearInterval(batchPollTimer);
+                batchPollTimer = null;
+                btn.disabled = false;
+                btn.style.opacity = '';
+                btn.style.cursor = '';
+                updateBatchRunBar();
+            }
+        } catch (e) {}
+    }, 2000);
+}
+
+function renderBatchProgressShell(batchId, clientIds) {
+    let panel = document.getElementById('gBatchProgress');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'gBatchProgress';
+        panel.className = 'batch-progress';
+        const anchor = document.getElementById('gProg') || document.querySelector('.tab-content');
+        anchor?.parentNode?.insertBefore(panel, anchor);
+    }
+    panel.innerHTML = `
+        <div class="batch-progress-head">
+            <div>
+                <div class="card-title">Batch: ${clientIds.length} clients</div>
+                <div class="card-meta" id="gBatchSummary">queued</div>
+            </div>
+            <div class="card-meta" style="font-family:'Space Mono',monospace;">${batchId}</div>
+        </div>
+        <table class="batch-progress-table">
+            <thead><tr><th>Client</th><th>Status</th><th>Started</th><th>Finished</th></tr></thead>
+            <tbody id="gBatchTbody">
+                ${clientIds.map(cid => `<tr data-cid="${cid}"><td>${cid}</td><td class="bp-pending">pending</td><td>--</td><td>--</td></tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+function renderBatchProgressUpdate(data) {
+    const summary = document.getElementById('gBatchSummary');
+    const tbody = document.getElementById('gBatchTbody');
+    if (!summary || !tbody) return;
+    const counts = {pending: 0, running: 0, complete: 0, error: 0};
+    data.clients.forEach(c => { counts[c.status] = (counts[c.status] || 0) + 1; });
+    summary.textContent = `${counts.complete || 0} done, ${counts.error || 0} error, ${counts.running || 0} running, ${counts.pending || 0} pending`;
+    data.clients.forEach(c => {
+        const row = tbody.querySelector(`tr[data-cid="${c.client_id}"]`);
+        if (!row) return;
+        const cells = row.children;
+        cells[1].className = 'bp-' + c.status;
+        cells[1].textContent = c.status;
+        cells[2].textContent = c.started ? _fmtTimeOnly(c.started) : '--';
+        cells[3].textContent = c.finished ? _fmtTimeOnly(c.finished) : '--';
+    });
+}
+
+function _fmtTimeOnly(iso) {
+    try {
+        return new Date(iso).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+    } catch (e) { return iso; }
 }
 
 // ─── SCHEDULES ───

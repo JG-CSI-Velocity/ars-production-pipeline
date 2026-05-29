@@ -1,0 +1,4 @@
+{
+    "_comment": "CSMs that opt in to overnight auto-formatting (Phase 19). Names must match keys in ars_config.json csm_sources. Start opt-in so a misconfigured run can't cascade across the team.",
+    "enabled_csms": []
+}

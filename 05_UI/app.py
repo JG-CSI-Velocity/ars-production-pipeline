@@ -894,6 +894,103 @@ async def start_run(
     return {"run_id": run_id}
 
 
+# ─── Batch runs (Phase 17.2) ─────────────────────────────────────────
+# Each batch is a sequential queue of single-client runs. We deliberately
+# serialize on the operator PC because the analysis pipeline is already
+# memory-hungry per client; parallel execution would thrash the M: drive
+# and Matplotlib. The batch_id is returned immediately; client UI polls
+# /api/batch/{id} for per-client status.
+
+batches: dict[str, dict] = {}
+
+
+@app.post("/api/batch")
+async def start_batch(payload: dict):
+    """Queue a sequential batch of client runs.
+
+    Body: {"csm": ..., "month": ..., "product": ..., "client_ids": [...],
+           "sections": "", "local_copy_path": ""}
+    Returns: {"batch_id": "..."}
+    """
+    csm = (payload.get("csm") or "").strip()
+    month = (payload.get("month") or "").strip()
+    product = (payload.get("product") or "ars").strip()
+    client_ids = payload.get("client_ids") or []
+    sections = (payload.get("sections") or "").strip()
+    local_copy_path = (payload.get("local_copy_path") or "").strip()
+
+    if not csm or not month or not client_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="csm, month, and client_ids are all required",
+        )
+
+    batch_id = f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
+    batches[batch_id] = {
+        "batch_id": batch_id,
+        "csm": csm,
+        "month": month,
+        "product": product,
+        "sections": sections,
+        "started": datetime.now().isoformat(),
+        "finished": None,
+        "status": "running",
+        "clients": [
+            {"client_id": cid, "status": "pending", "run_id": None,
+             "started": None, "finished": None}
+            for cid in client_ids
+        ],
+    }
+
+    async def _run_batch():
+        for entry in batches[batch_id]["clients"]:
+            entry["status"] = "running"
+            entry["started"] = datetime.now().isoformat()
+            try:
+                # Reuse start_run() so the formatting + analysis + cache
+                # invalidation logic stays in one place.
+                resp = await start_run(
+                    csm=csm,
+                    month=month,
+                    client_id=entry["client_id"],
+                    product=product,
+                    local_copy_path=local_copy_path,
+                    sections=sections,
+                )
+                entry["run_id"] = resp.get("run_id")
+            except HTTPException as exc:
+                entry["status"] = "error"
+                entry["error"] = exc.detail
+                entry["finished"] = datetime.now().isoformat()
+                continue
+            # Wait for the run to finish before starting the next client.
+            run_id = entry["run_id"]
+            while run_id in runs and runs[run_id]["status"] == "running":
+                await asyncio.sleep(2)
+            run = runs.get(run_id) or {}
+            entry["status"] = run.get("status", "error")
+            entry["finished"] = datetime.now().isoformat()
+        batches[batch_id]["finished"] = datetime.now().isoformat()
+        any_error = any(c["status"] == "error" for c in batches[batch_id]["clients"])
+        batches[batch_id]["status"] = "error" if any_error else "complete"
+
+    asyncio.create_task(_run_batch())
+    return {"batch_id": batch_id}
+
+
+@app.get("/api/batch/{batch_id}")
+async def get_batch_status(batch_id: str):
+    if batch_id not in batches:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    return batches[batch_id]
+
+
+@app.get("/api/batches")
+async def list_batches():
+    """Return the 20 most recent batches (most recent first)."""
+    return sorted(batches.values(), key=lambda b: b.get("started", ""), reverse=True)[:20]
+
+
 @app.get("/api/run/{run_id}")
 async def get_run_status(run_id: str):
     """Get the status of a running or completed pipeline."""
@@ -1131,6 +1228,182 @@ async def run_schedule_now(schedule_id: str):
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
     return {"run_id": run_id}
+
+
+# ─── Overnight format sweep (Phase 19) ───────────────────────────────
+
+OVERNIGHT_WHITELIST = ARS_BASE / "03_Config" / "overnight_whitelist.json"
+SWEEP_HISTORY_DIR = LOGS_BASE / "overnight"
+
+
+def _load_overnight_whitelist() -> list[str]:
+    if not OVERNIGHT_WHITELIST.exists():
+        return []
+    try:
+        data = json.loads(OVERNIGHT_WHITELIST.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    return list(data.get("enabled_csms", []))
+
+
+@app.post("/api/format-sweep")
+async def format_sweep():
+    """Phase 19 -- Task Scheduler hook.
+
+    Scans each opt-in CSM's source folder for *_ODDD.zip files, kicks off
+    00_Formatting/run.py for each client that isn't already in
+    02-Data-Ready for Analysis, and records the result to
+    04_Logs/overnight/{date}.json. Returns the same JSON in the response.
+    """
+    enabled_csms = _load_overnight_whitelist()
+    if not enabled_csms:
+        return {
+            "started": datetime.now().isoformat(),
+            "skipped_reason": "no CSMs in overnight_whitelist.json",
+            "csms": [],
+        }
+
+    cfg = load_ars_config()
+    sources = cfg.get("csm_sources", {}).get("sources", {})
+    formatting_run = ARS_BASE / "00_Formatting" / "run.py"
+    started = datetime.now()
+    summary = {
+        "started": started.isoformat(),
+        "finished": None,
+        "csms": [],
+    }
+
+    for csm in enabled_csms:
+        src = None
+        for name, path in sources.items():
+            if name.lower().startswith(csm.lower()):
+                src = Path(path)
+                break
+        if not src or not src.exists():
+            summary["csms"].append({
+                "csm": csm, "status": "skipped",
+                "reason": f"source folder missing for {csm}",
+            })
+            continue
+
+        csm_report = {"csm": csm, "status": "ok", "formatted": [], "skipped": []}
+        # For each month folder under the CSM source, look at the ZIPs.
+        for month_dir in src.iterdir():
+            if not month_dir.is_dir() or "." not in month_dir.name:
+                continue
+            month = month_dir.name
+            for zf in month_dir.iterdir():
+                m = _ODDD_CLIENT_ID_RE.match(zf.name)
+                if not m:
+                    continue
+                client_id = m.group(1)
+                already = find_formatted_odd(csm, month, client_id)
+                if already:
+                    csm_report["skipped"].append({
+                        "client_id": client_id, "month": month, "reason": "already formatted",
+                    })
+                    continue
+                if not formatting_run.exists():
+                    csm_report["status"] = "error"
+                    csm_report["reason"] = "formatting/run.py not found"
+                    break
+                try:
+                    proc = subprocess.run(
+                        [sys.executable, "-u", str(formatting_run),
+                         "--month", month, "--csm", csm, "--client", client_id],
+                        cwd=str(formatting_run.parent),
+                        capture_output=True, text=True,
+                        encoding="utf-8", errors="replace",
+                        timeout=600,
+                    )
+                    csm_report["formatted"].append({
+                        "client_id": client_id, "month": month,
+                        "returncode": proc.returncode,
+                    })
+                except subprocess.TimeoutExpired:
+                    csm_report["formatted"].append({
+                        "client_id": client_id, "month": month, "error": "timeout (>10min)",
+                    })
+                except (OSError, subprocess.SubprocessError) as exc:
+                    csm_report["formatted"].append({
+                        "client_id": client_id, "month": month, "error": str(exc),
+                    })
+        summary["csms"].append(csm_report)
+
+    summary["finished"] = datetime.now().isoformat()
+
+    # Persist to 04_Logs/overnight/{date}.json
+    try:
+        SWEEP_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+        out = SWEEP_HISTORY_DIR / f"{started.strftime('%Y-%m-%d')}.json"
+        out.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    except (OSError, PermissionError) as exc:
+        summary["history_write_error"] = str(exc)
+
+    # New ZIPs likely landed -- bust the dropdown caches.
+    _invalidate_cache("months_")
+    _invalidate_cache("clients_all")
+    return summary
+
+
+@app.get("/api/format-sweep/history")
+async def format_sweep_history():
+    """Return the last 10 overnight sweep summaries."""
+    if not SWEEP_HISTORY_DIR.exists():
+        return []
+    files = sorted(SWEEP_HISTORY_DIR.glob("*.json"), reverse=True)[:10]
+    out = []
+    for f in files:
+        try:
+            out.append(json.loads(f.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            continue
+    return out
+
+
+@app.get("/api/overnight-whitelist")
+async def get_overnight_whitelist():
+    return {"enabled_csms": _load_overnight_whitelist()}
+
+
+@app.post("/api/schedules/run-due")
+async def run_due_schedules():
+    """Phase 17.3 -- Task Scheduler hook.
+
+    Invoked by Windows Task Scheduler daily. Fires every enabled schedule
+    whose `day` field matches today, then records the result. Idempotent
+    within a single calendar day: a schedule already fired today is skipped.
+
+    See docs/deck/task-scheduler-setup.md for the Task Scheduler config.
+    """
+    schedules = _load_schedules()
+    today = datetime.now()
+    today_iso_date = today.strftime("%Y-%m-%d")
+    fired: list[dict] = []
+    skipped: list[dict] = []
+
+    for sched in schedules:
+        if not sched.get("enabled", True):
+            skipped.append({"id": sched.get("id"), "reason": "disabled"})
+            continue
+        if int(sched.get("day", 0)) != today.day:
+            skipped.append({"id": sched.get("id"), "reason": f"day {sched.get('day')} != today {today.day}"})
+            continue
+        last_run = (sched.get("last_run") or "")[:10]
+        if last_run == today_iso_date:
+            skipped.append({"id": sched.get("id"), "reason": "already fired today"})
+            continue
+        try:
+            result = await run_schedule_now(sched["id"])
+            fired.append({"id": sched["id"], "run_id": result.get("run_id")})
+        except HTTPException as exc:
+            fired.append({"id": sched["id"], "error": exc.detail})
+
+    return {
+        "fired": fired,
+        "skipped": skipped,
+        "today": today_iso_date,
+    }
 
 
 if __name__ == "__main__":

@@ -77,11 +77,14 @@ def _build_branch_data(ctx: PipelineContext) -> pd.DataFrame | None:
             n_closed = len(branch_data[branch_data["Stat Code"] == "C"])
             attrition = n_closed / n_total
 
-        # Reg E (if available)
+        # Reg E (if available). Use the same column detector that
+        # rege/_helpers.py uses so the scorecard agrees with detail slides;
+        # an alphabetical/positional pick can land on a stale snapshot
+        # column (issue 142, item 2.6).
         rege_rate = 0.0
-        rege_cols = [c for c in data.columns if "Reg E" in c and "Code" in c]
-        if rege_cols:
-            latest_rege = rege_cols[-1]
+        from ars_analysis.analytics.rege._helpers import detect_reg_e_column
+        latest_rege = detect_reg_e_column(data)
+        if latest_rege and latest_rege in branch_data.columns:
             opted_in = branch_data[latest_rege].isin(["Y", "Yes", "Opted-In", "OI", True, 1])
             rege_rate = opted_in.sum() / n_total
 

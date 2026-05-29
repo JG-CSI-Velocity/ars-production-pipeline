@@ -19,6 +19,7 @@ from pathlib import Path
 from loguru import logger
 from pptx import Presentation
 from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
@@ -155,8 +156,17 @@ class DeckBuilder:
         self.template_path = template_path
         self.prs = None
 
-    def build(self, slides: list[SlideContent], output_path: str) -> str:
-        """Build complete PowerPoint deck from slide definitions."""
+    def build(
+        self,
+        slides: list[SlideContent],
+        output_path: str,
+        client_name: str = "",
+        month: str = "",
+    ) -> str:
+        """Build complete PowerPoint deck from slide definitions.
+
+        client_name and month are threaded into the Phase 18 footer band.
+        """
         self.prs = Presentation(self.template_path)
 
         # Remove sample slides that ship with the 2025 template (18 slides)
@@ -178,7 +188,12 @@ class DeckBuilder:
                 )
                 slide_content.layout_index = 0
             try:
-                self._add_slide(slide_content)
+                self._add_slide(
+                    slide_content,
+                    slide_number=i + 1,
+                    client_name=client_name,
+                    month=month,
+                )
             except Exception as exc:
                 logger.error(
                     "Slide {i} '{title}' (type={t}, layout={l}) failed: {err}",
@@ -193,8 +208,18 @@ class DeckBuilder:
         self.prs.save(output_path)
         return output_path
 
-    def _add_slide(self, content: SlideContent) -> None:
-        """Create single slide and dispatch to appropriate builder method."""
+    def _add_slide(
+        self,
+        content: SlideContent,
+        slide_number: int = 0,
+        client_name: str = "",
+        month: str = "",
+    ) -> None:
+        """Create single slide and dispatch to appropriate builder method.
+
+        Phase 18: adds callout box on chart slides and footer band on all
+        content slides after the type-specific builder runs.
+        """
         slide = self.prs.slides.add_slide(self.prs.slide_layouts[content.layout_index])
 
         builders = {
@@ -216,6 +241,21 @@ class DeckBuilder:
             builder(slide, content)
         else:
             logger.warning("Unknown slide_type: {t}", t=content.slide_type)
+
+        # Phase 18.1: hero KPI callout on chart slides. screenshot_kpi already
+        # renders its own KPIs natively, so skip to avoid double-rendering.
+        if content.slide_type in ("screenshot", "multi_screenshot") and content.kpis:
+            try:
+                self._add_callout_box(slide, content.kpis)
+            except Exception as exc:
+                logger.warning("Callout box failed on slide {n}: {err}", n=slide_number, err=exc)
+
+        # Phase 18.2: footer band on every non-title/section slide.
+        if slide_number > 0:
+            try:
+                self._add_footer_band(slide, content, slide_number, client_name, month)
+            except Exception as exc:
+                logger.warning("Footer band failed on slide {n}: {err}", n=slide_number, err=exc)
 
         # Write speaker notes if provided
         if content.notes_text:
@@ -322,6 +362,123 @@ class DeckBuilder:
             slide.shapes.add_picture(img_path, left, top, width=max_width)
 
     # -------------------------------------------------------------------------
+    # Phase 18: callout box + footer band (SLIDE_DESIGN.md §7-8)
+    # -------------------------------------------------------------------------
+
+    def _add_callout_box(self, slide, kpis, position="bottom_right"):
+        """Render a hero-KPI callout box in the slide corner.
+
+        kpis: dict of {label: value}. First non-subtitle entry becomes the
+        hero number. A second KPI, if present, renders as a smaller line.
+        position: "bottom_right" (default) or "bottom_left".
+        """
+        if not kpis:
+            return
+
+        hero_label = hero_value = sub_label = None
+        for label, value in kpis.items():
+            if str(label).lower() in ("subtitle", "title"):
+                continue
+            if hero_value is None:
+                hero_label, hero_value = str(label), str(value)
+            elif sub_label is None:
+                sub_label = f"{label}: {value}"
+        if hero_value is None:
+            return
+
+        slide_w, slide_h = Inches(13.33), Inches(7.5)
+        box_w, box_h = Inches(3.8), Inches(1.4)
+        # Reserve ~0.75" at the bottom for the footer band.
+        footer_clearance = Inches(0.75)
+
+        box_left = Inches(0.86) if position == "bottom_left" else slide_w - box_w - Inches(0.5)
+        box_top = slide_h - box_h - footer_clearance
+
+        shape = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, box_left, box_top, box_w, box_h
+        )
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = RGBColor(0xED, 0xFA, 0xF9)
+        shape.line.color.rgb = RGBColor(0x0D, 0x94, 0x88)
+        shape.line.width = Pt(1.5)
+        try:
+            shape.adjustments[0] = 0.15
+        except Exception:
+            pass
+
+        def _textbox(top_offset, height, text, size, bold, color):
+            tb = slide.shapes.add_textbox(
+                box_left + Inches(0.2), box_top + top_offset,
+                box_w - Inches(0.4), height,
+            )
+            tb.text_frame.word_wrap = True
+            p = tb.text_frame.paragraphs[0]
+            p.text = text
+            p.font.size = Pt(size)
+            p.font.bold = bold
+            p.font.color.rgb = color
+            p.alignment = PP_ALIGN.LEFT
+
+        _textbox(Inches(0.1), Inches(0.6), hero_value, 32, True, RGBColor(0x0D, 0x94, 0x88))
+        _textbox(Inches(0.7), Inches(0.3), hero_label, 14, True, RGBColor(0x1E, 0x3D, 0x59))
+        if sub_label:
+            _textbox(Inches(1.0), Inches(0.3), sub_label, 12, False, RGBColor(0x33, 0x33, 0x33))
+
+    def _add_footer_band(self, slide, content, slide_number, client_name="", month=""):
+        """Two-line footer at the bottom of content slides (SLIDE_DESIGN.md §8)."""
+        if content.slide_type in ("title", "section"):
+            return
+
+        slide_w, slide_h = Inches(13.33), Inches(7.5)
+        footer_left = Inches(0.5)
+        footer_width = slide_w - Inches(1.0)
+
+        source_text = ""
+        if content.notes_text:
+            first_line = content.notes_text.split("\n")[0]
+            if not first_line.startswith("KEY FINDING:"):
+                source_text = first_line[:120]
+        if not source_text:
+            source_text = "Source: Client ODD file | Analysis by Velocity Solutions"
+
+        line1_top = slide_h - Inches(0.5)
+        tb = slide.shapes.add_textbox(footer_left, line1_top, footer_width, Inches(0.2))
+        tb.text_frame.word_wrap = True
+        p = tb.text_frame.paragraphs[0]
+        p.text = source_text
+        p.font.size = Pt(9)
+        p.font.italic = True
+        p.font.color.rgb = RGBColor(0x77, 0x77, 0x77)
+        p.alignment = PP_ALIGN.LEFT
+
+        # YYYY.MM -> "Month YYYY"
+        month_display = month
+        if month and "." in month:
+            try:
+                yyyy, mm = month.split(".")[:2]
+                month_display = f"{calendar.month_name[int(mm)]} {yyyy}"
+            except (ValueError, IndexError):
+                pass
+
+        parts = []
+        if client_name:
+            parts.append(client_name)
+        if month_display:
+            parts.append(month_display)
+        parts.append(f"Slide {slide_number}")
+        parts.append("STRICTLY CONFIDENTIAL")
+        footer_text = "  |  ".join(parts)
+
+        line2_top = slide_h - Inches(0.28)
+        tb = slide.shapes.add_textbox(footer_left, line2_top, footer_width, Inches(0.2))
+        tb.text_frame.word_wrap = False
+        p = tb.text_frame.paragraphs[0]
+        p.text = footer_text
+        p.font.size = Pt(8)
+        p.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
+        p.alignment = PP_ALIGN.LEFT
+
+    # -------------------------------------------------------------------------
     # Individual slide builders
     # -------------------------------------------------------------------------
 
@@ -426,26 +583,78 @@ class DeckBuilder:
                     continue
 
     def _build_section_slide(self, slide, content: SlideContent) -> None:
-        """Build section divider slide."""
-        title_text = content.title
-        subtitle_text = None
+        """Phase 18.3: full-bleed navy section divider (SLIDE_DESIGN.md §9).
 
-        if "\n" in content.title:
-            parts = content.title.split("\n", 1)
-            title_text = parts[0]
-            subtitle_text = parts[1] if len(parts) > 1 else None
+        Title format (any of):
+            "02\nDebit Card Take Rate\nLead-in sentence"
+            "Debit Card Take Rate\nLead-in sentence"
+            "Debit Card Take Rate"
+        """
+        # Collect placeholders BEFORE removal -- mutating during iteration
+        # can skip elements.
+        placeholders_to_remove = list(slide.placeholders)
+        for ph in placeholders_to_remove:
+            try:
+                ph.element.getparent().remove(ph.element)
+            except Exception:
+                pass
 
-        if slide.shapes.title:
-            slide.shapes.title.text = title_text
+        # Full-bleed navy background
+        fill = slide.background.fill
+        fill.solid()
+        fill.fore_color.rgb = RGBColor(0x1B, 0x36, 0x5D)
 
-        if subtitle_text:
-            # New template: ph[1] is body on section layouts
-            for ph_idx in [1, 2]:
-                try:
-                    slide.placeholders[ph_idx].text = subtitle_text
-                    break
-                except (KeyError, IndexError):
-                    continue
+        lines = (content.title or "").split("\n")
+        section_number = None
+        section_title = lines[0] if lines else ""
+        lead_in = None
+
+        if len(lines) >= 3:
+            first = lines[0].strip()
+            # A section number is 1-3 chars, digits (optionally zero-padded).
+            if 1 <= len(first) <= 3 and (
+                first.isdigit() or (first.startswith("0") and first[1:].isdigit())
+            ):
+                section_number = first
+                section_title = lines[1]
+                lead_in = "\n".join(lines[2:])
+            else:
+                section_title = lines[0]
+                lead_in = "\n".join(lines[1:])
+        elif len(lines) == 2:
+            section_title = lines[0]
+            lead_in = lines[1]
+
+        y_cursor = Inches(2.5)
+        if section_number:
+            tb = slide.shapes.add_textbox(Inches(0.86), Inches(2.2), Inches(2.0), Inches(0.7))
+            p = tb.text_frame.paragraphs[0]
+            p.text = section_number
+            p.font.size = Pt(48)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(0x0D, 0x94, 0x88)
+            p.alignment = PP_ALIGN.LEFT
+            y_cursor = Inches(3.0)
+
+        tb = slide.shapes.add_textbox(Inches(0.86), y_cursor, Inches(11.0), Inches(1.0))
+        tb.text_frame.word_wrap = True
+        p = tb.text_frame.paragraphs[0]
+        p.text = section_title
+        p.font.size = Pt(36)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        p.alignment = PP_ALIGN.LEFT
+
+        if lead_in:
+            tb = slide.shapes.add_textbox(
+                Inches(0.86), y_cursor + Inches(1.1), Inches(11.0), Inches(1.0)
+            )
+            tb.text_frame.word_wrap = True
+            p = tb.text_frame.paragraphs[0]
+            p.text = lead_in
+            p.font.size = Pt(18)
+            p.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+            p.alignment = PP_ALIGN.LEFT
 
     def _build_blank_slide(self, slide, content: SlideContent) -> None:
         """Build blank placeholder slide."""
@@ -1332,6 +1541,31 @@ _SECTION_LABELS = {
     "insights": "What Should We Do Next?",
 }
 
+# Phase 18.3: section divider styling (SLIDE_DESIGN.md §9).
+_SECTION_NUMBERS = {
+    "overview": "01",
+    "dctr": "02",
+    "rege": "03",
+    "attrition": "04",
+    "mailer": "05",
+    "transaction": "06",
+    "ics": "07",
+    "value": "08",
+    "insights": "09",
+}
+
+_SECTION_LEAD_INS = {
+    "overview": "Portfolio composition, eligibility, and program scope.",
+    "dctr": "Current penetration, where opportunity sits, and what closing the gap is worth.",
+    "rege": "Opt-in rates, branch variation, and revenue impact of Reg E enrollment.",
+    "attrition": "Who is leaving, what it costs, and where retention efforts should focus.",
+    "mailer": "Campaign response rates, cohort lift, and mailer program ROI.",
+    "transaction": "Spending patterns, merchant concentration, and engagement signals.",
+    "ics": "Invitation Checking System acquisition channels and conversion.",
+    "value": "Revenue attribution -- what a debit card and Reg E opt-in are worth.",
+    "insights": "Synthesis, recommendations, and quantified action plan.",
+}
+
 # Section divider layout (all sections use LAYOUT_TITLE)
 _DEFAULT_DIVIDER_LAYOUT = LAYOUT_TITLE
 
@@ -1740,6 +1974,24 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         logger.warning("No slides to build deck from")
         return None
 
+    # Issue 2.8: surface _safe()-wrapped failures so the operator sees them
+    # in the run log instead of silently shipping a deck with missing slides.
+    _failed = [
+        s for s in ctx.all_slides
+        if not getattr(s, "success", True)
+    ]
+    if _failed:
+        _failed_ids = [str(getattr(s, "slide_id", "?")) for s in _failed]
+        # Single SOFT FAILURES: line is what the UI's run-log polling parses.
+        print(f"  SOFT FAILURES: {len(_failed)} ({', '.join(_failed_ids)})")
+        for s in _failed:
+            err = (getattr(s, "error", "") or "").strip()
+            sid = getattr(s, "slide_id", "?")
+            if err:
+                print(f"    SOFT FAILURE {sid}: {err[:180]}")
+            else:
+                print(f"    SOFT FAILURE {sid}: (no error message)")
+
     # Phase 17.1: section-level filter. run.py sets ctx.section_filter_prefixes
     # when --sections is passed. Empty/None means include every slide (default).
     _section_prefixes = getattr(ctx, "section_filter_prefixes", None) or []
@@ -1842,9 +2094,22 @@ def build_deck(ctx: PipelineContext) -> Path | None:
                     converted.append(sc)
         return converted
 
-    def _section_divider(title, subtitle=None, layout_index=LAYOUT_SECTION, slide_type="section"):
-        full_title = f"{title}\n{subtitle}" if subtitle else title
-        return SlideContent(slide_type=slide_type, title=full_title, layout_index=layout_index)
+    def _section_divider(key_or_title, subtitle=None, layout_index=LAYOUT_SECTION, slide_type="section"):
+        """Build a section-divider SlideContent.
+
+        If key_or_title matches a known section key (overview, dctr, ...),
+        compose the Phase 18.3 three-line title `{NN}\\n{label}\\n{lead_in}`.
+        Otherwise treat it as a literal title (e.g. "Appendix", "Summary").
+        """
+        if key_or_title in _SECTION_LABELS:
+            num = _SECTION_NUMBERS.get(key_or_title, "")
+            label = _SECTION_LABELS[key_or_title]
+            lead = _SECTION_LEAD_INS.get(key_or_title, "")
+            parts = [p for p in (num, label, lead) if p]
+            title = "\n".join(parts)
+        else:
+            title = f"{key_or_title}\n{subtitle}" if subtitle else key_or_title
+        return SlideContent(slide_type=slide_type, title=title, layout_index=layout_index)
 
     # Build ordered analysis slides following SCR narrative arc
     analysis_slides: list[SlideContent] = []
@@ -1881,14 +2146,14 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         "mailer": _convert_list(mailer_appendix),
     }
 
-    # Build main body in SCR order
+    # Build main body in SCR order. Pass the section KEY (not label) so the
+    # divider picks up Phase 18.3 numbering + lead-in.
     for section_key in SECTION_ORDER:
         slides = _section_main.get(section_key, [])
         if not slides:
             continue
-        label = _SECTION_LABELS.get(section_key, section_key.title())
         analysis_slides.append(
-            _section_divider(label, subtitle=section_subtitle, layout_index=_DEFAULT_DIVIDER_LAYOUT)
+            _section_divider(section_key, layout_index=_DEFAULT_DIVIDER_LAYOUT)
         )
         analysis_slides.extend(slides)
 
@@ -1983,7 +2248,12 @@ def build_deck(ctx: PipelineContext) -> Path | None:
 
     try:
         builder = DeckBuilder(str(template))
-        builder.build(final_slides, str(output_path))
+        builder.build(
+            final_slides,
+            str(output_path),
+            client_name=getattr(ctx.client, "client_name", "") or "",
+            month=getattr(ctx.client, "month", "") or "",
+        )
         ctx.export_log.append(str(output_path))
         logger.info(
             "Deck built: {path} ({n} slides)",
