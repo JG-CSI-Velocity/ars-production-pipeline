@@ -1,0 +1,109 @@
+{
+    "_comment": "Section → module_id mapping for --sections CLI flag (Phase 17.1). Keys are section names used in the UI and CLI. Values are lists of module_id prefixes that belong to that section. The runner filters ctx.all_slides by matching slide_id prefixes against these.",
+
+    "overview": {
+        "display_name": "Overview",
+        "description": "Portfolio composition, eligibility, and program scope",
+        "slide_prefixes": ["A1", "A3"],
+        "section_number": "01"
+    },
+    "dctr": {
+        "display_name": "Debit Card Take Rate",
+        "description": "Current penetration, where opportunity sits, and what closing the gap is worth",
+        "slide_prefixes": ["A7", "DCTR"],
+        "section_number": "02"
+    },
+    "rege": {
+        "display_name": "Reg E / Overdraft",
+        "description": "Opt-in rates, branch variation, and revenue impact of Reg E enrollment",
+        "slide_prefixes": ["A8"],
+        "section_number": "03"
+    },
+    "attrition": {
+        "display_name": "Attrition",
+        "description": "Who is leaving, what it costs, and where retention efforts should focus",
+        "slide_prefixes": ["A9"],
+        "section_number": "04"
+    },
+    "mailer": {
+        "display_name": "Mailer Campaign",
+        "description": "Campaign response rates, cohort lift, and mailer program ROI",
+        "slide_prefixes": ["A12", "A13", "A14", "A15", "A16", "A17"],
+        "section_number": "05"
+    },
+    "value": {
+        "display_name": "Value",
+        "description": "Revenue attribution — what a debit card and Reg E opt-in are worth",
+        "slide_prefixes": ["A10", "A11"],
+        "section_number": "06"
+    },
+    "insights": {
+        "display_name": "Insights & Recommendations",
+        "description": "Synthesis, recommendations, and quantified action plan",
+        "slide_prefixes": ["S", "A18", "A19", "A20"],
+        "section_number": "07"
+    },
+    "competition": {
+        "display_name": "Competition",
+        "description": "Competitor detection, wallet share analysis, and market positioning",
+        "slide_prefixes": ["COMP", "competition"],
+        "section_number": "08"
+    },
+    "ics": {
+        "display_name": "ICS Acquisition",
+        "description": "Invitation Checking System acquisition channels and conversion",
+        "slide_prefixes": ["ICS"],
+        "section_number": "09"
+    },
+
+    "_txn_sections": "TXN sections below — only active when --product txn or combined",
+
+    "txn_general": {
+        "display_name": "TXN General",
+        "description": "Portfolio KPIs, demographics, ARS swipe segmentation",
+        "slide_prefixes": ["TXN-GEN"],
+        "section_number": "T01"
+    },
+    "txn_merchant": {
+        "display_name": "TXN Merchant",
+        "description": "Top merchants, concentration, trends",
+        "slide_prefixes": ["TXN-MERCH"],
+        "section_number": "T02"
+    },
+    "txn_competition": {
+        "display_name": "TXN Competition",
+        "description": "Competitor detection, wallet share, CU/bank audit",
+        "slide_prefixes": ["TXN-COMP"],
+        "section_number": "T03"
+    },
+    "txn_campaign": {
+        "display_name": "TXN Campaign",
+        "description": "Mailer + cohort lift from transaction data",
+        "slide_prefixes": ["TXN-CAMP"],
+        "section_number": "T04"
+    },
+    "txn_branch": {
+        "display_name": "TXN Branch",
+        "description": "Branch-level spend analysis",
+        "slide_prefixes": ["TXN-BRANCH"],
+        "section_number": "T05"
+    },
+    "txn_payroll": {
+        "display_name": "TXN Payroll",
+        "description": "Direct deposit detection, PFI scoring",
+        "slide_prefixes": ["TXN-PAY"],
+        "section_number": "T06"
+    },
+    "txn_engagement": {
+        "display_name": "TXN Engagement",
+        "description": "Monthly tier classification",
+        "slide_prefixes": ["TXN-ENG"],
+        "section_number": "T07"
+    },
+    "txn_executive": {
+        "display_name": "TXN Executive",
+        "description": "KPI scorecard, action roadmap",
+        "slide_prefixes": ["TXN-EXEC"],
+        "section_number": "T08"
+    }
+}
