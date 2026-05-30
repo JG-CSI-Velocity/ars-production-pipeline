@@ -1,7 +1,7 @@
 fastapi
 jinja2
 loguru
-kaleido>=0.2
+kaleido>=0.2,<1.0
 matplotlib
 numpy
 plotly>=5.0
