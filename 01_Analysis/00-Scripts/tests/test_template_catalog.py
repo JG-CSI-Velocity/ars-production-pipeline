@@ -1,6 +1,7 @@
 """Tests for output/template_catalog.py (autonomous decks POC)."""
 from __future__ import annotations
 
+import textwrap
 from pathlib import Path
 
 from ars_analysis.output import template_catalog
@@ -17,9 +18,6 @@ def test_load_returns_empty_when_dir_empty(tmp_path: Path) -> None:
     empty.mkdir()
     catalog = template_catalog.load_catalog(catalog_dir=empty)
     assert catalog == {}
-
-
-import textwrap
 
 
 def _write_mini_catalog(tmp_path: Path) -> Path:
@@ -80,3 +78,50 @@ def test_load_parses_one_family_with_two_branches(tmp_path: Path) -> None:
     assert v.angle == "data_first"
     assert "{dctr_rate}" in v.template
     assert v.placeholders["dctr_rate"] == {"path": "dctr_1.rate", "format": "pct"}
+
+
+def test_load_parses_multiple_families_in_one_file(tmp_path: Path) -> None:
+    d = tmp_path / "catalog"
+    d.mkdir()
+    (d / "dctr.md").write_text(textwrap.dedent("""
+        # DCTR
+
+        ## Family: `dctr.activation_baseline`
+        - **section:** `dctr`
+        - **branch_if:** `dctr_1.rate`
+        - **branches:**
+          - `>= 0.55` → strong
+        - **fallback:** "First family fallback."
+
+        ### strong / variant 1 (data_first)
+        - **template:** "First family strong."
+        - **placeholders:**
+          | Slot | Path | Format |
+          |---|---|---|
+          | `r` | `dctr_1.rate` | `pct` |
+
+        ## Family: `dctr.peer_comparison`
+        - **section:** `dctr`
+        - **branch_if:** `dctr_peer.gap_pp`
+        - **branches:**
+          - `>= 0` → ahead
+        - **fallback:** "Second family fallback."
+
+        ### ahead / variant 1 (data_first)
+        - **template:** "Second family ahead."
+        - **placeholders:**
+          | Slot | Path | Format |
+          |---|---|---|
+          | `g` | `dctr_peer.gap_pp` | `pp` |
+        """).lstrip(), encoding="utf-8")
+    catalog = template_catalog.load_catalog(catalog_dir=d)
+    assert set(catalog.keys()) == {"dctr.activation_baseline", "dctr.peer_comparison"}
+    fam1 = catalog["dctr.activation_baseline"]
+    fam2 = catalog["dctr.peer_comparison"]
+    assert fam1.fallback == "First family fallback."
+    assert fam2.fallback == "Second family fallback."
+    assert list(fam1.variants.keys()) == ["strong"]
+    assert list(fam2.variants.keys()) == ["ahead"]
+    # No state leakage: fam2 must NOT see fam1's branches or variants.
+    assert [label for _, label in fam2.branches] == ["ahead"]
+    assert "strong" not in fam2.variants

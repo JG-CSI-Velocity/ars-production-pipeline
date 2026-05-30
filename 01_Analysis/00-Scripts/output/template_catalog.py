@@ -37,7 +37,8 @@ Catalog file layout (per section markdown file):
 Loader behavior:
   * Catalog directory missing OR empty -> returns ``{}`` (caller falls back).
   * One section file unreadable -> logs WARNING, skips it, keeps the rest.
-  * One family unparseable -> logs WARNING, skips it, keeps the rest.
+  * Malformed lines are silently ignored; partial families emit with the
+    fields that did parse (callers handle missing variants gracefully).
   * Catalog is read once per process; cache it at module level via
     ``CatalogCache.get()``.
 """
@@ -104,7 +105,6 @@ _VARIANT_HDR_RE = re.compile(r"^###\s+(\S+)\s*/\s*variant\s+\d+\s*\((\w+)\)\s*$"
 _KV_RE = re.compile(r"^\-\s+\*\*([^*]+):\*\*\s*(.*?)\s*$")
 _BRANCH_RULE_RE = re.compile(r"^\s*\-\s+`([^`]+)`\s*(?:→|->)\s*(\S+)\s*$")
 _TEMPLATE_RE = re.compile(r"^\-\s+\*\*template:\*\*\s*\"(.+?)\"\s*$")
-_FALLBACK_RE = re.compile(r"^\-\s+\*\*fallback:\*\*\s*\"(.+?)\"\s*$")
 _TABLE_ROW_RE = re.compile(
     r"^\s*\|\s*`?([^|`]+?)`?\s*\|\s*`([^|`]+)`\s*\|\s*`([^|`]+)`\s*\|\s*$"
 )
@@ -221,10 +221,6 @@ def _parse_section_file(path: Path) -> dict[str, TemplateFamily]:
             if raw.strip() == "":
                 continue
             in_branches_list = False
-
-        m_fb = _FALLBACK_RE.match(raw)
-        if m_fb:
-            fallback = m_fb.group(1)
 
     _flush_family()
     return out
