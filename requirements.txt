@@ -1,8 +1,10 @@
 fastapi
 jinja2
 loguru
+kaleido>=0.2
 matplotlib
 numpy
+plotly>=5.0
 openpyxl
 pandas
 pydantic
