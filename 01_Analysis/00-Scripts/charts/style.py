@@ -7,9 +7,11 @@ Color authority imported from shared.charts.COLORS (canonical).
 Legacy ARS-specific semantic names (PERSONAL, BUSINESS, etc.) preserved as aliases.
 """
 
+from typing import Iterable
+
 from matplotlib.ticker import FuncFormatter
 
-from shared.charts import COLORS, MAX_CATEGORICAL_COLORS
+from shared.charts import COLORS, MAX_CATEGORICAL_COLORS, SECTION_COLORS, section_color
 
 # Canonical semantic colors (from shared authority).
 # All values flow from SLIDE_DESIGN.md §5 via shared.charts.COLORS -- do not
@@ -49,3 +51,106 @@ BAR_ALPHA = 0.9
 
 # Percentage formatter (pre-instantiated, reuse everywhere)
 PCT_FORMATTER = FuncFormatter(lambda x, p: f"{x:.0f}%")
+
+
+# ---------------------------------------------------------------------------
+# Chart helpers (T1.3 — SLIDE_DESIGN.md §6)
+#
+# Centralized so individual analytics modules can opt into consistent axis,
+# legend, annotation, and grid styling without re-implementing the rules.
+# ---------------------------------------------------------------------------
+
+# Auto-rotate threshold for x-axis labels: rotate to 45deg when there are
+# more than this many tick labels OR any label exceeds the char limit.
+AXIS_ROTATE_TICK_COUNT = 5
+AXIS_ROTATE_CHAR_LIMIT = 6
+
+
+def apply_section_color(ax, section_key: str, primary_series=None) -> None:
+    """Tint axis spines and tick labels with the section accent (§5.1).
+
+    The primary chart series stays accent teal (project rule: focus series
+    is always teal regardless of section). This only colors the *chrome* --
+    spines, tick labels, title underline -- so the slide visually anchors
+    to its section without overwhelming the data.
+    """
+    accent = section_color(section_key)
+    for spine in ("left", "bottom"):
+        if spine in ax.spines:
+            ax.spines[spine].set_color(accent)
+            ax.spines[spine].set_linewidth(1.2)
+    ax.tick_params(colors=accent)
+    if primary_series is not None:
+        # Caller passed the series handle; tint the focus color to section.
+        try:
+            primary_series.set_color(accent)
+        except Exception:
+            pass
+
+
+def auto_rotate_xticks(ax, labels: Iterable[str] | None = None) -> None:
+    """Rotate x-tick labels to 45deg when they're tight (§6.1).
+
+    Never rotates to 90 (deck rule). If neither label count nor char count
+    triggers, leaves labels horizontal.
+    """
+    if labels is None:
+        try:
+            labels = [t.get_text() for t in ax.get_xticklabels()]
+        except Exception:
+            return
+    labels = list(labels)
+    if not labels:
+        return
+    too_many = len(labels) > AXIS_ROTATE_TICK_COUNT
+    too_wide = any(len(s) > AXIS_ROTATE_CHAR_LIMIT for s in labels)
+    if too_many or too_wide:
+        for t in ax.get_xticklabels():
+            t.set_rotation(45)
+            t.set_ha("right")
+            t.set_rotation_mode("anchor")
+
+
+def abbreviate_label(label: str, max_chars: int = 12) -> str:
+    """Abbreviate long category labels in place (§6.1).
+
+    Truncates with an ellipsis; preserves any leading digits (branch IDs,
+    month codes) so the abbreviation still sorts and reads correctly.
+    """
+    if not label or len(label) <= max_chars:
+        return label
+    return label[: max_chars - 1].rstrip() + "…"
+
+
+def standard_legend(ax, loc: str = "upper right") -> None:
+    """Place the legend per §6 rules: right-aligned, 10pt, no background."""
+    leg = ax.get_legend()
+    if leg is None:
+        try:
+            leg = ax.legend(loc=loc)
+        except Exception:
+            return
+    if leg is None:
+        return
+    leg.set_frame_on(False)
+    for text in leg.get_texts():
+        text.set_fontsize(10)
+
+
+def annotate(ax, x, y, text: str, section_key: str | None = None) -> None:
+    """Section-tinted annotation per §6: small box, accent border."""
+    accent = section_color(section_key) if section_key else COLORS["primary"]
+    ax.annotate(
+        text,
+        xy=(x, y),
+        fontsize=10,
+        color="#FFFFFF",
+        bbox=dict(boxstyle="round,pad=0.3", facecolor=accent, edgecolor=accent, lw=0),
+        ha="center",
+    )
+
+
+def light_grid(ax, axis: str = "y") -> None:
+    """Light gray, 0.5pt grid per §6.1. Always behind data."""
+    ax.grid(axis=axis, color=COLORS["light_bg"], linewidth=0.5, linestyle="-")
+    ax.set_axisbelow(True)

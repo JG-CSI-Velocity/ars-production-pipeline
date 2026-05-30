@@ -44,6 +44,27 @@ CATEGORY_PALETTE = [
 # extras in COLORS["neutral"] so the eye still tracks the highlighted ones.
 MAX_CATEGORICAL_COLORS = 4
 
+# Per-section accent colors (SLIDE_DESIGN.md §5.1). Used by callout boxes,
+# section divider numerals, and any section-scoped chart annotation. NOT used
+# for chart focus series -- those stay accent teal regardless of section so
+# the deck reads as one product, not nine.
+SECTION_COLORS = {
+    "overview":    COLORS["primary"],       # navy
+    "dctr":        COLORS["secondary"],     # teal
+    "rege":        "#7B5EA7",               # purple
+    "attrition":   COLORS["negative"],      # red
+    "value":       COLORS["positive"],      # green
+    "mailer":      "#3F88C5",               # mid-blue
+    "insights":    "#555555",               # charcoal
+    "transaction": "#0D9488",               # deep teal
+    "ics":         "#F18F01",               # amber
+}
+
+
+def section_color(section_key: str) -> str:
+    """Return the accent hex for a section, or neutral if unknown."""
+    return SECTION_COLORS.get(section_key, COLORS["neutral"])
+
 
 def save_chart_png(fig: object, path: Path, scale: int = 1) -> Path:
     """Save a chart figure to PNG. Works with both matplotlib and Plotly.

@@ -1,5 +1,11 @@
 # Slide Design Principles
 
+> **Version:** 1.0 (2026-05-29)
+> **Status:** Pending CSM sign-off (see §14)
+> **Scope:** Authoritative for every ARS-pipeline deck and every code path that touches deck output.
+> **Changes here drive code changes, not the other way around** (see §13).
+
+
 This document defines the design framework for every client-facing deck produced by this pipeline. It is the single source of truth — if chat feedback contradicts this file, update the file first.
 
 The target standard is **top-tier management consulting** (McKinsey / Bain / BCG). Every slide should be defensible as a standalone artifact a partner would put in front of a CEO.
@@ -108,6 +114,19 @@ For 2-up slides, the action title spans both panels and each panel has a sub-tit
 
 For KPI/cover slides, the callout box becomes the central element and the chart shrinks or disappears.
 
+### 3.1 Spacing rules
+
+| Region pair | Gap |
+|---|---|
+| Slide edge → any element | 0.5" all sides |
+| Action title → chart top | 0.3" |
+| Chart bottom → callout top | 0.2" |
+| Chart right → callout left (when callout is side-anchored) | 0.2" |
+| Footnote band → footer line | 0.05" |
+| Footer line → slide bottom edge | 0.28" |
+
+Code authority: \`output/deck_builder.py::_add_footer_band\` for footer placement; \`_add_callout_box\` for callout-to-chart clearance (currently \`footer_clearance = Inches(0.75)\`, which subsumes both gaps above + the footer height).
+
 ---
 
 ## 4. Typography
@@ -149,6 +168,24 @@ For KPI/cover slides, the callout box becomes the central element and the chart 
 - Red is reserved for "bad" — never use it for a neutral series.
 - Volume bars behind rate lines are always muted gray so the rate line is primary.
 - Historical baselines are always muted gray; L12M or "current" is always accent teal.
+
+### 5.1 Per-section accent colors
+
+Section accents are used sparingly: callout-box borders, section divider numerals, hero-KPI sparkline emphasis. They never compete with the primary palette inside a chart — the chart's "focus series" remains accent teal regardless of section.
+
+| Section | Accent hex | Rationale |
+|---|---|---|
+| Overview | `#1E3D59` (navy) | Neutral starting point; portfolio scope |
+| DCTR | `#17A2B8` (teal) | Accent color = "our" data; debit is "our" core product |
+| Reg E | `#7B5EA7` (purple) | Distinct from DCTR but still calm; Reg E is a personal-product story |
+| Attrition | `#DC3545` (red) | Loss / leakage signal |
+| Value | `#28A745` (green) | Money / opportunity |
+| Mailer | `#3F88C5` (mid-blue) | Distinct from teal; campaign / outreach |
+| Insights | `#555555` (charcoal) | Synthesis section; subdued, lets numbers speak |
+| Transaction (TXN) | `#0D9488` (deep teal) | Sibling to DCTR but darker; transaction is the cousin to debit |
+| ICS | `#F18F01` (amber) | Acquisition; warm, attention-getting |
+
+Code authority: \`shared/charts.py::SECTION_COLORS\` (added in T1.3).
 
 ---
 
@@ -254,7 +291,40 @@ See `docs/slide_specs/dctr.md` for the first example.
 
 ---
 
-## 12. What this does not cover
+## 12. Drop-if-empty
+
+A slide drops from the deck — and from the SLIDE_MANIFEST count — when **all three** are true:
+
+1. `AnalysisResult.success == False`, OR no `chart_path` was produced, OR the chart file no longer exists at the path.
+2. The slide's analytics module did not populate the expected `ctx.results[key]` shape (i.e. nothing for the title generator or callout builder to consume).
+3. No \`SLIDE_MANIFEST.xlsx\` operator override exists (Y forces inclusion; A forces aux).
+
+When a slide drops, it's logged with a structured reason. Reason codes:
+
+| Code | Meaning |
+|---|---|
+| \`data_missing\` | Module ran, produced no usable result (e.g. zero eligible accounts) |
+| \`client_no_product\` | Client doesn't have the product this slide measures (e.g. no Reg E column → A8 slides drop) |
+| \`threshold_not_met\` | Module gates output on a minimum count (e.g. \`MIN_BRANCHES = 3\`) and was below |
+| \`module_failed\` | \`_safe()\` wrapper caught an exception; \`error\` recorded |
+| \`manifest_dropped\` | SLIDE_MANIFEST.xlsx marked the slide N |
+| \`section_inactive\` | Operator unchecked the section in the UI (Phase 17.1 section filter) |
+
+Section-level drop scenarios (entire section silently absent):
+
+| Section | Trigger | Effect |
+|---|---|---|
+| ICS | Client has no ICS module configured (\`ctx.client.has_ics == False\`) | ICS divider + all ICS.x slides drop; reason \`client_no_product\` |
+| TXN | Run is \`product=ars\` (no TXN modules registered) | Transaction divider + every M./B./TXN- prefix drops; reason \`section_inactive\` |
+| Mailer | No mailer campaigns in window (\`ctx.results['mailer_*']\` empty) | Mailer divider + slides drop; reason \`data_missing\` |
+
+Code authority: \`pipeline/steps/generate.py\` populates \`ctx.dropped_slides\` (a list of \`{slide_id, reason, detail}\` dicts) which the quality gate (T3.2) verifies and the metadata writer (T3.3) records.
+
+The deck builder still prints a single \`SOFT FAILURES: N (ids)\` line + per-slide \`SOFT FAILURE Sxx: reason\` lines (shipped in b0ff9d6) so the operator sees what dropped during the run, not after.
+
+---
+
+## 13. What this does not cover
 
 - Specific PPTX template layout XML — that lives in `01_Analysis/00-Scripts/output/template/`
 - Chart style defaults — those live in `01_Analysis/00-Scripts/charts/style.py`. Any deviation from this document is a bug in style.py.
@@ -262,10 +332,22 @@ See `docs/slide_specs/dctr.md` for the first example.
 
 ---
 
-## 13. When to update this document
+## 14. When to update this document
 
 - New design decision → update here FIRST, then update code.
 - Client pushes back on something → capture the rule here so it persists across engagements and sessions.
 - New chart type added → document its rules in §6 before shipping.
+
+---
+
+## 15. Sign-off
+
+This document is the design contract. Anything that ships in a deck that contradicts this document is a bug.
+
+| Version | Date | Approver | Notes |
+|---|---|---|---|
+| 1.0 | 2026-05-29 | _pending_ | Initial pass through T1.1.1–T1.1.10 (issue #146). CSM sign-off (T1.1.11) is the gate to T1.2+. |
+
+After CSM approval: change "pending" to the approver's name + date, and consider the document **locked** for the remainder of the slide-design-system rollout (PRD critical success factor #1). Reopen with a new version row + commit only if a downstream decision can't be made without it.
 
 The rule is simple: **if it's not in this file, it's not a standard.** Anything that's "just the way we do it" should be codified here within a session of noticing it.

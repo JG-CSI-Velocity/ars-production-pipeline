@@ -92,6 +92,12 @@ class SlideContent:
     bullets: list[str] | None = None
     layout_index: int = 8  # LAYOUT_CUSTOM (default for most slides)
     notes_text: str | None = None
+    # T1.4: optional structured callout payload. When set, supersedes the
+    # auto-derived hero-KPI callout from `kpis`.
+    callout_box: "object | None" = None
+    # T1.3 / T2.5: optional section accent key for chart chrome + callout
+    # tinting. Resolves via shared.charts.SECTION_COLORS.
+    section_key: str | None = None
 
 
 # =============================================================================
@@ -242,11 +248,25 @@ class DeckBuilder:
         else:
             logger.warning("Unknown slide_type: {t}", t=content.slide_type)
 
-        # Phase 18.1: hero KPI callout on chart slides. screenshot_kpi already
-        # renders its own KPIs natively, so skip to avoid double-rendering.
-        if content.slide_type in ("screenshot", "multi_screenshot") and content.kpis:
+        # T1.4: structured CalloutBox path. CalloutBoxBuilder owns slide_type
+        # gating, collision avoidance, and the §7 geometry. Slides that opt in
+        # via content.callout_box (a CalloutBox attached by _result_to_slide)
+        # render that explicitly; everything else still falls back to the
+        # legacy kpis-derived callout so behavior is additive, not replaced.
+        if slide_number > 0:
             try:
-                self._add_callout_box(slide, content.kpis)
+                from ars_analysis.output.callout_builder import CalloutBoxBuilder
+                explicit = getattr(content, "callout_box", None)
+                if explicit is not None:
+                    CalloutBoxBuilder.render(slide, explicit)
+                elif content.kpis:
+                    callout = CalloutBoxBuilder.from_kpis(
+                        content.kpis,
+                        slide_type=content.slide_type,
+                        section_key=getattr(content, "section_key", None),
+                    )
+                    if callout is not None:
+                        CalloutBoxBuilder.render(slide, callout)
             except Exception as exc:
                 logger.warning("Callout box failed on slide {n}: {err}", n=slide_number, err=exc)
 
@@ -1898,6 +1918,10 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
         title = generate_headline(slide_id, insights, fallback_title=title)
         notes_text = generate_notes(slide_id, title, insights, kpis=kpis)
 
+    # T1.3 / T1.4: resolve section accent from slide_id so chart chrome and
+    # callout tinting can use the right color without each module having to
+    # pass section_key explicitly.
+    section_key = _get_section(slide_id) if slide_id else None
     return SlideContent(
         slide_type=slide_type,
         title=title,
@@ -1906,6 +1930,7 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
         kpis=kpis,
         layout_index=layout_idx,
         notes_text=notes_text,
+        section_key=section_key,
     )
 
 
