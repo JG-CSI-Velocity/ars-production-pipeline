@@ -22,11 +22,10 @@ from ars_analysis.output.deck_builder import (
 )
 
 
-# Structural copy bank. Loaded from docs/structural_templates.md if present,
-# otherwise these baked-in defaults are used. Catalog loading lands fully in
-# the long-tail plan; POC ships the cover defaults inline.
+# Structural copy bank. POC ships the cover default inline; the markdown at
+# docs/structural_templates.md is reference-only until the long-tail plan
+# wires a parser. Bring _FALLBACK_COVER_SUBLINE back when that lands.
 _DEFAULT_COVER_SUBLINE = "Account Revenue Solution"
-_FALLBACK_COVER_SUBLINE = "Performance review"
 
 
 def build_cover(

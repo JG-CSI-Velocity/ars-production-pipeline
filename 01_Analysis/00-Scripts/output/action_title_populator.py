@@ -73,7 +73,7 @@ class TemplateBlock:
 
 
 _HEADER_RE = re.compile(r"^###\s+`([^`]+)`\s*$")
-_KV_RE = re.compile(r"^\-\s+\*\*([^*]+)\*\*:\s*(.+?)\s*$")
+_KV_RE = re.compile(r"^\-\s+\*\*([^*]+):\*\*\s*(.*?)\s*$")
 _TEMPLATE_RE = re.compile(r"^\-\s+\*\*template:\*\*\s*\"(.+?)\"\s*$")
 _FALLBACK_RE = re.compile(r"^\-\s+\*\*fallback:\*\*\s*\"(.+?)\"\s*$")
 _TABLE_ROW_RE = re.compile(r"^\s*\|\s*`?([^|`]+?)`?\s*\|\s*`([^|`]+)`\s*\|\s*`([^|`]+)`\s*\|\s*$")

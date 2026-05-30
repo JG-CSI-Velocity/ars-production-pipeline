@@ -1,6 +1,9 @@
 # Structural slide templates (autonomous decks design §C)
 
-Consumed by: `01_Analysis/00-Scripts/output/structural_slides.py`
+**Status:** Reference only. The current `output/structural_slides.py` hard-codes
+the cover default inline; no code parses this file yet. Long-tail plan wires
+a parser, at which point the copy below becomes load-bearing.
+
 Authority: `docs/superpowers/specs/2026-05-29-autonomous-decks-design.md`
 
 The structural builders read this file to pick subline copy for each
