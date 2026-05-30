@@ -1631,10 +1631,17 @@ _SECTION_LABELS = {
     "insights": "What Should We Do Next?",
 }
 
-# T2.2 slide_id -> action-title template id (catalog in
-# docs/action_title_templates.md). Unmapped slide IDs fall back to the
-# per-slide generators in headlines.py. Per-section specs (T2.5) will
-# move this map into docs/slide_specs/*.md once they land.
+# Slide_id -> action-title template id.
+#
+# Resolution order (see action_title_populator.populate):
+#   1. Branching catalog (output/template_catalog.py + docs/action_title_templates/<section>.md)
+#   2. Flat catalog (docs/action_title_templates.md) — legacy.
+#   3. Per-slide generators in output/headlines.py — last resort.
+#
+# DCTR template ids resolve out of the branching catalog as of the
+# autonomous-decks POC (docs/superpowers/specs/2026-05-29-autonomous-decks-design.md).
+# Other sections still resolve via the flat catalog until their section
+# catalogs land in the long-tail plan.
 _SLIDE_TEMPLATE_MAP = {
     # Overview
     "A1": "overview.portfolio_snapshot",
