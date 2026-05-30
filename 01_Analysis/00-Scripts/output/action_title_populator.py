@@ -315,12 +315,36 @@ class ActionTitlePopulator:
     ) -> str:
         """Render an action title.
 
-        - ``template_id`` -- key into the catalog (e.g. "dctr.activation_baseline")
-        - ``ctx_results`` -- the ``ctx.results`` dict from the runner
-        - ``ctx`` -- the PipelineContext, used for ``ctx.client.*`` paths
-        - ``fallback_title`` -- absolute last-resort string (typically the
-          analytics module's default slide title)
+        Order of attempts:
+          1. Branching catalog (``output/template_catalog.py``) — chosen by
+             variant rules + stable hash of client id.
+          2. Flat catalog (``docs/action_title_templates.md``) — legacy.
+          3. ``fallback_title``.
         """
+        # 1. Branching catalog
+        try:
+            from ars_analysis.output import template_catalog
+            client_id = ""
+            if ctx is not None:
+                client = getattr(ctx, "client", None)
+                client_id = str(getattr(client, "client_id", "") or getattr(client, "client_name", ""))
+            variant = template_catalog.select_variant(
+                template_id, ctx_results or {}, client_id or "default"
+            )
+            if variant is not None:
+                rendered = cls._render_variant(variant, ctx_results or {}, ctx)
+                if rendered is not None:
+                    return rendered
+                family = template_catalog.CatalogCache.get().get(template_id)
+                if family is not None and family.fallback:
+                    return family.fallback
+        except Exception as exc:
+            logger.warning(
+                "Branching catalog lookup failed for {tid}: {err}; falling back to flat catalog",
+                tid=template_id, err=exc,
+            )
+
+        # 2. Flat catalog (legacy path; unchanged from prior behavior)
         catalog = cls.catalog()
         block = catalog.get(template_id)
         if block is None:
@@ -357,6 +381,22 @@ class ActionTitlePopulator:
                 return block.fallback
 
         return fallback_title or template_id
+
+    @classmethod
+    def _render_variant(cls, variant, ctx_results: dict, ctx: Any | None) -> str | None:
+        """Substitute a Variant's placeholders. Returns None if any required slot
+        can't be resolved (so the caller can use the family-level fallback)."""
+        resolved: dict[str, str] = {}
+        for name, meta in variant.placeholders.items():
+            raw = extract_value(meta.get("path", ""), ctx_results, ctx)
+            formatted = format_value(raw, meta.get("format", "str"))
+            if formatted is None:
+                return None
+            resolved[name] = formatted
+        try:
+            return variant.template.format(**resolved)
+        except (KeyError, IndexError):
+            return None
 
     @classmethod
     def known_template_ids(cls) -> list[str]:

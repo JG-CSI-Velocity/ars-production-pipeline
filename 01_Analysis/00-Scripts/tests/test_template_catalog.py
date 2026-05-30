@@ -4,6 +4,8 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
+import pytest
+
 from ars_analysis.output import template_catalog
 
 
@@ -190,3 +192,38 @@ class TestRuleMatches:
     def test_unparseable_rule_returns_false(self):
         assert template_catalog._rule_matches("garbage", 0.5) is False
         assert template_catalog._rule_matches("", 0.5) is False
+
+
+@pytest.fixture
+def _stub_ctx():
+    """Minimal stand-in for PipelineContext (only ``.client.client_name`` is read)."""
+    class _Client:
+        client_name = "Guardians CU"
+    class _Ctx:
+        client = _Client()
+    return _Ctx()
+
+
+def test_populator_uses_branching_catalog_when_present(tmp_path, monkeypatch, _stub_ctx):
+    """Family found in branching catalog wins over the flat fallback."""
+    from ars_analysis.output.action_title_populator import ActionTitlePopulator
+
+    d = _write_mini_catalog(tmp_path)
+    # Prime the cache with the test catalog dir.
+    template_catalog.CatalogCache._families = template_catalog.load_catalog(catalog_dir=d)
+    # Also force the flat populator's cache to be empty so we can prove the branching
+    # catalog handled this call.
+    ActionTitlePopulator._catalog = {}
+
+    title = ActionTitlePopulator.populate(
+        template_id="dctr.activation_baseline",
+        ctx_results={"dctr_1": {"rate": 0.62, "eligible_count": 12400},
+                     "dctr_peer": {"upper_band_name": "upper quartile"}},
+        ctx=_stub_ctx,
+        fallback_title="default",
+    )
+    assert "{" not in title    # All placeholders substituted.
+    assert title != "default"   # Did not fall through to the absolute fallback.
+    # Reset caches so other tests aren't polluted.
+    template_catalog.CatalogCache._families = None
+    ActionTitlePopulator._catalog = None
