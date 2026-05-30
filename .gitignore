@@ -49,6 +49,9 @@ Legacy/
 01_Analysis/competition_*.png
 01_Analysis/competition_diagnostic.txt
 output/
+!01_Analysis/00-Scripts/output/
+!01_Analysis/00-Scripts/output/*.py
+!01_Analysis/00-Scripts/output/template/
 
 # Recordings, decks, archives parked at repo root
 /*.mp4
