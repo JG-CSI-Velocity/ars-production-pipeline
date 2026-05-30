@@ -90,3 +90,43 @@ def test_themed_chart_rate_volume_combo_handles_optional_fallbacks(tmp_path: Pat
     assert written == out
     assert out.exists()
     assert out.stat().st_size > 0
+
+
+def test_themed_chart_rate_volume_combo_with_overlays_and_delta(tmp_path: Path):
+    """Overlay series + peak delta annotation render without error."""
+    df = pd.DataFrame({
+        "bucket": ["10-19", "20-29", "30-39", "40-49", "50-59", "60+"],
+        "volume": [400, 1800, 2400, 2100, 1600, 700],
+        "rate":   [0.18, 0.36, 0.44, 0.41, 0.30, 0.21],
+    })
+    out = tmp_path / "with_overlays.png"
+    written = themes.themed_chart(
+        kind="rate_volume_combo",
+        data=df,
+        section_key="dctr",
+        hero_series="rate",
+        volume_series="volume",
+        x_series="bucket",
+        peer_median=0.34,
+        your_value=0.42,
+        overlays=[
+            {
+                "name": "Personal",
+                "values": [0.20, 0.40, 0.50, 0.45, 0.32, 0.22],
+                "color": "#4A90D9",
+                "marker_symbol": "circle",
+            },
+            {
+                "name": "Business",
+                "values": [None, 0.30, 0.38, 0.36, 0.27, None],
+                "color": "#E37C2A",
+                "marker_symbol": "square",
+            },
+        ],
+        peak_delta_annotation=True,
+        source="dctr_1.decade",
+        out_path=out,
+    )
+    assert written == out
+    assert out.exists()
+    assert out.stat().st_size > 0

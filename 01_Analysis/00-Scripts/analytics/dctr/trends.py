@@ -187,14 +187,6 @@ class DCTRTrends(AnalysisModule):
         if charts_dir != ctx.paths.base_dir:
             charts_dir.mkdir(parents=True, exist_ok=True)
             save_to = charts_dir / "dctr_decade_trend.png"
-            # NOTE: POC limitation -- themed_chart(rate_volume_combo) currently
-            # renders only the hero series (Overall DCTR) + volume bars.
-            # The original matplotlib path overlays Personal + Business lines
-            # and a per-decade delta annotation; both are preserved in
-            # _decade_trend_matplotlib_fallback and surface only when the
-            # Plotly path fails. Long-tail plan extends the chart engine to
-            # support overlay_series + annotation; until then, A7.5 in the
-            # default path is single-line + volume only.
             try:
                 from ars_analysis.shared.charts import themes
                 df_plot = pd.DataFrame({
@@ -202,6 +194,29 @@ class DCTRTrends(AnalysisModule):
                     "DCTR %": d1["DCTR %"].astype(float).values,
                     "Total Accounts": d1["Total Accounts"].astype(float).values,
                 })
+
+                # Personal + Business overlays, aligned to d1's Decade order.
+                d4 = ctx.results.get("dctr_4", {}).get("decade", pd.DataFrame())
+                d5 = ctx.results.get("dctr_5", {}).get("decade", pd.DataFrame())
+                overlays_list: list[dict] = []
+                decades = d1["Decade"].tolist()
+                if not d4.empty:
+                    p_merged = d4.set_index("Decade").reindex(decades)
+                    overlays_list.append({
+                        "name": "Personal",
+                        "values": [None if pd.isna(v) else float(v) for v in p_merged["DCTR %"].values],
+                        "color": PERSONAL,
+                        "marker_symbol": "circle",
+                    })
+                if not d5.empty and d5["Total Accounts"].sum() > 0:
+                    b_merged = d5.set_index("Decade").reindex(decades)
+                    overlays_list.append({
+                        "name": "Business",
+                        "values": [None if pd.isna(v) else float(v) for v in b_merged["DCTR %"].values],
+                        "color": BUSINESS,
+                        "marker_symbol": "square",
+                    })
+
                 themes.themed_chart(
                     kind="rate_volume_combo",
                     data=df_plot,
@@ -211,6 +226,8 @@ class DCTRTrends(AnalysisModule):
                     x_series="Decade",
                     peer_median=None,
                     your_value=None,
+                    overlays=overlays_list or None,
+                    peak_delta_annotation=True,
                     source="dctr_1.decade",
                     out_path=save_to,
                 )

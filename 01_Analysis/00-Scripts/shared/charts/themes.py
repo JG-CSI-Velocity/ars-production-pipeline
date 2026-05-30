@@ -65,6 +65,8 @@ def themed_chart(
     volume_series: str | None = None,
     peer_median: float | None = None,
     your_value: float | None = None,
+    overlays: list[dict] | None = None,
+    peak_delta_annotation: bool = False,
     source: str,
     out_path: Path,
 ) -> Path:
@@ -88,6 +90,8 @@ def themed_chart(
             x_series=x_series,
             peer_median=peer_median,
             your_value=your_value,
+            overlays=overlays,
+            peak_delta_annotation=peak_delta_annotation,
             source=source,
             out_path=out_path,
         )
@@ -103,6 +107,8 @@ def _render_rate_volume_combo(
     x_series: str,
     peer_median: float | None,
     your_value: float | None,  # noqa: ARG001 — reserved for future annotation
+    overlays: list[dict] | None = None,
+    peak_delta_annotation: bool = False,
     source: str,
     out_path: Path,
 ) -> Path:
@@ -140,6 +146,27 @@ def _render_rate_volume_combo(
         )
     )
 
+    if overlays:
+        for overlay in overlays:
+            o_name = overlay.get("name", "")
+            o_color = overlay.get("color", "#888888")
+            o_marker = overlay.get("marker_symbol", "circle")
+            o_values_raw = overlay.get("values", [])
+            # Convert decimals to percent points, preserving None as gaps.
+            o_y = [None if v is None else float(v) * 100 for v in o_values_raw]
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=o_y,
+                    name=o_name,
+                    mode="lines+markers",
+                    line={"color": o_color, "width": 2.5},
+                    marker={"size": 9, "color": o_color, "symbol": o_marker},
+                    connectgaps=False,
+                    hovertemplate="%{y:.1f}%<extra>" + o_name + "</extra>",
+                )
+            )
+
     layout = base_layout()
     layout["yaxis"]["title"] = {"text": "Rate", "font": {"size": 11}}
     layout["yaxis"]["ticksuffix"] = "%"
@@ -162,6 +189,23 @@ def _render_rate_volume_combo(
             annotation_position="top left",
             annotation_font={"color": "#555555", "size": 10},
         )
+
+    if peak_delta_annotation and len(rates_pct) >= 2:
+        deltas = [rates_pct[i] - rates_pct[i - 1] for i in range(1, len(rates_pct))]
+        if deltas:
+            best_idx = max(range(len(deltas)), key=lambda i: deltas[i]) + 1
+            fig.add_annotation(
+                x=x[best_idx],
+                y=rates_pct[best_idx],
+                text=f"+{deltas[best_idx - 1]:.1f}pp",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowcolor=accent,
+                ax=0,
+                ay=-30,
+                font={"size": 12, "color": accent, "family": "Arial Black, Arial, sans-serif"},
+            )
 
     if source:
         fig.add_annotation(
