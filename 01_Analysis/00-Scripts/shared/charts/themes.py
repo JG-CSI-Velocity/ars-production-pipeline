@@ -16,7 +16,7 @@ from typing import Any
 
 import pandas as pd
 
-from shared.charts_palette import section_color, COLORS  # noqa: F401  (used by themed_chart in Task 8)
+from shared.charts_palette import section_color
 
 
 class UnsupportedKind(ValueError):
@@ -78,8 +78,8 @@ def themed_chart(
     a labeled record. This is deliberate; the function will eventually accept
     8+ params and positional ordering would be a footgun.
     """
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     if kind == "rate_volume_combo":
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         return _render_rate_volume_combo(
             data=data,
             section_key=section_key,

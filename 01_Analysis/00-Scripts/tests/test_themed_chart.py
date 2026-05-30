@@ -69,3 +69,24 @@ def test_themed_chart_unknown_kind_raises():
     except themes.UnsupportedKind:
         return
     raise AssertionError("Expected UnsupportedKind to be raised.")
+
+
+def test_themed_chart_rate_volume_combo_handles_optional_fallbacks(tmp_path: Path):
+    """Renderer must work without volume_series, peer_median, or source set."""
+    df = pd.DataFrame({"bucket": ["A", "B", "C"], "rate": [0.10, 0.20, 0.30]})
+    out = tmp_path / "minimal.png"
+    written = themes.themed_chart(
+        kind="rate_volume_combo",
+        data=df,
+        section_key="dctr",
+        hero_series="rate",
+        volume_series=None,
+        x_series="bucket",
+        peer_median=None,
+        your_value=None,
+        source="",
+        out_path=out,
+    )
+    assert written == out
+    assert out.exists()
+    assert out.stat().st_size > 0
