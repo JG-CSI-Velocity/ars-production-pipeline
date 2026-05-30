@@ -209,11 +209,14 @@ def test_populator_uses_branching_catalog_when_present(tmp_path, monkeypatch, _s
     from ars_analysis.output.action_title_populator import ActionTitlePopulator
 
     d = _write_mini_catalog(tmp_path)
-    # Prime the cache with the test catalog dir.
-    template_catalog.CatalogCache._families = template_catalog.load_catalog(catalog_dir=d)
-    # Also force the flat populator's cache to be empty so we can prove the branching
-    # catalog handled this call.
-    ActionTitlePopulator._catalog = {}
+    # Prime the branching catalog cache with the test catalog dir; force the
+    # flat populator's cache empty so we can prove the branching path is what
+    # produced the title. monkeypatch auto-restores even if assertions fail.
+    monkeypatch.setattr(
+        template_catalog.CatalogCache, "_families",
+        template_catalog.load_catalog(catalog_dir=d),
+    )
+    monkeypatch.setattr(ActionTitlePopulator, "_catalog", {})
 
     title = ActionTitlePopulator.populate(
         template_id="dctr.activation_baseline",
@@ -224,6 +227,31 @@ def test_populator_uses_branching_catalog_when_present(tmp_path, monkeypatch, _s
     )
     assert "{" not in title    # All placeholders substituted.
     assert title != "default"   # Did not fall through to the absolute fallback.
-    # Reset caches so other tests aren't polluted.
-    template_catalog.CatalogCache._families = None
-    ActionTitlePopulator._catalog = None
+
+
+def test_populator_uses_client_id_when_present(tmp_path, monkeypatch):
+    """When ctx.client.client_id is set, it (not client_name) drives the hash."""
+    from ars_analysis.output.action_title_populator import ActionTitlePopulator
+
+    class _Client:
+        client_id = "1615"
+        client_name = "Guardians CU"
+    class _Ctx:
+        client = _Client()
+
+    d = _write_mini_catalog(tmp_path)
+    monkeypatch.setattr(
+        template_catalog.CatalogCache, "_families",
+        template_catalog.load_catalog(catalog_dir=d),
+    )
+    monkeypatch.setattr(ActionTitlePopulator, "_catalog", {})
+
+    title = ActionTitlePopulator.populate(
+        template_id="dctr.activation_baseline",
+        ctx_results={"dctr_1": {"rate": 0.62, "eligible_count": 12400},
+                     "dctr_peer": {"upper_band_name": "upper quartile"}},
+        ctx=_Ctx(),
+        fallback_title="default",
+    )
+    assert "{" not in title
+    assert title != "default"
