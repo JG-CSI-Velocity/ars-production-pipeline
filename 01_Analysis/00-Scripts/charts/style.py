@@ -3,7 +3,7 @@
 Constants only -- no functions. Use ars.mplstyle for rcParams defaults.
 Import what you need: from ars_analysis.charts.style import PERSONAL, BUSINESS, TITLE_SIZE
 
-Color authority imported from shared.charts.COLORS (canonical).
+Color authority imported from shared.charts_palette.COLORS (canonical).
 Legacy ARS-specific semantic names (PERSONAL, BUSINESS, etc.) preserved as aliases.
 """
 
@@ -11,10 +11,10 @@ from typing import Iterable
 
 from matplotlib.ticker import FuncFormatter
 
-from shared.charts import COLORS, MAX_CATEGORICAL_COLORS, SECTION_COLORS, section_color
+from shared.charts_palette import COLORS, MAX_CATEGORICAL_COLORS, SECTION_COLORS, section_color
 
 # Canonical semantic colors (from shared authority).
-# All values flow from SLIDE_DESIGN.md §5 via shared.charts.COLORS -- do not
+# All values flow from SLIDE_DESIGN.md §5 via shared.charts_palette.COLORS -- do not
 # hardcode hex here.
 PRIMARY = COLORS["primary"]          # Navy #1E3D59 -- titles, primary bars, axis lines
 POSITIVE = COLORS["positive"]        # #28A745

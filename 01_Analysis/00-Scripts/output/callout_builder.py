@@ -24,7 +24,7 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
 
-from shared.charts import COLORS, section_color
+from shared.charts_palette import COLORS, section_color
 
 
 # ---------------------------------------------------------------------------
