@@ -1764,7 +1764,12 @@ def _infer_product_mode(ctx_or_results) -> str:
     return "ars"
 
 
-def _build_preamble_slides(client_name: str, month: str, product_mode: str = "ars") -> list[SlideContent]:
+def _build_preamble_slides(
+    client_name: str,
+    month: str,
+    product_mode: str = "ars",
+    ctx_results: dict | None = None,
+) -> list[SlideContent]:
     """Build preamble slides ahead of analysis content.
 
     T2.4: variant lengths per product mode --
@@ -1789,18 +1794,32 @@ def _build_preamble_slides(client_name: str, month: str, product_mode: str = "ar
         return _preamble_txn(client_name, title_date)
     if mode == "hybrid":
         return _preamble_hybrid(client_name, title_date)
-    return _preamble_ars(client_name, title_date)
+    return _preamble_ars(client_name, title_date, ctx_results=ctx_results)
 
 
-def _preamble_ars(client_name: str, title_date: str) -> list[SlideContent]:
-    """13-slide ARS preamble (existing behavior, intact)."""
-    return [
-        # P01: Master title -- RPE branded title slide
-        SlideContent(
+def _preamble_ars(
+    client_name: str,
+    title_date: str,
+    ctx_results: dict | None = None,
+) -> list[SlideContent]:
+    """13-slide ARS preamble. P01 cover sourced from structural_slides.build_cover()."""
+    # Local import avoids a module-level cycle (structural_slides imports
+    # SlideContent + LAYOUT_TITLE_RPE from this module).
+    from ars_analysis.output.structural_slides import build_cover
+
+    cover = build_cover(
+        client_name=client_name, title_date=title_date, ctx_results=ctx_results,
+    )
+    if cover is None:
+        # Build_cover never returns None in the POC; this guard is here so the
+        # long-tail builders can return None to fall through to today's behavior.
+        cover = SlideContent(
             slide_type="title",
             title=f"{client_name}\nAccount Revenue Solution | {title_date}",
             layout_index=LAYOUT_TITLE_RPE,
-        ),
+        )
+    return [
+        cover,
         # P02: Executive Dashboard (replaced at runtime with KPI dashboard)
         SlideContent(slide_type="blank", title="Agenda", layout_index=LAYOUT_CONTENT),
         # P03: Program Performance divider
@@ -2466,7 +2485,11 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     # Build preamble
     # T2.4: product-mode-aware preamble.
     _preamble_mode = _infer_product_mode(ctx)
-    preamble = _build_preamble_slides(client_name, month, product_mode=_preamble_mode)
+    preamble = _build_preamble_slides(
+        client_name, month,
+        product_mode=_preamble_mode,
+        ctx_results=_ctx_results,
+    )
     print(f"  Preamble: {_preamble_mode} variant ({len(preamble)} slides)")
 
     # Replace P02 (Agenda) with executive KPI dashboard
