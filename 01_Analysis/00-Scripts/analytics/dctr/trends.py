@@ -5,6 +5,8 @@ Slide IDs: A7.4, A7.5, A7.6a, A7.6b, A7.14, A7.15.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -177,8 +179,6 @@ class DCTRTrends(AnalysisModule):
 
     def _decade_trend(self, ctx: PipelineContext) -> list[AnalysisResult]:
         d1 = ctx.results.get("dctr_1", {}).get("decade", pd.DataFrame())
-        d4 = ctx.results.get("dctr_4", {}).get("decade", pd.DataFrame())
-        d5 = ctx.results.get("dctr_5", {}).get("decade", pd.DataFrame())
         if d1.empty:
             return []
 
@@ -188,94 +188,31 @@ class DCTRTrends(AnalysisModule):
             charts_dir.mkdir(parents=True, exist_ok=True)
             save_to = charts_dir / "dctr_decade_trend.png"
             try:
-                decades = d1["Decade"].values
-                overall = d1["DCTR %"].values * 100
-                x = np.arange(len(decades))
-
-                with chart_figure(figsize=(16, 8), save_path=save_to) as (fig, ax):
-                    ax2 = ax.twinx()
-                    total_vol = d1["Total Accounts"].values
-                    ax2.bar(x, total_vol, alpha=0.2, color="gray", edgecolor="none", width=0.8)
-                    ax2.set_ylabel("Account Volume", fontsize=24, color="gray")
-                    max_vol = max(total_vol) if len(total_vol) > 0 else 100
-                    ax2.set_ylim(0, max_vol * 1.3)
-                    ax2.tick_params(axis="y", colors="gray", labelsize=24)
-
-                    ax.plot(
-                        x,
-                        overall,
-                        color="black",
-                        linewidth=3,
-                        linestyle="--",
-                        marker="o",
-                        markersize=18,
-                        label="Overall",
-                        zorder=2,
-                    )
-
-                    if not d4.empty:
-                        p_merged = d4.set_index("Decade").reindex(decades)
-                        p_vals = p_merged["DCTR %"].values * 100
-                        valid_mask = ~np.isnan(p_vals)
-                        if valid_mask.any():
-                            ax.plot(
-                                x[valid_mask],
-                                p_vals[valid_mask],
-                                color=PERSONAL,
-                                linewidth=4,
-                                marker="o",
-                                markersize=12,
-                                label="Personal",
-                                zorder=3,
-                            )
-
-                    if not d5.empty and d5["Total Accounts"].sum() > 0:
-                        b_merged = d5.set_index("Decade").reindex(decades)
-                        b_vals = b_merged["DCTR %"].values * 100
-                        valid_mask = ~np.isnan(b_vals)
-                        if valid_mask.any():
-                            ax.plot(
-                                x[valid_mask],
-                                b_vals[valid_mask],
-                                color=BUSINESS,
-                                linewidth=4,
-                                marker="s",
-                                markersize=12,
-                                label="Business",
-                                zorder=3,
-                            )
-
-                    ax.set_xticks(x)
-                    ax.set_xticklabels(decades, fontsize=24, rotation=45 if len(decades) > 8 else 0)
-                    ax.set_ylabel("DCTR (%)", fontsize=24, fontweight="bold")
-                    ax.set_title(
-                        "Historical DCTR Trend by Decade", fontsize=24, fontweight="bold", pad=20
-                    )
-                    ax.set_ylim(0, min(110, max(overall) * 1.15) if len(overall) > 0 else 100)
-                    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{int(x)}%"))
-                    ax.tick_params(axis="y", labelsize=24)
-                    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=18)
-                    ax.set_axisbelow(True)
-                    ax.spines["top"].set_visible(False)
-                    ax2.spines["top"].set_visible(False)
-
-                    # Highlight decade with biggest growth
-                    if len(overall) >= 2:
-                        diffs = np.diff(overall)
-                        best_idx = int(np.argmax(diffs)) + 1
-                        ax.annotate(
-                            f"+{diffs[best_idx - 1]:.1f}pp",
-                            xy=(best_idx, overall[best_idx]),
-                            xytext=(best_idx, overall[best_idx] + 5),
-                            fontsize=14,
-                            fontweight="bold",
-                            color=TEAL,
-                            ha="center",
-                            arrowprops={"arrowstyle": "->", "color": TEAL, "lw": 2},
-                        )
+                from ars_analysis.shared.charts import themes
+                df_plot = pd.DataFrame({
+                    "Decade": d1["Decade"].values,
+                    "DCTR %": d1["DCTR %"].astype(float).values,
+                    "Total Accounts": d1["Total Accounts"].astype(float).values,
+                })
+                themes.themed_chart(
+                    kind="rate_volume_combo",
+                    data=df_plot,
+                    section_key="dctr",
+                    hero_series="DCTR %",
+                    volume_series="Total Accounts",
+                    x_series="Decade",
+                    peer_median=None,
+                    your_value=None,
+                    source="dctr_1.decade",
+                    out_path=save_to,
+                )
                 chart_path = save_to
+            except themes.UnsupportedKind:
+                logger.info("A7.5 kind not implemented in themed_chart; using matplotlib fallback")
+                chart_path = self._decade_trend_matplotlib_fallback(ctx, save_to, d1)
             except Exception as exc:
-                logger.warning("A7.5 chart failed: {err}", err=exc)
+                logger.warning("A7.5 themed_chart failed ({err}); using matplotlib fallback", err=exc)
+                chart_path = self._decade_trend_matplotlib_fallback(ctx, save_to, d1)
 
         return [
             AnalysisResult(
@@ -286,6 +223,79 @@ class DCTRTrends(AnalysisModule):
                 notes=f"{len(d1)} decades plotted",
             )
         ]
+
+    def _decade_trend_matplotlib_fallback(
+        self, ctx: PipelineContext, save_to: Path, d1: pd.DataFrame
+    ) -> Path | None:
+        """Original matplotlib renderer, preserved as fallback when themed_chart
+        is unavailable or raises. Behavior identical to the pre-POC code."""
+        d4 = ctx.results.get("dctr_4", {}).get("decade", pd.DataFrame())
+        d5 = ctx.results.get("dctr_5", {}).get("decade", pd.DataFrame())
+        try:
+            decades = d1["Decade"].values
+            overall = d1["DCTR %"].values * 100
+            x = np.arange(len(decades))
+
+            with chart_figure(figsize=(16, 8), save_path=save_to) as (fig, ax):
+                ax2 = ax.twinx()
+                total_vol = d1["Total Accounts"].values
+                ax2.bar(x, total_vol, alpha=0.2, color="gray", edgecolor="none", width=0.8)
+                ax2.set_ylabel("Account Volume", fontsize=24, color="gray")
+                max_vol = max(total_vol) if len(total_vol) > 0 else 100
+                ax2.set_ylim(0, max_vol * 1.3)
+                ax2.tick_params(axis="y", colors="gray", labelsize=24)
+
+                ax.plot(
+                    x, overall, color="black", linewidth=3, linestyle="--",
+                    marker="o", markersize=18, label="Overall", zorder=2,
+                )
+
+                if not d4.empty:
+                    p_merged = d4.set_index("Decade").reindex(decades)
+                    p_vals = p_merged["DCTR %"].values * 100
+                    valid_mask = ~np.isnan(p_vals)
+                    if valid_mask.any():
+                        ax.plot(
+                            x[valid_mask], p_vals[valid_mask], color=PERSONAL,
+                            linewidth=4, marker="o", markersize=12, label="Personal", zorder=3,
+                        )
+
+                if not d5.empty and d5["Total Accounts"].sum() > 0:
+                    b_merged = d5.set_index("Decade").reindex(decades)
+                    b_vals = b_merged["DCTR %"].values * 100
+                    valid_mask = ~np.isnan(b_vals)
+                    if valid_mask.any():
+                        ax.plot(
+                            x[valid_mask], b_vals[valid_mask], color=BUSINESS,
+                            linewidth=4, marker="s", markersize=12, label="Business", zorder=3,
+                        )
+
+                ax.set_xticks(x)
+                ax.set_xticklabels(decades, fontsize=24, rotation=45 if len(decades) > 8 else 0)
+                ax.set_ylabel("DCTR (%)", fontsize=24, fontweight="bold")
+                ax.set_title("Historical DCTR Trend by Decade", fontsize=24, fontweight="bold", pad=20)
+                ax.set_ylim(0, min(110, max(overall) * 1.15) if len(overall) > 0 else 100)
+                ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{int(x)}%"))
+                ax.tick_params(axis="y", labelsize=24)
+                ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=18)
+                ax.set_axisbelow(True)
+                ax.spines["top"].set_visible(False)
+                ax2.spines["top"].set_visible(False)
+
+                if len(overall) >= 2:
+                    diffs = np.diff(overall)
+                    best_idx = int(np.argmax(diffs)) + 1
+                    ax.annotate(
+                        f"+{diffs[best_idx - 1]:.1f}pp",
+                        xy=(best_idx, overall[best_idx]),
+                        xytext=(best_idx, overall[best_idx] + 5),
+                        fontsize=14, fontweight="bold", color=TEAL, ha="center",
+                        arrowprops={"arrowstyle": "->", "color": TEAL, "lw": 2},
+                    )
+            return save_to
+        except Exception as exc:
+            logger.warning("A7.5 matplotlib fallback failed: {err}", err=exc)
+            return None
 
     # -- A7.6a: L12M Monthly Trend -------------------------------------------
 
