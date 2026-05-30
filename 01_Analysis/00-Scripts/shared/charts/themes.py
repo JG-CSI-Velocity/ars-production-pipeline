@@ -16,7 +16,7 @@ from typing import Any
 
 import pandas as pd
 
-from ars_analysis.shared.charts_palette import section_color, COLORS  # noqa: F401  (alias kept for downstream)
+from shared.charts_palette import section_color, COLORS  # noqa: F401  (used by themed_chart in Task 8)
 
 
 class UnsupportedKind(ValueError):

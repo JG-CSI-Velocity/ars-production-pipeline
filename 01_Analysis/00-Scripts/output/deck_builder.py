@@ -96,7 +96,7 @@ class SlideContent:
     # auto-derived hero-KPI callout from `kpis`.
     callout_box: "object | None" = None
     # T1.3 / T2.5: optional section accent key for chart chrome + callout
-    # tinting. Resolves via shared.charts.SECTION_COLORS.
+    # tinting. Resolves via shared.charts_palette.SECTION_COLORS.
     section_key: str | None = None
     # T2.3: original AnalysisResult.slide_id, propagated so the section
     # consolidator can identify slides by ID without parsing the title.
