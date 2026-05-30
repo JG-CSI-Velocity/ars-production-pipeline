@@ -125,3 +125,43 @@ def test_load_parses_multiple_families_in_one_file(tmp_path: Path) -> None:
     # No state leakage: fam2 must NOT see fam1's branches or variants.
     assert [label for _, label in fam2.branches] == ["ahead"]
     assert "strong" not in fam2.variants
+
+
+def test_select_variant_uses_strong_branch_when_rate_above_threshold(tmp_path: Path) -> None:
+    d = _write_mini_catalog(tmp_path)
+    catalog = template_catalog.load_catalog(catalog_dir=d)
+    fam = catalog["dctr.activation_baseline"]
+    v = template_catalog.select_variant_from_family(
+        fam, ctx_results={"dctr_1": {"rate": 0.62}}, client_id="1615"
+    )
+    assert v is not None
+    assert v.branch == "strong"
+
+
+def test_select_variant_uses_opportunity_branch_when_rate_below_threshold(tmp_path: Path) -> None:
+    d = _write_mini_catalog(tmp_path)
+    catalog = template_catalog.load_catalog(catalog_dir=d)
+    fam = catalog["dctr.activation_baseline"]
+    v = template_catalog.select_variant_from_family(
+        fam, ctx_results={"dctr_1": {"rate": 0.20}}, client_id="1615"
+    )
+    assert v is not None
+    assert v.branch == "opportunity"
+
+
+def test_select_variant_is_stable_across_calls(tmp_path: Path) -> None:
+    """Same client + family must always pick the same variant — repeatable reruns."""
+    d = _write_mini_catalog(tmp_path)
+    catalog = template_catalog.load_catalog(catalog_dir=d)
+    fam = catalog["dctr.activation_baseline"]
+    ctx = {"dctr_1": {"rate": 0.62}}
+    picks = {template_catalog.select_variant_from_family(fam, ctx, "1615").angle for _ in range(10)}
+    assert len(picks) == 1
+
+
+def test_select_variant_returns_none_when_branch_value_missing(tmp_path: Path) -> None:
+    d = _write_mini_catalog(tmp_path)
+    catalog = template_catalog.load_catalog(catalog_dir=d)
+    fam = catalog["dctr.activation_baseline"]
+    v = template_catalog.select_variant_from_family(fam, ctx_results={}, client_id="1615")
+    assert v is None

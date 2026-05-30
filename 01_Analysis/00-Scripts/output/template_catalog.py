@@ -109,6 +109,13 @@ _TABLE_ROW_RE = re.compile(
     r"^\s*\|\s*`?([^|`]+?)`?\s*\|\s*`([^|`]+)`\s*\|\s*`([^|`]+)`\s*\|\s*$"
 )
 
+# Branch rule grammar (intentionally narrow):
+#   ">= 0.55"   ">0.55"   "<= 0.30"  "<0.30"  "==0"
+#   "0.40..0.54"  (inclusive range)
+#   "null"        (matches None / NaN)
+_RANGE_RE = re.compile(r"^\s*([0-9.]+)\s*\.\.\s*([0-9.]+)\s*$")
+_OP_RE = re.compile(r"^\s*(>=|<=|>|<|==)\s*(-?[0-9.]+)\s*$")
+
 
 def _parse_section_file(path: Path) -> dict[str, TemplateFamily]:
     """Parse one section markdown file into ``{family_id: TemplateFamily}``."""
@@ -238,10 +245,86 @@ class CatalogCache:
         return cls._families
 
 
+def _walk_path(path: str, ctx_results: dict) -> Any:
+    """Dotted ``ctx.results`` walk; returns None on any miss."""
+    if not path:
+        return None
+    obj: Any = ctx_results
+    for seg in path.split("."):
+        if isinstance(obj, dict):
+            obj = obj.get(seg)
+        else:
+            obj = getattr(obj, seg, None)
+        if obj is None:
+            return None
+    return obj
+
+
+def _rule_matches(rule: str, value: Any) -> bool:
+    rule = rule.strip()
+    if rule.lower() == "null":
+        return value is None
+    if value is None:
+        return False
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return False
+    m = _RANGE_RE.match(rule)
+    if m:
+        lo, hi = float(m.group(1)), float(m.group(2))
+        return lo <= v <= hi
+    m = _OP_RE.match(rule)
+    if not m:
+        return False
+    op, threshold = m.group(1), float(m.group(2))
+    return {
+        ">=": v >= threshold,
+        "<=": v <= threshold,
+        ">":  v > threshold,
+        "<":  v < threshold,
+        "==": v == threshold,
+    }[op]
+
+
+def _hash_index(client_id: str, family_id: str, modulus: int) -> int:
+    """Stable index — md5, NOT Python's process-salted hash()."""
+    h = hashlib.md5(f"{client_id}|{family_id}".encode("utf-8")).hexdigest()
+    return int(h, 16) % max(modulus, 1)
+
+
+def select_variant_from_family(
+    family: TemplateFamily,
+    ctx_results: dict | None,
+    client_id: str,
+) -> Variant | None:
+    """Pick a variant for ``family`` given the data + client id."""
+    ctx_results = ctx_results or {}
+    if not family.branches or family.branch_path is None:
+        return None
+    value = _walk_path(family.branch_path, ctx_results)
+    matched_branch: str | None = None
+    for rule, label in family.branches:
+        if _rule_matches(rule, value):
+            matched_branch = label
+            break
+    if matched_branch is None:
+        return None
+    pool = family.variants.get(matched_branch, [])
+    if not pool:
+        return None
+    idx = _hash_index(client_id, family.id, len(pool))
+    return pool[idx]
+
+
 def select_variant(
     family_id: str,
     ctx_results: dict | None,
     client_id: str,
 ) -> Variant | None:
-    """Select a variant for the given family. Stub — implemented in Task 4."""
-    raise NotImplementedError("select_variant lands in Task 4")
+    """Public entry point: look up the family from the cache, then select."""
+    catalog = CatalogCache.get()
+    family = catalog.get(family_id)
+    if family is None:
+        return None
+    return select_variant_from_family(family, ctx_results, client_id)
