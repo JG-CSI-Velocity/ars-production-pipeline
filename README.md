@@ -39,6 +39,27 @@ For a developer-facing map of every screen and the HTML IDs / CSS classes / API 
 
 ---
 
+## Slide design system
+
+The deck builder is governed by a documented design system covering palette, callouts, footers, section dividers, and an action-title template catalog. Key documents:
+
+- **`SLIDE_DESIGN.md`** (repo root) — Authoritative design rules. Version 1.0, pending CSM sign-off (see §15).
+- **`docs/action_title_templates.md`** — 28 reusable action-title templates with `ctx.results` placeholder mappings. Consumed by `output/action_title_populator.py`.
+- **`docs/slide_specs/`** — Per-section slide specs (`overview.md`, `dctr.md`, `rege.md`, `attrition.md`, `value.md`, `mailer.md`, `insights.md`).
+- **`docs/deck/IMPLEMENTATION_GUIDE.md`** — CSM workflow + operator-blocked items.
+- **`docs/deck/CODE_DOCUMENTATION.md`** — Developer reference: module map, data flow, extension points, failure modes.
+- **`docs/deck/ARS_SLIDE_DESIGN_CHECKLIST.md`** — Original 12-week PRD breakdown with shipped-commit pointers per task.
+
+Every pipeline run produces five deliverables per client:
+
+```
+<client>_<month>_ars_deck.pptx           ← main PPTX
+<client>_<month>_ars_aux_deck.pptx       ← aux PPTX (if applicable)
+<client>_<month>_review_summary.xlsx     ← 4-sheet CSM review summary
+<client>_<month>_quality_report.txt      ← pass/fail on 10 automated checks
+<client>_<month>_meta.json               ← run audit trail
+```
+
 ## Pipeline at a glance
 
 ```

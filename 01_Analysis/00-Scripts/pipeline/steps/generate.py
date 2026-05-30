@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import openpyxl
 from loguru import logger
@@ -241,6 +242,12 @@ def step_generate(ctx: PipelineContext) -> None:
     _build_aux_deck(ctx)
     logger.info("Deliverables generated for {client}", client=ctx.client.client_id)
 
+    # T3.4 — orchestrate the three Tier-3 outputs (Excel review summary,
+    # quality report, metadata JSON) so the run produces all five
+    # deliverables per PRD #145. Each call is independently fault-tolerant
+    # so a failure in one doesn't block the others.
+    _run_tier3_outputs(ctx)
+
     # Post-run scorecard derived from the manifest. Optional: only runs if
     # the manifest was set up. Failures here never break the pipeline.
     _mf = getattr(ctx, "manifest", None)
@@ -403,3 +410,87 @@ def _build_aux_deck(ctx: PipelineContext) -> None:
         ctx.all_slides = main_slides
         if hasattr(ctx, "_aux_build"):
             delattr(ctx, "_aux_build")
+
+
+# ---------------------------------------------------------------------------
+# T3.4 — Tier 3 output orchestration
+# ---------------------------------------------------------------------------
+
+
+def _run_tier3_outputs(ctx: PipelineContext) -> None:
+    """Generate Excel review summary, quality report, metadata JSON.
+
+    Each output is independently fault-tolerant: a failure in any one
+    doesn't block the others, and the run still ships its PPTX. Errors
+    surface in the log and in the quality report itself.
+    """
+    import time as _time
+    client_id = getattr(ctx.client, "client_id", "unknown")
+    month = getattr(ctx.client, "month", "unknown")
+    output_dir = ctx.paths.base_dir
+    files_generated: list[Path] = []
+
+    # The deck path(s) that already shipped (so quality_gate can sample fonts).
+    deck_paths: list[Path] = []
+    for log_path in (ctx.export_log or []):
+        try:
+            p = Path(log_path)
+            if p.suffix == ".pptx":
+                deck_paths.append(p)
+        except Exception:
+            continue
+    files_generated.extend(deck_paths)
+
+    # --- Excel review summary ---
+    excel_path = output_dir / f"{client_id}_{month}_review_summary.xlsx"
+    try:
+        from ars_analysis.output.excel_exporter import ExcelExporter
+        result = ExcelExporter.export(ctx, excel_path)
+        if result is not None:
+            files_generated.append(result.path)
+            logger.info("Review summary: {p} ({rows})", p=result.path.name,
+                        rows=sum(result.rows_written.values()))
+            print(f"  Review summary: {result.path.name}")
+    except Exception as exc:
+        logger.warning("ExcelExporter raised: {err}", err=exc)
+
+    # --- Quality report ---
+    quality_report = None
+    qr_start = _time.time()
+    try:
+        from ars_analysis.output.quality_gate import QualityGate
+        quality_report = QualityGate.run(ctx, deck_paths=deck_paths)
+        qr_path = output_dir / f"{client_id}_{month}_quality_report.txt"
+        qr_path.write_text(quality_report.to_text(), encoding="utf-8")
+        files_generated.append(qr_path)
+        qr_json_path = output_dir / f"{client_id}_{month}_quality_report.json"
+        qr_json_path.write_text(quality_report.to_json(), encoding="utf-8")
+        files_generated.append(qr_json_path)
+        passed = sum(1 for c in quality_report.checks if c.passed)
+        total = len(quality_report.checks)
+        verdict = "PASS" if quality_report.overall_pass else "FAIL"
+        logger.info("Quality gate: {v} ({passed}/{total})", v=verdict, passed=passed, total=total)
+        print(f"  Quality gate: {verdict} ({passed}/{total} checks)")
+    except Exception as exc:
+        logger.warning("QualityGate raised: {err}", err=exc)
+
+    qr_elapsed = _time.time() - qr_start
+
+    # --- Metadata JSON ---
+    meta_path = output_dir / f"{client_id}_{month}_meta.json"
+    try:
+        from ars_analysis.output.metadata_writer import MetadataWriter
+        result = MetadataWriter.write(
+            ctx, meta_path,
+            quality_report=quality_report,
+            files_generated=files_generated,
+            elapsed_sec=qr_elapsed,
+        )
+        if result is not None:
+            logger.info("Metadata: {p}", p=result.path.name)
+            print(f"  Metadata: {result.path.name}")
+    except Exception as exc:
+        logger.warning("MetadataWriter raised: {err}", err=exc)
+
+    # Final summary line so the operator sees what shipped in one place.
+    print(f"  Tier 3 outputs: {len(files_generated)} file(s) written to {output_dir}")
