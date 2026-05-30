@@ -56,6 +56,11 @@ COMPLETED_ANALYSIS = ANALYSIS_BASE / "01_Completed_Analysis"
 # In-memory run tracking
 runs = {}
 
+# Live subprocess handles per run_id (kept separate from `runs` so the dict
+# stays JSON-serializable for /api/run/{run_id}). Populated by _run() once
+# the analysis subprocess is launched; cleared when the run finishes.
+_run_procs: dict[str, subprocess.Popen] = {}
+
 # In-memory dropdown cache (Phase 17.4). 5-minute TTL on M: drive scans so the
 # Generate tab doesn't re-walk the share on every dropdown click.
 _api_cache: dict[str, dict] = {}
@@ -815,6 +820,7 @@ async def start_run(
                     bufsize=1,
                     cwd=str(formatting_run.parent),
                 )
+                _run_procs[run_id] = fmt_proc  # so /stop can terminate during formatting
                 for line in fmt_proc.stdout:
                     line = line.rstrip()
                     if run_id in runs:
@@ -864,6 +870,7 @@ async def start_run(
                 cwd=str(analysis_run.parent),
                 env=_run_env,
             )
+            _run_procs[run_id] = proc  # so /stop can terminate during analysis
             runs[run_id]["last_output_at"] = datetime.now().isoformat()
             for line in proc.stdout:
                 line = line.rstrip()
@@ -887,6 +894,8 @@ async def start_run(
             if run_id in runs:
                 runs[run_id]["status"] = "error"
                 runs[run_id]["log"].append(f"ERROR: {e}")
+        finally:
+            _run_procs.pop(run_id, None)
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
@@ -997,6 +1006,47 @@ async def get_run_status(run_id: str):
     if run_id not in runs:
         raise HTTPException(status_code=404, detail="Run not found")
     return runs[run_id]
+
+
+@app.post("/api/run/{run_id}/stop")
+async def stop_run(run_id: str):
+    """Emergency stop -- terminate the live subprocess for a run.
+
+    Tries SIGTERM first (subprocess.terminate), waits up to 3s, then
+    SIGKILL. Marks the run status as 'stopped'. Subsequent log lines
+    that arrive after termination (the reader loop drains the pipe) are
+    still recorded for diagnostics.
+    """
+    if run_id not in runs:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if runs[run_id].get("status") != "running":
+        return {"run_id": run_id, "result": "not_running", "status": runs[run_id].get("status")}
+
+    proc = _run_procs.get(run_id)
+    if proc is None:
+        # Run is "running" but no live subprocess (formatting just finished,
+        # analysis not yet launched, etc.). Mark stopped so the next branch
+        # of _run() can short-circuit.
+        runs[run_id]["status"] = "stopped"
+        runs[run_id]["log"].append("STOPPED: no live subprocess; marking run as stopped")
+        runs[run_id]["finished"] = datetime.now().isoformat()
+        return {"run_id": run_id, "result": "marked_stopped"}
+
+    runs[run_id]["log"].append("STOPPED: operator clicked Stop. Terminating subprocess...")
+    try:
+        proc.terminate()
+        try:
+            proc.wait(timeout=3)
+            result = "terminated"
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            result = "killed"
+        runs[run_id]["status"] = "stopped"
+        runs[run_id]["finished"] = datetime.now().isoformat()
+        runs[run_id]["log"].append(f"STOPPED: subprocess {result}.")
+        return {"run_id": run_id, "result": result}
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise HTTPException(status_code=500, detail=f"Stop failed: {exc}")
 
 
 @app.get("/api/run/{run_id}/stream")

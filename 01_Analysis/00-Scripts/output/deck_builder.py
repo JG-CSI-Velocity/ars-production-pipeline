@@ -370,7 +370,11 @@ class DeckBuilder:
 
         kpis: dict of {label: value}. First non-subtitle entry becomes the
         hero number. A second KPI, if present, renders as a smaller line.
-        position: "bottom_right" (default) or "bottom_left".
+        position: "bottom_right" (default) or "bottom_left". The method
+        auto-resolves collisions with picture shapes already on the slide
+        (issue 142, item 3.7): if the requested corner is occupied, it
+        tries the opposite corner; if both are blocked, it falls back to
+        a narrower box just below the picture.
         """
         if not kpis:
             return
@@ -391,8 +395,66 @@ class DeckBuilder:
         # Reserve ~0.75" at the bottom for the footer band.
         footer_clearance = Inches(0.75)
 
-        box_left = Inches(0.86) if position == "bottom_left" else slide_w - box_w - Inches(0.5)
-        box_top = slide_h - box_h - footer_clearance
+        right_x = slide_w - box_w - Inches(0.5)
+        left_x = Inches(0.86)
+        default_top = slide_h - box_h - footer_clearance
+
+        # Find bounding boxes of any picture shapes already on the slide
+        # (the chart) so we can detect collision with the callout.
+        pic_boxes = []
+        for shape in slide.shapes:
+            # Picture shapes report shape_type 13 (PP_PLACEHOLDER.PICTURE
+            # equivalent) but the safest check is hasattr("image").
+            if not hasattr(shape, "image"):
+                continue
+            try:
+                pic_boxes.append((shape.left, shape.top,
+                                  shape.left + shape.width,
+                                  shape.top + shape.height))
+            except Exception:
+                continue
+
+        def _overlaps(a_left, a_top, a_right, a_bottom):
+            for pl, pt, pr, pb in pic_boxes:
+                if a_right <= pl or a_left >= pr:
+                    continue
+                if a_bottom <= pt or a_top >= pb:
+                    continue
+                return True
+            return False
+
+        # Try requested corner, then fall back to the opposite corner,
+        # then below the picture entirely (narrower box).
+        if position == "bottom_left":
+            order = [(left_x, default_top), (right_x, default_top)]
+        else:
+            order = [(right_x, default_top), (left_x, default_top)]
+
+        chosen = None
+        for cand_left, cand_top in order:
+            if not _overlaps(cand_left, cand_top, cand_left + box_w, cand_top + box_h):
+                chosen = (cand_left, cand_top, box_w, box_h)
+                break
+
+        if chosen is None and pic_boxes:
+            # Both corners overlap. Try a narrower strip just below the
+            # bottom-most picture, before the footer band starts.
+            pic_bottom = max(pb for _, _, _, pb in pic_boxes)
+            narrow_w = Inches(3.2)
+            narrow_h = Inches(0.9)
+            narrow_top = pic_bottom + Inches(0.1)
+            footer_top = slide_h - Inches(0.5)
+            if narrow_top + narrow_h <= footer_top:
+                chosen = (slide_w - narrow_w - Inches(0.5),
+                          narrow_top, narrow_w, narrow_h)
+
+        if chosen is None:
+            # Give up gracefully -- skipping the callout is preferable to
+            # rendering one that obscures the chart.
+            logger.info("Callout box skipped: no collision-free placement found")
+            return
+
+        box_left, box_top, box_w, box_h = chosen
 
         shape = slide.shapes.add_shape(
             MSO_SHAPE.ROUNDED_RECTANGLE, box_left, box_top, box_w, box_h

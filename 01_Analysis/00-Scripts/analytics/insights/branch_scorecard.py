@@ -28,35 +28,122 @@ MIN_BRANCHES = 3
 
 
 def _build_branch_data(ctx: PipelineContext) -> pd.DataFrame | None:
-    """Assemble branch-level metrics from upstream results.
+    """Assemble branch-level metrics, preferring upstream results.
 
-    Returns DataFrame with columns: branch, dctr, rege_rate, attrition_rate, n_accounts.
-    Returns None if insufficient data.
+    Strategy (issue 142, item 2.5):
+      1. Pull DCTR per branch from ctx.results['dctr_9']['branch_df']
+         (same frame the DCTR-9 detail slide displays).
+      2. Pull Reg E per branch from ctx.results['reg_e_4']['historical']
+         (same frame the A8.4a detail slide displays).
+      3. Pull Attrition per branch from ctx.results['attrition_4']['branch_df']
+         (same frame the A9.4 detail slide displays).
+      4. Outer-join on the branch label, drop branches with no DCTR row.
+      5. Fall back to the legacy raw-data recompute only if every upstream
+         frame is missing -- preserves behavior for the rare case where
+         only the scorecard runs.
+
+    Returns DataFrame with columns: branch, dctr, rege_rate, attrition_rate,
+    n_accounts. Returns None if fewer than MIN_BRANCHES rows resolved.
     """
-    data = ctx.data
+    dctr_df = _upstream_dctr(ctx)
+    rege_df = _upstream_rege(ctx)
+    attr_df = _upstream_attrition(ctx)
+
+    if dctr_df is None and rege_df is None and attr_df is None:
+        return _recompute_from_raw(ctx)
+
+    # Join on Branch label. DCTR is the spine because the scorecard is
+    # ranked primarily by DCTR; if DCTR-9 is missing we still try to
+    # assemble from Reg E + Attrition with dctr=0.
+    spine = dctr_df if dctr_df is not None else rege_df if rege_df is not None else attr_df
+    joined = spine.copy()
+    if rege_df is not None and rege_df is not spine:
+        joined = joined.merge(rege_df, on="branch", how="left")
+    if attr_df is not None and attr_df is not spine:
+        joined = joined.merge(attr_df, on="branch", how="left")
+
+    # Ensure every expected column exists; fill missing with 0.
+    for col, default in [("dctr", 0.0), ("rege_rate", 0.0),
+                         ("attrition_rate", 0.0), ("n_accounts", 0)]:
+        if col not in joined.columns:
+            joined[col] = default
+        else:
+            joined[col] = joined[col].fillna(default)
+
+    joined = joined[["branch", "dctr", "rege_rate", "attrition_rate", "n_accounts"]]
+    joined["n_accounts"] = joined["n_accounts"].astype(int)
+
+    if len(joined) < MIN_BRANCHES:
+        return None
+
+    return joined.sort_values("dctr", ascending=False).reset_index(drop=True)
+
+
+def _upstream_dctr(ctx: PipelineContext) -> pd.DataFrame | None:
+    """Pull per-branch DCTR from DCTR-9, normalized to scorecard columns."""
+    src = (ctx.results or {}).get("dctr_9", {}).get("branch_df")
+    if src is None or src.empty:
+        return None
+    df = src[src["Branch"] != "TOTAL"][["Branch", "DCTR %", "Total Accounts"]].copy()
+    df.columns = ["branch", "dctr", "n_accounts"]
+    df["branch"] = df["branch"].astype(str)
+    return df
+
+
+def _upstream_rege(ctx: PipelineContext) -> pd.DataFrame | None:
+    """Pull per-branch Reg E opt-in rate from reg_e_4 historical frame."""
+    src = (ctx.results or {}).get("reg_e_4", {}).get("historical")
+    if src is None or src.empty:
+        return None
+    if "Branch" not in src.columns or "Opt-In Rate" not in src.columns:
+        return None
+    df = src[src["Branch"] != "TOTAL"][["Branch", "Opt-In Rate"]].copy()
+    df.columns = ["branch", "rege_rate"]
+    df["branch"] = df["branch"].astype(str)
+    return df
+
+
+def _upstream_attrition(ctx: PipelineContext) -> pd.DataFrame | None:
+    """Pull per-branch attrition rate from A9.4."""
+    src = (ctx.results or {}).get("attrition_4", {}).get("branch_df")
+    if src is None or src.empty:
+        return None
+    if "Branch" not in src.columns or "Attrition Rate" not in src.columns:
+        return None
+    df = src[["Branch", "Attrition Rate"]].copy()
+    df.columns = ["branch", "attrition_rate"]
+    df["branch"] = df["branch"].astype(str)
+    return df
+
+
+def _recompute_from_raw(ctx: PipelineContext) -> pd.DataFrame | None:
+    """Legacy fallback when no upstream branch frames are available.
+
+    Kept for runs that exclude DCTR / Reg E / Attrition modules but still
+    request the scorecard. Uses the framework's Eligible denominator via
+    ctx.subsets.eligible_data, not raw ctx.data, so totals match the
+    primary denominator (project_denominator_framework).
+    """
+    ed = getattr(ctx.subsets, "eligible_data", None) if ctx.subsets else None
+    data = ed if ed is not None and not ed.empty else ctx.data
     if data is None:
         return None
 
-    # Detect branch column
-    branch_col = None
-    for col in ("Branch", "branch"):
-        if col in data.columns:
-            branch_col = col
-            break
+    branch_col = next((c for c in ("Branch", "branch") if c in data.columns), None)
     if branch_col is None:
         return None
 
-    # Detect debit column
-    debit_col = None
-    for col in ("Debit?", "Debit", "DC Indicator"):
-        if col in data.columns:
-            debit_col = col
-            break
+    debit_col = next(
+        (c for c in ("Debit?", "Debit", "DC Indicator") if c in data.columns), None
+    )
 
-    # Compute per-branch metrics from raw data
     branches = data[branch_col].dropna().unique()
     if len(branches) < MIN_BRANCHES:
         return None
+
+    # Lazy import to avoid circular dependency if scorecard runs early.
+    from ars_analysis.analytics.rege._helpers import detect_reg_e_column
+    latest_rege = detect_reg_e_column(data)
 
     rows = []
     for branch in branches:
@@ -64,44 +151,29 @@ def _build_branch_data(ctx: PipelineContext) -> pd.DataFrame | None:
         n_total = len(branch_data)
         if n_total == 0:
             continue
-
-        # DCTR: debit holders / total
         dctr = 0.0
         if debit_col:
             n_debit = len(branch_data[branch_data[debit_col].isin(["Yes", "Y", True, 1])])
             dctr = n_debit / n_total
-
-        # Attrition: closed / total
         attrition = 0.0
         if "Stat Code" in branch_data.columns:
             n_closed = len(branch_data[branch_data["Stat Code"] == "C"])
             attrition = n_closed / n_total
-
-        # Reg E (if available). Use the same column detector that
-        # rege/_helpers.py uses so the scorecard agrees with detail slides;
-        # an alphabetical/positional pick can land on a stale snapshot
-        # column (issue 142, item 2.6).
         rege_rate = 0.0
-        from ars_analysis.analytics.rege._helpers import detect_reg_e_column
-        latest_rege = detect_reg_e_column(data)
         if latest_rege and latest_rege in branch_data.columns:
             opted_in = branch_data[latest_rege].isin(["Y", "Yes", "Opted-In", "OI", True, 1])
             rege_rate = opted_in.sum() / n_total
-
-        rows.append(
-            {
-                "branch": str(branch),
-                "dctr": dctr,
-                "rege_rate": rege_rate,
-                "attrition_rate": attrition,
-                "n_accounts": n_total,
-            }
-        )
+        rows.append({
+            "branch": str(branch),
+            "dctr": dctr,
+            "rege_rate": rege_rate,
+            "attrition_rate": attrition,
+            "n_accounts": n_total,
+        })
 
     if len(rows) < MIN_BRANCHES:
         return None
-
-    return pd.DataFrame(rows).sort_values("dctr", ascending=False)
+    return pd.DataFrame(rows).sort_values("dctr", ascending=False).reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------

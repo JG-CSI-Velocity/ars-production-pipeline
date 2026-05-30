@@ -44,7 +44,12 @@ def _detect_spend_cols(df: pd.DataFrame) -> list[str]:
 def _find_dormant_accounts(df: pd.DataFrame) -> pd.DataFrame | None:
     """Find high-balance accounts without debit cards.
 
-    Returns subset of rows where Debit? != Yes AND balance is in top quartile.
+    Returns the top-quartile no-debit cohort -- the slice that's most
+    valuable to win over to debit. Quartile is computed **within the
+    no-debit population** rather than against the whole portfolio
+    (issue 142, item 2.7): the slide talks about the "dormant high-value"
+    segment, and ranking inside that segment is more actionable than
+    ranking against accounts that already have debit.
     """
     debit_col = _detect_debit_col(df)
     if debit_col is None:
@@ -63,8 +68,10 @@ def _find_dormant_accounts(df: pd.DataFrame) -> pd.DataFrame | None:
     if len(no_debit) == 0:
         return None
 
-    # Top quartile by balance
-    q75 = df[bal_col].quantile(0.75)
+    # Top quartile within the no-debit population. q75 computed on
+    # no_debit so the cutoff is "top 25% of the dormant cohort", which is
+    # the segment the recommendation slide acts on.
+    q75 = no_debit[bal_col].quantile(0.75)
     high_bal = no_debit[no_debit[bal_col] >= q75]
     if len(high_bal) == 0:
         return None

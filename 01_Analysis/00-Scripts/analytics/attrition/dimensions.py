@@ -165,6 +165,8 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
         "n_branches": len(branch_df),
         "l12m_overall_rate": overall_rate,
         "l12m_closed": len(l12m_closed),
+        # Issue 142, item 2.5: per-branch DataFrame for the scorecard.
+        "branch_df": branch_df,
     }
 
     results = [

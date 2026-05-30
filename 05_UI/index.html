@@ -304,6 +304,49 @@ header {
 .prog-details summary:hover { color: var(--accent); }
 .prog-details[open] summary { margin-bottom: 12px; }
 
+/* Phase 4.8: emergency stop button */
+.btn-stop {
+    margin-left: 8px;
+    padding: 10px 18px;
+    background: #fff;
+    color: #991b1b;
+    border: 2px solid #dc2626;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+}
+.btn-stop:hover { background: #dc2626; color: #fff; }
+.btn-stop:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Phase 4.7: split log view with errors-only side panel */
+.log-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.log-toggle { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); cursor: pointer; }
+.log-toggle input { margin: 0; }
+.log-split { display: flex; gap: 12px; }
+.log-split .prog-log { flex: 1; min-width: 0; }
+.prog-log-errors {
+    background: #fef7f7;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 12px;
+    max-height: 280px;
+    overflow-y: auto;
+    border-radius: 6px;
+}
+.prog-log-errors .err-line { padding: 2px 0; border-bottom: 1px dashed #fecaca; }
+.prog-log-errors .err-line:last-child { border-bottom: 0; }
+.prog-log-errors .err-tag {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    background: #991b1b; color: #fff; padding: 1px 5px;
+    border-radius: 3px; margin-right: 6px; vertical-align: middle;
+}
+.prog-log-errors .err-empty { color: #9ca3af; font-style: italic; }
+
 /* Completion card */
 .done-hero {
     display: flex; align-items: center; gap: 20px;
@@ -689,6 +732,7 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                 <div class="run-meta" id="gRunMeta">--</div>
             </div>
             <button class="btn" id="genRunBtn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
+            <button class="btn-stop" id="genStopBtn" onclick="confirmStopRun()" style="display:none;">Stop</button>
         </div>
 
         <!-- Local copy option -->
@@ -785,9 +829,17 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         </div>
 
         <!-- Technical log (collapsed by default) -->
-        <details class="prog-details">
+        <details class="prog-details" id="gProgDetails">
             <summary>Show technical log</summary>
-            <div class="prog-log" id="gProgLog"></div>
+            <div class="log-toolbar">
+                <label class="log-toggle"><input type="checkbox" id="gLogSplitCb" onchange="toggleLogSplit()" /> <span>Split view (errors only on right)</span></label>
+                <button type="button" class="btn-mini" onclick="copyLog('errors')">Copy errors</button>
+                <button type="button" class="btn-mini" onclick="copyLog('all')">Copy full log</button>
+            </div>
+            <div class="log-split" id="gLogSplit">
+                <div class="prog-log" id="gProgLog"></div>
+                <div class="prog-log prog-log-errors" id="gProgLogErrors" style="display:none;"></div>
+            </div>
         </details>
 
         <!-- Hidden legacy progress bar -- kept so other handlers don't break -->
@@ -1476,6 +1528,73 @@ function _parseSoftFailure(line) {
     return null;
 }
 
+// Phase 4.7: classify a log line as error/warning/soft-failure for the
+// errors-only side panel. Returns {tag, line} or null.
+function _classifyLogLine(line) {
+    if (!line) return null;
+    if (/^\s*ERROR\b/i.test(line) || /^\s*Traceback\b/i.test(line)) return {tag: 'ERROR', line};
+    if (/^\s*WARN(ING)?\b/i.test(line)) return {tag: 'WARN', line};
+    if (/SOFT FAILURE/i.test(line)) return {tag: 'SOFT', line};
+    if (/^\s*\|/.test(line) && /(?:Error|Exception)/i.test(line)) return {tag: 'ERROR', line};
+    return null;
+}
+
+function _appendErrorIfMatch(line) {
+    const cls = _classifyLogLine(line);
+    if (!cls) return;
+    const errs = document.getElementById('gProgLogErrors');
+    if (!errs) return;
+    const empty = errs.querySelector('.err-empty');
+    if (empty) empty.remove();
+    const row = document.createElement('div');
+    row.className = 'err-line';
+    row.innerHTML = `<span class="err-tag">${cls.tag}</span><span></span>`;
+    row.lastElementChild.textContent = cls.line;
+    errs.appendChild(row);
+    errs.scrollTop = errs.scrollHeight;
+}
+
+function toggleLogSplit() {
+    const on = document.getElementById('gLogSplitCb')?.checked;
+    const errs = document.getElementById('gProgLogErrors');
+    if (!errs) return;
+    errs.style.display = on ? '' : 'none';
+    if (on && !errs.children.length) {
+        const empty = document.createElement('div');
+        empty.className = 'err-empty';
+        empty.textContent = 'No errors, warnings, or soft failures yet.';
+        errs.appendChild(empty);
+    }
+}
+
+function copyLog(which) {
+    const target = which === 'errors'
+        ? document.getElementById('gProgLogErrors')
+        : document.getElementById('gProgLog');
+    if (!target) return;
+    const text = Array.from(target.children)
+        .map(c => c.innerText || c.textContent || '')
+        .join('\n');
+    navigator.clipboard?.writeText(text).then(
+        () => { _flashCopyHint(`${which === 'errors' ? 'Errors' : 'Full log'} copied`); },
+        () => { _flashCopyHint('Copy failed'); }
+    );
+}
+
+function _flashCopyHint(msg) {
+    let hint = document.getElementById('_copyHint');
+    if (!hint) {
+        hint = document.createElement('div');
+        hint.id = '_copyHint';
+        hint.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1E3D59;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:9999;opacity:0;transition:opacity 0.2s;';
+        document.body.appendChild(hint);
+    }
+    hint.textContent = msg;
+    hint.style.opacity = '1';
+    clearTimeout(hint._t);
+    hint._t = setTimeout(() => { hint.style.opacity = '0'; }, 1600);
+}
+
 function _parseVersionedDeck(line) {
     // "    Original deck is open -- saved new copy as: 1745_2026.05_ars_deck_v2.pptx"
     const m = line.match(/saved new copy as:\s*(\S+\.pptx)/i);
@@ -1731,6 +1850,7 @@ async function runGenReal() {
             return;
         }
         const {run_id} = await resp.json();
+        _setCurrentRunId(run_id);  // Phase 4.8: enable Stop button
         _advanceStage('read', runStart, stageStarts);
 
         let lastSeen = 0;
@@ -1749,6 +1869,8 @@ async function runGenReal() {
                         el.className = 'done';
                         el.textContent = line;
                         log.appendChild(el);
+                        // Phase 4.7: mirror error/warning/soft-failure lines to the errors-only pane.
+                        _appendErrorIfMatch(line);
 
                         // Stage transitions
                         const stageEvt = _classifyStage(line);
@@ -1810,9 +1932,10 @@ async function runGenReal() {
                     log.scrollTop = log.scrollHeight;
                 }
 
-                if (run.status === 'complete' || run.status === 'error') {
+                if (run.status === 'complete' || run.status === 'error' || run.status === 'stopped') {
                     clearInterval(pollInterval);
                     clearInterval(clockTimer);
+                    _setCurrentRunId(null);
                     // Mark any still-pending stages done if complete
                     if (run.status === 'complete') {
                         RUN_STAGES.forEach(s => {
@@ -2442,6 +2565,43 @@ async function smartRunGen() {
     } catch(e) {}
     // No mock fallback -- show real error
     alert('Cannot connect to the pipeline server. Make sure app.py is running.');
+}
+
+// ─── Emergency stop (Phase 4.8) ──────────────────────────────────────
+let _currentRunId = null;
+
+function _setCurrentRunId(runId) {
+    _currentRunId = runId;
+    const btn = document.getElementById('genStopBtn');
+    if (btn) btn.style.display = runId ? '' : 'none';
+}
+
+async function confirmStopRun() {
+    if (!_currentRunId) return;
+    const ok = confirm(
+        'Stop this run? The pipeline will be terminated immediately. '
+        + 'Anything written so far stays on disk; the deck for this run will not be built.'
+    );
+    if (!ok) return;
+    const btn = document.getElementById('genStopBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Stopping...'; }
+    try {
+        const resp = await fetch(`/api/run/${_currentRunId}/stop`, {method: 'POST'});
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+        const log = document.getElementById('gProgLog');
+        if (log) {
+            const row = document.createElement('div');
+            row.style.color = '#dc2626';
+            row.textContent = `Stop signal sent (${data.result || 'sent'}). Waiting for pipeline to exit...`;
+            log.appendChild(row);
+            log.scrollTop = log.scrollHeight;
+        }
+    } catch (err) {
+        alert(`Stop failed: ${err.message || err}`);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Stop'; }
+    }
 }
 
 // ─── Batch mode (Phase 17.2) ─────────────────────────────────────────

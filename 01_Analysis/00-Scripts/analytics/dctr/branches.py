@@ -64,7 +64,10 @@ class DCTRBranches(AnalysisModule):
 
         bm = getattr(ctx.settings, "branch_mapping", None) if ctx.settings else None
         br_all, br_ins = branch_dctr(ed, bm)
-        ctx.results["dctr_9"] = {"all": br_ins}
+        # Issue 142, item 2.5: also expose the per-branch DataFrame so
+        # downstream consumers (insights/branch_scorecard) read the same
+        # numbers the detail slide shows instead of recomputing from raw.
+        ctx.results["dctr_9"] = {"all": br_ins, "branch_df": br_all}
 
         # Top 10 horizontal bar chart
         chart_path = None
