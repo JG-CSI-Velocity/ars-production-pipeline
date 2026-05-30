@@ -34,9 +34,13 @@ Legacy/
 00_Formatting/01-Data-Ready for Formatting/
 00_Formatting/02-Data-Ready for Analysis/
 
-# Analysis outputs — generated per run, contain client data
+# Analysis outputs — generated per run, contain client data.
+# CRITICAL: do NOT ignore 01_Analysis/00-Scripts/output/ -- that directory
+# is the Python source package (deck_builder.py, callout_builder.py,
+# excel_exporter.py, etc.). Ignoring it silently drops new modules from
+# commits. Per-run output goes under 01_Analysis/01_Completed_Analysis/
+# instead, which IS ignored just below.
 01_Analysis/output/
-01_Analysis/00-Scripts/output/
 01_Analysis/01_Completed_Analysis/
 01_Analysis/Actionable Lists for Clients/
 01_Analysis/sample holder/
