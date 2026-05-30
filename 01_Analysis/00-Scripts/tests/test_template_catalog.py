@@ -165,3 +165,28 @@ def test_select_variant_returns_none_when_branch_value_missing(tmp_path: Path) -
     fam = catalog["dctr.activation_baseline"]
     v = template_catalog.select_variant_from_family(fam, ctx_results={}, client_id="1615")
     assert v is None
+
+
+class TestRuleMatches:
+    """Unit tests for _rule_matches grammar coverage."""
+
+    def test_inclusive_range_with_negative_floor(self):
+        # The Task 5 DCTR catalog uses rules centered around zero.
+        assert template_catalog._rule_matches("-0.05..0.05", 0.0) is True
+        assert template_catalog._rule_matches("-0.05..0.05", -0.04) is True
+        assert template_catalog._rule_matches("-0.05..0.05", 0.05) is True
+        assert template_catalog._rule_matches("-0.05..0.05", -0.06) is False
+        assert template_catalog._rule_matches("-0.05..0.05", 0.06) is False
+
+    def test_null_rule_matches_none(self):
+        assert template_catalog._rule_matches("null", None) is True
+        assert template_catalog._rule_matches("null", 0) is False
+        assert template_catalog._rule_matches("null", "anything") is False
+
+    def test_unparseable_value_returns_false(self):
+        assert template_catalog._rule_matches(">= 0.5", "not a number") is False
+        assert template_catalog._rule_matches(">= 0.5", None) is False
+
+    def test_unparseable_rule_returns_false(self):
+        assert template_catalog._rule_matches("garbage", 0.5) is False
+        assert template_catalog._rule_matches("", 0.5) is False

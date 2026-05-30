@@ -113,7 +113,7 @@ _TABLE_ROW_RE = re.compile(
 #   ">= 0.55"   ">0.55"   "<= 0.30"  "<0.30"  "==0"
 #   "0.40..0.54"  (inclusive range)
 #   "null"        (matches None / NaN)
-_RANGE_RE = re.compile(r"^\s*([0-9.]+)\s*\.\.\s*([0-9.]+)\s*$")
+_RANGE_RE = re.compile(r"^\s*(-?[0-9.]+)\s*\.\.\s*(-?[0-9.]+)\s*$")
 _OP_RE = re.compile(r"^\s*(>=|<=|>|<|==)\s*(-?[0-9.]+)\s*$")
 
 
@@ -130,7 +130,6 @@ def _parse_section_file(path: Path) -> dict[str, TemplateFamily]:
     fallback: str = ""
     cur_variant: Variant | None = None
     in_branches_list = False
-    in_placeholder_table = False
 
     def _flush_variant() -> None:
         nonlocal cur_variant
@@ -163,7 +162,6 @@ def _parse_section_file(path: Path) -> dict[str, TemplateFamily]:
             _flush_family()
             family_id = m_fam.group(1).strip()
             in_branches_list = False
-            in_placeholder_table = False
             continue
         if family_id is None:
             continue
@@ -177,7 +175,6 @@ def _parse_section_file(path: Path) -> dict[str, TemplateFamily]:
                 template="",
             )
             in_branches_list = False
-            in_placeholder_table = False
             continue
 
         if cur_variant is not None:
@@ -190,13 +187,11 @@ def _parse_section_file(path: Path) -> dict[str, TemplateFamily]:
                 if m_row:
                     slot = m_row.group(1).strip()
                     if slot.lower() in ("slot", "---"):
-                        in_placeholder_table = True
                         continue
                     cur_variant.placeholders[slot] = {
                         "path": m_row.group(2).strip(),
                         "format": m_row.group(3).strip(),
                     }
-                    in_placeholder_table = True
                     continue
             continue
 
