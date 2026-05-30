@@ -53,3 +53,125 @@ def base_layout() -> dict[str, Any]:
         "width": 1500,
         "height": 900,
     }
+
+
+def themed_chart(
+    *,
+    kind: str,
+    data: pd.DataFrame,
+    section_key: str,
+    hero_series: str,
+    x_series: str,
+    volume_series: str | None = None,
+    peer_median: float | None = None,
+    your_value: float | None = None,
+    source: str,
+    out_path: Path,
+) -> Path:
+    """Render a themed chart PNG.
+
+    Only ``kind="rate_volume_combo"`` is implemented in the POC. Other kinds
+    raise ``UnsupportedKind`` so callers can fall back to their existing
+    matplotlib path.
+
+    All arguments after ``kind`` are keyword-only — every call site reads as
+    a labeled record. This is deliberate; the function will eventually accept
+    8+ params and positional ordering would be a footgun.
+    """
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if kind == "rate_volume_combo":
+        return _render_rate_volume_combo(
+            data=data,
+            section_key=section_key,
+            hero_series=hero_series,
+            volume_series=volume_series,
+            x_series=x_series,
+            peer_median=peer_median,
+            your_value=your_value,
+            source=source,
+            out_path=out_path,
+        )
+    raise UnsupportedKind(f"themed_chart kind={kind!r} not implemented yet")
+
+
+def _render_rate_volume_combo(
+    *,
+    data: pd.DataFrame,
+    section_key: str,
+    hero_series: str,
+    volume_series: str | None,
+    x_series: str,
+    peer_median: float | None,
+    your_value: float | None,  # noqa: ARG001 — reserved for future annotation
+    source: str,
+    out_path: Path,
+) -> Path:
+    import plotly.graph_objects as go
+
+    accent = section_color(section_key)
+    x = data[x_series].tolist()
+    rates_raw = data[hero_series].astype(float).tolist()
+    rates_pct = [v * 100 for v in rates_raw]  # display as percent
+
+    fig = go.Figure()
+
+    if volume_series and volume_series in data.columns:
+        fig.add_trace(
+            go.Bar(
+                x=x,
+                y=data[volume_series].astype(float).tolist(),
+                name="Volume",
+                marker={"color": "#D9DEE3"},
+                yaxis="y2",
+                hovertemplate="%{y:,.0f}<extra>Volume</extra>",
+                showlegend=False,
+            )
+        )
+
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=rates_pct,
+            name=hero_series,
+            mode="lines+markers",
+            line={"color": accent, "width": 3},
+            marker={"size": 9, "color": accent},
+            hovertemplate="%{y:.1f}%<extra>" + hero_series + "</extra>",
+        )
+    )
+
+    layout = base_layout()
+    layout["yaxis"]["title"] = {"text": "Rate", "font": {"size": 11}}
+    layout["yaxis"]["ticksuffix"] = "%"
+    if volume_series and volume_series in data.columns:
+        layout["yaxis2"] = {
+            "overlaying": "y",
+            "side": "right",
+            "showgrid": False,
+            "rangemode": "tozero",
+            "title": {"text": "Volume", "font": {"size": 11, "color": "#999"}},
+            "tickfont": {"color": "#999"},
+        }
+    fig.update_layout(**layout)
+
+    if peer_median is not None:
+        fig.add_hline(
+            y=peer_median * 100,
+            line={"color": "#555555", "dash": "dash", "width": 1.5},
+            annotation_text=f"Peer median {peer_median * 100:.0f}%",
+            annotation_position="top left",
+            annotation_font={"color": "#555555", "size": 10},
+        )
+
+    if source:
+        fig.add_annotation(
+            text=f"Source: {source}",
+            xref="paper", yref="paper",
+            x=0, y=-0.18,
+            showarrow=False,
+            font={"size": 9, "color": "#888"},
+            align="left",
+        )
+
+    fig.write_image(str(out_path), scale=1)
+    return out_path
