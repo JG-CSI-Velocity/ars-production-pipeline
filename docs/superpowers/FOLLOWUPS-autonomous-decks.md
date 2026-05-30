@@ -2,19 +2,10 @@
 
 Surfaced by reviewers during the POC build on `feat/autonomous-decks` (2026-05-29). Each item is real but out of POC scope. Pick these up in the long-tail plan or as one-off cleanups.
 
-## 1. Latent `_KV_RE` bug in `action_title_populator.py`
+## 1. Latent `_KV_RE` bug in `action_title_populator.py` — ✅ FIXED (`413c3eb`)
 
-**File:** `01_Analysis/00-Scripts/output/action_title_populator.py:76`
-
-```python
-_KV_RE = re.compile(r"^\-\s+\*\*([^*]+)\*\*:\s*(.+?)\s*$")
-```
-
-The regex expects `- **key**: value` (colon outside bold) but the actual flat catalog at `docs/action_title_templates.md` uses `- **key:** value` (colon inside bold). Same bug Task 3 fixed in `template_catalog.py::_parse_section_file`.
-
-**Impact:** Benign at runtime — `section` field in `TemplateBlock` ends up empty but the populator never reads it for substitution. The bug means the populator's "section" metadata has been silently empty since T2.2 shipped.
-
-**Fix:** change the regex to `r"^\-\s+\*\*([^*]+):\*\*\s*(.*?)\s*$"` matching the Task 3 fix in `template_catalog.py:131`. Add a regression test that parses one block from `docs/action_title_templates.md` and asserts `section == "overview"`.
+Was: regex expected colon outside bold; flat catalog uses colon inside.
+Fixed: regex now matches `**key:**` form. Regression test at `tests/test_action_title_populator_flat_catalog.py`.
 
 ## 2. Mixed `ars_analysis.*` vs bare imports in production code
 
@@ -30,33 +21,18 @@ Both forms work. The codebase is genuinely split — `output/callout_builder.py`
 
 **Fix:** pick one convention and migrate. Recommend bare `shared.X` / `output.X` form since `run.py` could drop the alias if everything is bare. Punt until there's a real reason to standardize.
 
-## 3. `output/` directory gitignore foot-gun
+## 3. `output/` directory gitignore foot-gun — ✅ FIXED (`ddaf07a`)
 
-**Scope:** every commit to `01_Analysis/00-Scripts/output/*.py` needs `git add -f`.
+Was: bare `output/` rule caught `01_Analysis/00-Scripts/output/`; every commit needed `-f`.
+Fixed: added negation rules for the package dir + `.py` files + `template/` subdir. `__pycache__` still ignored via separate rule.
 
-The `.gitignore` at the repo root contains `output/` (line 51) which catches `01_Analysis/00-Scripts/output/`. The comment at `.gitignore:38` says "CRITICAL: do NOT ignore `01_Analysis/00-Scripts/output/`" but the negation rule isn't actually there. Commit `e735a10` (before POC) silently rescued some output modules; this branch added many more with `-f`.
+## 4. Dead code: `_FALLBACK_COVER_SUBLINE` — ✅ FIXED (`413c3eb`)
 
-**Fix:** add `!01_Analysis/00-Scripts/output/` to `.gitignore` after the `output/` rule. One line. Eliminates the `-f` need.
+Deleted. Long-tail plan brings it back when the markdown parser lands.
 
-## 4. Dead code: `_FALLBACK_COVER_SUBLINE`
+## 5. `docs/structural_templates.md` contract ambiguity — ✅ FIXED (`413c3eb`)
 
-**File:** `01_Analysis/00-Scripts/output/structural_slides.py:29`
-
-```python
-_FALLBACK_COVER_SUBLINE = "Performance review"
-```
-
-Defined but never referenced. Intended for the path where `docs/structural_templates.md` becomes the live source of truth (currently human-reference only) and the default subline lookup fails. Until then it's dead.
-
-**Fix:** either delete it now or wire the markdown parser in the long-tail plan so it gets used. Document the contract clearly either way.
-
-## 5. `docs/structural_templates.md` contract ambiguity
-
-The file exists, has the cover subline copy, and looks like data — but no code parses it. `structural_slides.build_cover()` uses hardcoded `_DEFAULT_COVER_SUBLINE = "Account Revenue Solution"` inline.
-
-**Fix:** in long-tail plan, either:
-- Wire a parser so the markdown becomes the source of truth (and unblocks #4), or
-- Add a header to the file: "Reference only — defaults live in `output/structural_slides.py`."
+Added a **Status:** reference-only header to the file. Long-tail plan promotes the markdown to source-of-truth via a parser.
 
 ## 6. Kaleido 0.2.x is past upstream support
 
