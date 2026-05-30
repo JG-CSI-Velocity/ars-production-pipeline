@@ -85,34 +85,129 @@ def _save_run_report(ctx: PipelineContext, report: list[SlideStatus]) -> None:
     )
 
 
+# T2.6 — drop reason enum (SLIDE_DESIGN.md §12). Standardized so the
+# quality gate (T3.2) and metadata writer (T3.3) consume the same vocabulary.
+class DropReason:
+    DATA_MISSING = "data_missing"
+    CLIENT_NO_PRODUCT = "client_no_product"
+    THRESHOLD_NOT_MET = "threshold_not_met"
+    MODULE_FAILED = "module_failed"
+    MANIFEST_DROPPED = "manifest_dropped"
+    SECTION_INACTIVE = "section_inactive"
+
+
+def _classify_drop(r) -> str:
+    """Return the most specific DropReason for an AnalysisResult."""
+    if not getattr(r, "success", True):
+        return DropReason.MODULE_FAILED
+    if not (getattr(r, "chart_path", None) and r.chart_path.exists()):
+        if not getattr(r, "excel_data", None):
+            return DropReason.DATA_MISSING
+    return DropReason.DATA_MISSING
+
+
 def _drop_empty_slides(ctx: PipelineContext) -> int:
     """G6: silently skip slides whose underlying data is empty.
 
     Empty = ran successfully but produced neither a chart nor Excel data.
     Mutates ctx.all_slides in place. Returns the number dropped.
+
+    T2.6: also records structured drops in ``ctx.dropped_slides`` (a list of
+    ``{slide_id, reason, detail}`` dicts) so the quality gate and metadata
+    writer can report on them without re-deriving the cause.
     """
     before = len(ctx.all_slides)
     kept = []
     dropped_ids: list[str] = []
+    dropped_records: list[dict] = []
     for r in ctx.all_slides:
         is_empty = (
             getattr(r, "success", True)
             and not (getattr(r, "chart_path", None) and r.chart_path.exists())
             and not getattr(r, "excel_data", None)
         )
-        if is_empty:
-            dropped_ids.append(getattr(r, "slide_id", "?"))
+        is_failed = not getattr(r, "success", True)
+        if is_empty or is_failed:
+            sid = getattr(r, "slide_id", "?")
+            reason = _classify_drop(r)
+            detail = (getattr(r, "error", "") or "")[:240]
+            dropped_ids.append(sid)
+            dropped_records.append({
+                "slide_id": sid,
+                "reason": reason,
+                "detail": detail,
+            })
             continue
         kept.append(r)
     ctx.all_slides = kept
+    # Attach structured drop records to ctx for downstream consumers.
+    existing = getattr(ctx, "dropped_slides", None) or []
+    ctx.dropped_slides = existing + dropped_records
     dropped = before - len(kept)
     if dropped:
+        # Roll up by reason for the SLIDE MANIFEST log line.
+        from collections import Counter
+        by_reason = Counter(rec["reason"] for rec in dropped_records)
+        summary = ", ".join(f"{r}={n}" for r, n in sorted(by_reason.items()))
         logger.info(
-            "G6 drop-if-empty: skipped {n} slide(s) with empty data: {ids}",
-            n=dropped,
+            "G6 drop-if-empty: skipped {n} slide(s) [{summary}]: {ids}",
+            n=dropped, summary=summary,
             ids=", ".join(dropped_ids[:20]) + ("..." if len(dropped_ids) > 20 else ""),
         )
+        print(f"  [SLIDE MANIFEST] dropped: {dropped} ({summary})")
     return dropped
+
+
+def detect_section_drops(ctx: PipelineContext) -> None:
+    """T2.6 — record section-level drop reasons before slide-level G6.
+
+    Catches cases where an entire section is silently absent because the
+    client doesn't have the product (ICS not configured), the run was
+    single-product (TXN section absent on ARS runs), or no data flowed
+    (mailer with zero campaigns). Adds one record per absent section to
+    ``ctx.dropped_slides`` so the metadata writer can report it.
+    """
+    if not hasattr(ctx, "dropped_slides") or ctx.dropped_slides is None:
+        ctx.dropped_slides = []
+    seen_sections = {
+        getattr(r, "slide_id", "").split("-")[0].split(".")[0].lower()
+        for r in (ctx.all_slides or [])
+        if getattr(r, "slide_id", None)
+    }
+    product = (getattr(ctx, "product", "") or "ars").lower()
+
+    # ICS — drops when no ICS-prefixed slides ran and client has no ICS module
+    if "ics" not in seen_sections and not getattr(getattr(ctx, "client", None), "has_ics", False):
+        ctx.dropped_slides.append({
+            "slide_id": "_section:ics",
+            "reason": DropReason.CLIENT_NO_PRODUCT,
+            "detail": "Client not configured for ICS",
+        })
+
+    # TXN — drops when product is ARS-only
+    has_txn_prefix = any(
+        getattr(r, "slide_id", "").upper().startswith(("TXN-", "M", "B"))
+        for r in (ctx.all_slides or [])
+    )
+    if not has_txn_prefix and product == "ars":
+        ctx.dropped_slides.append({
+            "slide_id": "_section:transaction",
+            "reason": DropReason.SECTION_INACTIVE,
+            "detail": f"Product mode '{product}' excludes the TXN section",
+        })
+
+    # Mailer — drops when no mailer slides ran AND ctx.results lacks mailer summary
+    has_mailer = any(
+        getattr(r, "slide_id", "").upper().startswith("A1") and
+        getattr(r, "slide_id", "").upper()[1:3] in ("12", "13", "14", "15", "16", "17")
+        for r in (ctx.all_slides or [])
+    )
+    if not has_mailer and not (ctx.results or {}).get("mailer_summary"):
+        ctx.dropped_slides.append({
+            "slide_id": "_section:mailer",
+            "reason": DropReason.DATA_MISSING,
+            "detail": "No mailer campaigns found in window",
+        })
 
 
 def step_generate(ctx: PipelineContext) -> None:
@@ -124,6 +219,10 @@ def step_generate(ctx: PipelineContext) -> None:
     if not ctx.all_slides:
         logger.warning("No analysis results to generate deliverables from")
         return
+
+    # T2.6: detect section-level drops first so metadata records them
+    # even if slide-level G6 doesn't fire anything for that section.
+    detect_section_drops(ctx)
 
     # G6: drop slides with empty data before any deliverable is produced.
     _drop_empty_slides(ctx)

@@ -98,6 +98,9 @@ class SlideContent:
     # T1.3 / T2.5: optional section accent key for chart chrome + callout
     # tinting. Resolves via shared.charts.SECTION_COLORS.
     section_key: str | None = None
+    # T2.3: original AnalysisResult.slide_id, propagated so the section
+    # consolidator can identify slides by ID without parsing the title.
+    slide_id: str | None = None
 
 
 # =============================================================================
@@ -240,6 +243,11 @@ class DeckBuilder:
             "kpi_dashboard": self._build_kpi_dashboard_slide,
             "chart_narrative": self._build_chart_narrative_slide,
             "kpi_hero": self._build_kpi_hero_slide,
+            # T2.3: combo_2up rendered using the multi-screenshot path until
+            # a dedicated 2-up layout ships. The 3 source images fit fine in
+            # the existing left/right cells (hero+left stacked, right full
+            # height) without a template change.
+            "combo_2up": self._build_multi_screenshot_slide,
         }
 
         builder = builders.get(content.slide_type)
@@ -1623,6 +1631,57 @@ _SECTION_LABELS = {
     "insights": "What Should We Do Next?",
 }
 
+# T2.2 slide_id -> action-title template id (catalog in
+# docs/action_title_templates.md). Unmapped slide IDs fall back to the
+# per-slide generators in headlines.py. Per-section specs (T2.5) will
+# move this map into docs/slide_specs/*.md once they land.
+_SLIDE_TEMPLATE_MAP = {
+    # Overview
+    "A1": "overview.portfolio_snapshot",
+    "A1.1": "overview.performance_summary",
+    "A3": "overview.segment_highlight",
+    "A3.1": "overview.trend",
+
+    # DCTR
+    "A7.1": "dctr.activation_baseline",
+    "A7.2": "dctr.peer_comparison",
+    "A7.7": "dctr.growth_driver",
+    "A7.8": "dctr.momentum",
+    "DCTR-1": "dctr.activation_baseline",
+    "DCTR-9": "dctr.growth_driver",
+
+    # Reg E
+    "A8.1": "rege.penetration",
+    "A8.9": "rege.revenue_impact",
+    "A8.6": "rege.growth_trajectory",
+    "A8.7": "rege.at_risk",
+
+    # Attrition
+    "A9.1": "attrition.closure_rate",
+    "A9.5": "attrition.driver_analysis",
+    "A9.10": "attrition.prevention_opportunity",
+    "A9.2": "attrition.peer_comparison",
+
+    # Mailer
+    "A12.1": "mailer.campaign_performance",
+    "A13.1": "mailer.response_rate",
+    "A16.1": "mailer.revenue_impact",
+    "A15.1": "mailer.segment_performance",
+
+    # Value
+    "A11.1": "value.gap",
+    "A11.2": "value.benchmark",
+    "A11": "value.total_opportunity",
+    "A10": "value.per_account_impact",
+
+    # Insights
+    "S1": "insights.top_insight",
+    "S2": "insights.growth_driver",
+    "S3": "insights.risk_indicator",
+    "S8": "insights.recommendation_headline",
+}
+
+
 # Phase 18.3: section divider styling (SLIDE_DESIGN.md §9).
 _SECTION_NUMBERS = {
     "overview": "01",
@@ -1686,11 +1745,32 @@ def _group_by_section(results: list) -> dict[str, list]:
 # =============================================================================
 
 
-def _build_preamble_slides(client_name: str, month: str) -> list[SlideContent]:
-    """Build the 13 preamble slides that precede analysis content.
+def _infer_product_mode(ctx_or_results) -> str:
+    """T2.4 — return "ars" / "txn" / "hybrid".
 
-    These are title, agenda, section dividers, and blank placeholders
-    for manual content (financial performance, revenue, lift matrix, etc.).
+    Prefers ``ctx.product`` if set; otherwise inspects slide_ids in
+    ``ctx.all_slides`` for the TXN-prefixed vs ARS-prefixed split.
+    """
+    product = (getattr(ctx_or_results, "product", "") or "").strip().lower()
+    if product in ("ars", "txn", "combined", "hybrid"):
+        return "hybrid" if product == "combined" else product
+    slides = getattr(ctx_or_results, "all_slides", []) or []
+    has_txn = any(str(getattr(s, "slide_id", "")).upper().startswith(("TXN-", "M", "B")) for s in slides)
+    has_ars = any(not str(getattr(s, "slide_id", "")).upper().startswith(("TXN-",)) for s in slides)
+    if has_txn and has_ars:
+        return "hybrid"
+    if has_txn:
+        return "txn"
+    return "ars"
+
+
+def _build_preamble_slides(client_name: str, month: str, product_mode: str = "ars") -> list[SlideContent]:
+    """Build preamble slides ahead of analysis content.
+
+    T2.4: variant lengths per product mode --
+      * ``ars``    -> 13 slides (existing behavior)
+      * ``txn``    -> 5 slides (simplified TXN cover)
+      * ``hybrid`` -> 8 slides (unified ARS + TXN intro)
     """
     try:
         month_num = int(month.split(".")[1]) if "." in month else 1
@@ -1701,7 +1781,19 @@ def _build_preamble_slides(client_name: str, month: str) -> list[SlideContent]:
         year = ""
 
     title_date = f"{month_name} {year}" if month_name else month
+    mode = (product_mode or "ars").lower()
+    if mode == "combined":
+        mode = "hybrid"
 
+    if mode == "txn":
+        return _preamble_txn(client_name, title_date)
+    if mode == "hybrid":
+        return _preamble_hybrid(client_name, title_date)
+    return _preamble_ars(client_name, title_date)
+
+
+def _preamble_ars(client_name: str, title_date: str) -> list[SlideContent]:
+    """13-slide ARS preamble (existing behavior, intact)."""
     return [
         # P01: Master title -- RPE branded title slide
         SlideContent(
@@ -1772,6 +1864,83 @@ def _build_preamble_slides(client_name: str, month: str) -> list[SlideContent]:
             layout_index=LAYOUT_CUSTOM,
         ),
         # P13: DCO -- blank with section title (moved after analysis preamble)
+        SlideContent(
+            slide_type="blank",
+            title="Data Check Overview\nOur goal is turning non-users and light-users into heavy users",
+            layout_index=LAYOUT_CUSTOM,
+        ),
+    ]
+
+
+def _preamble_txn(client_name: str, title_date: str) -> list[SlideContent]:
+    """T2.4 — 5-slide TXN-only preamble.
+
+    Title -> Agenda -> Context -> Transaction divider -> Methodology blank.
+    """
+    return [
+        SlideContent(
+            slide_type="title",
+            title=f"{client_name}\nTransaction Insights | {title_date}",
+            layout_index=LAYOUT_TITLE_RPE,
+        ),
+        SlideContent(slide_type="blank", title="Agenda", layout_index=LAYOUT_CONTENT),
+        SlideContent(
+            slide_type="blank",
+            title="Context — what's in this deck",
+            layout_index=LAYOUT_CONTENT,
+        ),
+        SlideContent(
+            slide_type="section",
+            title="01\nTransactions\nSpending patterns, merchant concentration, and engagement signals.",
+            layout_index=LAYOUT_SECTION,
+            section_key="transaction",
+        ),
+        SlideContent(
+            slide_type="blank",
+            title="Methodology + data quality",
+            layout_index=LAYOUT_CUSTOM,
+        ),
+    ]
+
+
+def _preamble_hybrid(client_name: str, title_date: str) -> list[SlideContent]:
+    """T2.4 — 8-slide ARS + TXN combined preamble.
+
+    Title -> Unified agenda -> Context -> Exec dashboard placeholder ->
+    ARS divider -> TXN divider -> Methodology -> Data check.
+    """
+    return [
+        SlideContent(
+            slide_type="title",
+            title=f"{client_name}\nAccount Revenue + Transactions | {title_date}",
+            layout_index=LAYOUT_TITLE_RPE,
+        ),
+        SlideContent(slide_type="blank", title="Agenda", layout_index=LAYOUT_CONTENT),
+        SlideContent(
+            slide_type="blank",
+            title="Context — the unified ARS + TXN view",
+            layout_index=LAYOUT_CONTENT,
+        ),
+        SlideContent(
+            slide_type="blank",
+            title="Executive dashboard (placeholder; populated at runtime)",
+            layout_index=LAYOUT_CUSTOM,
+        ),
+        SlideContent(
+            slide_type="title",
+            title=f"{client_name}\nProgram Performance (ARS) | {title_date}",
+            layout_index=LAYOUT_TITLE_ARS,
+        ),
+        SlideContent(
+            slide_type="title",
+            title=f"{client_name}\nTransaction Insights (TXN) | {title_date}",
+            layout_index=LAYOUT_TITLE,
+        ),
+        SlideContent(
+            slide_type="blank",
+            title="Methodology + data quality",
+            layout_index=LAYOUT_CUSTOM,
+        ),
         SlideContent(
             slide_type="blank",
             title="Data Check Overview\nOur goal is turning non-users and light-users into heavy users",
@@ -1915,7 +2084,24 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
 
         key = insights_key(slide_id)
         insights = ctx_results.get(key, {}) if key else {}
-        title = generate_headline(slide_id, insights, fallback_title=title)
+        # T2.2 populator-first path. _SLIDE_TEMPLATE_MAP routes slide IDs to
+        # the action-title catalog (docs/action_title_templates.md). If a
+        # slide isn't mapped, the legacy per-slide generator in headlines.py
+        # handles it -- so this rollout is non-breaking.
+        populator_title = None
+        try:
+            from ars_analysis.output.action_title_populator import ActionTitlePopulator
+            template_id = _SLIDE_TEMPLATE_MAP.get(slide_id)
+            if template_id:
+                populator_title = ActionTitlePopulator.populate(
+                    template_id, ctx_results, ctx=None, fallback_title="",
+                )
+        except Exception as exc:
+            logger.warning("Action title populator failed for {sid}: {err}", sid=slide_id, err=exc)
+        if populator_title:
+            title = populator_title
+        else:
+            title = generate_headline(slide_id, insights, fallback_title=title)
         notes_text = generate_notes(slide_id, title, insights, kpis=kpis)
 
     # T1.3 / T1.4: resolve section accent from slide_id so chart chrome and
@@ -1931,6 +2117,7 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
         layout_index=layout_idx,
         notes_text=notes_text,
         section_key=section_key,
+        slide_id=slide_id,
     )
 
 
@@ -2233,6 +2420,22 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         "mailer": _convert_list(mailer_appendix),
     }
 
+    # T2.3 section dashboard combos. Each section gets a chance to merge
+    # its dashboard triples into a single 2-up combo slide; consumed
+    # detail slides are moved into the section's appendix so they
+    # surface in the aux deck.
+    from ars_analysis.output.section_consolidator import SectionConsolidator
+    for section_key, slides in list(_section_main.items()):
+        if not slides:
+            continue
+        result = SectionConsolidator.consolidate(section_key, slides)
+        if result.log:
+            for line in result.log:
+                logger.info("Consolidator [{s}] {line}", s=section_key, line=line)
+                print(f"  Consolidator [{section_key}]: {line}")
+        _section_main[section_key] = result.main
+        _section_appendix.setdefault(section_key, []).extend(result.deferred)
+
     # Build main body in SCR order. Pass the section KEY (not label) so the
     # divider picks up Phase 18.3 numbering + lead-in.
     for section_key in SECTION_ORDER:
@@ -2261,7 +2464,10 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         analysis_slides.extend(other_slides)
 
     # Build preamble
-    preamble = _build_preamble_slides(client_name, month)
+    # T2.4: product-mode-aware preamble.
+    _preamble_mode = _infer_product_mode(ctx)
+    preamble = _build_preamble_slides(client_name, month, product_mode=_preamble_mode)
+    print(f"  Preamble: {_preamble_mode} variant ({len(preamble)} slides)")
 
     # Replace P02 (Agenda) with executive KPI dashboard
     if len(preamble) > 1:
