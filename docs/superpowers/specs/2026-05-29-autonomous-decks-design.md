@@ -39,6 +39,12 @@ dctr.activation_baseline:
 
 Variant selection uses a stable hash — `variant_idx = int(hashlib.md5(f"{client_id}|{slide_id}".encode()).hexdigest(), 16) % len(variants)`. Stable hash (not Python's built-in `hash()`, which is salted per process) so reruns of the same client always pick the same variant.
 
+**Variant structure (locked).** Every template across all branches follows a **consultative-first, action-summary** shape: lead with the framing or finding, close with the action takeaway. The 3 variants per branch differ by **which angle leads** (data-first / context-first / action-first) but all of them open consultatively and close with the action. Example, all three would resolve for "dctr.activation_baseline, healthy branch, Guardians CU":
+
+- **data-first:** *"Debit-card take rate sits at 42% of 12,400 eligible accounts, tracking the peer median; the next 5 pp is the clearest near-term lever."*
+- **context-first:** *"With 12,400 eligible accounts active, Guardians' 42% take rate tracks peer median — closing the 5 pp gap to the upper quartile is the clearest near-term lever."*
+- **action-first:** *"Closing the 5 pp gap to peer upper quartile is the clearest near-term lever; Guardians sits at 42% of 12,400 eligible accounts, on the peer median."*
+
 Target: ~150 templates spread across the 7 sections. Catalog physically lives as 7 markdown files under `docs/action_title_templates/<section>.md`, loaded once per pipeline run into a process-level cache.
 
 ### B. Themed chart engine
@@ -173,7 +179,9 @@ Two new quality-gate checks layered on top of the 10 from T3.2:
 7. Migrate the remaining ~24 analytics modules to `themed_chart()`.
 8. Build the remaining 4 structural slides (dashboard, agenda, section openings, takeaways).
 9. Add `templates_loaded` + `structural_slides_built` quality-gate checks.
-10. Full E2E on the 10-client matrix from `03-e2e-test-plan.md`.
+10. Wire `--strict-templates` CLI flag on `01_Analysis/run.py` (default off; surfaces placeholder typos + branch misses as run failures, used by CI + catalog authoring).
+11. Document the monthly feedback loop + `--strict-templates` flag in `README.md`.
+12. Full E2E on the 10-client matrix from `03-e2e-test-plan.md`.
 
 Steps 1–5 are the proof-of-concept slice (1–2 sessions). Steps 6–10 are the long tail (3–5 sessions).
 
@@ -184,15 +192,13 @@ Steps 1–5 are the proof-of-concept slice (1–2 sessions). Steps 6–10 are th
 - Auto-delivery of decks to clients (operator still emails).
 - Replacing the PPTX output format with HTML.
 
-## Open questions for the user (none blocking)
+## Decisions locked at spec-time
 
-These don't block the spec but are worth deciding before authoring the bulk of the catalog:
-
-1. **Tone / voice for variants.** Should the 3 variants per branch differ by tone (urgent / measured / curious) or by structure (data-first / context-first / action-first)?
-2. **Maintenance cadence.** Quarterly catalog refresh, or only when a client pushes back?
-3. **Strict-templates CI flag.** Worth wiring in this milestone, or defer until catalog stabilizes?
-
-Defaults if unanswered: tone = "measured consulting, varied by structure not register"; cadence = "as-needed"; CI flag = "defer."
+| Question | Decision |
+|---|---|
+| Variant differentiation | **Consultative-first, action-summary** structure (always). Three variants per branch differ by which angle leads — data-first, context-first, or action-first. All variants share the consultative open + action close. See §A for examples. |
+| Maintenance cadence | **Monthly feedback loop.** Templates refresh every month based on operator + client feedback rather than waiting for pushback. Cadence + change log documented in `README.md`. |
+| Strict-templates flag | **Build it for testing, default off.** `--strict-templates` flag fails the run on any placeholder typo or missing branch match. Used in CI and during catalog authoring; primary client runs stay forgiving so production never crashes on a template typo. Flag + intended use documented in `README.md`. |
 
 ## Success criteria
 
