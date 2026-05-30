@@ -187,6 +187,14 @@ class DCTRTrends(AnalysisModule):
         if charts_dir != ctx.paths.base_dir:
             charts_dir.mkdir(parents=True, exist_ok=True)
             save_to = charts_dir / "dctr_decade_trend.png"
+            # NOTE: POC limitation -- themed_chart(rate_volume_combo) currently
+            # renders only the hero series (Overall DCTR) + volume bars.
+            # The original matplotlib path overlays Personal + Business lines
+            # and a per-decade delta annotation; both are preserved in
+            # _decade_trend_matplotlib_fallback and surface only when the
+            # Plotly path fails. Long-tail plan extends the chart engine to
+            # support overlay_series + annotation; until then, A7.5 in the
+            # default path is single-line + volume only.
             try:
                 from ars_analysis.shared.charts import themes
                 df_plot = pd.DataFrame({
@@ -211,7 +219,10 @@ class DCTRTrends(AnalysisModule):
                 logger.info("A7.5 kind not implemented in themed_chart; using matplotlib fallback")
                 chart_path = self._decade_trend_matplotlib_fallback(ctx, save_to, d1)
             except Exception as exc:
-                logger.warning("A7.5 themed_chart failed ({err}); using matplotlib fallback", err=exc)
+                logger.error(
+                    "A7.5 themed_chart failed ({cls}: {err}); using matplotlib fallback",
+                    cls=exc.__class__.__name__, err=exc,
+                )
                 chart_path = self._decade_trend_matplotlib_fallback(ctx, save_to, d1)
 
         return [

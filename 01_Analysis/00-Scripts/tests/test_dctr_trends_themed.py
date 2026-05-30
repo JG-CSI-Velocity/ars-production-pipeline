@@ -33,3 +33,19 @@ def test_decade_trend_emits_png_via_themed_chart(_ctx, tmp_path):
     assert result.slide_id == "A7.5"
     assert result.chart_path is not None
     assert Path(result.chart_path).exists()
+
+
+def test_decade_trend_uses_themed_chart_not_fallback(_ctx, monkeypatch):
+    """Regression net: the Plotly path is what produced the chart, not the
+    matplotlib fallback. If themed_chart silently raises and we drop into
+    matplotlib, this test fails loudly."""
+    from ars_analysis.analytics.dctr.trends import DCTRTrends
+
+    def _explode(*_a, **_kw):
+        raise AssertionError("matplotlib fallback was called -- themed_chart silently failed")
+
+    monkeypatch.setattr(DCTRTrends, "_decade_trend_matplotlib_fallback", _explode)
+    results = DCTRTrends()._decade_trend(_ctx)
+    assert len(results) == 1
+    assert results[0].chart_path is not None
+    assert Path(results[0].chart_path).exists()
