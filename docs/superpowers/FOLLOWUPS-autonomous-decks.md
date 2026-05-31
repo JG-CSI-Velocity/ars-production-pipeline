@@ -34,12 +34,6 @@ Deleted. Long-tail plan brings it back when the markdown parser lands.
 
 Added a **Status:** reference-only header to the file. Long-tail plan promotes the markdown to source-of-truth via a parser.
 
-## 6. Kaleido 0.2.x is past upstream support
-
-**Scope:** `requirements.txt` has `kaleido>=0.2,<1.0`. Kaleido 0.2.1 (latest 0.x) is past support. Plotly emits a deprecation warning every render — currently ~16 warnings per test run.
-
-**Fix:** evaluate kaleido 1.0+ API (different from 0.2.x) and migrate. Probably a long-tail plan task — the migration touches every chart-saving code path.
-
 ## 7. POC-only test hygiene gaps caught by reviewers
 
 These were called out during review and accepted as "acceptable for POC scope":
