@@ -18,7 +18,7 @@ from rich.console import Console
 
 from ars_analysis.config import ARSSettings
 from ars_analysis.pipeline.utils import resolve_target_month
-from shared.format_odd import format_odd  # canonical implementation
+from ars_analysis.shared.format_odd import format_odd  # canonical implementation
 
 logger = logging.getLogger(__name__)
 console = Console()

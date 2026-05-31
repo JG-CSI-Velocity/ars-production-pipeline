@@ -1,9 +1,9 @@
 """Shared infrastructure for the RPE Analysis Platform."""
 
-from shared.config import PipelineConfig, PlatformConfig
-from shared.context import PipelineContext
-from shared.format_odd import FormatStatus, check_ics_ready, check_odd_formatted
-from shared.types import AnalysisResult
+from ars_analysis.shared.config import PipelineConfig, PlatformConfig
+from ars_analysis.shared.context import PipelineContext
+from ars_analysis.shared.format_odd import FormatStatus, check_ics_ready, check_odd_formatted
+from ars_analysis.shared.types import AnalysisResult
 
 __all__ = [
     "AnalysisResult",

@@ -13,8 +13,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from shared.context import PipelineContext as SharedContext
-from shared.types import AnalysisResult as SharedResult
+from ars_analysis.shared.context import PipelineContext as SharedContext
+from ars_analysis.shared.types import AnalysisResult as SharedResult
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from typing import Iterable
 
 from matplotlib.ticker import FuncFormatter
 
-from shared.charts_palette import COLORS, MAX_CATEGORICAL_COLORS, SECTION_COLORS, section_color
+from ars_analysis.shared.charts_palette import COLORS, MAX_CATEGORICAL_COLORS, SECTION_COLORS, section_color
 
 # Canonical semantic colors (from shared authority).
 # All values flow from SLIDE_DESIGN.md §5 via shared.charts_palette.COLORS -- do not

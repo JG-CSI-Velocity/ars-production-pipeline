@@ -16,7 +16,7 @@ from typing import Any
 
 import pandas as pd
 
-from shared.charts_palette import section_color
+from ars_analysis.shared.charts_palette import section_color
 
 
 class UnsupportedKind(ValueError):

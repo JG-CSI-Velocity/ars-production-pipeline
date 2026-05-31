@@ -10,8 +10,8 @@ from typing import Any
 
 import pandas as pd
 
-from shared.config import PlatformConfig
-from shared.types import AnalysisResult
+from ars_analysis.shared.config import PlatformConfig
+from ars_analysis.shared.types import AnalysisResult
 
 
 @dataclass
