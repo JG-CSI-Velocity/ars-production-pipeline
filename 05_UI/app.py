@@ -945,6 +945,85 @@ async def run_quality(csm: str, month: str, client_id: str):
     return out
 
 
+@app.get("/api/manifest")
+async def get_manifest():
+    """Return every row from SLIDE_MANIFEST.xlsx for the UI editor.
+
+    Response shape:
+      {
+        "path": "/Volumes/M/ARS/SLIDE_MANIFEST.xlsx" | null,
+        "rows": [
+          {"sheet": "ARS - DCTR", "slide_id": "DCTR-1",
+           "title": "...", "decision": "Y"|"A"|"N"|""},
+          ...
+        ],
+        "counts": {"main": 17, "aux": 8, "drop": 3, "blank": 12}
+      }
+
+    Wave 4 follow-up: backs the in-UI Deck Shape editor on the Results tab.
+    """
+    import sys as _sys
+    _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
+    if _scripts not in _sys.path:
+        _sys.path.insert(0, _scripts)
+    if "ars_analysis" not in _sys.modules:
+        import types as _types
+        _pkg = _types.ModuleType("ars_analysis")
+        _pkg.__path__ = [_scripts]
+        _sys.modules["ars_analysis"] = _pkg
+
+    from ars_analysis.output.manifest import _resolve_manifest_path, read_manifest_rows
+
+    resolved = _resolve_manifest_path()
+    rows = read_manifest_rows()
+    counts = {"main": 0, "aux": 0, "drop": 0, "blank": 0}
+    for r in rows:
+        if r.decision == "Y":
+            counts["main"] += 1
+        elif r.decision == "A":
+            counts["aux"] += 1
+        elif r.decision == "N":
+            counts["drop"] += 1
+        else:
+            counts["blank"] += 1
+    return {
+        "path": str(resolved) if resolved else None,
+        "rows": [
+            {"sheet": r.sheet, "slide_id": r.slide_id,
+             "title": r.title, "decision": r.decision}
+            for r in rows
+        ],
+        "counts": counts,
+    }
+
+
+@app.post("/api/manifest")
+async def post_manifest(updates: dict):
+    """Persist Keep? decisions back to SLIDE_MANIFEST.xlsx.
+
+    Request body: {"updates": {"DCTR-1": "Y", "A7.6a": "A", "A12.Foo": "N"}}
+    Returns: {"updated": <count>, "path": "..."}
+    """
+    import sys as _sys
+    _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
+    if _scripts not in _sys.path:
+        _sys.path.insert(0, _scripts)
+    if "ars_analysis" not in _sys.modules:
+        import types as _types
+        _pkg = _types.ModuleType("ars_analysis")
+        _pkg.__path__ = [_scripts]
+        _sys.modules["ars_analysis"] = _pkg
+
+    from ars_analysis.output.manifest import _resolve_manifest_path, write_manifest_decisions
+
+    payload = (updates or {}).get("updates") or {}
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="`updates` must be an object {slide_id: decision}")
+    n = write_manifest_decisions(payload)
+    resolved = _resolve_manifest_path()
+    return {"updated": n, "path": str(resolved) if resolved else None}
+
+
 @app.get("/api/download")
 async def download_file(path: str):
     """Download an output file."""

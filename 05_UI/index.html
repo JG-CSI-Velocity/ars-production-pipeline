@@ -554,12 +554,46 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     </details>
 
     <div class="prog-section card" id="fProg" style="margin-top:24px;">
-        <div class="card-header">
-            <div class="card-title">Formatting</div>
-            <div class="card-meta" id="fProgStatus">--</div>
+        <!-- Wave 4 follow-up: stage checklist + completion card parity
+             with the Generate tab. The legacy bar+log live under a details
+             so power users can still inspect raw progress; the checklist
+             gives the operator the high-level shape. -->
+        <div id="fRunView">
+            <div class="card-header">
+                <div>
+                    <div class="card-title" id="fRunTitle">Formatting ODD files&hellip;</div>
+                    <div class="run-sub" id="fRunSub">A few minutes per client.</div>
+                </div>
+                <div class="run-clock">
+                    <div class="run-clock-label">Elapsed</div>
+                    <div class="run-clock-value" id="fElapsed">0:00</div>
+                </div>
+            </div>
+            <ul class="stage-list" id="fStages">
+                <li class="stage" data-stage="locate"><span class="stage-icon"></span><span class="stage-label">Locate raw ODD files</span><span class="stage-time"></span></li>
+                <li class="stage" data-stage="unzip"><span class="stage-icon"></span><span class="stage-label">Unzip / convert CSV</span><span class="stage-time"></span></li>
+                <li class="stage" data-stage="format"><span class="stage-icon"></span><span class="stage-label">Apply ODD format (7 steps)</span><span class="stage-time"></span></li>
+                <li class="stage" data-stage="stage"><span class="stage-icon"></span><span class="stage-label">Stage TXN / supporting files</span><span class="stage-time"></span></li>
+                <li class="stage" data-stage="done"><span class="stage-icon"></span><span class="stage-label">Save formatted output</span><span class="stage-time"></span></li>
+            </ul>
         </div>
-        <div class="prog-track"><div class="prog-fill" id="fProgBar" style="width:0%"></div></div>
-        <div class="prog-log" id="fProgLog"></div>
+        <div id="fDoneView" style="display:none;">
+            <div class="done-hero">
+                <div class="done-check">&check;</div>
+                <div>
+                    <div class="done-title" id="fDoneTitle">Formatting complete</div>
+                    <div class="done-sub" id="fDoneSub">--</div>
+                </div>
+            </div>
+            <div class="done-stats" id="fDoneStats"></div>
+            <div class="done-actions" id="fDoneActions"></div>
+        </div>
+        <details class="prog-details" style="margin-top:8px;">
+            <summary>Show raw format log</summary>
+            <div class="card-meta" id="fProgStatus" style="display:block;margin-top:6px;">--</div>
+            <div class="prog-track" style="margin-top:6px;"><div class="prog-fill" id="fProgBar" style="width:0%"></div></div>
+            <div class="prog-log" id="fProgLog"></div>
+        </details>
     </div>
 </div>
 
@@ -764,6 +798,45 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             <select class="sel" id="rClientSel" onchange="loadResults()" style="width:280px;">
                 <option value="">Select a client...</option>
             </select>
+            <button class="btn btn-dark" onclick="openDeckShapeEditor()" style="font-size:12px;padding:8px 16px;">Deck Shape</button>
+        </div>
+    </div>
+
+    <!-- Wave 4 follow-up: Deck Shape editor. Lists every slide from
+         SLIDE_MANIFEST.xlsx with a Keep? toggle (Y/A/N/blank). Save
+         posts to /api/manifest. No deck rebuild button -- operator
+         re-runs Generate to apply. -->
+    <div id="deckShapePanel" style="display:none;margin-bottom:24px;border:2px solid var(--border);
+        border-radius:12px;background:var(--card);padding:18px 22px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+            <div>
+                <div style="font-weight:700;font-size:16px;color:var(--dark);">Deck Shape</div>
+                <div style="font-size:12px;color:var(--muted);" id="deckShapePath">--</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <div id="deckShapeCounts" style="font-size:12px;color:var(--muted);"></div>
+                <input id="deckShapeFilter" placeholder="Filter by slide id or title..."
+                    style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;width:240px;"
+                    oninput="renderDeckShapeRows()" />
+                <button class="btn" id="deckShapeSaveBtn" onclick="saveDeckShape()"
+                    style="font-size:12px;padding:6px 14px;" disabled>Save</button>
+                <button class="btn btn-dark" onclick="document.getElementById('deckShapePanel').style.display='none'"
+                    style="font-size:12px;padding:6px 14px;">Close</button>
+            </div>
+        </div>
+        <div id="deckShapeMsg" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
+        <div style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead style="position:sticky;top:0;background:#f5f5f5;">
+                    <tr>
+                        <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);">Section</th>
+                        <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);">Slide ID</th>
+                        <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);">Title</th>
+                        <th style="text-align:center;padding:8px 12px;border-bottom:1px solid var(--border);">Decision</th>
+                    </tr>
+                </thead>
+                <tbody id="deckShapeRows"></tbody>
+            </table>
         </div>
     </div>
 
@@ -1285,6 +1358,39 @@ function _classifyStage(line) {
     return null;
 }
 
+// Wave 4 follow-up: Format-tab stage classifier (5 stages, mirrors the Generate
+// classifier shape). Heuristics from the format pipeline log strings.
+function _classifyFormatStage(line) {
+    if (!line) return null;
+    if (/searching|scanning.*odd|locate|found.*\.zip/i.test(line)) return {stage: 'locate', event: 'start'};
+    if (/found.*zip|located.*odd files/i.test(line)) return {stage: 'locate', event: 'done'};
+    if (/unzip|extracting|converting csv/i.test(line)) return {stage: 'unzip', event: 'start'};
+    if (/unzip complete|csv converted|extraction done/i.test(line)) return {stage: 'unzip', event: 'done'};
+    if (/format_odd|applying 7-step|formatting odd/i.test(line)) return {stage: 'format', event: 'start'};
+    if (/odd format complete|format complete/i.test(line)) return {stage: 'format', event: 'done'};
+    if (/gathering trans|staging txn|deferred|workbook/i.test(line)) return {stage: 'stage', event: 'start'};
+    if (/staging complete|txn copied|supporting files staged/i.test(line)) return {stage: 'stage', event: 'done'};
+    if (/saved.*xlsx|wrote.*formatted|format.*saved/i.test(line)) return {stage: 'done', event: 'done'};
+    return null;
+}
+
+function _markFormatStage(stage, event) {
+    const li = document.querySelector(`#fStages .stage[data-stage="${stage}"]`);
+    if (!li) return;
+    if (event === 'start') {
+        li.classList.add('active');
+    } else if (event === 'done') {
+        li.classList.remove('active');
+        li.classList.add('complete');
+        // Mark all prior stages complete too (in case we missed a 'start')
+        let prev = li.previousElementSibling;
+        while (prev) {
+            if (!prev.classList.contains('complete')) prev.classList.add('complete');
+            prev = prev.previousElementSibling;
+        }
+    }
+}
+
 function _parseModuleProgress(line) {
     // "  [10:12] Module 14/25: mailer.cohort"
     const m = line.match(/Module\s+(\d+)\s*\/\s*(\d+):\s*([\w.]+)/i);
@@ -1786,6 +1892,105 @@ async function loadResultsAfterRun(csm, month, clientId) {
     }
 }
 
+// Wave 4 follow-up: Deck Shape editor (SLIDE_MANIFEST.xlsx in-UI).
+let _deckShapeRowsCache = [];
+let _deckShapeEdits = {};  // slide_id -> "Y"|"A"|"N"|""
+
+async function openDeckShapeEditor() {
+    const panel = document.getElementById('deckShapePanel');
+    panel.style.display = '';
+    const msg = document.getElementById('deckShapeMsg');
+    msg.textContent = 'Loading manifest...';
+    _deckShapeEdits = {};
+    document.getElementById('deckShapeSaveBtn').disabled = true;
+    try {
+        const r = await fetch('/api/manifest');
+        if (!r.ok) throw new Error('manifest fetch failed: ' + r.status);
+        const data = await r.json();
+        _deckShapeRowsCache = data.rows || [];
+        document.getElementById('deckShapePath').textContent =
+            data.path ? `From: ${data.path}` : 'SLIDE_MANIFEST.xlsx not found';
+        const c = data.counts || {};
+        document.getElementById('deckShapeCounts').innerHTML =
+            `<span style="color:var(--green);">${c.main || 0} main</span> · ` +
+            `<span style="color:var(--gold);">${c.aux || 0} aux</span> · ` +
+            `<span style="color:var(--red);">${c.drop || 0} dropped</span> · ` +
+            `<span>${c.blank || 0} blank</span>`;
+        msg.textContent = `${_deckShapeRowsCache.length} slides across ${new Set(_deckShapeRowsCache.map(r=>r.sheet)).size} sections`;
+        renderDeckShapeRows();
+    } catch (err) {
+        msg.textContent = 'Error loading manifest: ' + err.message;
+    }
+}
+
+function renderDeckShapeRows() {
+    const tbody = document.getElementById('deckShapeRows');
+    const filter = document.getElementById('deckShapeFilter').value.toLowerCase().trim();
+    tbody.innerHTML = '';
+    const rows = _deckShapeRowsCache.filter(r =>
+        !filter ||
+        (r.slide_id || '').toLowerCase().includes(filter) ||
+        (r.title || '').toLowerCase().includes(filter)
+    );
+    for (const r of rows) {
+        const cur = (_deckShapeEdits[r.slide_id] !== undefined) ? _deckShapeEdits[r.slide_id] : (r.decision || '');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding:6px 12px;color:var(--muted);font-size:11px;">${r.sheet || ''}</td>
+            <td style="padding:6px 12px;font-family:'Space Mono',monospace;font-size:11px;">${r.slide_id}</td>
+            <td style="padding:6px 12px;">${r.title || ''}</td>
+            <td style="padding:6px 12px;text-align:center;">
+                <select data-sid="${r.slide_id}" onchange="onDeckShapeChange(this)"
+                    style="border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:11px;
+                    background:${cur === 'Y' ? '#e8f5e9' : cur === 'A' ? '#fff4e0' : cur === 'N' ? '#fdecea' : '#fff'};">
+                    <option value=""  ${cur === '' ? 'selected' : ''}>(blank)</option>
+                    <option value="Y" ${cur === 'Y' ? 'selected' : ''}>Y -- main</option>
+                    <option value="A" ${cur === 'A' ? 'selected' : ''}>A -- aux</option>
+                    <option value="N" ${cur === 'N' ? 'selected' : ''}>N -- drop</option>
+                </select>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+}
+
+function onDeckShapeChange(sel) {
+    const sid = sel.dataset.sid;
+    _deckShapeEdits[sid] = sel.value;
+    document.getElementById('deckShapeSaveBtn').disabled = Object.keys(_deckShapeEdits).length === 0;
+    // Visual feedback: tint background based on new value
+    const v = sel.value;
+    sel.style.background = v === 'Y' ? '#e8f5e9' : v === 'A' ? '#fff4e0' : v === 'N' ? '#fdecea' : '#fff';
+}
+
+async function saveDeckShape() {
+    const btn = document.getElementById('deckShapeSaveBtn');
+    const msg = document.getElementById('deckShapeMsg');
+    btn.disabled = true;
+    msg.textContent = 'Saving...';
+    try {
+        const r = await fetch('/api/manifest', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({updates: _deckShapeEdits})
+        });
+        if (!r.ok) {
+            const t = await r.text();
+            msg.textContent = 'Save failed: ' + t;
+            btn.disabled = false;
+            return;
+        }
+        const data = await r.json();
+        msg.textContent = `Saved ${data.updated} row(s). Re-run Generate to rebuild the deck with these decisions.`;
+        _deckShapeEdits = {};
+        // Reload to confirm
+        setTimeout(openDeckShapeEditor, 800);
+    } catch (err) {
+        msg.textContent = 'Save error: ' + err.message;
+        btn.disabled = false;
+    }
+}
+
 async function loadDashboardData() {
     try {
         // Load stats
@@ -1974,11 +2179,25 @@ async function runFormat(force = false) {
     bar.style.width = '5%';
     st.textContent = 'Starting...';
 
+    // Wave 4 follow-up: reset checklist + hide completion card.
+    document.getElementById('fRunView').style.display = '';
+    document.getElementById('fDoneView').style.display = 'none';
+    document.querySelectorAll('#fStages .stage').forEach(li => {
+        li.classList.remove('active', 'complete');
+    });
+    const fmtStart = Date.now();
+    const fmtTick = setInterval(() => {
+        const sec = Math.floor((Date.now() - fmtStart) / 1000);
+        document.getElementById('fElapsed').textContent =
+            `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    }, 1000);
+
     // Show what we're doing immediately
     const startLine = document.createElement('div');
     startLine.className = 'done';
     startLine.textContent = `Formatting ${clientId || 'all clients'} for ${csm} / ${month}...`;
     log.appendChild(startLine);
+    _markFormatStage('locate', 'start');
 
     try {
         const url = `/api/format?csm=${csm}&month=${month}&client_id=${clientId}&force=${force}`;
@@ -2004,7 +2223,7 @@ async function runFormat(force = false) {
                 if (!statusResp.ok) return;
                 const run = await statusResp.json();
 
-                // Show new log lines
+                // Show new log lines + advance checklist
                 const currentCount = log.children.length - 1; // minus the start line
                 if (run.log && run.log.length > currentCount) {
                     for (let i = currentCount; i < run.log.length; i++) {
@@ -2012,6 +2231,8 @@ async function runFormat(force = false) {
                         line.className = 'done';
                         line.textContent = run.log[i];
                         log.appendChild(line);
+                        const evt = _classifyFormatStage(run.log[i]);
+                        if (evt) _markFormatStage(evt.stage, evt.event);
                     }
                     log.scrollTop = log.scrollHeight;
                 }
@@ -2023,10 +2244,49 @@ async function runFormat(force = false) {
                 // Done?
                 if (run.status === 'complete' || run.status === 'error') {
                     clearInterval(pollInterval);
+                    clearInterval(fmtTick);
                     bar.style.width = '100%';
                     if (run.status === 'complete') {
                         st.textContent = 'Formatting Complete';
                         bar.style.background = 'var(--accent)';
+                        // Wave 4 follow-up: mark every stage complete + show
+                        // the completion card.
+                        document.querySelectorAll('#fStages .stage').forEach(li => {
+                            li.classList.remove('active');
+                            li.classList.add('complete');
+                        });
+                        document.getElementById('fRunView').style.display = 'none';
+                        document.getElementById('fDoneView').style.display = '';
+                        document.getElementById('fDoneSub').textContent =
+                            `Formatted ${clientId || 'all clients'} for ${csm} / ${month}`;
+                        const stats = document.getElementById('fDoneStats');
+                        stats.innerHTML = '';
+                        const addStat = (val, lab, kind) => {
+                            const el = document.createElement('div');
+                            el.className = 'done-stat' + (kind ? ' ' + kind : '');
+                            el.innerHTML = `<div class="done-stat-value">${val}</div><div class="done-stat-label">${lab}</div>`;
+                            stats.appendChild(el);
+                        };
+                        // Pull totals out of the run object if available
+                        const formatted = (run.log || []).filter(l =>
+                            /formatted|saved.*xlsx|wrote.*formatted/i.test(l)
+                        ).length;
+                        if (formatted) addStat(formatted, 'Files formatted', 'success');
+                        const actions = document.getElementById('fDoneActions');
+                        actions.innerHTML = '';
+                        const goGen = document.createElement('button');
+                        goGen.className = 'done-action';
+                        goGen.textContent = 'Open Generate tab';
+                        goGen.onclick = () => showPage('generate');
+                        actions.appendChild(goGen);
+                        const again = document.createElement('button');
+                        again.className = 'done-action secondary';
+                        again.textContent = 'Format another';
+                        again.onclick = () => {
+                            document.getElementById('fProg').classList.remove('visible');
+                            window.scrollTo({top: 0, behavior: 'smooth'});
+                        };
+                        actions.appendChild(again);
                     } else {
                         st.textContent = 'Error -- check log below';
                         bar.style.background = '#EB2A2E';
