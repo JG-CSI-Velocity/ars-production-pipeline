@@ -1,6 +1,36 @@
-# attrition section slide specs.
-# TODO(W3 follow-up): author specs for main-deck slides in this section.
-# Pattern: see docs/slide_specs/_TEMPLATE.yml and docs/slide_specs/dctr.yml.
-# Until specs exist here, deck_builder falls back to today's behavior
-# (analytics-supplied titles), so empty file is safe.
+# Attrition section slide specs.
+# Per the 4-layer law: attrition rates anchor to the Eligible layer
+# (closures / eligible_total). All dollar figures derived from Eligible base.
 
+ATTRITION-MAIN-1:
+  layout: TWO_CONTENT
+  components: [A9.1]
+  action_title: "Overall attrition of {rate:.1%}; L12M trending {direction} at {l12m_rate:.1%}"
+  inputs:
+    rate: ctx.results.attrition_1.overall_rate
+    l12m_rate: ctx.results.attrition_1.l12m_rate
+    total: ctx.results.attrition_1.total
+    closed: ctx.results.attrition_1.closed
+    direction: "'softer' if (l12m_rate or 0) < (rate or 0) else 'harder'"
+  denominator_label: Eligible
+  callout:
+    hero: "{closed:,}"
+    sub: "closures in the eligible base"
+    tertiary: "Out of {total:,} eligible accounts"
+  footer:
+    source: "Source: {client_name} ODD, {month} | N (Eligible) = {total:,}"
+
+ATTRITION-MAIN-2:
+  layout: TWO_CONTENT
+  components: [A9.11]
+  action_title: "Closures represent ${impact:,.0f} in annualized lost revenue"
+  inputs:
+    impact: ctx.results.attrition_11.total_lost
+    diff: ctx.results.attrition_13.diff
+  denominator_label: Eligible
+  callout:
+    hero: "${impact:,.0f}"
+    sub: "annualized revenue at risk"
+    tertiary: "Retention-lift programs offset {diff:+.0%} of this gap"
+  footer:
+    source: "Source: {client_name} ODD, {month} | Eligible base"

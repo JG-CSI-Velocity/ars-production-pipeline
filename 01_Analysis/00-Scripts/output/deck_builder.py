@@ -515,6 +515,10 @@ class DeckBuilder:
         Charts already have titles rendered by matplotlib, so we skip
         the slide title placeholder to avoid duplication. The chart
         fills most of the slide with a small margin.
+
+        Wave 3 follow-up: when SlideContent carries callout_hero / footer_source
+        (populated by output/slide_spec.render_spec), overlay the callout box
+        and footer band per SLIDE_DESIGN.md anatomy.
         """
         # Remove all placeholders -- chart image IS the content
         for ph in slide.placeholders:
@@ -523,19 +527,140 @@ class DeckBuilder:
             except Exception:
                 pass
 
-        # Position chart to fill the slide with small margins
+        has_callout = bool(content.callout_hero or content.callout_sub)
+        has_footer = bool(content.footer_source)
+
+        # Make room for callout + footer when present.
         left = Inches(0.4)
         top = Inches(0.3)
         width = Inches(12.5)
-        max_height = Inches(6.8)
+        max_height = Inches(6.0 if (has_callout or has_footer) else 6.8)
 
         if content.images and Path(content.images[0]).exists():
             self._add_fitted_picture(slide, content.images[0], left, top, width, max_height=max_height)
+
+        if has_callout:
+            self._draw_callout_box(slide, content)
+        if has_footer:
+            self._draw_footer_band(slide, content)
 
         # Add speaker notes with the title text for reference
         if content.notes_text or content.title:
             notes = slide.notes_slide
             notes.notes_text_frame.text = content.notes_text or content.title
+
+    def _draw_callout_box(self, slide, content: SlideContent) -> None:
+        """Draw the spec-driven callout box at the bottom-center of the slide.
+
+        Layout per SLIDE_DESIGN.md callout anatomy:
+          - Hero number 44pt bold accent (CSI orange)
+          - Sub label 14pt semibold navy
+          - Tertiary line 11pt regular text
+        Box has an accent-colored left border so the eye reads it as a
+        consultant-style sidebar.
+        """
+        from pptx.dml.color import RGBColor
+        from pptx.enum.shapes import MSO_SHAPE
+        from pptx.util import Emu, Inches, Pt
+
+        try:
+            from ars_analysis.shared.brand import BRAND
+        except Exception:
+            # Fallback to CSI canonicals if brand isn't importable
+            BRAND = {"navy": "#1A1A1A", "accent": "#F15D22", "text": "#222222"}
+
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
+
+        # Geometry: 12" wide × 1.2" tall, centered horizontally, just below chart.
+        left = Inches(0.6)
+        top = Inches(6.0)
+        width = Inches(12.1)
+        height = Inches(1.15)
+        box = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
+        box.fill.solid()
+        box.fill.fore_color.rgb = _hex("#FFFFFF")
+        # Accent left border
+        box.line.color.rgb = _hex(BRAND["accent"])
+        box.line.width = Pt(3)
+
+        # Stack hero / sub / tertiary inside the box via a text frame.
+        tf = box.text_frame
+        tf.margin_left = Inches(0.25)
+        tf.margin_right = Inches(0.25)
+        tf.margin_top = Inches(0.10)
+        tf.margin_bottom = Inches(0.10)
+        tf.word_wrap = True
+
+        # Hero (first paragraph already exists)
+        p = tf.paragraphs[0]
+        p.text = content.callout_hero or ""
+        for run in p.runs:
+            run.font.name = "Montserrat"
+            run.font.size = Pt(28)
+            run.font.bold = True
+            run.font.color.rgb = _hex(BRAND["accent"])
+
+        if content.callout_sub:
+            p2 = tf.add_paragraph()
+            p2.text = content.callout_sub
+            for run in p2.runs:
+                run.font.name = "Montserrat"
+                run.font.size = Pt(14)
+                run.font.bold = True
+                run.font.color.rgb = _hex(BRAND["navy"])
+
+        if content.callout_tertiary:
+            p3 = tf.add_paragraph()
+            p3.text = content.callout_tertiary
+            for run in p3.runs:
+                run.font.name = "Montserrat"
+                run.font.size = Pt(11)
+                run.font.color.rgb = _hex(BRAND.get("text", "#222222"))
+
+    def _draw_footer_band(self, slide, content: SlideContent) -> None:
+        """Draw the spec-driven footer band at the very bottom of the slide.
+
+        Two short lines: source (italic) and confidentiality. Both 9pt muted.
+        """
+        from pptx.dml.color import RGBColor
+        from pptx.util import Inches, Pt
+
+        try:
+            from ars_analysis.shared.brand import BRAND
+        except Exception:
+            BRAND = {"text_muted": "#777777"}
+
+        muted = BRAND.get("text_muted", "#777777").lstrip("#")
+        muted_rgb = RGBColor(int(muted[0:2], 16), int(muted[2:4], 16), int(muted[4:6], 16))
+
+        left = Inches(0.6)
+        top = Inches(7.25)
+        width = Inches(12.1)
+        height = Inches(0.35)
+        tb = slide.shapes.add_textbox(left, top, width, height)
+        tf = tb.text_frame
+        tf.word_wrap = True
+        tf.margin_left = Inches(0)
+        tf.margin_top = Inches(0)
+        tf.margin_bottom = Inches(0)
+
+        p = tf.paragraphs[0]
+        p.text = content.footer_source
+        for run in p.runs:
+            run.font.name = "Montserrat"
+            run.font.size = Pt(9)
+            run.font.italic = True
+            run.font.color.rgb = muted_rgb
+
+        if content.footer_confidentiality:
+            p2 = tf.add_paragraph()
+            p2.text = content.footer_confidentiality
+            for run in p2.runs:
+                run.font.name = "Montserrat"
+                run.font.size = Pt(8)
+                run.font.color.rgb = muted_rgb
 
     def _build_screenshot_kpi_slide(self, slide, content: SlideContent) -> None:
         """Build slide with image and KPI callouts.

@@ -1,6 +1,27 @@
-# value section slide specs.
-# TODO(W3 follow-up): author specs for main-deck slides in this section.
-# Pattern: see docs/slide_specs/_TEMPLATE.yml and docs/slide_specs/dctr.yml.
-# Until specs exist here, deck_builder falls back to today's behavior
-# (analytics-supplied titles), so empty file is safe.
+# Value section slide specs.
+# Anchors to Eligible: value calculations use eligible-base DCTR and Reg E
+# rates per the 4-layer law. The "potential at L12M DCTR" hero number is
+# the gap between accounts with and without debit, sized at the Eligible
+# base.
 
+VALUE-MAIN-1:
+  layout: TWO_CONTENT
+  components: [A11.1]
+  action_title: "Closing the debit gap is worth ${pot_l12m:,.0f} annually at current L12M DCTR"
+  inputs:
+    delta: ctx.results.value_1.delta
+    accts_with: ctx.results.value_1.accts_with
+    accts_without: ctx.results.value_1.accts_without
+    rev_per_with: ctx.results.value_1.rev_per_with
+    rev_per_without: ctx.results.value_1.rev_per_without
+    pot_hist: ctx.results.value_1.pot_hist
+    pot_l12m: ctx.results.value_1.pot_l12m
+    pot_100: ctx.results.value_1.pot_100
+    l12m_dctr: ctx.results.value_1.l12m_dctr
+  denominator_label: Eligible
+  callout:
+    hero: "${pot_l12m:,.0f}"
+    sub: "annual revenue upside"
+    tertiary: "Per-account delta: ${delta:,.0f} ({accts_without:,} accounts without debit today)"
+  footer:
+    source: "Source: {client_name} ODD, {month} | DCTR + Reg E modeled at L12M = {l12m_dctr:.0%}"

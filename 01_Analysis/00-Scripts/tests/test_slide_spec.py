@@ -129,17 +129,18 @@ DEMO:
 
 
 def test_repo_specs_load_without_error():
-    """The dctr.yml and rege.yml shipped with the repo must parse."""
+    """Every authored spec across all sections must parse and be 4-layer compliant."""
     ss.clear_spec_cache()
     # SLIDE_SPECS_DIR not set -> uses _DEFAULT_SPECS_DIR
-    dctr = ss.load_specs("dctr")
-    rege = ss.load_specs("rege")
-    assert len(dctr) >= 1, "dctr.yml should declare at least one slide"
-    assert len(rege) >= 1, "rege.yml should declare at least one slide"
-    # Every spec must declare a 4-layer-compliant denominator_label
+    authored_sections = ("dctr", "rege", "overview", "attrition", "value", "insights")
+    by_section = {s: ss.load_specs(s) for s in authored_sections}
+    for section, specs in by_section.items():
+        assert len(specs) >= 1, f"{section}.yml should declare at least one slide"
+
     valid_labels = {"Eligible", "Eligible Personal", "Eligible Business", "Open"}
-    for spec in list(dctr.values()) + list(rege.values()):
-        assert spec.denominator_label in valid_labels, (
-            f"{spec.slide_id}: denominator_label '{spec.denominator_label}' "
-            f"not in 4-layer law"
-        )
+    for section, specs in by_section.items():
+        for spec in specs.values():
+            assert spec.denominator_label in valid_labels, (
+                f"{section}/{spec.slide_id}: denominator_label "
+                f"'{spec.denominator_label}' not in 4-layer law"
+            )
