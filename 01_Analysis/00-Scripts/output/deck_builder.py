@@ -91,6 +91,15 @@ class SlideContent:
     bullets: list[str] | None = None
     layout_index: int = 8  # LAYOUT_CUSTOM (default for most slides)
     notes_text: str | None = None
+    # Wave 3 (slide spec system): action-slide anatomy from docs/slide_specs/*.yml.
+    # When populated, the deck builder renders callout box + footer band per
+    # SLIDE_DESIGN.md. When empty, falls back to legacy screenshot layout.
+    callout_hero: str = ""
+    callout_sub: str = ""
+    callout_tertiary: str = ""
+    footer_source: str = ""
+    footer_confidentiality: str = ""
+    denominator_label: str = ""
 
 
 # =============================================================================
@@ -1602,6 +1611,39 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
         title = generate_headline(slide_id, insights, fallback_title=title)
         notes_text = generate_notes(slide_id, title, insights, kpis=kpis)
 
+    # Wave 3: spec-driven override. When a YAML spec exists for this slide_id,
+    # render its action_title / callout / footer from ctx.results and use them
+    # in place of the analytics-supplied title. Fall through silently when no
+    # spec is authored (so legacy behavior holds for un-spec'd sections).
+    callout_hero = callout_sub = callout_tertiary = ""
+    footer_source = footer_confidentiality = ""
+    denominator_label = ""
+    if slide_id and ctx_results is not None:
+        try:
+            from ars_analysis.output import slide_spec as _spec
+
+            section = _spec_section_for(slide_id)
+            spec_obj = _spec.get_spec(section, slide_id) if section else None
+            if spec_obj is not None and spec_obj.action_title:
+                rendered = _spec.render_spec(spec_obj, ctx_results, getattr(_CURRENT_CLIENT, "info", None))
+                if rendered.action_title and "{" not in rendered.action_title:
+                    title = rendered.action_title
+                callout_hero = rendered.callout_hero
+                callout_sub = rendered.callout_sub
+                callout_tertiary = rendered.callout_tertiary
+                footer_source = rendered.footer_source
+                footer_confidentiality = rendered.footer_confidentiality
+                denominator_label = rendered.denominator_label
+                if rendered.render_warnings:
+                    from loguru import logger as _log
+                    _log.debug(
+                        "slide_spec {sid} render warnings: {w}",
+                        sid=slide_id, w=rendered.render_warnings,
+                    )
+        except Exception as _exc:  # pragma: no cover -- diagnostic only
+            from loguru import logger as _log
+            _log.debug("slide_spec render skipped for {sid}: {e}", sid=slide_id, e=_exc)
+
     return SlideContent(
         slide_type=slide_type,
         title=title,
@@ -1610,7 +1652,45 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
         kpis=kpis,
         layout_index=layout_idx,
         notes_text=notes_text,
+        callout_hero=callout_hero,
+        callout_sub=callout_sub,
+        callout_tertiary=callout_tertiary,
+        footer_source=footer_source,
+        footer_confidentiality=footer_confidentiality,
+        denominator_label=denominator_label,
     )
+
+
+def _spec_section_for(slide_id: str) -> str:
+    """Map a slide_id to its YAML spec section. Returns '' when unknown."""
+    sid = slide_id.upper()
+    if sid.startswith("DCTR") or sid.startswith("A7"):
+        return "dctr"
+    if sid.startswith("REGE") or sid.startswith("A8"):
+        return "rege"
+    if sid.startswith("A9") or "ATTRITION" in sid:
+        return "attrition"
+    if sid.startswith("A11") or "VALUE" in sid:
+        return "value"
+    if sid.startswith("A12") or sid.startswith("A13") or sid.startswith("A14") or "MAILER" in sid:
+        return "mailer"
+    if sid.startswith("S") or "INSIGHTS" in sid or "DORMANT" in sid:
+        return "insights"
+    if sid.startswith("A1") or "OVERVIEW" in sid:
+        return "overview"
+    if "COMPETITION" in sid:
+        return "competition"
+    if "TXN" in sid:
+        return "txn_exec"
+    return ""
+
+
+# Per-thread/per-run client snapshot used by spec rendering for {client_name},
+# {month}, etc. Set by build_deck() at the start of a run; reset on completion.
+class _CurrentClient:
+    info: object | None = None
+
+_CURRENT_CLIENT = _CurrentClient()
 
 
 # =============================================================================
@@ -1748,6 +1828,8 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     # kept (they belong in the aux deck) while N-marked still drop.
     global _CURRENT_MANIFEST, _CURRENT_AUX_BUILD
     _CURRENT_AUX_BUILD = bool(getattr(ctx, "_aux_build", False))
+    # Wave 3: expose ctx.client to spec rendering for {client_name} / {month} templates.
+    _CURRENT_CLIENT.info = ctx.client
     if not _CURRENT_AUX_BUILD:
         _CURRENT_MANIFEST = load_manifest_decisions()
         logger.info(_CURRENT_MANIFEST.summary())

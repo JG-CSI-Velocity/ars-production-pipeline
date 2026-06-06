@@ -8,6 +8,7 @@ pandas
 pydantic
 pydantic-settings
 python-pptx
+PyYAML
 rich
 uvicorn
 xlsxwriter

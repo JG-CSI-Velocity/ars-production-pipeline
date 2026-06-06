@@ -1,0 +1,6 @@
+# overview section slide specs.
+# TODO(W3 follow-up): author specs for main-deck slides in this section.
+# Pattern: see docs/slide_specs/_TEMPLATE.yml and docs/slide_specs/dctr.yml.
+# Until specs exist here, deck_builder falls back to today's behavior
+# (analytics-supplied titles), so empty file is safe.
+

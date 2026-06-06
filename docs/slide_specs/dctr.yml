@@ -1,0 +1,70 @@
+# DCTR section slide specs.
+# Source of truth for action titles, callouts, and footer band of every
+# DCTR slide on the main deck. See docs/slide_specs/dctr.md for the
+# full design narrative (panel layouts, color rules, etc).
+#
+# Schema: 01_Analysis/00-Scripts/output/slide_spec.py
+# Wire-in: output/deck_builder.py reads via output/slide_spec.get_spec("dctr", slide_id).
+# Denominator law: every rate on these slides is computed against Eligible
+# (open ∩ eligible_stat ∩ eligible_prod). DCTR-MAIN-2 is the only exception --
+# it explicitly contrasts Eligible vs Open as the methodology slide.
+
+DCTR-MAIN-1:
+  layout: TWO_CONTENT
+  components: [A7.6a, DCTR-7]
+  action_title: "L12M DCTR of {l12m_rate:.0%} {direction} historical by {gap_pp_abs:.0f}pp; {top_n} branches drive {contribution:.0%} of the gap"
+  inputs:
+    l12m_rate: ctx.results.dctr_3.insights.dctr
+    overall_rate: ctx.results.dctr_1.insights.overall_dctr
+    gap_pp: (l12m_rate - overall_rate) * 100
+    gap_pp_abs: abs(gap_pp) if gap_pp is not None else 0
+    direction: "'trails' if (gap_pp or 0) < 0 else ('matches' if abs(gap_pp or 0) < 1 else 'beats')"
+    top_n: "3"
+    contribution: ctx.results.dctr_7.gap_contributors.share_top3
+  denominator_label: Eligible
+  callout:
+    hero: "${delta_revenue:,.1f}M"
+    sub: "annual debit interchange uplift"
+    tertiary: "Closing the gap at {b1}, {b2}, {b3} to portfolio-median DCTR"
+  footer:
+    source: "Source: {client_name} ODD, {month} | N (Eligible) = {eligible_count:,}"
+
+DCTR-MAIN-2:
+  layout: TWO_CONTENT
+  components: [DCTR-2]
+  action_title: "{eligible_pct:.0%} of open accounts pass eligibility filters; DCTR among the eligible is {elig_dctr:.0%}"
+  inputs:
+    open_total: ctx.results.dctr_2.insights.open_total
+    eligible_total: ctx.results.dctr_2.insights.eligible_total
+    eligible_pct: eligible_total / open_total if open_total else 0
+    elig_dctr: ctx.results.dctr_2.insights.eligible_dctr
+    open_dctr: ctx.results.dctr_2.insights.open_dctr
+  # NOTE: DCTR-MAIN-2 is the ONE slide where Open is allowed as a primary
+  # denominator framing -- this is the methodology slide that explains why
+  # every other DCTR slide reports against Eligible. Audit step's OPEN_ALLOWLIST
+  # whitelists it.
+  denominator_label: Open
+  callout:
+    hero: "{elig_dctr:.0%}"
+    sub: "Eligible DCTR (primary)"
+    tertiary: "vs {open_dctr:.0%} across all open accounts (reference framing)"
+  footer:
+    source: "Source: {client_name} ODD, {month}"
+
+DCTR-MAIN-3:
+  layout: TWO_CONTENT
+  components: [DCTR-4, DCTR-5]
+  action_title: "Personal DCTR {p_rate:.0%}{vs_business}; the gap is concentrated in {gap_segment}"
+  inputs:
+    p_rate: ctx.results.dctr_4.insights.dctr
+    b_rate: ctx.results.dctr_5.insights.dctr
+    pb_gap: (p_rate or 0) - (b_rate or 0)
+    vs_business: "' vs Business ' + format((b_rate or 0)*100, '.0f') + '%'"
+    gap_segment: "'Business' if (pb_gap or 0) > 0 else 'Personal'"
+  denominator_label: Eligible
+  callout:
+    hero: "{pb_gap_pp:+.0f}pp"
+    sub: "Personal vs Business DCTR gap"
+    tertiary: "Closing the {gap_segment} gap is the biggest single lever"
+  footer:
+    source: "Source: {client_name} ODD, {month} | Eligible Personal + Eligible Business"
