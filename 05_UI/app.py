@@ -822,13 +822,19 @@ def _resolve_csm_dir(base_path: Path, csm: str) -> Path:
 
 @app.get("/api/outputs/{csm}/{month}/{client_id}")
 async def list_outputs(csm: str, month: str, client_id: str):
-    """List output files for a completed run."""
+    """List output files for a completed run.
+
+    Backwards-compatible: returns a list when called without a flag.
+    Wave 4: when callers pass `?with_quality=1`, returns
+    `{"files": [...], "quality": {...}}` with scorecard / rates_audit
+    paths + counts surfaced to the UI completion card.
+    """
     files = []
 
     analysis_dir = _resolve_csm_dir(COMPLETED_ANALYSIS, csm) / month / client_id
     if analysis_dir.exists():
         for f in analysis_dir.iterdir():
-            if f.is_file() and f.suffix in (".xlsx", ".json", ".png"):
+            if f.is_file() and f.suffix in (".xlsx", ".json", ".png", ".csv", ".md"):
                 files.append({
                     "name": f.name,
                     "type": f.suffix[1:],
@@ -862,6 +868,81 @@ async def list_outputs(csm: str, month: str, client_id: str):
                 })
 
     return files
+
+
+@app.get("/api/run_quality/{csm}/{month}/{client_id}")
+async def run_quality(csm: str, month: str, client_id: str):
+    """Surface W1 audit + scorecard data for a completed run.
+
+    Returns:
+      {
+        "scorecard_md": "...",                # full markdown contents of run_scorecard.md
+        "scorecard_path": "...",
+        "rates_audit_path": "...",
+        "rates_audit_rows": [...],            # list of dicts from rates_audit.csv
+        "denom_violations": 3,                # count of framework_compliant=False rows
+        "anomaly_flags": [{"level":"warn","message":"..."}],
+        "manifest_status": "ok"|"partial"|"failed"|"running"|"unknown"
+      }
+
+    Wave 4 (CSM experience): the completion card on the Generate tab consumes
+    this to render a "Run Quality" panel with verdict + violation count.
+    """
+    import csv as _csv
+    import json as _json
+
+    analysis_dir = _resolve_csm_dir(COMPLETED_ANALYSIS, csm) / month / client_id
+    out: dict = {
+        "scorecard_md": "",
+        "scorecard_path": "",
+        "rates_audit_path": "",
+        "rates_audit_rows": [],
+        "denom_violations": 0,
+        "anomaly_flags": [],
+        "manifest_status": "unknown",
+    }
+    if not analysis_dir.exists():
+        return out
+
+    sc = analysis_dir / "run_scorecard.md"
+    if sc.exists():
+        out["scorecard_path"] = str(sc)
+        try:
+            out["scorecard_md"] = sc.read_text(encoding="utf-8")
+        except Exception:
+            pass
+
+    ra = analysis_dir / "rates_audit.csv"
+    if ra.exists():
+        out["rates_audit_path"] = str(ra)
+        try:
+            with open(ra, newline="", encoding="utf-8") as f:
+                rows = list(_csv.DictReader(f))
+            out["rates_audit_rows"] = rows
+            out["denom_violations"] = sum(
+                1 for r in rows if str(r.get("framework_compliant", "")).lower() == "false"
+            )
+        except Exception:
+            pass
+
+    mf = analysis_dir / "run_manifest.json"
+    if mf.exists():
+        try:
+            data = _json.loads(mf.read_text(encoding="utf-8"))
+            out["manifest_status"] = data.get("status", "unknown")
+            flags: list = []
+            for sec in data.get("sections", []):
+                for f_ in sec.get("anomaly_flags", []):
+                    flags.append({
+                        "section": sec.get("name", ""),
+                        "level": f_.get("level", "info"),
+                        "message": f_.get("message", ""),
+                    })
+            out["anomaly_flags"] = flags
+        except Exception:
+            pass
+
+    return out
 
 
 @app.get("/api/download")

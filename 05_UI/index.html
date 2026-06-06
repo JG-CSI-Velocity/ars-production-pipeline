@@ -703,6 +703,34 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             </div>
             <div class="done-stats" id="gDoneStats"></div>
             <div class="done-warnings" id="gDoneWarnings" style="display:none;"></div>
+            <!-- Wave 4: Run Quality panel surfaces denominator-law violations,
+                 anomaly flags, and the scorecard verdict. Populated by
+                 loadRunQuality() after a completed run via the
+                 /api/run_quality/{csm}/{month}/{client_id} endpoint. -->
+            <div class="done-quality" id="gDoneQuality" style="display:none;
+                margin-top:14px;border:1px solid var(--border);border-radius:8px;
+                padding:14px 16px;background:#fff;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;
+                    margin-bottom:8px;">
+                    <div style="font-weight:700;font-size:14px;color:var(--dark);">
+                        Run Quality
+                    </div>
+                    <div id="gDoneQualityVerdict" style="font-size:12px;font-weight:600;"></div>
+                </div>
+                <div id="gDoneQualitySummary"
+                    style="display:flex;gap:18px;font-size:13px;color:var(--text);">
+                </div>
+                <details style="margin-top:8px;font-size:12px;color:var(--muted);"
+                    id="gDoneQualityFlagsDetails">
+                    <summary style="cursor:pointer;">Anomaly flags</summary>
+                    <div id="gDoneQualityFlags" style="margin-top:6px;line-height:1.5;"></div>
+                </details>
+                <details style="margin-top:6px;font-size:12px;color:var(--muted);"
+                    id="gDoneQualityViolationsDetails">
+                    <summary style="cursor:pointer;">Denominator-law violations</summary>
+                    <div id="gDoneQualityViolations" style="margin-top:6px;line-height:1.5;"></div>
+                </details>
+            </div>
             <div class="done-actions" id="gDoneActions"></div>
         </div>
 
@@ -1457,6 +1485,68 @@ function _renderCompletion(ctx) {
     again.textContent = 'Run another report';
     again.onclick = () => { document.getElementById('gProg').classList.remove('visible'); window.scrollTo({top: 0, behavior: 'smooth'}); };
     actions.appendChild(again);
+
+    // Wave 4: Run Quality panel -- denominator-law violations + anomaly flags
+    // + scorecard verdict. Fetched async; panel stays hidden if no data.
+    loadRunQuality(ctx);
+}
+
+// Wave 4: Populate the Run Quality panel by fetching /api/run_quality.
+async function loadRunQuality(ctx) {
+    const panel = document.getElementById('gDoneQuality');
+    if (!panel) return;
+    const csm = ctx.csm || document.getElementById('gCsmSel')?.value;
+    const month = ctx.month || document.getElementById('gMonthSel')?.value;
+    const clientId = ctx.clientId || document.getElementById('gClientSel')?.value;
+    if (!csm || !month || !clientId) return;
+    try {
+        const r = await fetch(`/api/run_quality/${encodeURIComponent(csm)}/${encodeURIComponent(month)}/${encodeURIComponent(clientId)}`);
+        if (!r.ok) return;
+        const q = await r.json();
+        // Hide if nothing useful came back
+        if (!q.scorecard_md && !q.rates_audit_rows?.length && !q.anomaly_flags?.length) return;
+        panel.style.display = '';
+
+        const verdict = document.getElementById('gDoneQualityVerdict');
+        const violations = Number(q.denom_violations || 0);
+        const flagCount = (q.anomaly_flags || []).length;
+        const statusColor = (violations === 0 && flagCount === 0)
+            ? 'var(--green)' : (violations > 0 ? 'var(--red)' : 'var(--gold)');
+        const statusText = (violations === 0 && flagCount === 0)
+            ? 'Ship' : (violations > 0 ? 'Investigate (law violations)' : 'Review flags');
+        verdict.textContent = statusText;
+        verdict.style.color = statusColor;
+
+        const summary = document.getElementById('gDoneQualitySummary');
+        summary.innerHTML = `
+          <div><strong>${q.rates_audit_rows?.length || 0}</strong> <span style="color:var(--muted);">rates audited</span></div>
+          <div><strong style="color:${violations > 0 ? 'var(--red)' : 'inherit'};">${violations}</strong> <span style="color:var(--muted);">law violations</span></div>
+          <div><strong style="color:${flagCount > 0 ? 'var(--gold)' : 'inherit'};">${flagCount}</strong> <span style="color:var(--muted);">anomaly flags</span></div>
+          <div><span style="color:var(--muted);">manifest:</span> <strong>${q.manifest_status || 'unknown'}</strong></div>
+        `;
+
+        const flagsBox = document.getElementById('gDoneQualityFlags');
+        if (flagCount > 0) {
+            flagsBox.innerHTML = (q.anomaly_flags || []).map(f =>
+                `<div>[${(f.level || 'info').toUpperCase()}] <em>${f.section || ''}</em>: ${f.message || ''}</div>`
+            ).join('');
+        } else {
+            flagsBox.innerHTML = '<div style="color:var(--muted);">No anomaly flags.</div>';
+        }
+
+        const violBox = document.getElementById('gDoneQualityViolations');
+        const violRows = (q.rates_audit_rows || []).filter(r => String(r.framework_compliant).toLowerCase() === 'false');
+        if (violRows.length > 0) {
+            violBox.innerHTML = violRows.map(r =>
+                `<div><strong>${r.slide_id}</strong> &mdash; ${r.title || ''}: <code>${r.denominator_label || '(empty)'}</code> &mdash; ${r.violation_reason || ''}</div>`
+            ).join('');
+        } else {
+            violBox.innerHTML = '<div style="color:var(--muted);">Every rate anchors to one of Eligible / Eligible Personal / Eligible Business / Open.</div>';
+        }
+    } catch (err) {
+        // Panel just stays hidden on error -- silent degrade.
+        console.debug('Run quality fetch skipped:', err);
+    }
 }
 
 // Real pipeline run via API
