@@ -132,7 +132,7 @@ def test_repo_specs_load_without_error():
     """Every authored spec across all sections must parse and be 4-layer compliant."""
     ss.clear_spec_cache()
     # SLIDE_SPECS_DIR not set -> uses _DEFAULT_SPECS_DIR
-    authored_sections = ("dctr", "rege", "overview", "attrition", "value", "insights")
+    authored_sections = ("dctr", "rege", "overview", "attrition", "value", "insights", "mailer")
     by_section = {s: ss.load_specs(s) for s in authored_sections}
     for section, specs in by_section.items():
         assert len(specs) >= 1, f"{section}.yml should declare at least one slide"

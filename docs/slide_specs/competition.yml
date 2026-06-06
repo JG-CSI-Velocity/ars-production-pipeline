@@ -1,6 +1,13 @@
-# competition section slide specs.
-# TODO(W3 follow-up): author specs for main-deck slides in this section.
-# Pattern: see docs/slide_specs/_TEMPLATE.yml and docs/slide_specs/dctr.yml.
-# Until specs exist here, deck_builder falls back to today's behavior
-# (analytics-supplied titles), so empty file is safe.
-
+# Competition section slide specs.
+#
+# DEFERRED: Competition is a TXN section. Its modules are numbered scripts
+# (01_competitor_config.py through 70_banking_vs_ecosystems.py) that produce
+# Plotly charts directly without populating ctx.results in the dict shape the
+# slide_spec renderer binds to. Authoring specs here first needs a thin
+# TXN-section results adapter (per-script insights -> ctx.results["competition_<id>"]).
+#
+# Roadmap: when txn_setup is extended to expose per-script insights dicts,
+# add specs for COMPETITION-MAIN-THREAT-QUADRANT (slide 13_threat_quadrant)
+# and COMPETITION-MAIN-WALLET-SHARE (24_segment_heatmap derivative). Until
+# then, deck_builder falls back to today's behavior (Plotly-rendered titles),
+# so this empty file is safe.
