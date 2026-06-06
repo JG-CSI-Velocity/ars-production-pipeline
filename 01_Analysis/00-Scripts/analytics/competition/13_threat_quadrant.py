@@ -69,8 +69,14 @@ if len(all_competitor_data) > 0:
         fig, ax = plt.subplots(figsize=(14, 10))
 
         # Quadrant background shading
+        # Audit 2026-04-17: y_max was hardcoded at 105, which clipped any
+        # competitor with activity_index > 105 off the top of the chart
+        # AND mis-positioned the WATCH/DEFEND/ACT NOW bands and labels.
+        # fit_y_to_data keeps 105 as a floor (quiet clients still get the
+        # full-range view they're used to) but scales up when the data
+        # demands it.
         x_min, x_max = 0, qdf['penetration_pct'].max() * 1.2
-        y_min, y_max = 0, 105
+        y_min, y_max = fit_y_to_data(qdf['activity_index'], soft_cap=105, headroom=1.10)
 
         # Top-right = danger zone (light red)
         ax.axhspan(med_act, y_max, xmin=med_pen / x_max, xmax=1,

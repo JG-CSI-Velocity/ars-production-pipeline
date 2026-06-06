@@ -126,8 +126,18 @@ def plot_competitive_landscape_bubble(
             transform=ax.transAxes, fontsize=11, color=GEN_COLORS['muted'],
             ha='right', va='bottom', style='italic')
 
-    # Margins so bubbles don't clip
-    ax.margins(0.08)
+    # Margins so bubbles don't clip.
+    # Audit 2026-04-17: ax.margins(0.08) is data-only and doesn't account
+    # for the visual radius of large markers -- the biggest bubbles
+    # (s=2500, ~28pt radius at 150 DPI) clipped at the edges. The
+    # competition/00_axes helper computes a marker-aware pad.
+    (xlo, xhi), (ylo, yhi) = fit_xy_with_marker_pad(
+        chart_df['penetration_pct'],
+        chart_df['txn_index'],
+        max_marker_size=max_bubble,
+    )
+    ax.set_xlim(xlo, xhi)
+    ax.set_ylim(ylo, yhi)
 
     plt.tight_layout()
     plt.subplots_adjust(bottom=0.12)
