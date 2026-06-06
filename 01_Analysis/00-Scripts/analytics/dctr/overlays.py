@@ -223,7 +223,7 @@ class DCTROverlays(AnalysisModule):
                             va="top",
                             fontsize=14,
                             fontweight="bold",
-                            color="#1E3D59",
+                            color="#1A1A1A",
                             bbox={
                                 "boxstyle": "round,pad=0.4",
                                 "facecolor": "#E8F4FD",

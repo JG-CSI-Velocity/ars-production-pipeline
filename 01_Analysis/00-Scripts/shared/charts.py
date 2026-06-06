@@ -1,7 +1,10 @@
 """Shared chart theme and export helpers.
 
-Color authority for all pipelines. Individual packages can import these
-colors to ensure visual consistency across ARS (matplotlib) and Txn/ICS (Plotly).
+COLORS and CATEGORY_PALETTE are now thin views over ars_analysis.shared.brand,
+the single source of truth for the CSI Velocity brand. Old hex literals here
+(#2E4057 / #F18F01) were the 5th competing navy and 3rd competing accent --
+brand.BRAND collapses them onto the canonical CSI navy (#1A1A1A) and
+orange (#F15D22).
 """
 
 from __future__ import annotations
@@ -9,28 +12,22 @@ from __future__ import annotations
 import warnings
 from pathlib import Path
 
-# Consultant-grade color palette (single authority)
+from ars_analysis.shared.brand import BRAND, CHART_PALETTE
+
+# Backward-compatible view over the canonical brand. Same keys as before so
+# existing `from shared.charts import COLORS` call sites keep working.
 COLORS = {
-    "primary": "#2E4057",
-    "secondary": "#048A81",
-    "accent": "#F18F01",
-    "positive": "#2D936C",
-    "negative": "#C73E1D",
-    "neutral": "#8B95A2",
-    "light_bg": "#F7F9FC",
-    "dark_text": "#2E4057",
+    "primary":   BRAND["navy"],
+    "secondary": CHART_PALETTE[7],
+    "accent":    BRAND["accent"],
+    "positive":  BRAND["positive"],
+    "negative":  BRAND["negative"],
+    "neutral":   BRAND["neutral"],
+    "light_bg":  "#F7F9FC",
+    "dark_text": BRAND["navy"],
 }
 
-CATEGORY_PALETTE = [
-    "#2E4057",
-    "#048A81",
-    "#F18F01",
-    "#2D936C",
-    "#C73E1D",
-    "#8B95A2",
-    "#5B6770",
-    "#D4A76A",
-]
+CATEGORY_PALETTE = list(CHART_PALETTE)
 
 
 def save_chart_png(fig: object, path: Path, scale: int = 1) -> Path:

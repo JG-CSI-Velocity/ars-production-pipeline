@@ -163,7 +163,7 @@ def _draw_value_slide(
     rate_label = impact.get("rate_label", "DCTR")
 
     ax_right.text(
-        5, 9.2, "Potential Impact", fontsize=24, fontweight="bold", color="#1E3D59", ha="center"
+        5, 9.2, "Potential Impact", fontsize=24, fontweight="bold", color="#1A1A1A", ha="center"
     )
 
     y = 8.0

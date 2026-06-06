@@ -357,7 +357,7 @@ def _revenue_impact(ctx: PipelineContext) -> list[AnalysisResult]:
             va="top",
             fontsize=14,
             fontweight="bold",
-            color="#1E3D59",
+            color="#1A1A1A",
             bbox={"boxstyle": "round,pad=0.4", "facecolor": "#FDE8E8", "edgecolor": NEGATIVE},
         )
         fig.tight_layout()

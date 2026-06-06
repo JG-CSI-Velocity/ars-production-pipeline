@@ -227,7 +227,7 @@ def _draw_penetration_kpi(
         va="top",
         fontsize=24,
         fontweight="bold",
-        color="#1E3D59",
+        color="#1A1A1A",
     )
 
     # Main KPI: penetration rate
