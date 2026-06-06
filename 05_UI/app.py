@@ -1081,6 +1081,74 @@ async def post_manifest(updates: dict):
     n = write_manifest_decisions(payload)
     resolved = _resolve_manifest_path()
     return {"updated": n, "path": str(resolved) if resolved else None}
+@app.post("/api/preview_html/{csm}/{month}/{client_id}")
+async def post_preview_html(csm: str, month: str, client_id: str):
+    """Build an HTML preview of a completed run and return its URL.
+
+    Reads run_report.json from the analysis dir, walks every (slide_id,
+    chart_path, title) tuple, and renders 02_Presentations/html_review/
+    index.html. Charts are embedded as base64 data URIs so the file is
+    self-contained -- operator can preview without opening PowerPoint.
+
+    Returns: {"ok": True, "html_path": "...", "url": "/preview/..."}
+
+    Requires W4's run_report.json schema (carries chart_path per slide).
+    Pre-W4 runs return 404 with a re-run hint.
+    """
+    import sys as _sys
+    _presentations = str(Path(__file__).resolve().parent.parent / "02_Presentations")
+    if _presentations not in _sys.path:
+        _sys.path.insert(0, _presentations)
+
+    from html_review.from_run_report import build_html_from_run_report
+
+    # COMPLETED_ANALYSIS is `<ARS_BASE>/01_Analysis/01_Completed_Analysis`,
+    # PRESENTATIONS_BASE is `<ARS_BASE>/02_Presentations`. The helper takes
+    # the per-stage *parents* (the level above the per-CSM folder) so it can
+    # resolve `<root>/<csm>/<month>/<client_id>` consistently.
+    analysis_root = COMPLETED_ANALYSIS
+    pres_root = PRESENTATIONS_BASE
+
+    clients = load_clients_config().get("clients", {})
+    client_display = clients.get(client_id, {}).get("ClientName", client_id)
+
+    try:
+        html_path = build_html_from_run_report(
+            csm=csm, month=month, client_id=client_id,
+            completed_analysis_root=analysis_root,
+            presentations_root=pres_root,
+            embed_images=True,
+            client_display_name=client_display,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"HTML preview build failed: {exc}") from exc
+
+    if html_path is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Run report not found -- re-run analysis to regenerate.",
+        )
+
+    return {
+        "ok": True,
+        "html_path": str(html_path),
+        "url": f"/preview/{csm}/{month}/{client_id}/",
+    }
+
+
+@app.get("/preview/{csm}/{month}/{client_id}/")
+async def get_preview_root(csm: str, month: str, client_id: str):
+    """Serve the previously-built html_review/index.html for inline viewing.
+
+    Loadable directly in a new tab or iframe-embedded by the UI. Returns 404
+    if the preview hasn't been built yet -- caller should POST /api/preview_html
+    first.
+    """
+    pres_root = PRESENTATIONS_BASE
+    target = pres_root / csm / month / client_id / "html_review" / "index.html"
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="Preview not built; POST /api/preview_html first")
+    return FileResponse(target, media_type="text/html")
 
 
 @app.get("/api/download")
