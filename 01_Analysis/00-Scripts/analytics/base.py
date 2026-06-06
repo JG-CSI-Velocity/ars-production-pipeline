@@ -38,6 +38,13 @@ class AnalysisResult:
     kpis: dict[str, str] | None = None
     extra_charts: list[Path] | None = None
     bullets: list[str] | None = None
+    # Denominator label per the 4-layer framework: one of
+    # "Eligible", "Eligible Personal", "Eligible Business", "Open".
+    # Empty string means "not a rate" (chart, dollar figure unrelated to a rate, etc.).
+    # Modules SHOULD stamp this on any result that surfaces a rate/ratio/share.
+    # Wave 1: audit step infers default per slide_id when this is empty.
+    denominator_label: str = ""
+    denominator_n: int = 0
 
 
 class AnalysisModule(ABC):

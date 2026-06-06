@@ -38,25 +38,14 @@ BALANCE_ORDER = [
 
 # -- Debit column detection (shared by DCTR, Reg E, Value) -------------------
 
-_DEBIT_CANDIDATES = ("Debit?", "Debit", "DC Indicator", "DC_Indicator")
-_DEBIT_YES_VALUES = frozenset(("YES", "Y", "D", "DC", "DEBIT"))
-
-
-def detect_debit_col(df: pd.DataFrame) -> str | None:
-    """Auto-detect the debit card column name from a DataFrame."""
-    for c in _DEBIT_CANDIDATES:
-        if c in df.columns:
-            return c
-    return None
-
-
-def debit_mask(df: pd.DataFrame, col: str | None = None) -> pd.Series:
-    """Return boolean mask for 'has debit card' regardless of column name or coding convention."""
-    if col is None:
-        col = detect_debit_col(df)
-    if col is None or col not in df.columns:
-        return pd.Series(False, index=df.index)
-    return df[col].astype(str).str.strip().str.upper().isin(_DEBIT_YES_VALUES)
+# Canonical debit detection lives in ars_analysis.shared.debit. Re-exported here
+# so all existing analytics imports (`from ...dctr._helpers import debit_mask`) keep working.
+from ars_analysis.shared.debit import (  # noqa: F401
+    DEBIT_CANDIDATES as _DEBIT_CANDIDATES,
+    DEBIT_YES_VALUES as _DEBIT_YES_VALUES,
+    debit_mask,
+    detect_debit_col,
+)
 
 
 # -- Core DCTR calculation ---------------------------------------------------
