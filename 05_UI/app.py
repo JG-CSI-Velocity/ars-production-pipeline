@@ -997,6 +997,65 @@ async def get_manifest():
     }
 
 
+@app.post("/api/rebuild_deck/{csm}/{month}/{client_id}")
+async def post_rebuild_deck(csm: str, month: str, client_id: str):
+    """Rebuild the PPTX deck without re-running analysis.
+
+    Reads the persisted run_report.json (which now carries chart_path per
+    slide), reconstructs minimal AnalysisResult stubs, applies the current
+    SLIDE_MANIFEST.xlsx Keep? decisions, and rewrites the .pptx.
+
+    Wave 4 follow-up. Pairs with the Deck Shape editor: operator toggles
+    Y/A/N in the UI, saves to manifest, then clicks Rebuild deck to test
+    the new shape without paying for a full re-analysis.
+    """
+    import sys as _sys
+    _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
+    if _scripts not in _sys.path:
+        _sys.path.insert(0, _scripts)
+    if "ars_analysis" not in _sys.modules:
+        import types as _types
+        _pkg = _types.ModuleType("ars_analysis")
+        _pkg.__path__ = [_scripts]
+        _sys.modules["ars_analysis"] = _pkg
+
+    from ars_analysis.pipeline.context import ClientInfo, OutputPaths, PipelineContext
+    from ars_analysis.pipeline.steps.generate import rebuild_deck_from_report
+
+    analysis_dir = _resolve_csm_dir(COMPLETED_ANALYSIS, csm) / month / client_id
+    if not analysis_dir.exists():
+        raise HTTPException(status_code=404, detail=f"No completed analysis at {analysis_dir}")
+
+    pptx_dir = _resolve_csm_dir(PRESENTATIONS_BASE, csm) / month / client_id
+    pptx_dir.mkdir(parents=True, exist_ok=True)
+
+    clients = load_clients_config().get("clients", {})
+    client_meta = clients.get(client_id, {})
+    client = ClientInfo(
+        client_id=client_id,
+        client_name=client_meta.get("ClientName", client_id),
+        month=month,
+        assigned_csm=csm,
+        eligible_stat_codes=client_meta.get("EligibleStatusCodes", []),
+        eligible_prod_codes=client_meta.get("EligibleProductCodes", []),
+    )
+    paths = OutputPaths.from_dir(analysis_dir)
+    paths.pptx_dir = pptx_dir
+    ctx = PipelineContext(client=client, paths=paths, product="ars")
+    ctx.export_log = []
+
+    try:
+        rebuild_deck_from_report(ctx)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Rebuild failed: {exc}") from exc
+
+    return {
+        "ok": True,
+        "deck_dir": str(pptx_dir),
+        "export_log": ctx.export_log,
+    }
+
+
 @app.post("/api/manifest")
 async def post_manifest(updates: dict):
     """Persist Keep? decisions back to SLIDE_MANIFEST.xlsx.

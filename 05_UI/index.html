@@ -820,6 +820,8 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                     oninput="renderDeckShapeRows()" />
                 <button class="btn" id="deckShapeSaveBtn" onclick="saveDeckShape()"
                     style="font-size:12px;padding:6px 14px;" disabled>Save</button>
+                <button class="btn" id="deckShapeRebuildBtn" onclick="rebuildDeck()"
+                    style="font-size:12px;padding:6px 14px;background:var(--accent);color:#fff;border-color:var(--accent);">Rebuild deck</button>
                 <button class="btn btn-dark" onclick="document.getElementById('deckShapePanel').style.display='none'"
                     style="font-size:12px;padding:6px 14px;">Close</button>
             </div>
@@ -1961,6 +1963,44 @@ function onDeckShapeChange(sel) {
     // Visual feedback: tint background based on new value
     const v = sel.value;
     sel.style.background = v === 'Y' ? '#e8f5e9' : v === 'A' ? '#fff4e0' : v === 'N' ? '#fdecea' : '#fff';
+}
+
+async function rebuildDeck() {
+    // Wave 4 follow-up: rebuild the PPTX without re-running analysis.
+    // Uses the currently selected client on the Results tab; falls back to
+    // the Generate tab's selection. Reads the persisted run_report.json on
+    // the backend and feeds it to deck_builder.build_deck.
+    const csm = document.getElementById('gCsmSel')?.value;
+    const month = document.getElementById('gMonthSel')?.value;
+    const clientSel = document.getElementById('rClientSel') || document.getElementById('gClientSel');
+    const clientId = clientSel?.value;
+    const msg = document.getElementById('deckShapeMsg');
+    if (!csm || !month || !clientId) {
+        msg.textContent = 'Pick a client/period on the Generate tab first (used to locate the analysis dir).';
+        return;
+    }
+    const btn = document.getElementById('deckShapeRebuildBtn');
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Rebuilding...';
+    msg.textContent = `Rebuilding deck for ${clientId} (${csm} / ${month})...`;
+    try {
+        const r = await fetch(`/api/rebuild_deck/${encodeURIComponent(csm)}/${encodeURIComponent(month)}/${encodeURIComponent(clientId)}`,
+            {method: 'POST', headers: {'Content-Type': 'application/json'}});
+        if (!r.ok) {
+            const t = await r.text();
+            msg.textContent = 'Rebuild failed: ' + t;
+            return;
+        }
+        const data = await r.json();
+        msg.innerHTML = `Deck rebuilt at <code>${data.deck_dir || ''}</code>. ` +
+            `Re-open the .pptx to see the new shape.`;
+    } catch (err) {
+        msg.textContent = 'Rebuild error: ' + err.message;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
 }
 
 async function saveDeckShape() {
