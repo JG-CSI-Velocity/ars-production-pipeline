@@ -39,7 +39,11 @@ else:
     ax.set_title("Business Merchant Lifecycle by Month",
                  fontsize=26, fontweight='bold',
                  color=GEN_COLORS['dark_text'], pad=35, loc='left')
-    ax.text(0.0, 1.02, "New entrants, continuing partners, and merchant attrition (business accounts)",
+    # Subtitle now lists all four plotted series (audit flagged Returning
+    # was missing); see analogous fix in merchant/09_merchant_lifecycle.
+    ax.text(0.0, 1.02,
+            "New, returning, continuing, and lost merchants by month "
+            "(business accounts)",
             transform=ax.transAxes, fontsize=15,
             color=GEN_COLORS['muted'], style='italic')
 
