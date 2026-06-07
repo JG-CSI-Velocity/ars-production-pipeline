@@ -179,23 +179,82 @@ def _read_file(path: Path) -> pd.DataFrame:
         try:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
-                # Copy to local temp file to avoid network I/O penalty.
-                # openpyxl reads .xlsx via random-access ZIP -- brutal over network.
+                # Wave 4 (CSM speed): keyed cache so a second run of the same
+                # client in one session skips the network copy. Key = (mtime, size).
+                # On cache hit, openpyxl reads the warm local copy -- ~15s instead of
+                # ~3-5 min over the M: share.
+                cached = _odd_cache_get(path)
+                if cached is not None:
+                    logger.info(
+                        "Cache hit: reusing local copy of {name}", name=path.name
+                    )
+                    return pd.read_excel(cached)
                 with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                     tmp_path = Path(tmp.name)
                 logger.info("Copying {name} to local temp for faster read...", name=path.name)
                 shutil.copy2(path, tmp_path)
                 logger.info("Copy done ({mb:.1f} MB). Reading...", mb=file_size / 1024 / 1024)
-                try:
-                    return pd.read_excel(tmp_path)
-                finally:
-                    tmp_path.unlink(missing_ok=True)
+                _odd_cache_put(path, tmp_path)
+                # Do NOT unlink: cache reuses the file across runs in the same session.
+                return pd.read_excel(tmp_path)
         except ValueError as exc:
             raise DataError(
                 f"Cannot read Excel file: {exc}",
                 detail={"file": str(path)},
             ) from exc
     return pd.read_csv(path)
+
+
+# ---------------------------------------------------------------------------
+# ODD temp-copy cache (Wave 4)
+# ---------------------------------------------------------------------------
+
+# Maps (source path string, mtime, size) -> local temp copy Path.
+# Process-scoped: a fresh `python run.py` invocation starts empty. UI keeps the
+# server running across runs, so cache hits accumulate over the day.
+_ODD_CACHE: dict[tuple[str, float, int], Path] = {}
+
+
+def _odd_cache_key(src: Path) -> tuple[str, float, int]:
+    stat = src.stat()
+    return (str(src), stat.st_mtime, stat.st_size)
+
+
+def _odd_cache_get(src: Path) -> Path | None:
+    """Return a cached local copy if one exists and the source hasn't changed."""
+    try:
+        key = _odd_cache_key(src)
+    except OSError:
+        return None
+    cached = _ODD_CACHE.get(key)
+    if cached is not None and cached.exists():
+        return cached
+    # Source changed -- invalidate any old entry for this path.
+    for k in [k for k in _ODD_CACHE if k[0] == str(src)]:
+        old = _ODD_CACHE.pop(k, None)
+        if old is not None:
+            try:
+                old.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return None
+
+
+def _odd_cache_put(src: Path, local_copy: Path) -> None:
+    try:
+        _ODD_CACHE[_odd_cache_key(src)] = local_copy
+    except OSError:
+        pass
+
+
+def odd_cache_clear() -> None:
+    """Drop every cached copy. Test hook + manual recovery."""
+    for p in list(_ODD_CACHE.values()):
+        try:
+            p.unlink(missing_ok=True)
+        except OSError:
+            pass
+    _ODD_CACHE.clear()
 
 
 def _find_data_file(directory: Path) -> str:

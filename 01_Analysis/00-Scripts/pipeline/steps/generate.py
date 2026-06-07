@@ -27,6 +27,12 @@ class SlideStatus:
     has_excel: bool
     error: str = ""
     title: str = ""
+    # Wave 4 follow-up: persist the chart_path so a deck-only rebuild
+    # (or any post-hoc tooling) can find the PNG without re-running
+    # the analytics module. Empty when has_chart is False.
+    chart_path: str = ""
+    layout_index: int = 8
+    slide_type: str = "screenshot"
 
 
 def _build_run_report(ctx: PipelineContext) -> list[SlideStatus]:
@@ -40,6 +46,9 @@ def _build_run_report(ctx: PipelineContext) -> list[SlideStatus]:
                 module_id = mid
                 break
 
+        chart_path_str = ""
+        if result.chart_path and result.chart_path.exists():
+            chart_path_str = str(result.chart_path)
         report.append(
             SlideStatus(
                 slide_id=result.slide_id,
@@ -49,9 +58,58 @@ def _build_run_report(ctx: PipelineContext) -> list[SlideStatus]:
                 has_excel=bool(result.excel_data),
                 error=result.error or "",
                 title=result.title,
+                chart_path=chart_path_str,
+                layout_index=getattr(result, "layout_index", 8),
+                slide_type=getattr(result, "slide_type", "screenshot"),
             )
         )
     return report
+
+
+def rebuild_deck_from_report(ctx: PipelineContext) -> None:
+    """Rebuild the PPTX from a previously persisted run_report.json.
+
+    Skips analyze + Excel writes; reconstructs minimal AnalysisResult stubs
+    from the saved (slide_id, chart_path, title) tuples and hands them to
+    build_deck. Used by POST /api/rebuild_deck after the operator edits
+    SLIDE_MANIFEST.xlsx via the in-UI Deck Shape editor.
+
+    Returns silently; deck path is added to ctx.export_log on success.
+    """
+    report_path = ctx.paths.base_dir / f"{ctx.client.client_id}_{ctx.client.month}_run_report.json"
+    if not report_path.exists():
+        logger.warning("rebuild_deck_from_report: {p} not found", p=report_path)
+        return
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    slides = payload.get("slides") or []
+
+    from ars_analysis.analytics.base import AnalysisResult
+    from pathlib import Path as _Path
+
+    stubs: list[AnalysisResult] = []
+    for s in slides:
+        if not s.get("has_chart"):
+            continue
+        chart = s.get("chart_path") or ""
+        if not chart or not _Path(chart).exists():
+            continue
+        stubs.append(AnalysisResult(
+            slide_id=s.get("slide_id", ""),
+            title=s.get("title", ""),
+            chart_path=_Path(chart),
+            success=True,
+            layout_index=int(s.get("layout_index") or 8),
+            slide_type=s.get("slide_type") or "screenshot",
+        ))
+
+    ctx.all_slides = stubs
+    # Replay the slide_id keyed results so spec rendering still works.
+    ctx.results = ctx.results or {}
+    logger.info("rebuild_deck_from_report: loaded {n} slides from {p}", n=len(stubs), p=report_path)
+    if not stubs:
+        return
+    _build_deck(ctx)
+    _build_aux_deck(ctx)
 
 
 def _save_run_report(ctx: PipelineContext, report: list[SlideStatus]) -> None:
