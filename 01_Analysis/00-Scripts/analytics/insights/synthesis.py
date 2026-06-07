@@ -75,62 +75,74 @@ def _revenue_gap(ctx: PipelineContext) -> list[AnalysisResult]:
     save_to = ctx.paths.charts_dir / "s1_revenue_gap.png"
     ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
 
-    with chart_figure(figsize=(16, 8), save_path=save_to) as (fig, ax):
-        # Horizontal waterfall
-        categories = [
-            "Debit Card Gap",
-            "Reg E Gap",
-            "Total Gap",
-            f"Realistic ({CAPTURE_RATE:.0%})",
-        ]
-        values = [debit_gap, rege_gap, total_gap, realistic]
-        colors = [NEGATIVE, NEGATIVE, "#1E3D59", POSITIVE]
+    # Chart-cache adoption #4 (S1 Revenue Gap waterfall).
+    from ars_analysis.charts.cache import cached_chart, fingerprint_df
 
-        bars = ax.barh(
-            categories[::-1],
-            [v for v in values[::-1]],
-            color=colors[::-1],
-            edgecolor=BAR_EDGE,
-            alpha=BAR_ALPHA,
-            height=0.5,
-        )
-        for bar, val in zip(bars, values[::-1]):
-            cx = bar.get_width()
-            cy = bar.get_y() + bar.get_height() / 2
-            ax.text(
-                cx + total_gap * 0.02,
-                cy,
-                f"${val:,.0f}",
-                ha="left",
-                va="center",
-                fontsize=DATA_LABEL_SIZE,
-                fontweight="bold",
+    cache_key = fingerprint_df(
+        df=None,
+        extras={
+            "client": getattr(ctx.client, "client_id", ""),
+            "month": getattr(ctx.client, "month", ""),
+            "style": "ars.mplstyle:v3",
+            "debit_gap": round(float(debit_gap or 0), 2),
+            "rege_gap": round(float(rege_gap or 0), 2),
+            "total_gap": round(float(total_gap or 0), 2),
+            "realistic": round(float(realistic or 0), 2),
+            "v1_accts_without": int(v1.get("accts_without", 0) or 0),
+            "v2_accts_without": int(v2.get("accts_without", 0) or 0),
+            "capture_rate": CAPTURE_RATE,
+        },
+    )
+
+    def _draw(out_path):
+        with chart_figure(figsize=(16, 8), save_path=out_path) as (fig, ax):
+            categories = [
+                "Debit Card Gap",
+                "Reg E Gap",
+                "Total Gap",
+                f"Realistic ({CAPTURE_RATE:.0%})",
+            ]
+            values = [debit_gap, rege_gap, total_gap, realistic]
+            colors = [NEGATIVE, NEGATIVE, "#1A1A1A", POSITIVE]
+
+            bars = ax.barh(
+                categories[::-1],
+                [v for v in values[::-1]],
+                color=colors[::-1],
+                edgecolor=BAR_EDGE,
+                alpha=BAR_ALPHA,
+                height=0.5,
             )
+            for bar, val in zip(bars, values[::-1]):
+                cx = bar.get_width()
+                cy = bar.get_y() + bar.get_height() / 2
+                ax.text(
+                    cx + total_gap * 0.02, cy,
+                    f"${val:,.0f}",
+                    ha="left", va="center",
+                    fontsize=DATA_LABEL_SIZE, fontweight="bold",
+                )
 
-        ax.set_title(
-            "The Revenue Gap: Untapped Opportunity",
-            fontsize=24,
-            fontweight="bold",
-            pad=15,
-        )
-        ax.set_xlabel("Annual Revenue ($)", fontsize=20)
-        ax.xaxis.set_major_formatter(FuncFormatter(lambda x, p: f"${x:,.0f}"))
-        ax.tick_params(labelsize=TICK_SIZE)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
+            ax.set_title(
+                "The Revenue Gap: Untapped Opportunity",
+                fontsize=24, fontweight="bold", pad=15,
+            )
+            ax.set_xlabel("Annual Revenue ($)", fontsize=20)
+            ax.xaxis.set_major_formatter(FuncFormatter(lambda x, p: f"${x:,.0f}"))
+            ax.tick_params(labelsize=TICK_SIZE)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
 
-        # Annotation
-        ax.text(
-            total_gap * 0.5,
-            -0.8,
-            f"{v1['accts_without']:,} accounts without debit "
-            f"+ {v2['accts_without']:,} without Reg E",
-            ha="center",
-            fontsize=14,
-            color="#666",
-            transform=ax.get_xaxis_transform(),
-        )
-        fig.tight_layout()
+            ax.text(
+                total_gap * 0.5, -0.8,
+                f"{v1['accts_without']:,} accounts without debit "
+                f"+ {v2['accts_without']:,} without Reg E",
+                ha="center", fontsize=14, color="#666",
+                transform=ax.get_xaxis_transform(),
+            )
+            fig.tight_layout()
+
+    cached_chart(save_to, cache_key, _draw)
 
     ctx.results["impact_s1"] = {
         "debit_gap": debit_gap,
