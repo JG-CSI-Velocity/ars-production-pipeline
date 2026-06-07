@@ -264,6 +264,8 @@ class DCTRPenetration(AnalysisModule):
                     f"Recent: {ins['recent_dctr']:.1%} | "
                     f"Accounts: {ins['total_accounts']:,}"
                 ),
+                denominator_label="Eligible",
+                denominator_n=int(ins.get("total_accounts") or 0),
             )
         ]
 
@@ -315,6 +317,11 @@ class DCTRPenetration(AnalysisModule):
                 title="Debit Card Take Rate: Open vs Eligible",
                 excel_data={"Comparison": comparison},
                 notes=f"Open: {open_ins['overall_dctr']:.1%} | Eligible: {hist_ins['overall_dctr']:.1%} | Gap: {diff:+.1%}",
+                # DCTR-2 is the methodology slide -- the ONLY slide where Open is
+                # legitimately the primary denominator framing. Audit's
+                # OPEN_ALLOWLIST whitelists it.
+                denominator_label="Open",
+                denominator_n=int(len(oa) or 0),
             )
         ]
 
@@ -358,6 +365,8 @@ class DCTRPenetration(AnalysisModule):
                 chart_path=chart_path,
                 excel_data={"Monthly": monthly},
                 notes=f"L12M: {l12m_ins['dctr']:.1%} ({l12m_ins['total_accounts']:,} accts) | vs Overall: {comp:+.1%}",
+                denominator_label="Eligible",
+                denominator_n=int(l12m_ins.get("total_accounts") or 0),
             )
         ]
 
