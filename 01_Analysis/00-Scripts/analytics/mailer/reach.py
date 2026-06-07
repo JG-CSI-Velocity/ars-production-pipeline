@@ -396,18 +396,58 @@ class CumulativeReach(AnalysisModule):
         results: list[AnalysisResult] = []
         ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
 
-        # A17.1 -- Cumulative Members Reached
+        # A17.1 -- Cumulative Members Reached (chart-cache adoption #5)
         reach_data = _cumulative_reach(ctx.data, pairs)
         if reach_data:
             save_to = ctx.paths.charts_dir / "a17_1_cumulative_reach.png"
-            with chart_figure(figsize=(14, 8), save_path=save_to) as (_fig, ax):
-                insight = _draw_cumulative_reach(ax, reach_data)
+
+            from ars_analysis.charts.cache import cached_chart, fingerprint_df
+
+            # _draw_cumulative_reach returns an insight string from inside the
+            # context. Capture it via a closure cell so we can populate
+            # AnalysisResult.notes whether or not the cache fires.
+            _insight_holder: list[str] = []
+
+            def _draw(out_path):
+                with chart_figure(figsize=(14, 8), save_path=out_path) as (_fig, ax):
+                    _insight_holder.append(_draw_cumulative_reach(ax, reach_data))
+
+            cache_key = fingerprint_df(
+                df=None,
+                extras={
+                    "client": getattr(ctx.client, "client_id", ""),
+                    "month": getattr(ctx.client, "month", ""),
+                    "style": "ars.mplstyle:v3",
+                    "chart": "a17_1_cumulative_reach:v1",
+                    # Reach data is a list of monthly dicts; fingerprint the
+                    # final cumulative numbers plus length (the chart is a
+                    # cumulative trajectory).
+                    "n_months": len(reach_data),
+                    "final_cum_mailed": int(reach_data[-1].get("cum_mailed", 0)),
+                    "final_cum_responded": int(reach_data[-1].get("cum_responded", 0)),
+                    "first_cum_mailed": int(reach_data[0].get("cum_mailed", 0)),
+                },
+            )
+
+            hit = cached_chart(save_to, cache_key, _draw)
+            if hit:
+                # Cache hit -- _draw was skipped, so derive insight from the
+                # cumulative trajectory directly. Same shape as the original
+                # _draw_cumulative_reach insight (preserves notes for downstream).
+                final = reach_data[-1]
+                _insight = (
+                    f"Reached {final['cum_mailed']:,} cumulative mailed; "
+                    f"{final['cum_responded']:,} responses over {len(reach_data)} months."
+                )
+            else:
+                _insight = _insight_holder[0] if _insight_holder else ""
+
             results.append(
                 AnalysisResult(
                     slide_id="A17.1",
                     title="Cumulative Program Reach",
                     chart_path=save_to,
-                    notes=insight,
+                    notes=_insight,
                 )
             )
 
