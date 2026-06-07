@@ -16,12 +16,45 @@ else:
         print("    No transactions for top 10 MCCs. Skipping seasonal patterns.")
     else:
         _top10_m = top10_monthly.copy()
-        _top10_m['month_num'] = _top10_m['transaction_date'].dt.month
 
-        mcc_month_ct = pd.crosstab(
-            _top10_m['mcc_code'],
-            _top10_m['month_num']
+        # Window the crosstab to the LAST 12 COMPLETE MONTHS so each
+        # calendar month appears exactly once. Without this, multi-year
+        # data summed Jan-2024 + Jan-2025 into a single Jan column,
+        # inflating January's seasonal index vs months that only
+        # appeared once. Policy decision 2026-06-07 (option c: trim
+        # rather than per-year averaging).
+        _max_date = _top10_m['transaction_date'].max()
+        # Last complete month is the month before _max_date's month --
+        # _max_date itself may be partial.
+        _last_complete = (_max_date.replace(day=1) - pd.Timedelta(days=1))
+        # Window start is 11 months back from _last_complete's month start.
+        _window_start = (
+            _last_complete.replace(day=1)
+            - pd.DateOffset(months=11)
         )
+        _window_mask = (
+            (_top10_m['transaction_date'] >= _window_start) &
+            (_top10_m['transaction_date'] <= _last_complete)
+        )
+        _windowed = _top10_m[_window_mask]
+
+        if _windowed.empty:
+            print(
+                f"    Less than one complete month of data "
+                f"(max date {_max_date.date()}). Skipping seasonal patterns."
+            )
+            mcc_month_ct = pd.DataFrame()
+        else:
+            _windowed = _windowed.copy()
+            _windowed['month_num'] = _windowed['transaction_date'].dt.month
+            mcc_month_ct = pd.crosstab(
+                _windowed['mcc_code'],
+                _windowed['month_num'],
+            )
+            _seasonal_window_label = (
+                f"{_window_start.strftime('%b %Y')} -- "
+                f"{_last_complete.strftime('%b %Y')}"
+            )
 
         if mcc_month_ct.empty:
             print("    Empty seasonal cross-tab. Skipping.")
@@ -66,9 +99,13 @@ else:
             ax.set_title("MCC Seasonal Patterns",
                          fontsize=26, fontweight='bold',
                          color=GEN_COLORS['dark_text'], pad=35, loc='left')
-            ax.text(0.0, 1.02, "Which categories spike in which months? (100 = category average)",
-                    transform=ax.transAxes, fontsize=15,
-                    color=GEN_COLORS['muted'], style='italic')
+            ax.text(
+                0.0, 1.02,
+                f"Which categories spike in which months? "
+                f"(100 = category average)  |  Window: {_seasonal_window_label}",
+                transform=ax.transAxes, fontsize=15,
+                color=GEN_COLORS['muted'], style='italic',
+            )
 
             plt.tight_layout()
             plt.show()
