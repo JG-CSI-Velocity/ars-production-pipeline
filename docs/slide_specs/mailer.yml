@@ -5,11 +5,12 @@
 # campaign-targeting filter on the numerator framing, not a denominator narrowing.
 #
 # Per-month dynamic specs: mailer has one slide per month
-# (A13.Jan26, A13.Feb26, A13.Mar26, ...). Authoring a row per month here would
-# rot quickly. Instead the aggregate slide is authored (renders every run),
-# plus a generator-prefix MAILER-MONTH-* that deck_builder.py resolves by
-# walking mailer monthly results. The prefix is documented for future use;
-# generator wiring is W3 final follow-up.
+# (A13.Jan26, A13.Feb26, A13.Mar26, ...). Instead of authoring a row per
+# month, the bottom of this file declares ONE template entry keyed by
+# `A13.{month}`. slide_spec.get_spec sees the `{month}` placeholder, treats
+# the entry as a regex template, and renders one resolved SlideSpec per
+# matching slide_id at lookup time. The captured `{month}` is injected as
+# an additional input so action_title / callout can reference it directly.
 
 MAILER-MAIN-AGG:
   layout: TWO_CONTENT
@@ -45,3 +46,25 @@ MAILER-MAIN-REACH:
     tertiary: "{mailed_resp:,} mailer-responders + {mailed_non_resp:,} mailer-non-responders"
   footer:
     source: "Source: {client_name} ODD, {month} | All debit holders within Eligible base"
+
+# Per-month template. Matches every A13.Jan26, A13.Feb26, ... slide_id at
+# lookup time. {month} is captured from the slide_id and exposed as a string
+# input so the action_title and footer can reference it. Each monthly bucket
+# in ctx.results.monthly_summaries is keyed by the same month token.
+"A13.{month}":
+  layout: TWO_CONTENT
+  components: [A13.month]
+  action_title: "{month_label} mailer: {total_mailed:,} mailed, {overall_rate:.1f}% response"
+  inputs:
+    # {month} is injected by get_spec from the slide_id capture (e.g. "Jan26").
+    month_label: month        # plain pass-through; future: format prettier
+    total_mailed: ctx.results.monthly_summaries.{month}.total_mailed
+    total_resp:   ctx.results.monthly_summaries.{month}.total_resp
+    overall_rate: ctx.results.monthly_summaries.{month}.overall_rate
+  denominator_label: Eligible
+  callout:
+    hero: "{overall_rate:.1f}%"
+    sub: "{month} response rate"
+    tertiary: "{total_resp:,} respondents across {total_mailed:,} mailed"
+  footer:
+    source: "Source: {client_name} ODD, {month_label} | Eligible Mailable subset"
