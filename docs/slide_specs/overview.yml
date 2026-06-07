@@ -1,0 +1,21 @@
+# Overview section slide specs.
+# Account-composition framing for the opening slide. The "Eligible vs Open"
+# story here is the same pivot point as DCTR-MAIN-2 -- this slide sets the
+# expectation that every subsequent rate is Eligible-anchored unless flagged.
+
+OVERVIEW-MAIN-1:
+  layout: TWO_CONTENT
+  components: [A1]
+  action_title: "{open_total:,} open accounts; {elig_pct:.0%} pass eligibility filters ({elig_total:,})"
+  inputs:
+    open_total: ctx.results.dctr_2.insights.open_total
+    elig_total: ctx.results.dctr_2.insights.eligible_total
+    elig_pct: (elig_total or 0) / (open_total or 1)
+  # Overview shows both for orientation; primary downstream denominator is Eligible.
+  denominator_label: Eligible
+  callout:
+    hero: "{elig_total:,}"
+    sub: "Eligible accounts (primary base)"
+    tertiary: "{open_total:,} open across the portfolio; eligible filter narrows by stat + product code"
+  footer:
+    source: "Source: {client_name} ODD, {month}"

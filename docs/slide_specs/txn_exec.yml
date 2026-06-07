@@ -1,0 +1,9 @@
+# Transaction executive scorecard slide specs.
+#
+# DEFERRED: Same as competition -- TXN sections use numbered scripts
+# (e.g. analytics/executive/01_*.py..05_action_roadmap.py) without ctx.results
+# dict population. Wiring specs here first needs the same TXN-results adapter.
+#
+# Roadmap: when the adapter lands, author TXN-EXEC-MAIN-1 (executive KPI
+# scorecard, sourced from executive/01..04) and TXN-EXEC-MAIN-2 (action
+# roadmap from executive/05_action_roadmap.py).

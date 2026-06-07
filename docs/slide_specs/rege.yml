@@ -1,0 +1,40 @@
+# Reg E section slide specs.
+# Per the 4-layer denominator law (project_denominator_framework.md), Reg E
+# is personal-only by regulation. Base = Eligible Personal. NEVER further
+# narrow to "Eligible Personal ∩ has_debit" (that was the bug fixed earlier
+# in rege/_helpers.py).
+
+REGE-MAIN-1:
+  layout: TWO_CONTENT
+  components: [A8.1, A8.2]
+  action_title: "Reg E opt-in of {opt_in_rate:.0%} among Eligible Personal accounts; {trend_word} {trend_pp:+.0f}pp L12M"
+  inputs:
+    opt_in_rate: ctx.results.reg_e_1.insights.opt_in_rate
+    overall_total: ctx.results.reg_e_1.insights.total_accounts
+    l12m_rate: ctx.results.reg_e_2.insights.l12m_opt_in
+    trend_pp: (l12m_rate - opt_in_rate) * 100 if l12m_rate and opt_in_rate else 0
+    trend_word: "'accelerating' if (trend_pp or 0) > 0 else ('flat' if abs(trend_pp or 0) < 1 else 'softening')"
+  denominator_label: Eligible Personal
+  callout:
+    hero: "{opt_in_rate:.0%}"
+    sub: "Reg E opt-in rate among Eligible Personal"
+    tertiary: "{overall_total:,} accounts in the eligible base"
+  footer:
+    source: "Source: {client_name} ODD, {month} | Eligible Personal only"
+
+REGE-MAIN-2:
+  layout: TWO_CONTENT
+  components: [A8.12, A8.3]
+  action_title: "Monthly opt-in trends: {peak_month} peak of {peak_rate:.0%}; {valley_month} low of {valley_rate:.0%}"
+  inputs:
+    peak_month: ctx.results.reg_e_4.insights.peak_month
+    peak_rate: ctx.results.reg_e_4.insights.peak_rate
+    valley_month: ctx.results.reg_e_4.insights.valley_month
+    valley_rate: ctx.results.reg_e_4.insights.valley_rate
+  denominator_label: Eligible Personal
+  callout:
+    hero: "{peak_rate:.0%}"
+    sub: "highest single-month opt-in"
+    tertiary: "Monthly trend isolates campaign + onboarding-flow impact"
+  footer:
+    source: "Source: {client_name} ODD, {month} | Eligible Personal only"

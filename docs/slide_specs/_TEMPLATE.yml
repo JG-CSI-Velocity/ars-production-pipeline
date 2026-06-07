@@ -1,0 +1,26 @@
+# Slide spec template -- copy to <section>.yml and replace placeholders.
+# Loader: 01_Analysis/00-Scripts/output/slide_spec.py
+#
+# Validation hooks (Wave 1 + Wave 3):
+#   - denominator_label must be one of: Eligible / Eligible Personal /
+#     Eligible Business / Open. Open is only legal on whitelisted slides
+#     (currently DCTR-MAIN-2 only).
+#   - action_title is the headline. Format placeholders use Python format-spec
+#     syntax: {name:.0%} for percent, {name:,.1f}M for currency, etc.
+#   - inputs map declared names to ctx.results paths or expressions. They
+#     evaluate in declaration order, so later inputs can reference earlier
+#     ones.
+
+SAMPLE-SLIDE-ID:
+  layout: TWO_CONTENT                 # one of the layouts deck_builder supports
+  components: [A1.1]                  # chart_ids that contribute to this slide
+  action_title: "Headline with a {metric:.0%} number in it"
+  inputs:
+    metric: ctx.results.module_id.insights.rate
+  denominator_label: Eligible         # 4-layer law
+  callout:
+    hero: "${value:,.1f}M"
+    sub:  "annual uplift"
+    tertiary: "Closing the gap drives the hero number"
+  footer:
+    source: "Source: {client_name} ODD, {month}"

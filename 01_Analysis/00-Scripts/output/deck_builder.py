@@ -91,6 +91,15 @@ class SlideContent:
     bullets: list[str] | None = None
     layout_index: int = 8  # LAYOUT_CUSTOM (default for most slides)
     notes_text: str | None = None
+    # Wave 3 (slide spec system): action-slide anatomy from docs/slide_specs/*.yml.
+    # When populated, the deck builder renders callout box + footer band per
+    # SLIDE_DESIGN.md. When empty, falls back to legacy screenshot layout.
+    callout_hero: str = ""
+    callout_sub: str = ""
+    callout_tertiary: str = ""
+    footer_source: str = ""
+    footer_confidentiality: str = ""
+    denominator_label: str = ""
 
 
 # =============================================================================
@@ -510,6 +519,10 @@ class DeckBuilder:
         Charts already have titles rendered by matplotlib, so we skip
         the slide title placeholder to avoid duplication. The chart
         fills most of the slide with a small margin.
+
+        Wave 3 follow-up: when SlideContent carries callout_hero / footer_source
+        (populated by output/slide_spec.render_spec), overlay the callout box
+        and footer band per SLIDE_DESIGN.md anatomy.
         """
         # Remove all placeholders -- chart image IS the content
         for ph in slide.placeholders:
@@ -518,19 +531,140 @@ class DeckBuilder:
             except Exception:
                 pass
 
-        # Position chart to fill the slide with small margins
+        has_callout = bool(content.callout_hero or content.callout_sub)
+        has_footer = bool(content.footer_source)
+
+        # Make room for callout + footer when present.
         left = Inches(0.4)
         top = Inches(0.3)
         width = Inches(12.5)
-        max_height = Inches(6.8)
+        max_height = Inches(6.0 if (has_callout or has_footer) else 6.8)
 
         if content.images and Path(content.images[0]).exists():
             self._add_fitted_picture(slide, content.images[0], left, top, width, max_height=max_height)
+
+        if has_callout:
+            self._draw_callout_box(slide, content)
+        if has_footer:
+            self._draw_footer_band(slide, content)
 
         # Add speaker notes with the title text for reference
         if content.notes_text or content.title:
             notes = slide.notes_slide
             notes.notes_text_frame.text = content.notes_text or content.title
+
+    def _draw_callout_box(self, slide, content: SlideContent) -> None:
+        """Draw the spec-driven callout box at the bottom-center of the slide.
+
+        Layout per SLIDE_DESIGN.md callout anatomy:
+          - Hero number 44pt bold accent (CSI orange)
+          - Sub label 14pt semibold navy
+          - Tertiary line 11pt regular text
+        Box has an accent-colored left border so the eye reads it as a
+        consultant-style sidebar.
+        """
+        from pptx.dml.color import RGBColor
+        from pptx.enum.shapes import MSO_SHAPE
+        from pptx.util import Emu, Inches, Pt
+
+        try:
+            from ars_analysis.shared.brand import BRAND
+        except Exception:
+            # Fallback to CSI canonicals if brand isn't importable
+            BRAND = {"navy": "#1A1A1A", "accent": "#F15D22", "text": "#222222"}
+
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
+
+        # Geometry: 12" wide × 1.2" tall, centered horizontally, just below chart.
+        left = Inches(0.6)
+        top = Inches(6.0)
+        width = Inches(12.1)
+        height = Inches(1.15)
+        box = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
+        box.fill.solid()
+        box.fill.fore_color.rgb = _hex("#FFFFFF")
+        # Accent left border
+        box.line.color.rgb = _hex(BRAND["accent"])
+        box.line.width = Pt(3)
+
+        # Stack hero / sub / tertiary inside the box via a text frame.
+        tf = box.text_frame
+        tf.margin_left = Inches(0.25)
+        tf.margin_right = Inches(0.25)
+        tf.margin_top = Inches(0.10)
+        tf.margin_bottom = Inches(0.10)
+        tf.word_wrap = True
+
+        # Hero (first paragraph already exists)
+        p = tf.paragraphs[0]
+        p.text = content.callout_hero or ""
+        for run in p.runs:
+            run.font.name = "Montserrat"
+            run.font.size = Pt(28)
+            run.font.bold = True
+            run.font.color.rgb = _hex(BRAND["accent"])
+
+        if content.callout_sub:
+            p2 = tf.add_paragraph()
+            p2.text = content.callout_sub
+            for run in p2.runs:
+                run.font.name = "Montserrat"
+                run.font.size = Pt(14)
+                run.font.bold = True
+                run.font.color.rgb = _hex(BRAND["navy"])
+
+        if content.callout_tertiary:
+            p3 = tf.add_paragraph()
+            p3.text = content.callout_tertiary
+            for run in p3.runs:
+                run.font.name = "Montserrat"
+                run.font.size = Pt(11)
+                run.font.color.rgb = _hex(BRAND.get("text", "#222222"))
+
+    def _draw_footer_band(self, slide, content: SlideContent) -> None:
+        """Draw the spec-driven footer band at the very bottom of the slide.
+
+        Two short lines: source (italic) and confidentiality. Both 9pt muted.
+        """
+        from pptx.dml.color import RGBColor
+        from pptx.util import Inches, Pt
+
+        try:
+            from ars_analysis.shared.brand import BRAND
+        except Exception:
+            BRAND = {"text_muted": "#777777"}
+
+        muted = BRAND.get("text_muted", "#777777").lstrip("#")
+        muted_rgb = RGBColor(int(muted[0:2], 16), int(muted[2:4], 16), int(muted[4:6], 16))
+
+        left = Inches(0.6)
+        top = Inches(7.25)
+        width = Inches(12.1)
+        height = Inches(0.35)
+        tb = slide.shapes.add_textbox(left, top, width, height)
+        tf = tb.text_frame
+        tf.word_wrap = True
+        tf.margin_left = Inches(0)
+        tf.margin_top = Inches(0)
+        tf.margin_bottom = Inches(0)
+
+        p = tf.paragraphs[0]
+        p.text = content.footer_source
+        for run in p.runs:
+            run.font.name = "Montserrat"
+            run.font.size = Pt(9)
+            run.font.italic = True
+            run.font.color.rgb = muted_rgb
+
+        if content.footer_confidentiality:
+            p2 = tf.add_paragraph()
+            p2.text = content.footer_confidentiality
+            for run in p2.runs:
+                run.font.name = "Montserrat"
+                run.font.size = Pt(8)
+                run.font.color.rgb = muted_rgb
 
     def _build_screenshot_kpi_slide(self, slide, content: SlideContent) -> None:
         """Build slide with image and KPI callouts.
@@ -1606,6 +1740,39 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
         title = generate_headline(slide_id, insights, fallback_title=title)
         notes_text = generate_notes(slide_id, title, insights, kpis=kpis)
 
+    # Wave 3: spec-driven override. When a YAML spec exists for this slide_id,
+    # render its action_title / callout / footer from ctx.results and use them
+    # in place of the analytics-supplied title. Fall through silently when no
+    # spec is authored (so legacy behavior holds for un-spec'd sections).
+    callout_hero = callout_sub = callout_tertiary = ""
+    footer_source = footer_confidentiality = ""
+    denominator_label = ""
+    if slide_id and ctx_results is not None:
+        try:
+            from ars_analysis.output import slide_spec as _spec
+
+            section = _spec_section_for(slide_id)
+            spec_obj = _spec.get_spec(section, slide_id) if section else None
+            if spec_obj is not None and spec_obj.action_title:
+                rendered = _spec.render_spec(spec_obj, ctx_results, getattr(_CURRENT_CLIENT, "info", None))
+                if rendered.action_title and "{" not in rendered.action_title:
+                    title = rendered.action_title
+                callout_hero = rendered.callout_hero
+                callout_sub = rendered.callout_sub
+                callout_tertiary = rendered.callout_tertiary
+                footer_source = rendered.footer_source
+                footer_confidentiality = rendered.footer_confidentiality
+                denominator_label = rendered.denominator_label
+                if rendered.render_warnings:
+                    from loguru import logger as _log
+                    _log.debug(
+                        "slide_spec {sid} render warnings: {w}",
+                        sid=slide_id, w=rendered.render_warnings,
+                    )
+        except Exception as _exc:  # pragma: no cover -- diagnostic only
+            from loguru import logger as _log
+            _log.debug("slide_spec render skipped for {sid}: {e}", sid=slide_id, e=_exc)
+
     return SlideContent(
         slide_type=slide_type,
         title=title,
@@ -1614,7 +1781,45 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
         kpis=kpis,
         layout_index=layout_idx,
         notes_text=notes_text,
+        callout_hero=callout_hero,
+        callout_sub=callout_sub,
+        callout_tertiary=callout_tertiary,
+        footer_source=footer_source,
+        footer_confidentiality=footer_confidentiality,
+        denominator_label=denominator_label,
     )
+
+
+def _spec_section_for(slide_id: str) -> str:
+    """Map a slide_id to its YAML spec section. Returns '' when unknown."""
+    sid = slide_id.upper()
+    if sid.startswith("DCTR") or sid.startswith("A7"):
+        return "dctr"
+    if sid.startswith("REGE") or sid.startswith("A8"):
+        return "rege"
+    if sid.startswith("A9") or "ATTRITION" in sid:
+        return "attrition"
+    if sid.startswith("A11") or "VALUE" in sid:
+        return "value"
+    if sid.startswith("A12") or sid.startswith("A13") or sid.startswith("A14") or "MAILER" in sid:
+        return "mailer"
+    if sid.startswith("S") or "INSIGHTS" in sid or "DORMANT" in sid:
+        return "insights"
+    if sid.startswith("A1") or "OVERVIEW" in sid:
+        return "overview"
+    if "COMPETITION" in sid:
+        return "competition"
+    if "TXN" in sid:
+        return "txn_exec"
+    return ""
+
+
+# Per-thread/per-run client snapshot used by spec rendering for {client_name},
+# {month}, etc. Set by build_deck() at the start of a run; reset on completion.
+class _CurrentClient:
+    info: object | None = None
+
+_CURRENT_CLIENT = _CurrentClient()
 
 
 # =============================================================================
@@ -1752,6 +1957,8 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     # kept (they belong in the aux deck) while N-marked still drop.
     global _CURRENT_MANIFEST, _CURRENT_AUX_BUILD
     _CURRENT_AUX_BUILD = bool(getattr(ctx, "_aux_build", False))
+    # Wave 3: expose ctx.client to spec rendering for {client_name} / {month} templates.
+    _CURRENT_CLIENT.info = ctx.client
     if not _CURRENT_AUX_BUILD:
         _CURRENT_MANIFEST = load_manifest_decisions()
         logger.info(_CURRENT_MANIFEST.summary())

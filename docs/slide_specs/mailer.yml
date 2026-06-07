@@ -1,0 +1,47 @@
+# Mailer section slide specs.
+# Per the 4-layer law: mailer response rates anchor to the Eligible Mailable
+# subset within Eligible (open + eligible_stat + eligible_prod + mailable_status).
+# That base is still "Eligible" for labeling -- the mailable filter is a
+# campaign-targeting filter on the numerator framing, not a denominator narrowing.
+#
+# Per-month dynamic specs: mailer has one slide per month
+# (A13.Jan26, A13.Feb26, A13.Mar26, ...). Authoring a row per month here would
+# rot quickly. Instead the aggregate slide is authored (renders every run),
+# plus a generator-prefix MAILER-MONTH-* that deck_builder.py resolves by
+# walking mailer monthly results. The prefix is documented for future use;
+# generator wiring is W3 final follow-up.
+
+MAILER-MAIN-AGG:
+  layout: TWO_CONTENT
+  components: [A13.Agg]
+  action_title: "All-time mailer: {total_mailed:,} mailed, {overall_rate:.1f}% response"
+  inputs:
+    total_mailed: ctx.results.aggregate_summary.total_mailed
+    total_resp: ctx.results.aggregate_summary.total_resp
+    overall_rate: ctx.results.aggregate_summary.overall_rate
+  denominator_label: Eligible
+  callout:
+    hero: "{overall_rate:.1f}%"
+    sub: "aggregate response rate"
+    tertiary: "{total_resp:,} respondents across {total_mailed:,} mailed"
+  footer:
+    source: "Source: {client_name} ODD, {month} | Eligible Mailable subset"
+
+MAILER-MAIN-REACH:
+  layout: TWO_CONTENT
+  components: [A14.1]
+  action_title: "Mailer reach: {organic_share:.0%} organic, {mailed_share:.0%} mailer-touched"
+  inputs:
+    total_debit: ctx.results.market_reach.total_debit
+    organic: ctx.results.market_reach.organic
+    mailed_resp: ctx.results.market_reach.mailed_resp
+    mailed_non_resp: ctx.results.market_reach.mailed_non_resp
+    organic_share: organic / total_debit if total_debit else 0
+    mailed_share: (mailed_resp + mailed_non_resp) / total_debit if total_debit else 0
+  denominator_label: Eligible
+  callout:
+    hero: "{organic_share:.0%}"
+    sub: "debit holders acquired organically"
+    tertiary: "{mailed_resp:,} mailer-responders + {mailed_non_resp:,} mailer-non-responders"
+  footer:
+    source: "Source: {client_name} ODD, {month} | All debit holders within Eligible base"

@@ -1,0 +1,54 @@
+# Insights section slide specs.
+# The "S" slides synthesize the rest of the deck. Every rate referenced here
+# already comes from upstream modules that anchor to the Eligible layer
+# (Wave 1 audit enforces this), so the labels here are inherited rather than
+# re-declared per metric.
+
+INSIGHTS-MAIN-1:
+  layout: TWO_CONTENT
+  components: [S1]
+  action_title: "Total revenue gap of ${total_gap:,.0f}; ${realistic:,.0f} is realistically capturable"
+  inputs:
+    debit_gap: ctx.results.impact_s1.debit_gap
+    rege_gap: ctx.results.impact_s1.rege_gap
+    total_gap: ctx.results.impact_s1.total_gap
+    realistic: ctx.results.impact_s1.realistic_capture
+  denominator_label: Eligible
+  callout:
+    hero: "${realistic:,.0f}"
+    sub: "realistic annual capture"
+    tertiary: "Debit gap ${debit_gap:,.0f} + Reg E gap ${rege_gap:,.0f}"
+  footer:
+    source: "Source: {client_name} ODD, {month} | composite Eligible-base gaps"
+
+INSIGHTS-MAIN-6:
+  layout: TWO_CONTENT
+  components: [S6]
+  action_title: "Opportunity map: {top_count} highest-leverage branches account for {top_share:.0%} of upside"
+  inputs:
+    top_count: ctx.results.impact_s6.top_count
+    top_share: ctx.results.impact_s6.top_share
+    total_upside: ctx.results.impact_s6.total_upside
+  denominator_label: Eligible
+  callout:
+    hero: "${total_upside:,.0f}"
+    sub: "total mapped upside"
+    tertiary: "Focus campaigns at the top {top_count} branches"
+  footer:
+    source: "Source: {client_name} ODD, {month} | branch-level rollup of S1 + S2"
+
+INSIGHTS-MAIN-8:
+  layout: TWO_CONTENT
+  components: [S8]
+  action_title: "Action plan: {n_actions} initiatives totaling ${total:,.0f} in modeled annual impact"
+  inputs:
+    n_actions: ctx.results.impact_s8.n_actions
+    total: ctx.results.impact_s8.total_impact
+    top_action: ctx.results.impact_s8.top_action
+  denominator_label: Eligible
+  callout:
+    hero: "${total:,.0f}"
+    sub: "modeled annual impact"
+    tertiary: "Lead with: {top_action}"
+  footer:
+    source: "Source: {client_name} ODD, {month} | initiatives derived from S1-S7"
