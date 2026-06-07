@@ -76,7 +76,7 @@ None of the following are implemented:
 ### Spec gaps (still TBD in review doc)
 - **G1** TXN-only title text.
 - **G4** TXN-only slide budget target.
-- **`25_at_risk_accounts` label fix:** option (a) real account ID visible, or (b) synthetic + companion CSV export.
+- ~~**`25_at_risk_accounts` label fix:** option (a) real account ID visible, or (b) synthetic + companion CSV export.~~ — **Resolved 2026-06-07: option (a).** Applied to both 25 and 29.
 - **`24_segment_heatmap` implementation:** small-multiples vs unified grid.
 - **Section 9 (Campaign Analysis, 76 slides)** — entire block-level review pending.
 - **Section 7** — `01_config` / `02_identify` keep / strip decision.
