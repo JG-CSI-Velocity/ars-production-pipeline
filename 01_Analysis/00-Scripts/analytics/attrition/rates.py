@@ -76,37 +76,52 @@ def _overall(ctx: PipelineContext) -> list[AnalysisResult]:
         if l12m_open_start > 0:
             l12m_rate = len(l12m_closed) / l12m_open_start
 
-    # Chart
+    # Chart -- chart-cache adoption #3 (A9.1 Overall Attrition)
     chart_path = None
     if yearly is not None and len(yearly) > 1:
         save_to = ctx.paths.charts_dir / "a9_1_overall_attrition.png"
         ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
-        with chart_figure(figsize=(14, 7), save_path=save_to) as (fig, ax):
-            ax.bar(
-                yearly["Year"].astype(str),
-                yearly["Closures"],
-                color=NEGATIVE,
-                edgecolor=BAR_EDGE,
-                alpha=BAR_ALPHA,
-            )
-            for i, (_, row) in enumerate(yearly.iterrows()):
-                ax.text(
-                    i,
-                    row["Closures"] + yearly["Closures"].max() * 0.02,
-                    f"{row['Closures']:,.0f}",
-                    ha="center",
-                    fontsize=DATA_LABEL_SIZE,
-                    fontweight="bold",
+
+        from ars_analysis.charts.cache import cached_chart, fingerprint_df
+
+        cache_key = fingerprint_df(
+            df=yearly,
+            columns=["Year", "Closures"],
+            extras={
+                "client": getattr(ctx.client, "client_id", ""),
+                "month": getattr(ctx.client, "month", ""),
+                "style": "ars.mplstyle:v3",
+                "chart": "a9_1_overall_attrition:v1",
+            },
+        )
+
+        def _draw(out_path):
+            with chart_figure(figsize=(14, 7), save_path=out_path) as (fig, ax):
+                ax.bar(
+                    yearly["Year"].astype(str),
+                    yearly["Closures"],
+                    color=NEGATIVE,
+                    edgecolor=BAR_EDGE,
+                    alpha=BAR_ALPHA,
                 )
-            ax.set_title(
-                "Account Closures by Year",
-                fontsize=24,
-                fontweight="bold",
-                pad=15,
-            )
-            ax.set_ylabel("Closures", fontsize=20)
-            ax.tick_params(labelsize=TICK_SIZE)
-            fig.tight_layout()
+                for i, (_, row) in enumerate(yearly.iterrows()):
+                    ax.text(
+                        i,
+                        row["Closures"] + yearly["Closures"].max() * 0.02,
+                        f"{row['Closures']:,.0f}",
+                        ha="center",
+                        fontsize=DATA_LABEL_SIZE,
+                        fontweight="bold",
+                    )
+                ax.set_title(
+                    "Account Closures by Year",
+                    fontsize=24, fontweight="bold", pad=15,
+                )
+                ax.set_ylabel("Closures", fontsize=20)
+                ax.tick_params(labelsize=TICK_SIZE)
+                fig.tight_layout()
+
+        cached_chart(save_to, cache_key, _draw)
         chart_path = save_to
 
     ctx.results["attrition_1"] = {

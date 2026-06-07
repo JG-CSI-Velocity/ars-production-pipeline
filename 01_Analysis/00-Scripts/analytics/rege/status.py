@@ -93,78 +93,75 @@ class RegEStatus(AnalysisModule):
             "opted_out": t_all - oi_all,
         }
 
-        # Side-by-side donut charts (All-Time vs L12M)
+        # Side-by-side donut charts (All-Time vs L12M) -- chart-cache adoption #2
         chart_path = None
         save_to = ctx.paths.charts_dir / "a8_1_reg_e_status.png"
         ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
 
-        with chart_figure(figsize=(14, 7), save_path=save_to) as (fig, _):
-            fig.clf()
-            ax1 = fig.add_subplot(1, 2, 1)
-            ax2 = fig.add_subplot(1, 2, 2)
+        from ars_analysis.charts.cache import cached_chart, fingerprint_df
 
-            donut_data = [
-                (ax1, [oi_all, t_all - oi_all], "All-Time", r_all, t_all),
-                (ax2, [oi_l12m, max(t_l12m - oi_l12m, 0)], "Last 12 Months", r_l12m, t_l12m),
-            ]
+        cache_key = fingerprint_df(
+            df=None,
+            extras={
+                "client": getattr(ctx.client, "client_id", ""),
+                "client_name": getattr(ctx.client, "client_name", ""),
+                "month": getattr(ctx.client, "month", ""),
+                "style": "ars.mplstyle:v3",
+                "t_all": int(t_all or 0),
+                "oi_all": int(oi_all or 0),
+                "r_all": round(float(r_all or 0), 6),
+                "t_l12m": int(t_l12m or 0),
+                "oi_l12m": int(oi_l12m or 0),
+                "r_l12m": round(float(r_l12m or 0), 6),
+            },
+        )
 
-            for ax_d, sizes, label, rate, total in donut_data:
-                colors = [ELIGIBLE, SILVER]
-                wedges, texts = ax_d.pie(
-                    sizes,
-                    startangle=90,
-                    colors=colors,
-                    wedgeprops={"edgecolor": "white", "linewidth": 2},
-                )
-                # Inner circle for donut effect
-                centre = plt.Circle((0, 0), 0.55, fc="white")
-                ax_d.add_patch(centre)
+        def _draw(out_path):
+            with chart_figure(figsize=(14, 7), save_path=out_path) as (fig, _):
+                fig.clf()
+                ax1 = fig.add_subplot(1, 2, 1)
+                ax2 = fig.add_subplot(1, 2, 2)
 
-                # Rate in center
-                ax_d.text(
-                    0,
-                    0.05,
-                    f"{rate:.1%}",
-                    ha="center",
-                    va="center",
-                    fontsize=28,
-                    fontweight="bold",
-                    color="#1B2A4A",
-                )
-                ax_d.text(
-                    0,
-                    -0.18,
-                    "opt-in rate",
-                    ha="center",
-                    va="center",
-                    fontsize=12,
-                    color=NEUTRAL,
-                )
-
-                ax_d.set_title(label, fontsize=20, fontweight="bold", pad=15)
-                ax_d.set_aspect("equal")
-
-                # Legend below with counts
-                legend_labels = [
-                    f"Opted In: {sizes[0]:,}",
-                    f"Opted Out: {sizes[1]:,}",
+                donut_data = [
+                    (ax1, [oi_all, t_all - oi_all], "All-Time", r_all, t_all),
+                    (ax2, [oi_l12m, max(t_l12m - oi_l12m, 0)], "Last 12 Months", r_l12m, t_l12m),
                 ]
-                ax_d.legend(
-                    wedges,
-                    legend_labels,
-                    loc="upper center",
-                    bbox_to_anchor=(0.5, -0.02),
-                    fontsize=14,
-                    frameon=False,
-                    ncol=1,
+
+                for ax_d, sizes, label, rate, total in donut_data:
+                    colors = [ELIGIBLE, SILVER]
+                    wedges, texts = ax_d.pie(
+                        sizes,
+                        startangle=90,
+                        colors=colors,
+                        wedgeprops={"edgecolor": "white", "linewidth": 2},
+                    )
+                    centre = plt.Circle((0, 0), 0.55, fc="white")
+                    ax_d.add_patch(centre)
+
+                    ax_d.text(0, 0.05, f"{rate:.1%}", ha="center", va="center",
+                              fontsize=28, fontweight="bold", color="#1B2A4A")
+                    ax_d.text(0, -0.18, "opt-in rate", ha="center", va="center",
+                              fontsize=12, color=NEUTRAL)
+
+                    ax_d.set_title(label, fontsize=20, fontweight="bold", pad=15)
+                    ax_d.set_aspect("equal")
+
+                    legend_labels = [
+                        f"Opted In: {sizes[0]:,}",
+                        f"Opted Out: {sizes[1]:,}",
+                    ]
+                    ax_d.legend(
+                        wedges, legend_labels, loc="upper center",
+                        bbox_to_anchor=(0.5, -0.02), fontsize=14,
+                        frameon=False, ncol=1,
+                    )
+
+                fig.suptitle(
+                    f"Reg E Opt-In Status -- {ctx.client.client_name}",
+                    fontsize=22, fontweight="bold", y=1.0,
                 )
 
-            fig.suptitle(
-                f"Reg E Opt-In Status -- {ctx.client.client_name}",
-                fontsize=22,
-                fontweight="bold",
-                y=1.0,
-            )
+        cached_chart(save_to, cache_key, _draw)
         chart_path = save_to
 
         change = r_l12m - r_all
