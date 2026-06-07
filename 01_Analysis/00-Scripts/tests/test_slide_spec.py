@@ -128,6 +128,89 @@ DEMO:
     assert rendered.denominator_label == "Eligible Personal"
 
 
+def test_pattern_key_compiles_to_regex(specs_dir):
+    """`A13.{month}` should match A13.Jan26 and capture 'Jan26'."""
+    pattern, names = ss._compile_pattern_key("A13.{month}")
+    assert names == ["month"]
+    m = pattern.match("A13.Jan26")
+    assert m is not None
+    assert m.group("month") == "Jan26"
+    # Doesn't bleed across dots
+    assert pattern.match("A13.Jan26.Swipes") is None
+    assert pattern.match("A14.Jan26") is None
+
+
+def test_get_spec_resolves_pattern_keyed_template(specs_dir):
+    """Pattern-keyed templates render one spec per matching slide_id."""
+    (specs_dir / "demo.yml").write_text(
+        '''
+"A13.{month}":
+  layout: TWO_CONTENT
+  action_title: "{month_label}: {total_mailed:,} mailed"
+  inputs:
+    month_label: month
+    total_mailed: ctx.results.monthly_summaries.{month}.total_mailed
+  denominator_label: Eligible
+'''
+    )
+    spec = ss.get_spec("demo", "A13.Jan26")
+    assert spec is not None
+    assert spec.slide_id == "A13.Jan26"
+    assert (
+        spec.inputs["total_mailed"]
+        == "ctx.results.monthly_summaries.Jan26.total_mailed"
+    )
+    assert spec.inputs["month"] == '"Jan26"'
+
+
+def test_get_spec_pattern_renders_with_ctx_results(specs_dir):
+    (specs_dir / "demo.yml").write_text(
+        '''
+"A13.{month}":
+  action_title: "{month}: {total_mailed:,} mailed at {overall_rate:.1f}%"
+  inputs:
+    month_label: month
+    total_mailed: ctx.results.monthly_summaries.{month}.total_mailed
+    overall_rate: ctx.results.monthly_summaries.{month}.overall_rate
+  denominator_label: Eligible
+  callout:
+    hero: "{overall_rate:.1f}%"
+'''
+    )
+    spec = ss.get_spec("demo", "A13.Feb26")
+    rendered = ss.render_spec(
+        spec,
+        {
+            "monthly_summaries": {
+                "Feb26": {"total_mailed": 12345, "overall_rate": 4.2},
+                "Jan26": {"total_mailed": 999,   "overall_rate": 9.9},
+            }
+        },
+        _Client(),
+    )
+    assert rendered.action_title == "Feb26: 12,345 mailed at 4.2%"
+    assert rendered.callout_hero == "4.2%"
+    assert "999" not in rendered.action_title
+
+
+def test_get_spec_exact_match_wins_over_pattern(specs_dir):
+    """An exact-match key should be preferred over a pattern-match template."""
+    (specs_dir / "demo.yml").write_text(
+        '''
+"A13.{month}":
+  action_title: "template title"
+  denominator_label: Eligible
+A13.Jan26:
+  action_title: "exact title"
+  denominator_label: Eligible
+'''
+    )
+    spec = ss.get_spec("demo", "A13.Jan26")
+    assert spec.action_title == "exact title"
+    spec2 = ss.get_spec("demo", "A13.Feb26")
+    assert spec2.action_title == "template title"
+
+
 def test_repo_specs_load_without_error():
     """Every authored spec across all sections must parse and be 4-layer compliant."""
     ss.clear_spec_cache()

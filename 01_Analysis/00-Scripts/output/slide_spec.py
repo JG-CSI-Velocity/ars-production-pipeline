@@ -171,10 +171,86 @@ _SPEC_CACHE: dict[str, dict[str, SlideSpec]] = {}
 
 
 def get_spec(section: str, slide_id: str) -> SlideSpec | None:
-    """Look up a single spec, loading and caching the section file as needed."""
+    """Look up a single spec, loading and caching the section file as needed.
+
+    Two-step resolution:
+      1. Exact match on `slide_id` (the common case).
+      2. Pattern match against keys containing `{name}` placeholders. The first
+         placeholder-keyed spec whose regex matches `slide_id` is returned with
+         the captured value injected as an additional input (`name` -> match).
+         Lets mailer.yml declare ONE template entry like `A13.{month}` that
+         renders every per-month slide (A13.Jan26, A13.Feb26, ...).
+    """
     if section not in _SPEC_CACHE:
         _SPEC_CACHE[section] = load_specs(section)
-    return _SPEC_CACHE[section].get(slide_id)
+    cached = _SPEC_CACHE[section]
+    if slide_id in cached:
+        return cached[slide_id]
+
+    # Pattern match: keys with {name} become regex (?P<name>[^.]+) etc.
+    import re
+    for key, template in cached.items():
+        if "{" not in key:
+            continue
+        pattern_re, capture_names = _compile_pattern_key(key)
+        m = pattern_re.match(slide_id)
+        if m is None:
+            continue
+        # Clone the template and:
+        # 1. Inject captured names as quoted-literal inputs (so the renderer
+        #    treats them as strings, not as dotted paths).
+        # 2. Substitute {name} -> captured value in every input expression so
+        #    `ctx.results.monthly_summaries.{month}.total_mailed` resolves at
+        #    spec-render time.
+        captured = m.groupdict()
+        merged_inputs: dict[str, str] = {}
+        for name, captured_val in captured.items():
+            merged_inputs[name] = f'"{captured_val}"'
+        for input_name, expr in template.inputs.items():
+            substituted = str(expr)
+            for cap_name, cap_val in captured.items():
+                substituted = substituted.replace("{" + cap_name + "}", cap_val)
+            merged_inputs[input_name] = substituted
+        return SlideSpec(
+            slide_id=slide_id,
+            layout=template.layout,
+            components=list(template.components),
+            action_title=template.action_title,
+            inputs=merged_inputs,
+            denominator_label=template.denominator_label,
+            callout=template.callout,
+            footer=template.footer,
+        )
+    return None
+
+
+def _compile_pattern_key(key: str) -> tuple["re.Pattern[str]", list[str]]:
+    """Convert 'A13.{month}' to a compiled regex with named groups.
+
+    Each `{name}` becomes `(?P<name>[^.]+)` so dots in the slide_id still act
+    as path separators. Other characters are escaped.
+    """
+    import re
+    pattern_chars: list[str] = []
+    names: list[str] = []
+    i = 0
+    while i < len(key):
+        ch = key[i]
+        if ch == "{":
+            end = key.find("}", i)
+            if end == -1:
+                pattern_chars.append(re.escape(ch))
+                i += 1
+                continue
+            name = key[i + 1:end]
+            names.append(name)
+            pattern_chars.append(f"(?P<{name}>[^.]+)")
+            i = end + 1
+        else:
+            pattern_chars.append(re.escape(ch))
+            i += 1
+    pattern = "^" + "".join(pattern_chars) + "$"
+    return re.compile(pattern), names
 
 
 def clear_spec_cache() -> None:
