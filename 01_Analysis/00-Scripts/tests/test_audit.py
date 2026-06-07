@@ -65,6 +65,37 @@ def test_default_label_unknown_returns_empty():
     assert _default_label("unknown_slide_xyz") == ""
 
 
+def test_default_label_specific_prefix_beats_generic():
+    # Original bug: 'A1' would match 'A11.1' before 'A11' got a chance.
+    # _default_label sorts prefixes by descending length to prevent that.
+    assert _default_label("A11.1") == "Eligible"   # value, not overview
+    assert _default_label("A12.Jan26") == "Eligible"  # mailer aggregate
+    assert _default_label("A13.Agg") == "Eligible"
+    assert _default_label("A14.1") == "Eligible"   # mailer reach
+    assert _default_label("A1.1") == "Eligible"   # overview still resolves
+    assert _default_label("A1") == "Eligible"
+
+
+def test_a8_prefix_resolves_to_eligible_personal():
+    """Reg E A8.x slides should all anchor to Eligible Personal per the law."""
+    for sid in ("A8.1", "A8.2", "A8.3", "A8.12"):
+        assert _default_label(sid) == "Eligible Personal"
+
+
+def test_a7_prefix_resolves_to_eligible():
+    """DCTR A7.x slides should all anchor to Eligible."""
+    for sid in ("A7.1", "A7.2", "A7.3", "A7.6a"):
+        assert _default_label(sid) == "Eligible"
+
+
+def test_default_label_covers_authored_spec_slides():
+    """Every section authored in W3 specs should resolve to a 4-layer label."""
+    valid = {"Eligible", "Eligible Personal", "Eligible Business", "Open"}
+    for sid in ("DCTR-MAIN-1", "REGE-MAIN-1", "OVERVIEW-MAIN-1",
+                "ATTRITION-MAIN-1", "VALUE-MAIN-1", "INSIGHTS-MAIN-1"):
+        assert _default_label(sid) in valid, f"{sid}: not registered"
+
+
 def test_looks_like_rate_detects_rate_kpis():
     r = _FakeResult(kpis={"DCTR Rate": "30%"})
     assert _looks_like_rate(r) is True

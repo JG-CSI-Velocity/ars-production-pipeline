@@ -122,6 +122,8 @@ def _overall(ctx: PipelineContext) -> list[AnalysisResult]:
             title="Overall Attrition Rate",
             chart_path=chart_path,
             notes=(f"{overall_rate:.1%} overall ({n_closed:,}/{total:,}), L12M: {l12m_rate:.1%}"),
+            denominator_label="Eligible",
+            denominator_n=int(total or 0),
         )
     ]
 
