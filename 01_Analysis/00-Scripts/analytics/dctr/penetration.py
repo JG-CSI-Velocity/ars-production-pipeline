@@ -367,7 +367,12 @@ class DCTRPenetration(AnalysisModule):
                 "insights": b_ins,
             }
 
-        # Chart A7.2
+        # Chart A7.2 -- first chart-cache adoption (see docs/chart-cache-adoption.md).
+        # The fingerprint covers everything that affects the rendered visual:
+        # the scalar rates + counts, the overall reference value, whether the
+        # business series is present, and the client/month/style version.
+        # Side effects (ctx.results writes) live OUTSIDE the cached _draw so a
+        # cache hit doesn't silently skip them.
         chart_path = None
         charts_dir = ctx.paths.charts_dir
         if charts_dir != ctx.paths.base_dir:
@@ -388,54 +393,76 @@ class DCTRPenetration(AnalysisModule):
                     colors = [PERSONAL]
                     cts = [p_ins["with_debit_count"]]
 
-                with chart_figure(save_path=save_to) as (fig, ax):
-                    bars = ax.bar(
-                        cats,
-                        vals,
-                        color=colors,
-                        edgecolor="black",
-                        linewidth=2,
-                        alpha=0.9,
-                        width=0.5,
-                    )
-                    for bar, v, c in zip(bars, vals, cts):
-                        ax.text(
-                            bar.get_x() + bar.get_width() / 2,
-                            v + 1,
-                            f"{v:.1f}%",
-                            ha="center",
-                            fontweight="bold",
-                            fontsize=22,
+                from ars_analysis.charts.cache import cached_chart, fingerprint_df
+
+                # No DataFrame input on this chart -- fingerprint only the
+                # scalars that drive the visual. fingerprint_df with df=None
+                # produces a stable hash over the extras dict alone.
+                cache_key = fingerprint_df(
+                    df=None,
+                    extras={
+                        "client": getattr(ctx.client, "client_id", ""),
+                        "month":  getattr(ctx.client, "month", ""),
+                        "style":  "ars.mplstyle:v3",
+                        "cats":   cats,
+                        "vals":   [round(v, 4) for v in vals],
+                        "cts":    cts,
+                        "colors": list(colors),
+                        "overall": round(overall, 4),
+                    },
+                )
+
+                def _draw(out_path):
+                    with chart_figure(save_path=out_path) as (fig, ax):
+                        bars = ax.bar(
+                            cats,
+                            vals,
+                            color=colors,
+                            edgecolor="black",
+                            linewidth=2,
+                            alpha=0.9,
+                            width=0.5,
                         )
-                        if v > 10:
+                        for bar, v, c in zip(bars, vals, cts):
                             ax.text(
                                 bar.get_x() + bar.get_width() / 2,
-                                v / 2,
-                                f"{c:,}\naccts",
+                                v + 1,
+                                f"{v:.1f}%",
                                 ha="center",
-                                fontsize=18,
                                 fontweight="bold",
-                                color="white",
+                                fontsize=22,
                             )
-                    ax.set_ylabel("DCTR (%)", fontsize=20, fontweight="bold")
-                    ax.set_title(
-                        "Personal vs Business DCTR", fontsize=24, fontweight="bold", pad=20
-                    )
-                    ax.set_ylim(0, max(vals) * 1.15)
-                    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
-                    ax.tick_params(axis="both", labelsize=18)
-                    ax.spines["top"].set_visible(False)
-                    ax.spines["right"].set_visible(False)
-                    ax.set_axisbelow(True)
-                    ax.text(
-                        0.02,
-                        0.98,
-                        f"Overall: {overall:.1f}%",
-                        transform=ax.transAxes,
-                        fontsize=18,
-                        va="top",
-                        bbox={"boxstyle": "round,pad=0.3", "facecolor": "#eee", "alpha": 0.8},
-                    )
+                            if v > 10:
+                                ax.text(
+                                    bar.get_x() + bar.get_width() / 2,
+                                    v / 2,
+                                    f"{c:,}\naccts",
+                                    ha="center",
+                                    fontsize=18,
+                                    fontweight="bold",
+                                    color="white",
+                                )
+                        ax.set_ylabel("DCTR (%)", fontsize=20, fontweight="bold")
+                        ax.set_title(
+                            "Personal vs Business DCTR", fontsize=24, fontweight="bold", pad=20
+                        )
+                        ax.set_ylim(0, max(vals) * 1.15)
+                        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
+                        ax.tick_params(axis="both", labelsize=18)
+                        ax.spines["top"].set_visible(False)
+                        ax.spines["right"].set_visible(False)
+                        ax.set_axisbelow(True)
+                        ax.text(
+                            0.02,
+                            0.98,
+                            f"Overall: {overall:.1f}%",
+                            transform=ax.transAxes,
+                            fontsize=18,
+                            va="top",
+                            bbox={"boxstyle": "round,pad=0.3", "facecolor": "#eee", "alpha": 0.8},
+                        )
+
+                cached_chart(save_to, cache_key, _draw)
                 chart_path = save_to
             except Exception as exc:
                 logger.warning("A7.2 chart failed: {err}", err=exc)
