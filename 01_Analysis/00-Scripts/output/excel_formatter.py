@@ -12,7 +12,7 @@ from ars_analysis.pipeline.context import PipelineContext
 
 # Style constants
 HEADER_FONT = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-HEADER_FILL = PatternFill(start_color="1E3D59", end_color="1E3D59", fill_type="solid")
+HEADER_FILL = PatternFill(start_color="1A1A1A", end_color="1A1A1A", fill_type="solid")
 HEADER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
 THIN_BORDER = Border(
     left=Side(style="thin", color="D0D0D0"),
@@ -21,9 +21,9 @@ THIN_BORDER = Border(
     bottom=Side(style="thin", color="D0D0D0"),
 )
 DATA_FONT = Font(name="Calibri", size=10)
-TITLE_FONT = Font(name="Calibri", size=14, bold=True, color="1E3D59")
+TITLE_FONT = Font(name="Calibri", size=14, bold=True, color="1A1A1A")
 SUBTITLE_FONT = Font(name="Calibri", size=11, color="666666")
-KPI_VALUE_FONT = Font(name="Calibri", size=16, bold=True, color="1E3D59")
+KPI_VALUE_FONT = Font(name="Calibri", size=16, bold=True, color="1A1A1A")
 KPI_LABEL_FONT = Font(name="Calibri", size=10, color="666666")
 
 
@@ -99,7 +99,7 @@ def create_summary_sheet(wb, ctx: PipelineContext) -> None:
     # KPIs from ctx.results
     kpi_start = len(info_rows) + 5
     ws.cell(row=kpi_start, column=1, value="Key Metrics").font = Font(
-        bold=True, size=12, color="1E3D59"
+        bold=True, size=12, color="1A1A1A"
     )
 
     kpis = _extract_kpis(ctx)
@@ -110,7 +110,7 @@ def create_summary_sheet(wb, ctx: PipelineContext) -> None:
     # Slides summary
     slide_start = kpi_start + len(kpis) + 3
     ws.cell(row=slide_start, column=1, value="Analyses").font = Font(
-        bold=True, size=12, color="1E3D59"
+        bold=True, size=12, color="1A1A1A"
     )
 
     success_count = sum(1 for s in ctx.all_slides if getattr(s, "success", True))

@@ -86,7 +86,7 @@ def _opportunity_map(ctx: PipelineContext) -> list[AnalysisResult]:
         categories = ["Addressable (Max)", "Realistic (Near-Term)"]
         buckets = [
             ("Debit Cards", TEAL),
-            ("Reg E Opt-In", "#1E3D59"),
+            ("Reg E Opt-In", "#1A1A1A"),
             ("Retention", POSITIVE),
             ("Mailer Program", "#D4A574"),
         ]
@@ -121,7 +121,7 @@ def _opportunity_map(ctx: PipelineContext) -> list[AnalysisResult]:
             va="center",
             fontsize=DATA_LABEL_SIZE,
             fontweight="bold",
-            color="#1E3D59",
+            color="#1A1A1A",
         )
         ax.text(
             total_realistic + total_addressable * 0.02,
@@ -222,7 +222,7 @@ def _what_if_dctr(ctx: PipelineContext) -> list[AnalysisResult]:
             "What If: +5 Percentage Points of DCTR",
             fontsize=24,
             fontweight="bold",
-            color="#1E3D59",
+            color="#1A1A1A",
             ha="center",
         )
 
@@ -274,7 +274,7 @@ def _what_if_dctr(ctx: PipelineContext) -> list[AnalysisResult]:
             "Total Annual Gain",
             fontsize=16,
             fontweight="bold",
-            color="#1E3D59",
+            color="#1A1A1A",
             va="center",
         )
         ax_main.text(
@@ -362,7 +362,7 @@ def _executive_summary(ctx: PipelineContext) -> list[AnalysisResult]:
             "Three Actions. Three Payoffs. One Goal.",
             fontsize=24,
             fontweight="bold",
-            color="#1E3D59",
+            color="#1A1A1A",
             ha="center",
         )
 
@@ -380,7 +380,7 @@ def _executive_summary(ctx: PipelineContext) -> list[AnalysisResult]:
                 "Increase Reg E Opt-In",
                 f"Current Rate: {re1.get('opt_in_rate', 0):.0%}",
                 f"${action_2:,.0f}/year",
-                "#1E3D59",
+                "#1A1A1A",
             ),
             (
                 "Expand Mailer Program",
@@ -429,7 +429,7 @@ def _executive_summary(ctx: PipelineContext) -> list[AnalysisResult]:
             f"Combined Opportunity: ${combined:,.0f}/year",
             fontsize=22,
             fontweight="bold",
-            color="#1E3D59",
+            color="#1A1A1A",
             ha="center",
         )
 

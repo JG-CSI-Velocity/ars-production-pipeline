@@ -48,7 +48,7 @@
 
 | Name | Hex | Usage |
 |------|-----|-------|
-| Navy | #1B365D | Primary, emphasis, section dividers |
+| Navy | #1A1A1A | Primary, emphasis, section dividers |
 | Teal | #0D9488 | Positive, growth, success |
 | Coral | #E74C3C | Negative, decline, warning |
 | Amber | #F39C12 | Caution, transitional |

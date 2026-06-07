@@ -253,12 +253,16 @@ class DeckBuilder:
         else:
             if slide.shapes.title:
                 slide.shapes.title.text = title_text
-                # Force dark blue title color (template default is white)
+                # Force CSI navy title color (template default is white).
+                # Hex pulled from ars_analysis.shared.brand to stay in lockstep with charts/Excel.
+                from ars_analysis.shared.brand import BRAND as _BRAND
+                _navy = _BRAND["navy"].lstrip("#")
+                _NAVY_RGB = RGBColor(int(_navy[0:2], 16), int(_navy[2:4], 16), int(_navy[4:6], 16))
                 for paragraph in slide.shapes.title.text_frame.paragraphs:
                     for run in paragraph.runs:
-                        run.font.color.rgb = RGBColor(0x1B, 0x36, 0x5D)  # Navy #1B365D
+                        run.font.color.rgb = _NAVY_RGB
                     if not paragraph.runs and paragraph.text:
-                        paragraph.font.color.rgb = RGBColor(0x1B, 0x36, 0x5D)
+                        paragraph.font.color.rgb = _NAVY_RGB
             if subtitle_text:
                 # New template: ph[1] is body/subtitle on most layouts
                 for ph_idx in [1, 13]:

@@ -84,7 +84,7 @@ def _revenue_gap(ctx: PipelineContext) -> list[AnalysisResult]:
             f"Realistic ({CAPTURE_RATE:.0%})",
         ]
         values = [debit_gap, rege_gap, total_gap, realistic]
-        colors = [NEGATIVE, NEGATIVE, "#1E3D59", POSITIVE]
+        colors = [NEGATIVE, NEGATIVE, "#1A1A1A", POSITIVE]
 
         bars = ax.barh(
             categories[::-1],
@@ -344,7 +344,7 @@ def _mailer_roi(ctx: PipelineContext) -> list[AnalysisResult]:
             "Mailer Program: Cause and Effect",
             fontsize=24,
             fontweight="bold",
-            color="#1E3D59",
+            color="#1A1A1A",
             ha="center",
         )
 
@@ -418,7 +418,7 @@ def _mailer_roi(ctx: PipelineContext) -> list[AnalysisResult]:
             f"Total Program Value: ${total_roi:,.0f}/year",
             fontsize=22,
             fontweight="bold",
-            color="#1E3D59",
+            color="#1A1A1A",
             ha="center",
         )
 
@@ -593,7 +593,7 @@ def _debit_cascade(ctx: PipelineContext) -> list[AnalysisResult]:
         # Vertical stacked waterfall
         streams = [
             ("Interchange\nRevenue", stream_1, TEAL),
-            ("Reg E\nEligibility", stream_2, "#1E3D59"),
+            ("Reg E\nEligibility", stream_2, "#1A1A1A"),
             ("Retention\nValue", stream_3, POSITIVE),
         ]
 

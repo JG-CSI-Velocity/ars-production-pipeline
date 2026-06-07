@@ -16,7 +16,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 
 # Formatting constants
 HEADER_FONT = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-HEADER_FILL = PatternFill(start_color="2E4057", end_color="2E4057", fill_type="solid")
+HEADER_FILL = PatternFill(start_color="1A1A1A", end_color="1A1A1A", fill_type="solid")
 DATA_FONT = Font(name="Calibri", size=10)
 ALT_ROW_FILL = PatternFill(start_color="F7F9FC", end_color="F7F9FC", fill_type="solid")
 THIN_BORDER = Border(bottom=Side(style="thin", color="D0D0D0"))
@@ -53,7 +53,7 @@ def _write_sheet(
 
     # Title row
     ws.cell(row=row, column=1, value=analysis_title).font = Font(
-        name="Calibri", size=14, bold=True, color="2E4057"
+        name="Calibri", size=14, bold=True, color="1A1A1A"
     )
     row += 1
 
@@ -98,7 +98,7 @@ def create_workbook(title: str = "Analysis Report") -> Workbook:
     ws = wb.active
     ws.title = "Summary"
     ws.cell(row=1, column=1, value=title).font = Font(
-        name="Calibri", size=16, bold=True, color="2E4057"
+        name="Calibri", size=16, bold=True, color="1A1A1A"
     )
     ws.cell(row=2, column=1, value=f"Generated: {datetime.now():%Y-%m-%d %H:%M}").font = Font(
         name="Calibri", size=10, color="888888"
