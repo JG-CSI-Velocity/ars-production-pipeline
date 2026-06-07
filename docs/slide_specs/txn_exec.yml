@@ -1,9 +1,41 @@
-# Transaction executive scorecard slide specs.
+# Transaction executive scorecard slide specs (TXN section).
 #
-# DEFERRED: Same as competition -- TXN sections use numbered scripts
-# (e.g. analytics/executive/01_*.py..05_action_roadmap.py) without ctx.results
-# dict population. Wiring specs here first needs the same TXN-results adapter.
+# Wiring: depends on the TXN-results adapter. analytics/executive/01_*.py and
+# 05_action_roadmap.py expose their KPIs / action lists via
+# analytics/txn_exports.py.
 #
-# Roadmap: when the adapter lands, author TXN-EXEC-MAIN-1 (executive KPI
-# scorecard, sourced from executive/01..04) and TXN-EXEC-MAIN-2 (action
-# roadmap from executive/05_action_roadmap.py).
+# Per the 4-layer law: TXN KPI rates anchor to the Eligible base.
+
+TXN-executive-1:
+  layout: TWO_CONTENT
+  components: [01_kpi_scorecard]
+  action_title: "{total_active_accounts:,} active accounts; ${total_spend:,.0f} swiped; ${interchange_revenue:,.0f} interchange"
+  inputs:
+    total_active_accounts: ctx.results.executive_1.insights.total_active_accounts
+    total_swipes:          ctx.results.executive_1.insights.total_swipes
+    total_spend:           ctx.results.executive_1.insights.total_spend
+    avg_spend_per_account: ctx.results.executive_1.insights.avg_spend_per_account
+    interchange_revenue:   ctx.results.executive_1.insights.interchange_revenue
+  denominator_label: Eligible
+  callout:
+    hero: "${interchange_revenue:,.0f}"
+    sub: "interchange revenue captured"
+    tertiary: "Avg ${avg_spend_per_account:,.0f} spend per account"
+  footer:
+    source: "Source: {client_name} TXN, {month} | executive scorecard"
+
+TXN-executive-5:
+  layout: TWO_CONTENT
+  components: [05_action_roadmap]
+  action_title: "{n_actions} prioritized initiatives totaling ${total_impact:,.0f} in modeled annual impact"
+  inputs:
+    n_actions:    ctx.results.executive_5.insights.n_actions
+    total_impact: ctx.results.executive_5.insights.total_impact
+    top_action:   ctx.results.executive_5.insights.top_action
+  denominator_label: Eligible
+  callout:
+    hero: "${total_impact:,.0f}"
+    sub: "modeled annual impact"
+    tertiary: "Lead with: {top_action}"
+  footer:
+    source: "Source: {client_name} TXN, {month} | initiatives from executive roadmap"

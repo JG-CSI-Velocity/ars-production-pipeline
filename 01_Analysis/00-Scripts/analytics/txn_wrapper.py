@@ -118,10 +118,77 @@ class ScriptFailure:
     error_msg: str
 
 
+# ---------------------------------------------------------------------------
+# TXN-results adapter (docs/txn-results-adapter-design.md)
+# ---------------------------------------------------------------------------
+
+
+def _extract_script_number(filename: str) -> int | None:
+    """01_foo.py -> 1; 70_banking_vs_ecosystems.py -> 70; unprefixed -> None."""
+    stem = filename.rsplit(".", 1)[0]
+    head = stem.split("_", 1)[0]
+    try:
+        return int(head)
+    except (TypeError, ValueError):
+        return None
+
+
+def expose_to_ctx_results(
+    ctx: PipelineContext | None,
+    namespace: dict[str, Any],
+    section: str,
+    script_number: int,
+    script_path: Path,
+) -> None:
+    """Copy declared exports from `namespace` into ctx.results.
+
+    Called after each TXN script finishes execution. Looks up
+    (section, script_number) in SECTION_EXPORTS; for every variable name
+    declared, reads it from the namespace and stamps it on
+    ctx.results[f"{section}_{script_number}"]. Silently skips variables
+    that aren't in the namespace -- they may not exist if the script
+    failed partway through.
+
+    No-op when ctx is None (e.g. txn_setup runs with a stub ctx).
+    """
+    if ctx is None:
+        return
+    try:
+        from ars_analysis.analytics.txn_exports import get_exports
+    except Exception:
+        return
+
+    spec = get_exports(section, script_number)
+    if spec is None:
+        return  # No declared exports -- not an error.
+
+    key = f"{section}_{script_number}"
+    if not hasattr(ctx, "results") or ctx.results is None:
+        return
+    bucket = ctx.results.setdefault(key, {})
+    bucket.setdefault("insights", {})
+    bucket.setdefault("tables", {})
+    bucket["script"] = script_path.name
+
+    for var in spec.get("insights", []):
+        if var in namespace:
+            bucket["insights"][var] = namespace[var]
+        else:
+            logger.debug(
+                "TXN export miss: {section}/{n} expected '{var}' not in namespace",
+                section=section, n=script_number, var=var,
+            )
+
+    for var in spec.get("tables", []):
+        if var in namespace:
+            bucket["tables"][var] = namespace[var]
+
+
 def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
                      chart_dir: Path, section_prefix: str,
                      section_recorder: object = None,
                      manifest_meta: dict[str, str] | None = None,
+                     ctx: PipelineContext | None = None,
                      ) -> tuple[list[Path], list[ScriptFailure]]:
     """Execute all .py scripts in a directory in sorted order, sharing a namespace.
 
@@ -184,6 +251,15 @@ def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
                 code = script_path.read_text(encoding="utf-8")
                 namespace["__file__"] = str(script_path)
                 exec(compile(code, str(script_path), "exec"), namespace)
+                # TXN-results adapter: after the script settles, copy any
+                # declared variables out of the shared namespace into
+                # ctx.results so the slide_spec renderer can bind to them.
+                # See docs/txn-results-adapter-design.md + analytics/txn_exports.py.
+                _script_number = _extract_script_number(script_path.name)
+                if _script_number is not None and ctx is not None:
+                    expose_to_ctx_results(
+                        ctx, namespace, section_prefix, _script_number, script_path,
+                    )
             except Exception as exc:
                 _failed = True
                 logger.error("  TXN script failed: {name}: {err}", name=script_name, err=exc)
@@ -341,6 +417,7 @@ class TXNSectionWrapper(AnalysisModule):
                 logger.info("  Running txn_setup...")
                 _setup_charts, _setup_failures = _execute_scripts(
                     setup_dir, namespace, ctx.paths.charts_dir, "txn_setup",
+                    ctx=ctx,
                 )
                 if _setup_failures:
                     logger.error(
@@ -364,6 +441,7 @@ class TXNSectionWrapper(AnalysisModule):
             charts, self.failures = _execute_scripts(
                 self.section_dir, namespace, chart_dir, self.section_name,
                 section_recorder=_recorder, manifest_meta=_manifest_meta,
+                ctx=ctx,
             )
             # Record slide count + flag if zero slides on a section that expected them
             if _mf is not None and _recorder is not None:
@@ -638,6 +716,7 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     logger.info("Running txn_setup once for all sections...")
     _charts, setup_failures = _execute_scripts(
         setup_dir, namespace, ctx.paths.charts_dir, "txn_setup",
+        ctx=ctx,
     )
     if setup_failures:
         # txn_setup failures are CRITICAL -- combined_df may not exist and

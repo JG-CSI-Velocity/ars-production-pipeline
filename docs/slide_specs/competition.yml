@@ -1,13 +1,47 @@
-# Competition section slide specs.
+# Competition section slide specs (TXN section).
 #
-# DEFERRED: Competition is a TXN section. Its modules are numbered scripts
-# (01_competitor_config.py through 70_banking_vs_ecosystems.py) that produce
-# Plotly charts directly without populating ctx.results in the dict shape the
-# slide_spec renderer binds to. Authoring specs here first needs a thin
-# TXN-section results adapter (per-script insights -> ctx.results["competition_<id>"]).
+# Wiring: depends on the TXN-results adapter (analytics/txn_exports.py +
+# txn_wrapper.expose_to_ctx_results). After each numbered script runs, its
+# declared variables are copied into ctx.results[f"{section}_{script_number}"].
+# Specs below bind to those keys directly.
 #
-# Roadmap: when txn_setup is extended to expose per-script insights dicts,
-# add specs for COMPETITION-MAIN-THREAT-QUADRANT (slide 13_threat_quadrant)
-# and COMPETITION-MAIN-WALLET-SHARE (24_segment_heatmap derivative). Until
-# then, deck_builder falls back to today's behavior (Plotly-rendered titles),
-# so this empty file is safe.
+# slide_id format follows txn_wrapper's auto-generated TXN-{section}-{n}
+# scheme (where n is chart order, NOT script number). The action title +
+# callout reach into ctx.results with explicit script_number keys so the
+# two indexes stay decoupled.
+#
+# Per the 4-layer law: competition rates anchor to the Eligible base.
+# All dollar figures derive from the Eligible Mailable spend window.
+
+TXN-competition-13:
+  layout: TWO_CONTENT
+  components: [13_threat_quadrant]
+  action_title: "{top_competitor} captures {top_share:.0%} of out-of-network spend; {threat_count} competitors above threshold"
+  inputs:
+    top_competitor:    ctx.results.competition_13.insights.top_competitor
+    top_share:         ctx.results.competition_13.insights.top_share
+    second_competitor: ctx.results.competition_13.insights.second_competitor
+    second_share:      ctx.results.competition_13.insights.second_share
+    threat_count:      ctx.results.competition_13.insights.threat_count
+  denominator_label: Eligible
+  callout:
+    hero: "{top_share:.0%}"
+    sub: "share captured by top competitor"
+    tertiary: "{threat_count} competitors above threshold are draining card spend"
+  footer:
+    source: "Source: {client_name} TXN, {month} | competition module / threat quadrant"
+
+TXN-competition-24:
+  layout: TWO_CONTENT
+  components: [24_segment_heatmap]
+  action_title: "Estimated ${wallet_gap_dollars:,.0f} in addressable card-spend leakage"
+  inputs:
+    wallet_share_pct:   ctx.results.competition_24.insights.wallet_share_pct
+    wallet_gap_dollars: ctx.results.competition_24.insights.wallet_gap_dollars
+  denominator_label: Eligible
+  callout:
+    hero: "${wallet_gap_dollars:,.0f}"
+    sub: "annual leakage opportunity"
+    tertiary: "Current wallet share: {wallet_share_pct:.0%}"
+  footer:
+    source: "Source: {client_name} TXN, {month} | wallet-share heatmap derivation"
