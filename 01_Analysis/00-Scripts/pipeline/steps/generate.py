@@ -142,6 +142,15 @@ def step_generate(ctx: PipelineContext) -> None:
     _build_aux_deck(ctx)
     logger.info("Deliverables generated for {client}", client=ctx.client.client_id)
 
+    # Wave 1: denominator-law audit. Walks ctx.all_slides, writes rates_audit.csv,
+    # flags any rate whose denominator label is not in the 4-layer framework.
+    # Runs before the scorecard so violations are visible in the scorecard summary.
+    try:
+        from ars_analysis.pipeline.steps.audit import step_audit
+        step_audit(ctx)
+    except Exception as _exc:
+        logger.warning("rates_audit step failed: {err}", err=_exc)
+
     # Post-run scorecard derived from the manifest. Optional: only runs if
     # the manifest was set up. Failures here never break the pipeline.
     _mf = getattr(ctx, "manifest", None)

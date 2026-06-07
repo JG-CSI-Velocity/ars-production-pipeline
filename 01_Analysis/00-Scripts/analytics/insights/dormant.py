@@ -26,11 +26,10 @@ AVG_ANNUAL_IC = 216.0  # PULSE benchmark per active card
 # ---------------------------------------------------------------------------
 
 
-def _detect_debit_col(df: pd.DataFrame) -> str | None:
-    for col in ("Debit?", "Debit", "DC Indicator"):
-        if col in df.columns:
-            return col
-    return None
+from ars_analysis.shared.debit import (
+    debit_mask as _debit_mask,
+    detect_debit_col as _detect_debit_col,
+)
 
 
 def _detect_spend_cols(df: pd.DataFrame) -> list[str]:
@@ -59,7 +58,7 @@ def _find_dormant_accounts(df: pd.DataFrame) -> pd.DataFrame | None:
     if bal_col is None:
         return None
 
-    no_debit = df[~df[debit_col].isin(["Yes", "Y", True, 1])].copy()
+    no_debit = df[~_debit_mask(df, debit_col)].copy()
     if len(no_debit) == 0:
         return None
 

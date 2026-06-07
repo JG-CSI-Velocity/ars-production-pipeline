@@ -78,17 +78,14 @@ def _organic_activation(
 
     Returns dict with counts and rates.
     """
-    # Detect debit column
-    debit_col = None
-    for col in ("Debit?", "Debit", "DC Indicator"):
-        if col in data.columns:
-            debit_col = col
-            break
+    # Detect debit column (canonical)
+    from ars_analysis.shared.debit import detect_debit_col, has_debit as _has_debit
+    debit_col = detect_debit_col(data)
 
     if debit_col is None:
         return {"organic": 0, "mailed_resp": 0, "mailed_non_resp": 0, "total_debit": 0}
 
-    has_debit = data[data[debit_col].isin(["Yes", "Y", True, 1])]
+    has_debit = _has_debit(data, debit_col)
 
     # Build ever-mailed mask
     ever_mailed = pd.Series(False, index=data.index)

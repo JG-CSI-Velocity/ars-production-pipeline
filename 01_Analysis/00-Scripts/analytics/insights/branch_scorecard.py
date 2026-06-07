@@ -28,12 +28,38 @@ MIN_BRANCHES = 3
 
 
 def _build_branch_data(ctx: PipelineContext) -> pd.DataFrame | None:
-    """Assemble branch-level metrics from upstream results.
+    """Assemble branch-level metrics from the eligible base (4-layer denominator law).
+
+    Per project_denominator_framework.md (LAW): DCTR / Reg E / attrition rates anchor
+    to the Eligible layer. Reading raw ctx.data inflates the denominator with closed
+    accounts and conflicts with the detail slides. Read ctx.subsets.eligible_data;
+    fall back to raw only when the subset is missing (with a manifest WARN flag).
 
     Returns DataFrame with columns: branch, dctr, rege_rate, attrition_rate, n_accounts.
     Returns None if insufficient data.
     """
-    data = ctx.data
+    ed = ctx.subsets.eligible_data if ctx.subsets is not None else None
+    if ed is not None and not ed.empty:
+        data = ed
+    else:
+        data = ctx.data
+        logger.warning(
+            "branch_scorecard: eligible_data missing; falling back to raw ctx.data "
+            "(denominator may not match detail slides)"
+        )
+        _mf = getattr(ctx, "manifest", None)
+        if _mf is not None:
+            try:
+                from ars_analysis.pipeline.manifest import AnomalyFlag, FlagLevel
+                for _sec in _mf.sections:
+                    if _sec.name == "insights":
+                        _sec.anomaly_flags.append(AnomalyFlag(
+                            level=FlagLevel.WARN,
+                            message="branch_scorecard fallback to raw ctx.data",
+                        ))
+                        break
+            except Exception:
+                pass
     if data is None:
         return None
 
@@ -46,12 +72,9 @@ def _build_branch_data(ctx: PipelineContext) -> pd.DataFrame | None:
     if branch_col is None:
         return None
 
-    # Detect debit column
-    debit_col = None
-    for col in ("Debit?", "Debit", "DC Indicator"):
-        if col in data.columns:
-            debit_col = col
-            break
+    # Detect debit column (canonical)
+    from ars_analysis.shared.debit import detect_debit_col, debit_mask
+    debit_col = detect_debit_col(data)
 
     # Compute per-branch metrics from raw data
     branches = data[branch_col].dropna().unique()
@@ -68,7 +91,7 @@ def _build_branch_data(ctx: PipelineContext) -> pd.DataFrame | None:
         # DCTR: debit holders / total
         dctr = 0.0
         if debit_col:
-            n_debit = len(branch_data[branch_data[debit_col].isin(["Yes", "Y", True, 1])])
+            n_debit = int(debit_mask(branch_data, debit_col).sum())
             dctr = n_debit / n_total
 
         # Attrition: closed / total

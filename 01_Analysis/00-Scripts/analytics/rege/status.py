@@ -21,11 +21,27 @@ from ars_analysis.pipeline.context import PipelineContext
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
-    """Run analysis function, catch errors, return failed result on exception."""
+    """Run analysis function, catch errors, return failed result on exception.
+
+    On failure: top-level WARN log + AnomalyFlag(WARN) on the manifest.
+    """
     try:
         return fn(ctx)
     except Exception as exc:
         logger.warning("{label} failed: {err}", label=label, err=exc)
+        _mf = getattr(ctx, "manifest", None)
+        if _mf is not None:
+            try:
+                from ars_analysis.pipeline.manifest import AnomalyFlag, FlagLevel
+                for _sec in _mf.sections:
+                    if _sec.name == "rege":
+                        _sec.anomaly_flags.append(AnomalyFlag(
+                            level=FlagLevel.WARN,
+                            message=f"{label}: {type(exc).__name__}: {exc}",
+                        ))
+                        break
+            except Exception:
+                pass
         return [
             AnalysisResult(
                 slide_id=label,
