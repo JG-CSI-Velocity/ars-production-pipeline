@@ -37,33 +37,80 @@ OPEN_ALLOWLIST: frozenset[str] = frozenset((
 
 # Default denominator label per slide_id prefix. Modules can override by stamping
 # `denominator_label` on the AnalysisResult directly.
+#
+# Ordering matters: more specific prefixes are listed first so they win over
+# more general ones (A11, A12, A13, A14 must beat A1). _default_label sorts
+# the prefixes by descending length at lookup time to enforce this.
 DEFAULT_BY_PREFIX: dict[str, str] = {
-    "dctr_": "Eligible",
-    "DCTR-": "Eligible",
-    "rege_": "Eligible Personal",
-    "REGE-": "Eligible Personal",
-    "reg_e_": "Eligible Personal",
-    "attrition_": "Eligible",
-    "A9": "Eligible",
+    # DCTR section
+    "dctr_":     "Eligible",
+    "DCTR-":     "Eligible",
+    "A7":        "Eligible",            # A7.1, A7.2, A7.3, A7.6a, A7 combo
+
+    # Reg E section -- inherently personal-only by regulation
+    "rege_":     "Eligible Personal",
+    "REGE-":     "Eligible Personal",
+    "reg_e_":    "Eligible Personal",
+    "A8":        "Eligible Personal",   # A8.1, A8.2, A8.3, A8.12
+
+    # Attrition section
+    "attrition_":   "Eligible",
+    "ATTRITION-":   "Eligible",         # W3 spec slide IDs (ATTRITION-MAIN-1)
+    "A9":           "Eligible",         # A9.1, A9.2, A9.11
+
+    # Value section
+    "value_":  "Eligible",
+    "VALUE-":  "Eligible",              # W3 spec slide IDs (VALUE-MAIN-1)
+    "A11":     "Eligible",              # A11.1, A11.2
+
+    # Mailer section -- response rates anchor to Eligible (mailable subset is
+    # numerator framing, not denominator narrowing)
     "mailer_": "Eligible",
-    "value_": "Eligible",
-    "A11": "Eligible",
+    "A12":     "Eligible",
+    "A13":     "Eligible",
+    "A14":     "Eligible",
+    "A16":     "Eligible",           # cohort spend trajectories
+
+    # Insights / S-slides
     "insights_": "Eligible",
-    "S1": "Eligible",
-    "S6": "Eligible",
-    "S8": "Eligible",
+    "INSIGHTS-": "Eligible",            # W3 spec slide IDs (INSIGHTS-MAIN-1)
+    "S1":        "Eligible",         # revenue gap
+    "S2":        "Eligible",         # uplift
+    "S3":        "Eligible",
+    "S4":        "Eligible",
+    "S5":        "Eligible",
+    "S6":        "Eligible",         # opportunity map
+    "S7":        "Eligible",
+    "S8":        "Eligible",         # action plan
+    "impact_s":  "Eligible",         # ctx.results key style
+
+    # Branch scorecard (insights/branch_scorecard.py)
     "branch_scorecard": "Eligible",
-    "a19_": "Eligible",
+    "a19_":             "Eligible",
+
+    # Overview / A1.x intro slides
     "overview_": "Eligible",
-    "A1": "Eligible",
+    "OVERVIEW-": "Eligible",            # W3 spec slide IDs (OVERVIEW-MAIN-1)
+    "A1":        "Eligible",            # A1, A1.1, A1.2 (sort-by-length picks A11 first)
+
+    # Mailer W3 spec IDs
+    "MAILER-":   "Eligible",
+
+    # TXN spec slide IDs from #169
+    "TXN-":      "Eligible",
 }
 
 
 def _default_label(slide_id: str) -> str:
-    """Infer the default denominator label for a slide_id when modules haven't stamped one."""
-    for prefix, label in DEFAULT_BY_PREFIX.items():
+    """Infer the default denominator label for a slide_id when modules haven't stamped one.
+
+    Walks the registry in descending-prefix-length order so specific prefixes
+    (e.g. 'A11') win over generic ones (e.g. 'A1').
+    """
+    sorted_prefixes = sorted(DEFAULT_BY_PREFIX.keys(), key=len, reverse=True)
+    for prefix in sorted_prefixes:
         if slide_id.startswith(prefix):
-            return label
+            return DEFAULT_BY_PREFIX[prefix]
     return ""
 
 

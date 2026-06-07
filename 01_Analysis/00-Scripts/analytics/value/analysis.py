@@ -430,6 +430,9 @@ class ValueAnalysis(AnalysisModule):
                 chart_path=chart_path,
                 excel_data={"Comparison": comp_df},
                 notes=notes,
+                # Value figures derive from DCTR-based rate gaps -- Eligible.
+                denominator_label="Eligible",
+                denominator_n=int((aw or 0) + (awo or 0)),
             )
         ]
 

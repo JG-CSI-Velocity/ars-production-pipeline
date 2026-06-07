@@ -194,6 +194,8 @@ class RegEStatus(AnalysisModule):
                 chart_path=chart_path,
                 excel_data={"Summary": summary},
                 notes=notes,
+                denominator_label="Eligible Personal",
+                denominator_n=int(t_all or 0),
             )
         ]
 
