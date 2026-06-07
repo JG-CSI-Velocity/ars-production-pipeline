@@ -330,29 +330,34 @@ def _execute_scripts(script_dir: Path, namespace: dict[str, Any],
 # ---------------------------------------------------------------------------
 
 # Section metadata for all TXN folders
+# `code` is the short prefix used in runtime slide_ids (TXN-{code}-NN) and
+# must match the prefix the operator types in SLIDE_MANIFEST.xlsx -- otherwise
+# Keep? Y/A/N decisions silently no-op for this section. Codes for the 19
+# template-listed TXN sheets come from SLIDE_MANIFEST.template.xlsx; the three
+# without template entries (BUS / PERS / ICSA) are assigned here for symmetry.
 TXN_SECTIONS = {
-    "general": {"display": "Portfolio Overview", "order": 100},
-    "merchant": {"display": "Merchant Analysis", "order": 110},
-    "mcc_code": {"display": "MCC Categories", "order": 120},
-    "business_accts": {"display": "Business Accounts", "order": 130},
-    "personal_accts": {"display": "Personal Accounts", "order": 140},
-    "competition": {"display": "Competition", "order": 150},
-    "financial_services": {"display": "Financial Services", "order": 160},
-    "ics_acquisition": {"display": "ICS Acquisition", "order": 170},
-    "campaign": {"display": "Campaign Analysis", "order": 180},
-    "branch_txn": {"display": "Branch Performance", "order": 190},
-    "transaction_type": {"display": "Transaction Type", "order": 200},
-    "product": {"display": "Product Analysis", "order": 210},
-    "attrition_txn": {"display": "Attrition (Velocity)", "order": 220},
-    "balance": {"display": "Balance Analysis", "order": 230},
-    "interchange": {"display": "Interchange Revenue", "order": 240},
-    "rege_overdraft": {"display": "Reg E / Overdraft", "order": 250},
-    "payroll": {"display": "Payroll & Direct Deposit", "order": 260},
-    "relationship": {"display": "Relationship Depth", "order": 270},
-    "segment_evolution": {"display": "Segment Evolution", "order": 280},
-    "retention": {"display": "Retention Analysis", "order": 290},
-    "engagement": {"display": "Engagement Migration", "order": 300},
-    "executive": {"display": "Executive Scorecard", "order": 900},
+    "general": {"display": "Portfolio Overview", "order": 100, "code": "GEN"},
+    "merchant": {"display": "Merchant Analysis", "order": 110, "code": "MERCH"},
+    "mcc_code": {"display": "MCC Categories", "order": 120, "code": "MCC"},
+    "business_accts": {"display": "Business Accounts", "order": 130, "code": "BUS"},
+    "personal_accts": {"display": "Personal Accounts", "order": 140, "code": "PERS"},
+    "competition": {"display": "Competition", "order": 150, "code": "COMP"},
+    "financial_services": {"display": "Financial Services", "order": 160, "code": "FIN"},
+    "ics_acquisition": {"display": "ICS Acquisition", "order": 170, "code": "ICSA"},
+    "campaign": {"display": "Campaign Analysis", "order": 180, "code": "CAMP"},
+    "branch_txn": {"display": "Branch Performance", "order": 190, "code": "BR"},
+    "transaction_type": {"display": "Transaction Type", "order": 200, "code": "TT"},
+    "product": {"display": "Product Analysis", "order": 210, "code": "PROD"},
+    "attrition_txn": {"display": "Attrition (Velocity)", "order": 220, "code": "ATR"},
+    "balance": {"display": "Balance Analysis", "order": 230, "code": "BAL"},
+    "interchange": {"display": "Interchange Revenue", "order": 240, "code": "IC"},
+    "rege_overdraft": {"display": "Reg E / Overdraft", "order": 250, "code": "REGE"},
+    "payroll": {"display": "Payroll & Direct Deposit", "order": 260, "code": "PAY"},
+    "relationship": {"display": "Relationship Depth", "order": 270, "code": "REL"},
+    "segment_evolution": {"display": "Segment Evolution", "order": 280, "code": "SEG"},
+    "retention": {"display": "Retention Analysis", "order": 290, "code": "RET"},
+    "engagement": {"display": "Engagement Migration", "order": 300, "code": "ENG"},
+    "executive": {"display": "Executive Scorecard", "order": 900, "code": "EXEC"},
 }
 
 
@@ -370,6 +375,9 @@ class TXNSectionWrapper(AnalysisModule):
 
         self.module_id = f"txn.{section_name}"
         self.display_name = meta.get("display", section_name.replace("_", " ").title())
+        # Short slide-id prefix used in TXN-{code}-NN; must match SLIDE_MANIFEST.xlsx.
+        # Fallback for unmapped sections: upper-case section_name (deterministic, won't crash).
+        self.section_code = meta.get("code", section_name.upper())
         self.section = "transaction"
         self.execution_order = meta.get("order", 500)
         self.required_columns = ()  # TXN scripts handle their own validation
@@ -461,7 +469,7 @@ class TXNSectionWrapper(AnalysisModule):
         # Convert captured charts to AnalysisResult objects
         results = []
         for i, chart_path in enumerate(charts):
-            slide_id = f"TXN-{self.section_name}-{i+1:02d}"
+            slide_id = f"TXN-{self.section_code}-{i+1:02d}"
             results.append(AnalysisResult(
                 slide_id=slide_id,
                 title=f"{self.display_name}: {chart_path.stem.replace('_', ' ')}",
