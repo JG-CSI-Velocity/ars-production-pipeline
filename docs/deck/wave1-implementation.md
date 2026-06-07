@@ -67,11 +67,11 @@ None of the following are implemented:
 
 ### Per-section chart fixes (Wave 5)
 - Section 1: `25_time_to_first_txn` (3-way splits), `24_account_age_bar` (overlay), `26/27/30` (improvement triage).
-- Section 2: `09_merchant_lifecycle` (label fix). `08_merchant_volatility` script-failure triage.
-- Section 3: `12_mcc_seasonal` (calc), `14_mcc_spend_profile` (data + scaling).
+- Section 2: `09_merchant_lifecycle` (label fix). ~~`08_merchant_volatility` script-failure triage~~ — already fixed in commit `393cae2` (2026-04-24, predates this doc); wave1 doc was stale. No action needed.
+- Section 3: `12_mcc_seasonal` **(calc)** — confirmed real: crosstab sums same-month-different-year transactions into one column, inflating index for months appearing in multiple years. Fix is a per-(year,month) mean before averaging across years. Deferred pending decision on displayed-number changes (see G-questions below). `14_mcc_spend_profile` (data + scaling).
 - Sections 4 & 5: `09_*_lifecycle` × 2 (label QA).
 - Section 7: `01_config` / `02_identify` — investigate, likely strip from manifest.
-- Section 17: `06_payroll_processors`, `10_action_summary` script-failure triage.
+- Section 17: ~~`06_payroll_processors`~~ — fixed 2026-06-07 (`.astype(str).str[:30]` guard, same pattern as 393cae2). ~~`10_action_summary` script-failure triage~~ — already fixed in `393cae2`; wave1 doc was stale.
 
 ### Spec gaps (still TBD in review doc)
 - **G1** TXN-only title text.
