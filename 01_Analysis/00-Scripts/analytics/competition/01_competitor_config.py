@@ -684,6 +684,44 @@ CLIENT_CONFIGS = {
         },
     },
 
+    '1585': {  # First Community Bank of the Heartland (Western KY / Northwest TN)
+        'fed_district': '8',
+        'credit_unions': [
+            'LEADERS CREDIT UNION', 'LEADERS CU',
+            'PEOPLES CHOICE CREDIT UNION', "PEOPLE'S CHOICE CREDIT UNION",
+            'PADUCAH FEDERAL CREDIT UNION', 'PADUCAH FEDERAL CU',
+            'CAPE REGIONAL CREDIT UNION', 'CAPE REGIONAL CU',
+            'SIKESTON COMMUNITY CREDIT UNION',
+            'SIKESTON PUBLIC SCHOOL CREDIT UNION',
+            'NAVY FEDERAL CREDIT UNION', 'NAVY FEDERAL CU',
+        ],
+        'local_banks': [
+            'FOCUS BANK',
+            'FOUNDATION BANK',
+            'REELFOOT BANK',
+            'FIRST STATE BANK',
+            'CFSB', 'COMMUNITY FINANCIAL SERVICES BANK',
+            'CITIZENS BANK',
+            'CITIZENS BANK OF FULTON',
+            'CLINTON BANK',
+            'REGIONS BANK',
+            'TRUIST',
+            'RIVER VALLEY AGCREDIT',
+        ],
+        'custom': [],
+        'rollups': {
+            # --- Credit Unions ---
+            'LEADERS CU':                          'LEADERS CREDIT UNION',
+            "PEOPLE'S CHOICE CREDIT UNION":        'PEOPLES CHOICE CREDIT UNION',
+            'PADUCAH FEDERAL CU':                  'PADUCAH FEDERAL CREDIT UNION',
+            'CAPE REGIONAL CU':                    'CAPE REGIONAL CREDIT UNION',
+            'NAVY FEDERAL CU':                     'NAVY FEDERAL CREDIT UNION',
+            # --- Local Banks ---
+            'COMMUNITY FINANCIAL SERVICES BANK':   'CFSB',
+            'CITIZENS BANK OF FULTON':             'CITIZENS BANK',
+        },
+    },
+
     # Template for new clients -- copy and fill in:
     # 'XXXX': {  # Client Name (Location)
     #     'fed_district': '?',
