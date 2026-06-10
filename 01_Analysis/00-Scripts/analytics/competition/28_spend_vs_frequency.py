@@ -32,6 +32,16 @@ elif len(all_account_summaries) > 0 and len(deep_dive_competitors) > 0:
                       fontweight='bold', labelpad=10)
         ax.yaxis.set_major_formatter(plt.FuncFormatter(gen_fmt_count))
 
+        # Audit 2026-04-17: two top-anchored quadrant labels at 0.03/0.97
+        # and 0.97/0.97 used to collide on top of densely-packed data and
+        # over the title. clear_quadrant_label_zones reserves visible
+        # background in each corner so labels land on clean space.
+        (xlo, xhi), (ylo, yhi) = clear_quadrant_label_zones(
+            acct['txn_count'], acct['total_amount'],
+        )
+        ax.set_xlim(xlo, xhi)
+        ax.set_ylim(ylo, yhi)
+
         gen_clean_axes(ax)
         ax.grid(alpha=0.3, color=GEN_COLORS['grid'], linewidth=0.5)
         ax.set_axisbelow(True)

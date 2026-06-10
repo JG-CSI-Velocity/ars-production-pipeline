@@ -23,8 +23,12 @@ if len(competitor_spend_analysis) > 0 and len(deep_dive_competitors) > 0:
                 edgecolor='white', linewidth=1, height=0.6, zorder=3)
 
         ax.set_yticks(range(n))
-        ax.set_yticklabels([f"Account {i+1}" for i in range(n)],
-                           fontsize=11, fontweight='bold')
+        # Audit 2026-04-17: same positional-label bug as 25_at_risk_accounts.
+        # primary_account_num is the real identifier from 20_spend_segmentation.
+        ax.set_yticklabels(
+            [f"#{a}" for a in top['primary_account_num']],
+            fontsize=11, fontweight='bold',
+        )
         ax.set_xlabel('Total Spend ($)', fontsize=14, fontweight='bold', labelpad=10)
         ax.xaxis.set_major_formatter(plt.FuncFormatter(gen_fmt_count))
 

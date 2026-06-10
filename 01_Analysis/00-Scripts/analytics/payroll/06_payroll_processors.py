@@ -61,8 +61,16 @@ if 'payroll_source' in combined_df.columns:
                     fontweight='bold', color=GEN_COLORS['dark_text'])
 
         ax.set_yticks(range(len(source_agg)))
-        ax.set_yticklabels(source_agg['payroll_source'].str[:30],
-                           fontsize=12, fontweight='bold')
+        # astype(str) before .str[] -- same defensive cast that 393cae2
+        # applied to payroll/05, payroll/10, and merchant/08. payroll_source
+        # is a groupby key whose dtype can be categorical (txn_wrapper memory
+        # optimization), numeric (no detection ran, fallback values), or NaN,
+        # any of which raise "Can only use .str accessor with string values!"
+        # without the cast.
+        ax.set_yticklabels(
+            source_agg['payroll_source'].astype(str).str[:30],
+            fontsize=12, fontweight='bold',
+        )
         ax.xaxis.set_major_formatter(mticker.FuncFormatter(gen_fmt_count))
 
         # Legend

@@ -56,27 +56,27 @@ None of the following are implemented:
 - A3 combo: `08_top_competitors_bar` + `09_category_donut` + `10_biz_vs_personal`
 - A5 combo: `13_threat_quadrant` + `16_opportunity` (winback)
 - A9 combo: `18_competition_aggregate_01` + `_02` side-by-side
-- `12_bubble_chart` axis scaling fix
-- `13_threat_quadrant` axis scaling fix
+- ~~`12_bubble_chart` axis scaling fix~~ — done via `competition/00_axes.py:fit_xy_with_marker_pad`
+- ~~`13_threat_quadrant` axis scaling fix~~ — done via `competition/00_axes.py:fit_y_to_data` (was hard-capped at 105, clipped client data)
 - `24_segment_heatmap` 4-cell collapse to one slide
 - `25_at_risk_accounts` y-axis label fix (currently positional `Account #N`) + redesign
-- `26_spend_scatter` axis scaling fix
+- ~~`26_spend_scatter` axis scaling fix~~ — done via `competition/00_axes.py:symmetric_diagonal_limits`
 - `27_recency_analysis` x-axis label overlap fix
-- `28_spend_vs_frequency` axis scaling fix
+- ~~`28_spend_vs_frequency` axis scaling fix~~ — done via `competition/00_axes.py:clear_quadrant_label_zones`
 - `29_wallet_share` conditional filter (top competitor per segment, only if in top 10)
 
 ### Per-section chart fixes (Wave 5)
 - Section 1: `25_time_to_first_txn` (3-way splits), `24_account_age_bar` (overlay), `26/27/30` (improvement triage).
-- Section 2: `09_merchant_lifecycle` (label fix). `08_merchant_volatility` script-failure triage.
-- Section 3: `12_mcc_seasonal` (calc), `14_mcc_spend_profile` (data + scaling).
+- Section 2: `09_merchant_lifecycle` (label fix). ~~`08_merchant_volatility` script-failure triage~~ — already fixed in commit `393cae2` (2026-04-24, predates this doc); wave1 doc was stale. No action needed.
+- Section 3: `12_mcc_seasonal` **(calc)** — confirmed real: crosstab sums same-month-different-year transactions into one column, inflating index for months appearing in multiple years. Fix is a per-(year,month) mean before averaging across years. Deferred pending decision on displayed-number changes (see G-questions below). `14_mcc_spend_profile` (data + scaling).
 - Sections 4 & 5: `09_*_lifecycle` × 2 (label QA).
 - Section 7: `01_config` / `02_identify` — investigate, likely strip from manifest.
-- Section 17: `06_payroll_processors`, `10_action_summary` script-failure triage.
+- Section 17: ~~`06_payroll_processors`~~ — fixed 2026-06-07 (`.astype(str).str[:30]` guard, same pattern as 393cae2). ~~`10_action_summary` script-failure triage~~ — already fixed in `393cae2`; wave1 doc was stale.
 
 ### Spec gaps (still TBD in review doc)
 - **G1** TXN-only title text.
 - **G4** TXN-only slide budget target.
-- **`25_at_risk_accounts` label fix:** option (a) real account ID visible, or (b) synthetic + companion CSV export.
+- ~~**`25_at_risk_accounts` label fix:** option (a) real account ID visible, or (b) synthetic + companion CSV export.~~ — **Resolved 2026-06-07: option (a).** Applied to both 25 and 29.
 - **`24_segment_heatmap` implementation:** small-multiples vs unified grid.
 - **Section 9 (Campaign Analysis, 76 slides)** — entire block-level review pending.
 - **Section 7** — `01_config` / `02_identify` keep / strip decision.

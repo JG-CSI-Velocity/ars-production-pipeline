@@ -43,3 +43,26 @@ jobs:
         # F82 (undefined name) is excluded because the TXN notebook cells share
         # a global namespace injected at runtime by txn_wrapper.py.
         run: ruff check . --select=E9,F63,F7 --exclude=.venv,venv
+
+  tests:
+    name: Pytest suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install runtime + test deps
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run the analytics test suite
+        # Locks the data-accuracy contracts (canonical denominators,
+        # DCTR-2 open-vs-eligible, brand authority, run manifest, scorecard).
+        # conftest.py wires the ars_analysis package alias from 00-Scripts.
+        working-directory: 01_Analysis/00-Scripts
+        run: python -m pytest tests/ -q

@@ -79,11 +79,14 @@ elif len(all_account_summaries) > 0:
                       alpha=0.95, edgecolor=GEN_COLORS['grid'], linewidth=2),
             fontsize=12, fontweight='bold', family='monospace')
 
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.06),
+    # Legend was at y=-0.06 which sits in the same vertical band as the
+    # xlabel "Days Since Last Competitor Transaction". Push it further
+    # down and grow the bottom reservation so the xlabel keeps its room.
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.18),
               ncol=3, fontsize=12, frameon=False)
 
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.10)
+    plt.subplots_adjust(bottom=0.18)
     plt.show()
 
     # Insight callout

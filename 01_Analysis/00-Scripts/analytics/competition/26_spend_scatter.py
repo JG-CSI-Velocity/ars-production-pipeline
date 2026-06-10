@@ -34,9 +34,16 @@ if len(competitor_spend_analysis) > 0 and len(deep_dive_competitors) > 0:
         cbar.set_label('% at Competitor', rotation=270, labelpad=20,
                        fontsize=12, fontweight='bold')
 
-        # 50/50 diagonal reference
-        max_val = max(df['your_spend'].max(), df['competitor_spend'].max())
-        ax.plot([0, max_val], [0, max_val], '--',
+        # 50/50 diagonal reference.
+        # Audit 2026-04-17: matplotlib auto-axes used to expand to the
+        # diagonal's endpoints even when the data sat in one corner,
+        # leaving ugly empty whitespace beside a dense cluster.
+        # symmetric_diagonal_limits binds the axes to the data's actual
+        # extent so the diagonal and the points share a clean square.
+        lo, hi = symmetric_diagonal_limits(df['your_spend'], df['competitor_spend'])
+        ax.set_xlim(lo, hi)
+        ax.set_ylim(lo, hi)
+        ax.plot([lo, hi], [lo, hi], '--',
                 color=GEN_COLORS['muted'], alpha=0.5, linewidth=2,
                 label='50/50 Line', zorder=2)
 

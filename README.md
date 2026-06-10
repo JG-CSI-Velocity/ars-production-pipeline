@@ -258,6 +258,8 @@ Per-client competitor patterns (`credit_unions`, `local_banks`, `custom`, `rollu
 
 ## Analysis modules
 
+For each module's **calculators, input DataFrames, denominator label, and `ctx.results` handoff to downstream consumers**, see [`docs/MODULES.md`](docs/MODULES.md). The tables below are the at-a-glance index.
+
 ### ARS (25 modules &mdash; from ODD data)
 
 | Section | Modules | What it analyzes |
@@ -352,10 +354,13 @@ Covers the run manifest (`pipeline/manifest.py`), error-capture utilities (`pipe
 | File | Purpose |
 |---|---|
 | [`SETUP.md`](SETUP.md) | First-time install, M: drive layout, common operations, troubleshooting |
+| [`docs/MODULES.md`](docs/MODULES.md) | Module reference &mdash; calculators, DataFrames, denominators, result handoff |
 | [`SLIDE_MAPPING.md`](SLIDE_MAPPING.md) | Master slide spec (slide IDs &rarr; layouts &rarr; headlines) |
 | [`SLIDE_DESIGN.md`](SLIDE_DESIGN.md) | Design system &mdash; colors, typography, chart conventions |
 | [`05_UI/UI-OVERVIEW.md`](05_UI/UI-OVERVIEW.md) | Developer-facing map of every UI screen and component |
 | [`docs/manifest-schema.md`](docs/manifest-schema.md) | Schema reference for `run_manifest.json` |
+| [`docs/methodology/Velocity-Analysis-Methodology.pdf`](docs/methodology/Velocity-Analysis-Methodology.pdf) | Branded one-pager: "How We Measure" data-integrity report |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Architectural patterns (run manifest, scorecard, error capture, anomaly flags) |
 
 ---
 
