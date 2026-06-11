@@ -1937,8 +1937,20 @@ def _consolidate_mailer(results: list) -> tuple[list, list]:
     main_slides: list = []
     appendix_slides: list = []
 
+    # Owner decision (2026-06-11): each month carries TWO main slides --
+    # the revised A13 summary and its A16.7 combo trajectory. The separate
+    # A12 Swipes / Spend slides are archived to the appendix (every month);
+    # the combo shows both metrics in one chart. P08/P09 preamble wiring is
+    # unaffected -- it reads A12 results directly, not the main deck.
+    def _is_a12_metric(r) -> bool:
+        sid = getattr(r, "slide_id", "")
+        return sid.startswith("A12.") and ("Swipes" in sid or "Spend" in sid)
+
     for i, ym in enumerate(sorted_months):
         group = sorted(month_slides[ym], key=_intra_month_key)
+        archived = [r for r in group if _is_a12_metric(r)]
+        group = [r for r in group if not _is_a12_metric(r)]
+        appendix_slides.extend(archived)
         if i < 2:
             # Most recent 2 months -> main
             main_slides.extend(group)

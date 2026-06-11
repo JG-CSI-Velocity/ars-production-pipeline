@@ -10,25 +10,25 @@
 # SLIDE_MODE pruning for campaign section (default standard ~25 slides).
 # 30-36 is a 7-cell responder demographic breakdown -- analyst depth,
 # pruned outside 'deep'. The old 8-cell segment-cohort deep-dive (22-29)
-# was consolidated (owner decision 2026-06-11): the per-segment spend/swipe
-# comparison and line cells (24-27) were DELETED outright -- the per-wave
-# combo chart (28, reads cell 22's segment_cohort_raw) replaces all of
-# them and now ships in EVERY mode, saving ~4 figures per mail wave of
-# both runtime and deck bulk. 23 (cohort summary table) and 29 (slope
-# proof) stay deep-mode only.
+# was consolidated (owner decisions 2026-06-11): the per-segment spend/
+# swipe comparison and line cells (24-27) were DELETED outright, and the
+# per-wave combo chart now lives in the ARS deck (mailer/cohort.py
+# A16.7.{month}, one per month next to its A13 summary) -- so the TXN
+# copy (28, plus its cell-22 data prep, 23 summary, 29 slope proof)
+# runs in 'deep' mode only, for analyst audits.
 # ---------------------------------------------------------------------------
 import os as _os_mode
 _SLIDE_MODE = _os_mode.environ.get('SLIDE_MODE', 'standard').lower()
 _PRUNE = {
     'standard': [
-        '23_', '29_',
+        '22_', '23_', '28_', '29_',
         '30_', '31_', '32_', '33_', '34_', '35_', '36_',
         '38_', '41_', '43_',
     ],
     'minimal': [
         '03_', '05_', '07_', '09_', '10_', '11_', '12_', '13_',
         '14_', '15_', '16_', '18_', '19_', '20_', '21_',
-        '23_', '29_',
+        '22_', '23_', '28_', '29_',
         '30_', '31_', '32_', '33_', '34_', '35_', '36_',
         '38_', '40_', '41_', '43_',
     ],
