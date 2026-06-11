@@ -6,6 +6,7 @@ Slide IDs: A16.1-A16.6 (5-6 slides depending on data depth).
 
 from __future__ import annotations
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -25,6 +26,7 @@ from ars_analysis.charts.style import NEGATIVE, POSITIVE, SILVER
 from ars_analysis.pipeline.context import PipelineContext
 
 NON_RESP_COLOR = "#404040"
+NAVY = "#1B365D"
 
 
 # ---------------------------------------------------------------------------
@@ -390,6 +392,289 @@ def _draw_cohort_size(
 
 
 # ---------------------------------------------------------------------------
+# A16.7 -- Combo Spend + Swipe lines (per wave)
+# ---------------------------------------------------------------------------
+
+
+def build_combo_lines(
+    ctx: PipelineContext,
+    pairs: list[tuple[str, str, str]],
+    spend_cols: list[str],
+    swipe_cols: list[str],
+) -> list[AnalysisResult]:
+    """Per-wave combo chart: 2 rows (Spend top, Swipes bottom) x N segment panels.
+
+    Each panel shows Responder vs Non-Responder avg monthly value, with a
+    vertical dashed line at M0 (mail month). One AnalysisResult per wave.
+    Slide ID pattern: A16.7.{month}
+
+    Ported from campaign/28_segment_combo_lines.py.
+    """
+    from ars_analysis.analytics.mailer._helpers import (
+        RESPONSE_SEGMENTS,
+        parse_month,
+    )
+
+    SEG_ORDER = ["NU", "TH-10", "TH-15", "TH-20", "TH-25"]
+    SEG_COLORS = {
+        "NU": "#457B9D",
+        "TH-10": "#2A9D8F",
+        "TH-15": "#E9C46A",
+        "TH-20": "#F4A261",
+        "TH-25": "#E76F51",
+    }
+    RESP_COLOR = "#2A9D8F"    # teal -- responder line
+    NONRESP_COLOR = "#E9C46A"  # amber -- non-responder line
+    DARK = "#1B365D"
+    MUTED = "#6C757D"
+    GRID = "#E8E8E8"
+
+    data = ctx.data
+    results: list[AnalysisResult] = []
+    ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build metric column lookups
+    spend_lookup = {c.replace(" Spend", ""): c for c in spend_cols}
+    swipe_lookup = {c.replace(" Swipes", ""): c for c in swipe_cols}
+
+    for month, resp_col, mail_col in pairs:
+        mail_date = parse_month(month)
+        if pd.isna(mail_date):
+            continue
+
+        # Classify accounts for this wave
+        was_mailed = data[mail_col].isin(["NU", "TH-10", "TH-15", "TH-20", "TH-25"])
+        if was_mailed.sum() == 0:
+            continue
+
+        is_resp = data[resp_col].isin(RESPONSE_SEGMENTS)
+
+        # Build segment column: use mail value for everyone mailed
+        seg_series = pd.Series("Unknown", index=data.index)
+        for seg in ["NU", "TH-10", "TH-15", "TH-20", "TH-25"]:
+            seg_series[data[mail_col] == seg] = seg
+        # Responders get their actual response tier label
+        for resp_val, seg_label in [
+            ("NU 5+", "NU"), ("TH-10", "TH-10"), ("TH-15", "TH-15"),
+            ("TH-20", "TH-20"), ("TH-25", "TH-25"),
+        ]:
+            seg_series[(data[resp_col] == resp_val) & is_resp] = seg_label
+
+        # Available segments with enough data (>= 5 accounts in both groups)
+        available_segs = []
+        for seg in SEG_ORDER:
+            seg_mask = was_mailed & (seg_series == seg)
+            resp_mask = seg_mask & is_resp
+            nonresp_mask = seg_mask & ~is_resp
+            if resp_mask.sum() >= 5 and nonresp_mask.sum() >= 5:
+                available_segs.append(seg)
+        extra_segs = [
+            s for s in seg_series[was_mailed].unique()
+            if s not in SEG_ORDER and s != "Unknown"
+        ]
+        all_segs = available_segs + sorted(extra_segs)
+
+        if not all_segs:
+            continue
+
+        # Identify spend/swipe offset columns relative to mail_date (-6 to +12)
+        def get_offset_col(lookup: dict, offset_months: int) -> str | None:
+            target = (mail_date + pd.DateOffset(months=offset_months)).strftime("%b%y")
+            return lookup.get(target)
+
+        offsets = list(range(-6, 13))
+        spend_offset_cols = {o: get_offset_col(spend_lookup, o) for o in offsets}
+        swipe_offset_cols = {o: get_offset_col(swipe_lookup, o) for o in offsets}
+
+        # Only keep offsets that have actual columns
+        valid_offsets = [
+            o for o in offsets
+            if spend_offset_cols.get(o) or swipe_offset_cols.get(o)
+        ]
+        if len(valid_offsets) < 4:
+            continue
+
+        has_spend = any(spend_offset_cols.get(o) for o in valid_offsets)
+        has_swipes = any(swipe_offset_cols.get(o) for o in valid_offsets)
+        n_rows = sum([has_spend, has_swipes])
+        if n_rows == 0:
+            continue
+
+        n_panels = len(all_segs)
+        fig, axes = plt.subplots(
+            n_rows, n_panels,
+            figsize=(4 * n_panels, 4.5 * n_rows),
+            squeeze=False,
+        )
+
+        # Row configs: (offset_col_dict, ylabel, y_formatter)
+        row_configs = []
+        if has_spend:
+            row_configs.append((
+                spend_offset_cols,
+                "Avg Monthly Spend ($)",
+                lambda v, _: f"${v:,.0f}",
+            ))
+        if has_swipes:
+            row_configs.append((
+                swipe_offset_cols,
+                "Avg Monthly Swipes",
+                lambda v, _: f"{v:,.0f}",
+            ))
+
+        # Sync y-axis per row across segments
+        for r_idx, (offset_col_map, ylabel, y_fmt) in enumerate(row_configs):
+            row_min, row_max = float("inf"), float("-inf")
+
+            # First pass: compute y range
+            for seg in all_segs:
+                seg_mask = was_mailed & (seg_series == seg)
+                for status_mask in [seg_mask & is_resp, seg_mask & ~is_resp]:
+                    if status_mask.sum() < 5:
+                        continue
+                    for o in valid_offsets:
+                        col = offset_col_map.get(o)
+                        if col and col in data.columns:
+                            vals = pd.to_numeric(
+                                data.loc[status_mask, col], errors="coerce"
+                            ).dropna()
+                            if len(vals) > 0:
+                                row_min = min(row_min, vals.mean())
+                                row_max = max(row_max, vals.mean())
+
+            if row_min == float("inf"):
+                continue
+            y_pad = (row_max - row_min) * 0.15 if row_max > row_min else 1
+            row_ylim = (max(0, row_min - y_pad), row_max + y_pad)
+
+            # Second pass: draw
+            for s_idx, seg in enumerate(all_segs):
+                ax = axes[r_idx][s_idx]
+                seg_mask = was_mailed & (seg_series == seg)
+
+                plotted = False
+                for status, color, lw, marker in [
+                    ("Responder", RESP_COLOR, 2.5, "o"),
+                    ("Non-Responder", NONRESP_COLOR, 2.0, "s"),
+                ]:
+                    if status == "Responder":
+                        status_mask = seg_mask & is_resp
+                    else:
+                        status_mask = seg_mask & ~is_resp
+
+                    n = status_mask.sum()
+                    if n < 5:
+                        continue
+
+                    means = []
+                    plot_offsets = []
+                    for o in valid_offsets:
+                        col = offset_col_map.get(o)
+                        if col and col in data.columns:
+                            val = pd.to_numeric(
+                                data.loc[status_mask, col], errors="coerce"
+                            ).mean()
+                            if pd.notna(val):
+                                means.append(val)
+                                plot_offsets.append(o)
+
+                    if len(means) >= 3:
+                        ax.plot(
+                            plot_offsets, means,
+                            color=color, linewidth=lw,
+                            marker=marker, markersize=4, markevery=3,
+                            label=f"{status} ({n:,})",
+                            zorder=3,
+                        )
+                        plotted = True
+
+                # Mail date vertical line
+                ax.axvline(x=0, color=DARK, linewidth=1.2,
+                           linestyle="--", alpha=0.5, zorder=2)
+
+                # Segment title -- top row only
+                if r_idx == 0:
+                    ax.set_title(
+                        seg,
+                        fontsize=16, fontweight="bold",
+                        color=SEG_COLORS.get(seg, DARK), pad=8,
+                    )
+
+                # X label -- bottom row only
+                if r_idx == n_rows - 1:
+                    ax.set_xlabel(
+                        "Months from Mail", fontsize=14,
+                        fontweight="bold", labelpad=4,
+                    )
+
+                # Y label and formatter -- leftmost panel only
+                if s_idx == 0:
+                    ax.set_ylabel(
+                        ylabel, fontsize=14,
+                        fontweight="bold", color=DARK, labelpad=6,
+                    )
+                    import matplotlib.ticker as mticker
+                    ax.yaxis.set_major_formatter(mticker.FuncFormatter(y_fmt))
+
+                ax.set_ylim(row_ylim)
+
+                # Legend -- top-left panel only
+                if r_idx == 0 and s_idx == 0 and plotted:
+                    ax.legend(fontsize=11, loc="upper left", framealpha=0.85)
+
+                # Style
+                ax.spines["top"].set_visible(False)
+                ax.spines["right"].set_visible(False)
+                ax.yaxis.grid(True, color=GRID, linewidth=0.5, alpha=0.5)
+                ax.set_axisbelow(True)
+                ax.tick_params(axis="both", labelsize=11)
+
+                if not plotted:
+                    ax.text(
+                        0.5, 0.5, "No Data",
+                        ha="center", va="center",
+                        fontsize=12, color=MUTED,
+                        transform=ax.transAxes,
+                    )
+
+        # Build suptitle with wave stats
+        wave_resp = int((was_mailed & is_resp).sum())
+        wave_mailed = int(was_mailed.sum())
+        wave_rate = wave_resp / wave_mailed * 100 if wave_mailed > 0 else 0
+        suptitle = (
+            f"Spend + Swipe Trajectory: {month}   |   "
+            f"{wave_mailed:,} Mailed   |   "
+            f"{wave_resp:,} Responded   |   "
+            f"{wave_rate:.1f}% Rate"
+        )
+        fig.suptitle(suptitle, fontsize=16, fontweight="bold", color=DARK, y=1.02)
+        plt.tight_layout()
+        plt.subplots_adjust(hspace=0.30)
+
+        save_to = ctx.paths.charts_dir / f"a16_7_{month.lower()}_combo.png"
+        fig.savefig(save_to, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+
+        results.append(
+            AnalysisResult(
+                slide_id=f"A16.7.{month}",
+                title=(
+                    f"Spend + Swipe Trajectory -- {month}: "
+                    f"higher-challenge segments show stronger post-mail lift"
+                ),
+                title_color=NAVY,
+                chart_path=save_to,
+                notes=(
+                    f"Mailed: {wave_mailed:,} | Responded: {wave_resp:,} | "
+                    f"Rate: {wave_rate:.1f}% | Segments: {', '.join(all_segs)}"
+                ),
+            )
+        )
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Module
 # ---------------------------------------------------------------------------
 
@@ -527,6 +812,18 @@ class ResponderCohort(AnalysisModule):
                         notes=insight,
                     )
                 )
+
+        # A16.7 -- Combo Spend + Swipe Lines (per wave, paired with A13 mailer summary)
+        if spend_cols and swipe_cols:
+            try:
+                combo_results = build_combo_lines(ctx, pairs, spend_cols, swipe_cols)
+                results += combo_results
+                logger.info(
+                    "A16.7: built {n} combo line slides",
+                    n=len(combo_results),
+                )
+            except Exception as exc:
+                logger.warning("A16.7 combo lines failed: {err}", err=exc)
 
         if not results:
             return [

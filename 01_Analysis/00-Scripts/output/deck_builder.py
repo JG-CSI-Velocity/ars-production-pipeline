@@ -91,6 +91,8 @@ class SlideContent:
     bullets: list[str] | None = None
     layout_index: int = 8  # LAYOUT_CUSTOM (default for most slides)
     notes_text: str | None = None
+    # Hex color string e.g. "#1B365D"; overrides layout default title color.
+    title_color: str | None = None
     # Wave 3 (slide spec system): action-slide anatomy from docs/slide_specs/*.yml.
     # When populated, the deck builder renders callout box + footer band per
     # SLIDE_DESIGN.md. When empty, falls back to legacy screenshot layout.
@@ -798,7 +800,15 @@ class DeckBuilder:
         p.text = content.title
         p.font.size = Pt(24)
         p.font.bold = False
-        p.font.color.rgb = RGBColor(255, 255, 255)
+        # Explicit title color overrides layout master default. Layout 13 has
+        # white title text which is invisible on the white slide background.
+        if content.title_color:
+            _hex = content.title_color.lstrip("#")
+            p.font.color.rgb = RGBColor(
+                int(_hex[0:2], 16), int(_hex[2:4], 16), int(_hex[4:6], 16)
+            )
+        else:
+            p.font.color.rgb = RGBColor(255, 255, 255)
 
         # Parse bullets
         insight_text = ""
@@ -1776,6 +1786,7 @@ def _result_to_slide(result, ctx_results: dict | None = None) -> SlideContent | 
     return SlideContent(
         slide_type=slide_type,
         title=title,
+        title_color=getattr(result, "title_color", None),
         images=images,
         bullets=bullets,
         kpis=kpis,
@@ -1894,16 +1905,19 @@ def _consolidate_mailer(results: list) -> tuple[list, list]:
     # Sort months chronologically (most recent first)
     sorted_months = sorted(month_slides.keys(), reverse=True)
 
-    # Within each month group, order: summary (A13) -> swipes (A12.Swipes) -> spend (A12.Spend) -> rest
+    # Within each month group, order: summary (A13) -> combo trajectory (A16.7)
+    # -> swipes (A12.Swipes) -> spend (A12.Spend) -> rest
     def _intra_month_key(r) -> int:
         sid = getattr(r, "slide_id", "")
         if sid.startswith("A13."):
             return 0  # summary first
+        if sid.startswith("A16.7"):
+            return 1  # combo trajectory immediately after its A13 summary
         if "Swipes" in sid:
-            return 1
-        if "Spend" in sid:
             return 2
-        return 3
+        if "Spend" in sid:
+            return 3
+        return 4
 
     main_slides: list = []
     appendix_slides: list = []
