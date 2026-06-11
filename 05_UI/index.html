@@ -1143,6 +1143,7 @@ async function loadClients() {
         const data = await resp.json();
         const sel = document.getElementById('gClientSel');
         if (!sel || data.length === 0) return;
+        const prev = sel.value;  // preserve a selection made while loading
         sel.innerHTML = '';
         data.forEach(c => {
             const opt = document.createElement('option');
@@ -1152,6 +1153,9 @@ async function loadClients() {
             opt.dataset.name = c.name;
             sel.appendChild(opt);
         });
+        if (prev && [...sel.options].some(o => o.value === prev)) {
+            sel.value = prev;
+        }
         updateGenClientFromAPI();
         // Also populate results client selector
         const rSel = document.getElementById('rClientSel');
@@ -1169,12 +1173,18 @@ async function loadClients() {
     }
 }
 
+// Monotonic request id: the clients fetch scans network folders and can
+// take seconds. Without this, a slow response would land AFTER the operator
+// picked a client and silently revert their selection (the run-the-wrong-
+// client bug: set 1453, click run, get 1776).
+let _genClientsReq = 0;
+
 async function refreshGenClients() {
     const csm = document.getElementById('gCsmSel')?.value || '';
     const month = document.getElementById('gMonthSel')?.value || '';
     const sel = document.getElementById('gClientSel');
     if (!sel) return;
-    const prev = sel.value;
+    const reqId = ++_genClientsReq;
     const url = (csm && month)
         ? `/api/clients?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}`
         : '/api/clients';
@@ -1182,6 +1192,10 @@ async function refreshGenClients() {
         const resp = await fetch(url);
         if (!resp.ok) return;
         const data = await resp.json();
+        if (reqId !== _genClientsReq) return;  // a newer refresh superseded this one
+        // Capture the selection NOW (at rebuild time), not at fetch start --
+        // the operator may have picked a client while the fetch was in flight.
+        const prev = sel.value;
         sel.innerHTML = '';
         if (data.length === 0) {
             const opt = document.createElement('option');
