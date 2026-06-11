@@ -379,7 +379,13 @@ class DCTRFunnel(AnalysisModule):
         subtitle: str,
         results: dict,
     ):
-        """Draw a proportional funnel chart and return the save path."""
+        """Draw a proportional funnel chart and return the save path.
+
+        CUSTOM IMPLEMENTATION -- intentionally not shared.charts.draw_funnel().
+        Each stage here is split into Personal (light) and Business (dark)
+        segments, which the shared helper doesn't support. If draw_funnel()
+        ever grows a split parameter, this can be retired onto it.
+        """
         has_biz = (
             "Business?" in data_all.columns and len(data_all[data_all["Business?"] == "Yes"]) > 0
         )

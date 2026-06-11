@@ -1,0 +1,53 @@
+# Recommended SLIDE_MANIFEST defaults — ARS DCTR section
+#
+# Cycle 2 of the section-by-section triage pass (deck order). DCTR is the
+# largest ARS section: ~25 slide IDs across penetration / trends / branches /
+# funnel / overlays. deck_builder already merges A7.6a+A7.4, A7.7+A7.8, and
+# A7.11+A7.12 onto combined slides and routes several A7.x to the appendix;
+# these defaults align with that routing.
+#
+# Review notes (2026-06-11):
+#   Main-deck story: TTM snapshot (DCTR-3) -> momentum (A7.6a+A7.4 merge) ->
+#   funnel (A7.7+A7.8 merge) -> branch variation (DCTR-9, A7.10a) ->
+#   demographics (DCTR-10/11, merged as A7.11+A7.12). ~7 slides after merges.
+#   Everything else is analyst depth: Excel-only tables (DCTR-1/2/6/7/8,
+#   DCTR-12..16), historical context (A7.5, A7.6b), and single-cut views
+#   subsumed by richer charts (DCTR-4/5 by A7.4; A7.10b by A7.10a).
+#   Chart fixes this cycle: A7.6a had off-brand colors AND mislabeled legend
+#   lines ("Historical/TTM" for what are Overall/Personal monthly rates);
+#   A7.10a had four hardcoded non-brand colors and a subtitle naming the
+#   line color. A7.7/A7.8's custom funnel keeps its Personal/Business split
+#   (documented; shared draw_funnel doesn't support splits).
+#   Nothing is dropped (N) -- analyst detail stays reachable in the aux deck.
+
+section: dctr
+sheet: ARS - DCTR
+defaults:
+  DCTR-3: Y     # TTM snapshot + narrative panel
+  DCTR-9: Y     # branch overview, top 10
+  DCTR-10: Y    # account-age chart (merged A7.12)
+  DCTR-11: Y    # holder-age chart (merged A7.11)
+  A7.4: Y       # segment trends (merged with A7.6a)
+  A7.6a: Y      # L12M monthly trend
+  A7.7: Y       # historical funnel (merged with A7.8)
+  A7.8: Y       # TTM funnel
+  A7.10a: Y     # branch volumes + DCTR + portfolio avg
+  DCTR-1: A     # historical baseline (Excel)
+  DCTR-2: A     # open-vs-eligible methodology (Excel)
+  DCTR-4: A     # personal historical bars (subsumed by A7.4)
+  DCTR-5: A     # business historical bars (subsumed by A7.4)
+  DCTR-6: A     # personal L12M table
+  DCTR-7: A     # business L12M table
+  DCTR-8: A     # comprehensive summary table
+  DCTR-12: A    # balance-range table
+  DCTR-13: A    # holder age x balance cross-tab
+  DCTR-14: A    # account age x balance cross-tab
+  DCTR-15: A    # branch x account-age cross-tab
+  DCTR-16: A    # branch L12M monthly table
+  A7.5: A       # DCTR by decade (historical context)
+  A7.6b: A      # personal vs business by decade
+  A7.9: A       # eligible vs non-eligible comparison
+  A7.10b: A     # branch bars (subsumed by A7.10a)
+  A7.13: A      # branch monthly heatmap
+  A7.14: A      # seasonality by month
+  A7.15: A      # vintage curve

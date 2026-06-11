@@ -23,7 +23,8 @@ from ars_analysis.analytics.dctr._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import NEGATIVE, POSITIVE, TEAL
+from ars_analysis.charts.style import NEGATIVE, POSITIVE, PRIMARY, TEAL
+from ars_analysis.shared.brand import BRAND
 from ars_analysis.pipeline.context import PipelineContext
 
 
@@ -319,7 +320,7 @@ class DCTRBranches(AnalysisModule):
                     # Volume bars (eligible accounts opened in L12M)
                     ax.bar(
                         x, vol_arr,
-                        color="#2E86AB",
+                        color=TEAL,
                         edgecolor="white", linewidth=1.5,
                         width=0.62,
                         label="Eligible Accounts Opened (L12M)",
@@ -331,7 +332,7 @@ class DCTRBranches(AnalysisModule):
                             i, v + vol_max * 0.015, f"{int(v):,}",
                             ha="center", va="bottom",
                             fontsize=13, fontweight="bold",
-                            color="#1B2A4A",
+                            color=PRIMARY,
                         )
 
                     ax.set_ylabel(
@@ -351,16 +352,16 @@ class DCTRBranches(AnalysisModule):
                     ax.set_ylim(0, vol_max * 1.20)
                     ax.spines["top"].set_visible(False)
                     ax.spines["right"].set_visible(False)
-                    ax.yaxis.grid(True, color="#E9ECEF", linewidth=0.5, alpha=0.7)
+                    ax.yaxis.grid(True, color=BRAND["light_gray"], linewidth=0.5, alpha=0.7)
                     ax.set_axisbelow(True)
 
                     # Right axis: single L12M DCTR dot per branch
                     ax2 = ax.twinx()
                     ax2.plot(
                         x, rate_arr,
-                        "o-", color="#1B2A4A",
+                        "o-", color=PRIMARY,
                         linewidth=2.5, markersize=12,
-                        markerfacecolor="#1B2A4A",
+                        markerfacecolor=PRIMARY,
                         markeredgecolor="white", markeredgewidth=2,
                         label="DCTR (L12M)",
                         zorder=5,
@@ -370,10 +371,10 @@ class DCTRBranches(AnalysisModule):
                             i, r + 1.5, f"{r:.1f}%",
                             ha="center", va="bottom",
                             fontsize=12, fontweight="bold",
-                            color="#1B2A4A",
+                            color=PRIMARY,
                         )
                     ax2.axhline(
-                        portfolio_rate, color="#E63946",
+                        portfolio_rate, color=BRAND["accent"],
                         linewidth=1.8, linestyle="--",
                         alpha=0.85, zorder=3,
                         label=f"Portfolio L12M Avg ({portfolio_rate:.1f}%)",
@@ -392,12 +393,12 @@ class DCTRBranches(AnalysisModule):
 
                     fig.suptitle("Branch DCTR (L12M)",
                                  fontsize=22, fontweight="bold",
-                                 color="#1B2A4A", y=1.00)
+                                 color=PRIMARY, y=1.00)
                     fig.text(0.5, 0.945,
                              "Bars: eligible accounts opened in last 12 completed months  |  "
                              "Dots: debit card take rate of those accounts  |  "
-                             f"Red line: portfolio avg ({portfolio_rate:.1f}%)",
-                             ha="center", fontsize=12, color="#6C757D", style="italic")
+                             f"Dashed line: portfolio avg ({portfolio_rate:.1f}%)",
+                             ha="center", fontsize=12, color=BRAND["text_muted"], style="italic")
 
                     h1, l1 = ax.get_legend_handles_labels()
                     h2, l2 = ax2.get_legend_handles_labels()
