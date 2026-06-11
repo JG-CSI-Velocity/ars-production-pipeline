@@ -5,7 +5,6 @@ Slide IDs: A8.5, A8.6, A8.7, A8.10, A8.11.
 
 from __future__ import annotations
 
-import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -24,8 +23,10 @@ from ars_analysis.analytics.rege._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import ELIGIBLE, HISTORICAL, NEGATIVE, POSITIVE, TEAL
+from ars_analysis.charts.style import ELIGIBLE, HISTORICAL, NEGATIVE, POSITIVE
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
+from ars_analysis.shared.charts import draw_funnel
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -44,134 +45,50 @@ def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
         ]
 
 
-# -- Funnel renderer (matches DCTR funnel style) ----------------------------
-
-_FUNNEL_COLORS = [HISTORICAL, ELIGIBLE, TEAL, POSITIVE, "#9467bd"]
+# -- Funnel renderer (same funnel language as the A3 eligibility funnel) ----
 
 
 def _render_funnel(
     ax, stages: list[dict], title_text: str, subtitle_text: str, metrics_text: str
 ) -> None:
-    """Render a proportional funnel chart.
+    """Render a proportional funnel via the shared draw_funnel helper.
 
-    stages: list of dicts with keys: name, total, color.
+    stages: list of dicts with keys: name, total.
     """
-    ax.set_facecolor("#f8f9fa")
-    max_width = 0.8
-    stage_height = 0.15
-    y_start = 0.85
-    stage_gap = 0.02
-    current_y = y_start
-
-    for i, stage in enumerate(stages):
-        width = max_width * (stage["total"] / stages[0]["total"]) if stages[0]["total"] > 0 else 0.1
-
-        rect = mpatches.FancyBboxPatch(
-            (0.5 - width / 2, current_y - stage_height),
-            width,
-            stage_height,
-            boxstyle="round,pad=0.01",
-            facecolor=stage["color"],
-            edgecolor="white",
-            linewidth=3,
-            alpha=0.9,
-        )
-        ax.add_patch(rect)
-
-        ax.text(
-            0.5,
-            current_y - stage_height / 2,
-            f"{stage['total']:,}",
-            ha="center",
-            va="center",
-            fontsize=20,
-            fontweight="bold",
-            color="white",
-            zorder=10,
-        )
-
-        ax.text(
-            0.5 - width / 2 - 0.05,
-            current_y - stage_height / 2,
-            stage["name"],
-            ha="right",
-            va="center",
-            fontsize=18,
-            fontweight="600",
-            color="#2c3e50",
-        )
-
-        if i > 0 and stages[i - 1]["total"] > 0:
-            conv = stage["total"] / stages[i - 1]["total"] * 100
-            arrow_y = current_y + stage_gap / 2
-            ax.annotate(
-                "",
-                xy=(0.5, arrow_y - stage_gap + 0.01),
-                xytext=(0.5, arrow_y - 0.01),
-                arrowprops={"arrowstyle": "->", "lw": 2, "color": NEGATIVE},
-            )
-            ax.text(
-                0.45,
-                arrow_y - stage_gap / 2,
-                f"{conv:.1f}%",
-                ha="center",
-                va="center",
-                fontsize=18,
-                fontweight="bold",
-                color=NEGATIVE,
-                bbox={
-                    "boxstyle": "round,pad=0.3",
-                    "facecolor": "white",
-                    "edgecolor": NEGATIVE,
-                    "alpha": 0.9,
-                },
-            )
-
-        current_y -= stage_height + stage_gap
-
-    ax.text(
-        0.5,
-        0.98,
-        title_text,
-        ha="center",
-        va="top",
-        fontsize=20,
-        fontweight="bold",
-        color="#1e3d59",
-        transform=ax.transAxes,
+    draw_funnel(
+        ax,
+        [s["name"] for s in stages],
+        [float(s["total"]) for s in stages],
+        label_fontsize=15,
     )
+    ax.set_title(title_text, fontsize=20, fontweight="bold", pad=34)
     ax.text(
         0.5,
-        0.93,
+        1.015,
         subtitle_text,
         ha="center",
-        va="top",
-        fontsize=14,
+        va="bottom",
+        fontsize=13,
         style="italic",
-        color="#7f8c8d",
+        color=BRAND["text_muted"],
         transform=ax.transAxes,
     )
-
     ax.text(
         0.02,
-        0.12,
+        0.03,
         metrics_text,
         transform=ax.transAxes,
-        fontsize=12,
+        fontsize=13,
+        fontweight="bold",
         ha="left",
         va="bottom",
         bbox={
             "boxstyle": "round,pad=0.5",
-            "facecolor": "#ecf0f1",
-            "edgecolor": "#34495e",
+            "facecolor": "white",
+            "edgecolor": BRAND["navy"],
             "linewidth": 1.5,
         },
     )
-
-
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.axis("off")
 
 
 @register
@@ -245,13 +162,13 @@ class RegEDimensions(AnalysisModule):
                     fontweight="bold",
                 )
 
-            ax.axhline(y=overall, color="red", linestyle="--", linewidth=2, alpha=0.7)
+            ax.axhline(y=overall, color=BRAND["accent"], linestyle="--", linewidth=2, alpha=0.8)
             ax.text(
                 len(chart) - 0.5,
                 overall + 0.3,
                 f"Avg: {overall:.1f}%",
                 ha="right",
-                color="red",
+                color=BRAND["accent"],
                 fontweight="bold",
                 fontsize=14,
             )
@@ -394,13 +311,13 @@ class RegEDimensions(AnalysisModule):
             overall_row = ch if ch.empty else hist[hist["Age Group"] == "TOTAL"]
             if not overall_row.empty:
                 ov = overall_row["Opt-In Rate"].iloc[0] * 100
-                ax.axhline(y=ov, color="red", linestyle="--", linewidth=2, alpha=0.7)
+                ax.axhline(y=ov, color=BRAND["accent"], linestyle="--", linewidth=2, alpha=0.8)
                 ax.text(
                     len(ch) - 0.5,
                     ov + 0.3,
                     f"Avg: {ov:.1f}%",
                     ha="right",
-                    color="red",
+                    color=BRAND["accent"],
                     fontweight="bold",
                     fontsize=14,
                 )
@@ -533,7 +450,7 @@ class RegEDimensions(AnalysisModule):
                     fontsize=14,
                     fontweight="bold",
                 )
-            ax.axvline(x=overall, color="red", linestyle="--", linewidth=2, alpha=0.7)
+            ax.axvline(x=overall, color=BRAND["accent"], linestyle="--", linewidth=2, alpha=0.8)
             ax.set_yticks(range(len(chart)))
             ax.set_yticklabels(chart["Product Code"].tolist(), fontsize=14)
             ax.set_xlabel("Opt-In Rate (%)", fontsize=20)
@@ -579,11 +496,11 @@ class RegEDimensions(AnalysisModule):
         personal_w_rege = len(base[base[col].isin(opts)])
 
         stages = [
-            {"name": "Open Accounts", "total": total_open, "color": _FUNNEL_COLORS[0]},
-            {"name": "Eligible Accounts", "total": total_eligible, "color": _FUNNEL_COLORS[1]},
-            {"name": "Eligible w/Debit", "total": total_with_debit, "color": _FUNNEL_COLORS[2]},
-            {"name": "Personal w/Debit", "total": personal_w_debit, "color": _FUNNEL_COLORS[3]},
-            {"name": "Personal w/Reg E", "total": personal_w_rege, "color": _FUNNEL_COLORS[4]},
+            {"name": "Open Accounts", "total": total_open},
+            {"name": "Eligible Accounts", "total": total_eligible},
+            {"name": "Eligible w/Debit", "total": total_with_debit},
+            {"name": "Personal w/Debit", "total": personal_w_debit},
+            {"name": "Personal w/Reg E", "total": personal_w_rege},
         ]
 
         funnel_df = pd.DataFrame([{"Stage": s["name"], "Count": s["total"]} for s in stages])
@@ -675,11 +592,11 @@ class RegEDimensions(AnalysisModule):
                 rege_l12m = int(p_debit_df[col].astype(str).str.strip().isin(opts).sum())
 
         stages = [
-            {"name": "L12M Opens", "total": total_l12m, "color": _FUNNEL_COLORS[0]},
-            {"name": "L12M Eligible", "total": elig_l12m, "color": _FUNNEL_COLORS[1]},
-            {"name": "L12M w/Debit", "total": wd_l12m, "color": _FUNNEL_COLORS[2]},
-            {"name": "L12M Personal w/Debit", "total": p_wd_l12m, "color": _FUNNEL_COLORS[3]},
-            {"name": "L12M w/Reg E", "total": rege_l12m, "color": _FUNNEL_COLORS[4]},
+            {"name": "L12M Opens", "total": total_l12m},
+            {"name": "L12M Eligible", "total": elig_l12m},
+            {"name": "L12M w/Debit", "total": wd_l12m},
+            {"name": "L12M Personal w/Debit", "total": p_wd_l12m},
+            {"name": "L12M w/Reg E", "total": rege_l12m},
         ]
 
         funnel_df = pd.DataFrame([{"Stage": s["name"], "Count": s["total"]} for s in stages])

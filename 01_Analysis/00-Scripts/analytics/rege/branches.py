@@ -20,10 +20,12 @@ from ars_analysis.charts.style import (
     NEGATIVE,
     NEUTRAL,
     POSITIVE,
+    PRIMARY,
     SILVER,
     TEAL,
 )
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -272,8 +274,8 @@ class RegEBranches(AnalysisModule):
                     xytext=(6, 6),
                     textcoords="offset points",
                 )
-            ax.axhline(y=avg_rate, color="red", linestyle="--", alpha=0.5, linewidth=1.5)
-            ax.axvline(x=avg_vol, color="red", linestyle="--", alpha=0.5, linewidth=1.5)
+            ax.axhline(y=avg_rate, color=NEUTRAL, linestyle="--", alpha=0.7, linewidth=1.5)
+            ax.axvline(x=avg_vol, color=NEUTRAL, linestyle="--", alpha=0.7, linewidth=1.5)
             ax.set_xlabel("Total Accounts")
             ax.set_ylabel("Opt-In Rate (%)")
             ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
@@ -363,7 +365,7 @@ class RegEBranches(AnalysisModule):
                 ax.text(
                     i, v + vol_max * 0.015, f"{int(v):,}",
                     ha="center", va="bottom",
-                    fontsize=13, fontweight="bold", color=_DARK if False else "#1B2A4A",
+                    fontsize=13, fontweight="bold", color=PRIMARY,
                 )
 
             ax.set_xticks(x)
@@ -376,16 +378,16 @@ class RegEBranches(AnalysisModule):
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.set_ylim(0, vol_max * 1.20)
-            ax.yaxis.grid(True, color="#E9ECEF", linewidth=0.5, alpha=0.7)
+            ax.yaxis.grid(True, color=BRAND["light_gray"], linewidth=0.5, alpha=0.7)
             ax.set_axisbelow(True)
 
             # Right axis: single L12M opt-in rate dot per branch
             ax2 = ax.twinx()
             ax2.plot(
                 x, l12m_rates,
-                "o-", color="#1B2A4A",
+                "o-", color=PRIMARY,
                 linewidth=2.5, markersize=12,
-                markerfacecolor="#1B2A4A",
+                markerfacecolor=PRIMARY,
                 markeredgecolor="white", markeredgewidth=2,
                 label="Opt-In Rate (L12M)",
                 zorder=5,
@@ -397,12 +399,12 @@ class RegEBranches(AnalysisModule):
                     i, r + 1.5, f"{r:.1f}%",
                     ha="center", va="bottom",
                     fontsize=12, fontweight="bold",
-                    color="#1B2A4A",
+                    color=PRIMARY,
                 )
 
             # Portfolio-average reference line (single dashed line)
             ax2.axhline(
-                portfolio_rate, color="#E63946",
+                portfolio_rate, color=BRAND["accent"],
                 linewidth=1.8, linestyle="--",
                 alpha=0.85, zorder=3,
                 label=f"Portfolio L12M Avg ({portfolio_rate:.1f}%)",
@@ -420,12 +422,12 @@ class RegEBranches(AnalysisModule):
             # Title + subtitle with safe spacing
             fig.suptitle("Reg E Opt-In by Branch (L12M)",
                          fontsize=22, fontweight="bold",
-                         color="#1B2A4A", y=1.00)
+                         color=PRIMARY, y=1.00)
             fig.text(0.5, 0.945,
                      "Bars: eligible accounts opened in last 12 completed months  |  "
                      "Dots: opt-in rate of those accounts  |  "
-                     f"Red line: portfolio avg ({portfolio_rate:.1f}%)",
-                     ha="center", fontsize=12, color="#6C757D", style="italic")
+                     f"Dashed line: portfolio avg ({portfolio_rate:.1f}%)",
+                     ha="center", fontsize=12, color=BRAND["text_muted"], style="italic")
 
             # Compact two-entry legend (no third change-pp line)
             h1, l1 = ax.get_legend_handles_labels()
