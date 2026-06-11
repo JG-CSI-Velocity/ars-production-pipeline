@@ -388,8 +388,6 @@ def compute_inside_numbers(
     resp_col: str,
     *,
     ladder: dict | None = None,
-    prev_rate: float | None = None,
-    current_rate: float | None = None,
 ) -> list[tuple[str, str]]:
     """Compute responder characteristic metrics for mailer summary slides.
 
@@ -398,7 +396,7 @@ def compute_inside_numbers(
       ("68%", "of Responders opted into Reg E")
 
     Optional *ladder* dict from analyze_ladder() enriches with first/repeat
-    and movement stats.  *prev_rate* adds month-over-month delta.
+    and movement stats.
     """
     metrics: list[tuple[str, str]] = []
     responders = data[data[resp_col].isin(RESPONSE_SEGMENTS)]
@@ -457,13 +455,106 @@ def compute_inside_numbers(
                 (f"{up_pct:.0f}%", "of repeat responders moved up the ladder")
             )
 
-    # 6. Month-over-month delta
-    if prev_rate is not None and current_rate is not None:
-        delta = current_rate - prev_rate
-        sign = "+" if delta >= 0 else ""
-        metrics.append((f"{sign}{delta:.1f}pp", "vs prior mailer response rate"))
-
     return metrics
+
+
+def _generate_mailer_commentary(
+    seg_details: dict,
+    total_mailed: int,
+    total_resp: int,
+    overall_rate: float,
+    ladder: dict | None = None,
+    prev_rate: float | None = None,
+) -> list[str]:
+    """Generate 2-4 insight sentences for the mailer summary slide commentary.
+
+    Covers: best segment performance, segment gap, response concentration,
+    and ladder movement. Returns a list of plain strings (one per sentence).
+    """
+    bullets: list[str] = []
+
+    # 1. Best performing segment (minimum 50 mailed to be meaningful)
+    meaningful = {
+        s: d for s, d in seg_details.items()
+        if d.get("mailed", 0) >= 50
+    }
+
+    if meaningful:
+        sorted_by_rate = sorted(
+            meaningful.items(),
+            key=lambda x: x[1]["rate"],
+            reverse=True,
+        )
+        best_seg, best_data = sorted_by_rate[0]
+        bullets.append(
+            f"{best_seg} led with a {best_data['rate']:.1f}% response rate "
+            f"({best_data['responders']:,} of {best_data['mailed']:,} mailed)."
+        )
+
+        # 2. Segment gap -- only call it out if the spread is meaningful
+        if len(sorted_by_rate) >= 2:
+            worst_seg, worst_data = sorted_by_rate[-1]
+            if worst_data["rate"] > 0:
+                ratio = best_data["rate"] / worst_data["rate"]
+                if ratio >= 2.0:
+                    bullets.append(
+                        f"{best_seg} responded at {ratio:.1f}x the rate of "
+                        f"{worst_seg} ({worst_data['rate']:.1f}%) -- "
+                        f"higher-challenge segments are driving disproportionate results."
+                    )
+                elif ratio >= 1.3:
+                    bullets.append(
+                        f"{worst_seg} trailed at {worst_data['rate']:.1f}% "
+                        f"({worst_data['responders']:,} of {worst_data['mailed']:,} mailed)."
+                    )
+
+    # 3. Response concentration -- top 2 segments as share of all responses
+    if seg_details and total_resp > 0:
+        sorted_by_count = sorted(
+            seg_details.items(),
+            key=lambda x: x[1]["responders"],
+            reverse=True,
+        )
+        top2_resp = sum(d["responders"] for _, d in sorted_by_count[:2])
+        top2_pct = top2_resp / total_resp * 100
+        top2_names = " and ".join(s for s, _ in sorted_by_count[:2])
+        if top2_pct >= 55:
+            bullets.append(
+                f"{top2_names} accounted for {top2_pct:.0f}% of all responses this wave."
+            )
+
+    # 4. Ladder movement (only available from 2nd wave onward)
+    if ladder and ladder.get("total_successful", 0) > 0:
+        total_s = ladder["total_successful"]
+        repeat_total = ladder.get("repeat_count", 0)
+        first_pct = ladder["first_count"] / total_s * 100
+
+        if repeat_total > 0:
+            up_pct = ladder["movement_up"] / repeat_total * 100
+            if up_pct >= 40:
+                bullets.append(
+                    f"{up_pct:.0f}% of repeat responders climbed to a higher challenge tier -- "
+                    f"the program is building upward momentum."
+                )
+            else:
+                bullets.append(
+                    f"{first_pct:.0f}% of responders were new to the program this wave; "
+                    f"{up_pct:.0f}% of repeat accounts moved up the challenge ladder."
+                )
+        elif first_pct >= 70:
+            bullets.append(
+                f"{first_pct:.0f}% of responders were engaging with the program "
+                f"for the first time this wave."
+            )
+
+    # Fallback: plain summary if no bullets were generated
+    if not bullets:
+        bullets.append(
+            f"{total_resp:,} accounts responded from {total_mailed:,} mailed "
+            f"({overall_rate:.1f}% overall response rate)."
+        )
+
+    return bullets
 
 
 # ---------------------------------------------------------------------------

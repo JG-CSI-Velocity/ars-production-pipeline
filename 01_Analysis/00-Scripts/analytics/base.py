@@ -38,6 +38,8 @@ class AnalysisResult:
     kpis: dict[str, str] | None = None
     extra_charts: list[Path] | None = None
     bullets: list[str] | None = None
+    # Hex color string e.g. "#1B365D"; overrides layout default title color.
+    title_color: str | None = None
     # Denominator label per the 4-layer framework: one of
     # "Eligible", "Eligible Personal", "Eligible Business", "Open".
     # Empty string means "not a rate" (chart, dollar figure unrelated to a rate, etc.).

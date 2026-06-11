@@ -26,6 +26,7 @@ from ars_analysis.analytics.mailer._helpers import (
     SEGMENT_COLORS,
     SUCCESSFUL_TIERS,
     VALID_RESPONSES,
+    _generate_mailer_commentary,
     _safe,
     analyze_ladder,
     analyze_month,
@@ -39,6 +40,8 @@ from ars_analysis.charts.guards import chart_figure
 from ars_analysis.pipeline.context import PipelineContext
 
 BAR_COLORS = ["#E74C3C", "#3498DB", "#2ECC71", "#F39C12", "#9B59B6"]
+
+NAVY = "#1B365D"  # explicit title color -- overrides white-on-white in layout 13
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +177,7 @@ def _monthly_summaries(ctx: PipelineContext) -> list[AnalysisResult]:
     data = ctx.data
     results: list[AnalysisResult] = []
     all_monthly: dict = {}
-    prev_rate: float | None = None
+    # prev_rate removed -- MoM delta no longer used
 
     for idx, (month, resp_col, mail_col) in enumerate(pairs):
         seg_details, total_mailed, total_resp, overall_rate = analyze_month(
@@ -209,26 +212,20 @@ def _monthly_summaries(ctx: PipelineContext) -> list[AnalysisResult]:
         inside_numbers = compute_inside_numbers(
             ctx, data, resp_col,
             ladder=ladder,
-            prev_rate=prev_rate,
-            current_rate=overall_rate,
         )
         inside_bullets: list[str] = []
         for pct_str, desc in inside_numbers:
             inside_bullets.append(f"{pct_str}|{desc}")
         # Segment response rates removed -- already shown in hbar chart
 
-        # Build insight text with MoM delta
-        if prev_rate is not None:
-            delta = overall_rate - prev_rate
-            direction = "increase" if delta >= 0 else "decrease"
-            insight_text = (
-                f"Mailed {total_mailed:,}, {total_resp:,} responded "
-                f"({overall_rate:.1f}%) -- {abs(delta):.1f}pp {direction} vs prior mailer"
-            )
-        else:
-            insight_text = (
-                f"Mailed {total_mailed:,}, {total_resp:,} responded ({overall_rate:.1f}%)"
-            )
+        # Multi-sentence commentary: best segment, gap, concentration, ladder
+        commentary_sentences = _generate_mailer_commentary(
+            seg_details=seg_details,
+            total_mailed=total_mailed,
+            total_resp=total_resp,
+            overall_rate=overall_rate,
+            ladder=ladder,
+        )
 
         # Build KPIs
         kpis = {
@@ -252,9 +249,10 @@ def _monthly_summaries(ctx: PipelineContext) -> list[AnalysisResult]:
             AnalysisResult(
                 slide_id=f"A13.{month}",
                 title=month_title,
+                title_color=NAVY,
                 chart_path=donut_path if ok_donut else None,
                 extra_charts=[hbar_path] if ok_hbar else None,
-                bullets=[insight_text] + inside_bullets,
+                bullets=commentary_sentences + inside_bullets,
                 kpis=kpis,
                 excel_data={"Response": pd.DataFrame(rows)},
                 slide_type="mailer_summary",
@@ -273,7 +271,6 @@ def _monthly_summaries(ctx: PipelineContext) -> list[AnalysisResult]:
             "overall_rate": overall_rate,
             "ladder": ladder,
         }
-        prev_rate = overall_rate
 
     ctx.results["monthly_summaries"] = all_monthly
     return results
@@ -388,12 +385,16 @@ def _aggregate_summary(ctx: PipelineContext) -> list[AnalysisResult]:
         AnalysisResult(
             slide_id="A13.Agg",
             title=title,
+            title_color=NAVY,
             chart_path=donut_path if ok_donut else None,
             extra_charts=[hbar_path] if ok_hbar else None,
-            bullets=[
-                f"{len(pairs)} campaigns, {total_m:,} mailed, "
-                f"{total_r:,} responded ({overall:.1f}%)"
-            ]
+            bullets=_generate_mailer_commentary(
+                seg_details=combined,
+                total_mailed=total_m,
+                total_resp=total_r,
+                overall_rate=overall,
+                ladder=cumulative_ladder,
+            )
             + inside_bullets,
             kpis=kpis,
             excel_data={"AllTime": pd.DataFrame(rows)},
