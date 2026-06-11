@@ -41,7 +41,8 @@ from ars_analysis.pipeline.context import PipelineContext
 
 BAR_COLORS = ["#E74C3C", "#3498DB", "#2ECC71", "#F39C12", "#9B59B6"]
 
-NAVY = "#1B365D"  # explicit title color -- overrides white-on-white in layout 13
+from ars_analysis.shared.brand import BRAND as _BRAND
+NAVY = _BRAND["navy"]  # explicit title color -- overrides white-on-white in layout 13
 
 
 # ---------------------------------------------------------------------------

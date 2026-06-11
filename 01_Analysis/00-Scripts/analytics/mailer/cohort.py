@@ -26,7 +26,8 @@ from ars_analysis.charts.style import NEGATIVE, POSITIVE, SILVER
 from ars_analysis.pipeline.context import PipelineContext
 
 NON_RESP_COLOR = "#404040"
-NAVY = "#1B365D"
+from ars_analysis.shared.brand import BRAND as _BRAND
+NAVY = _BRAND["navy"]
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +426,7 @@ def build_combo_lines(
     }
     RESP_COLOR = "#2A9D8F"    # teal -- responder line
     NONRESP_COLOR = "#E9C46A"  # amber -- non-responder line
-    DARK = "#1B365D"
+    DARK = _BRAND["navy"]
     MUTED = "#6C757D"
     GRID = "#E8E8E8"
 

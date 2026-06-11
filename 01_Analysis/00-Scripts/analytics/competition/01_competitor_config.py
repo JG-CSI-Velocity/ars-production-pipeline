@@ -809,16 +809,21 @@ CLIENT_CONFIGS = {
 # SECTION D: DERIVED VARIABLES (computed -- do not edit below this line)
 # ===========================================================================
 
-# Look up client config (fall back to empty if CLIENT_ID not found)
-_client_cfg = CLIENT_CONFIGS.get(CLIENT_ID if 'CLIENT_ID' in dir() else '', {})
+# Look up client config (fall back to empty if CLIENT_ID not found).
+# Normalize the id -- runs have delivered it as int, padded, or float-string.
+_cid = str(CLIENT_ID).strip() if 'CLIENT_ID' in dir() and CLIENT_ID is not None else ''
+_client_cfg = CLIENT_CONFIGS.get(_cid, {})
 
 # Loud warning if this client has no entry -- otherwise local_banks /
-# credit_unions silently become empty lists, and downstream reports show
-# zero matches for those categories. Run cell 68 for a full audit.
-if 'CLIENT_ID' in dir() and CLIENT_ID and CLIENT_ID not in CLIENT_CONFIGS:
-    print(f"  WARNING: CLIENT_ID '{CLIENT_ID}' has no entry in CLIENT_CONFIGS.")
+# credit_unions silently become empty lists, fed_district silently
+# defaults to '12' (San Francisco), and downstream reports show zero
+# matches for those categories. Run cell 68 for a full audit.
+if _cid and not _client_cfg:
+    print(f"  WARNING: CLIENT_ID '{_cid}' has no entry in CLIENT_CONFIGS.")
     print(f"           credit_unions / local_banks / custom patterns will be EMPTY")
-    print(f"           for this client. Add an entry to CLIENT_CONFIGS above, or")
+    print(f"           and fed_district DEFAULTS TO '12' (San Francisco) -- the")
+    print(f"           top_25_fed_district category will show ~ZERO matches for")
+    print(f"           clients outside the West. Add an entry to CLIENT_CONFIGS, or")
     print(f"           run competition/68_detection_diagnostic.py for help.")
 
 CLIENT_FED_DISTRICT = _client_cfg.get('fed_district', '12')
