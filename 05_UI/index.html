@@ -2435,6 +2435,28 @@ async function loadResultsClients() {
 // Load dashboard data on page load
 loadDashboardData();
 
+// Product-card counts come from the files on disk, not hardcoded copy --
+// so deleting/adding analytics cells is visible here immediately.
+(async () => {
+    try {
+        const r = await fetch('/api/module_counts');
+        if (!r.ok) return;
+        const c = await r.json();
+        document.querySelectorAll('.p-card').forEach(card => {
+            const k = (card.getAttribute('onclick') || '').match(/selectProd\('(\w+)'\)/)?.[1];
+            const el = card.querySelector('.p-count');
+            if (!el) return;
+            if (k === 'ars' && c.ars_modules) el.textContent = c.ars_modules;
+            if (k === 'txn' && c.txn_sections) {
+                el.textContent = c.txn_sections;
+                const t = card.querySelector('.p-time');
+                if (t && c.txn_scripts) t.textContent = `${c.txn_scripts} cells · ~ 20-35 min`;
+            }
+            if (k === 'combined' && c.combined) el.textContent = c.combined;
+        });
+    } catch (e) {}
+})();
+
 // Footer code-version chip: surfaces what checkout the server is running so
 // a stale work-PC clone is caught before a client run, not after.
 (async () => {

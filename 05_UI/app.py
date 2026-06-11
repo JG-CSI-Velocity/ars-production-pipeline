@@ -483,6 +483,41 @@ async def get_products():
     return PRODUCTS
 
 
+@app.get("/api/module_counts")
+async def module_counts():
+    """Live module/section/script counts from the files actually on disk.
+
+    The product cards previously showed hardcoded copy ('22 modules') that
+    silently went stale as analytics cells were added or deleted -- which
+    made real pipeline changes look like they hadn't landed."""
+    analytics = Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts" / "analytics"
+    # Section dirs are stable; cells inside them are what churns.
+    txn_sections = [
+        "general", "merchant", "mcc_code", "business_accts", "personal_accts",
+        "competition", "financial_services", "ics_acquisition", "campaign",
+        "branch_txn", "transaction_type", "product", "attrition_txn", "balance",
+        "interchange", "rege_overdraft", "payroll", "relationship",
+        "segment_evolution", "retention", "engagement", "executive",
+    ]
+    ars_dirs = ["overview", "dctr", "rege", "attrition", "value", "mailer", "insights", "ics"]
+
+    def _modules(d: str) -> int:
+        p = analytics / d
+        if not p.is_dir():
+            return 0
+        return len([f for f in p.glob("*.py") if not f.name.startswith("_")])
+
+    ars = sum(_modules(d) for d in ars_dirs)
+    txn_existing = [d for d in txn_sections if (analytics / d).is_dir()]
+    txn_scripts = sum(_modules(d) for d in txn_existing)
+    return {
+        "ars_modules": ars,
+        "txn_sections": len(txn_existing),
+        "txn_scripts": txn_scripts,
+        "combined": ars + len(txn_existing),
+    }
+
+
 @app.get("/api/months")
 async def get_months(csm: str = "", source: str = "all"):
     """Return available months by scanning actual directories.
