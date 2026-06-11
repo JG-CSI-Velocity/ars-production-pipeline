@@ -3,7 +3,7 @@
 COLORS and CATEGORY_PALETTE are now thin views over ars_analysis.shared.brand,
 the single source of truth for the CSI Velocity brand. Old hex literals here
 (#2E4057 / #F18F01) were the 5th competing navy and 3rd competing accent --
-brand.BRAND collapses them onto the canonical CSI navy (#1A1A1A) and
+brand.BRAND collapses them onto the canonical CSI Navy (#00274C) and
 orange (#F15D22).
 """
 

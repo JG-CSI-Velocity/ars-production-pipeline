@@ -21,7 +21,14 @@ from ars_analysis.shared.brand import (
 
 
 def test_brand_navy_is_csi_canonical():
-    assert BRAND["navy"] == "#1A1A1A"
+    # CSI Navy per the 2025 brand guidelines (owner-provided skill, 2026-06-11)
+    assert BRAND["navy"] == "#00274C"
+
+
+def test_brand_accents_are_csi_canonical():
+    assert BRAND["accent"] == "#F15D22"   # CSI Orange
+    assert BRAND["gold"] == "#F8971D"     # CSI Gold
+    assert BRAND["negative"] == "#EB2A2E" # CSI Red
 
 
 def test_brand_accent_is_csi_orange():

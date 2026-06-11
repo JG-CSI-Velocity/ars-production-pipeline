@@ -133,3 +133,40 @@ def test_personal_business_normalizes_flag_values(tmp_path):
     # Personal: 2 closed / 10 exposed = 20%; Business: 1/5 = 20%
     assert "Personal: 20.0%" in notes
     assert "Business: 20.0%" in notes
+
+
+def test_attrition_universe_scopes_to_eligible_products(tmp_path):
+    """Owner rule: attrition uses the proper open/eligible subsets.
+    Open rows = exactly ctx.subsets.eligible_data; closed rows = eligible
+    PRODUCT codes only (closure rewrites the stat code)."""
+    df = pd.DataFrame({
+        "Date Opened": ["2020-01-01"] * 6,
+        "Date Closed": [None, None, None, "2025-12-01", "2025-12-01", "2025-12-01"],
+        "Stat Code":   ["2",  "2",  "9",  "90",        "90",         "90"],
+        "Product Code": ["S1", "LN", "S1", "S1",       "7.0",        "LN"],
+    })
+    ctx = _ctx(df, tmp_path)
+    ctx.client.eligible_prod_codes = ["S1", "7"]
+    # eligible_data = open + eligible stat ("2") + eligible product -> row 0 only
+    ctx.subsets = SimpleNamespace(eligible_data=ctx.data.iloc[[0]])
+
+    from ars_analysis.analytics.attrition._helpers import prepare_attrition_data
+    universe, open_u, closed_u = prepare_attrition_data(ctx)
+
+    # Open: only the eligible_data row (row 1 wrong product, row 2 wrong stat)
+    assert list(open_u.index) == [0]
+    # Closed: eligible products incl. normalized "7.0"; the LN closure is out
+    assert sorted(closed_u.index) == [3, 4]
+    assert len(universe) == 3
+
+
+def test_get_ic_rate_config_wins_and_fallback_is_0_0065():
+    """Owner rule: client config ICRate always wins; fallback is 0.0065,
+    NEVER 0.0015."""
+    from ars_analysis.shared.helpers import IC_RATE_FALLBACK, get_ic_rate
+
+    assert IC_RATE_FALLBACK == 0.0065
+    assert get_ic_rate(SimpleNamespace(client=SimpleNamespace(ic_rate=0.0042))) == 0.0042
+    assert get_ic_rate(SimpleNamespace(client=SimpleNamespace(ic_rate=0.0))) == 0.0065
+    assert get_ic_rate(SimpleNamespace(client=SimpleNamespace(ic_rate=None))) == 0.0065
+    assert get_ic_rate(SimpleNamespace(client=None)) == 0.0065

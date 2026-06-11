@@ -14,22 +14,25 @@ slots (PERSONAL, BUSINESS, ...) are aliases that resolve here.
 
 from __future__ import annotations
 
-# Canonical CSI Velocity brand. Aligns with README + UI header.
+# Canonical CSI brand, per the CSI brand guidelines / PowerPoint skill
+# (owner-provided 2026-06-11): Navy #00274C anchor; Gold #F8971D, Orange
+# #F15D22, Red #EB2A2E accents; white / #F8F8F8 backgrounds.
 BRAND: dict[str, str] = {
     # Identity
-    "navy":         "#1A1A1A",   # CSI navy -- titles, axis labels, brand bars
-    "navy_soft":    "#2A2A2A",   # body text on dark surfaces
-    "accent":       "#F15D22",   # CSI orange -- single-color emphasis, callout hero
+    "navy":         "#00274C",   # CSI Navy -- primary anchor: titles, axis labels, brand bars
+    "navy_soft":    "#1B4569",   # softened navy -- body text on dark surfaces
+    "accent":       "#F15D22",   # CSI Orange -- single-color emphasis, callout hero
     "accent_light": "#fef0e8",   # accent background tint
     "accent_dark":  "#d14e1a",   # accent hover / pressed
+    "gold":         "#F8971D",   # CSI Gold -- secondary accent
 
     # Semantic
-    "positive":     "#2A8B3E",   # rate up, opt-in growth
-    "negative":     "#C73E1D",   # rate down, churn, gap
-    "warning":      "#F39C12",   # caution, anomaly highlight
+    "positive":     "#2A8B3E",   # rate up, opt-in growth (no CSI green; used sparingly)
+    "negative":     "#EB2A2E",   # CSI Red -- rate down, churn, gap
+    "warning":      "#F8971D",   # CSI Gold -- caution, anomaly highlight
     "neutral":      "#8B95A2",   # baseline series, contextual reference
     "muted":        "#B0B0B0",   # secondary text, axis ticks
-    "light_gray":   "#E8E8E8",   # gridlines, separators
+    "light_gray":   "#F8F8F8",   # light background per guidelines; gridlines/separators
 
     # Surface
     "bg":           "#FFFFFF",
@@ -41,13 +44,13 @@ BRAND: dict[str, str] = {
 # Pinned to a palette that reads well against the navy/orange identity without
 # muddying single-series brand emphasis.
 CHART_PALETTE: tuple[str, ...] = (
-    "#1A1A1A",   # navy (series 1)
-    "#F15D22",   # accent (series 2)
+    "#00274C",   # CSI Navy (series 1)
+    "#F15D22",   # CSI Orange / accent (series 2)
     "#2A8B3E",   # positive (series 3)
-    "#C73E1D",   # negative (series 4)
+    "#EB2A2E",   # CSI Red / negative (series 4)
     "#8B95A2",   # neutral (series 5)
     "#5B6770",   # slate (series 6)
-    "#D4A76A",   # sand (series 7)
+    "#F8971D",   # CSI Gold (series 7)
     "#48A6A7",   # teal (series 8)
 )
 

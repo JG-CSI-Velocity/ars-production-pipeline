@@ -571,7 +571,7 @@ class DeckBuilder:
             from ars_analysis.shared.brand import BRAND
         except Exception:
             # Fallback to CSI canonicals if brand isn't importable
-            BRAND = {"navy": "#1A1A1A", "accent": "#F15D22", "text": "#222222"}
+            BRAND = {"navy": "#00274C", "accent": "#F15D22", "text": "#222222"}
 
         def _hex(color: str) -> "RGBColor":
             color = color.lstrip("#")

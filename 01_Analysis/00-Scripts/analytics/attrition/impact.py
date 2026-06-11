@@ -24,6 +24,7 @@ from ars_analysis.analytics.attrition._helpers import (
     prepare_attrition_data,
     product_col,
 )
+from ars_analysis.shared.helpers import get_ic_rate
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.dctr._helpers import debit_mask, detect_debit_col
 from ars_analysis.analytics.registry import register
@@ -316,10 +317,7 @@ def _revenue_impact(ctx: PipelineContext) -> list[AnalysisResult]:
             )
         ]
 
-    # TODO(owner): ctx.client.ic_rate fallback is 0.007 here but 0.0015 in
-    # insights/branch_scorecard.py and insights/effectiveness.py -- a 4.7x
-    # divergence in the same deck. Needs one owner-confirmed default.
-    ic_rate = ctx.client.ic_rate or 0.007
+    ic_rate = get_ic_rate(ctx)
 
     def _spend_month(col: str):
         try:
@@ -586,8 +584,13 @@ def _ars_comparison(ctx: PipelineContext) -> list[AnalysisResult]:
     eligible accounts as low-attrition. Eligibility is now defined on the
     PRODUCT CODE only (time-invariant), normalized the same way
     subsets.py normalizes codes, and rates are L12M on the exposure base.
+
+    Reads ctx.data directly (NOT prepare_attrition_data) -- the attrition
+    universe is already scoped to eligible products, which would leave the
+    "Other Products" group empty.
     """
-    all_data, _, closed = prepare_attrition_data(ctx)
+    all_data = ctx.data if ctx.data is not None else pd.DataFrame()
+    closed = all_data[all_data["Date Closed"].notna()] if not all_data.empty else all_data
     if closed.empty or ctx.start_date is None or ctx.end_date is None:
         return [
             AnalysisResult(

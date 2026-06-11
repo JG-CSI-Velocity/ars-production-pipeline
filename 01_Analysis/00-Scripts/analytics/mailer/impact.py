@@ -437,7 +437,8 @@ def _revenue_attribution(ctx: PipelineContext) -> list[AnalysisResult]:
         ]
 
     data = ctx.data
-    ic_rate = ctx.client.ic_rate
+    from ars_analysis.shared.helpers import get_ic_rate
+    ic_rate = get_ic_rate(ctx)
     if ic_rate <= 0:
         return [
             AnalysisResult(

@@ -189,18 +189,70 @@ L12M_EXPOSURE_LABEL = "L12M Exposure"
 # ---------------------------------------------------------------------------
 
 
+def _norm_codes(s: pd.Series) -> pd.Series:
+    """subsets.py-style normalization: str, strip, drop trailing .0, upper."""
+    return s.astype(str).str.strip().str.replace(r"\.0$", "", regex=True).str.upper()
+
+
+def attrition_universe(ctx: PipelineContext) -> pd.DataFrame:
+    """The population attrition metrics are computed on (owner decision
+    2026-06-11: 'ensure the proper open vs eligible subsets').
+
+    ctx.subsets.eligible_data is OPEN accounts with eligible stat + product
+    codes -- it cannot contain a closure, so attrition can't anchor to it
+    directly. The comparable population is:
+
+      open rows   -> exactly ctx.subsets.eligible_data (same stat + product
+                     filters the rest of the deck uses)
+      closed rows -> eligible PRODUCT code only. Closure rewrites the stat
+                     code, so applying the stat test to closed rows would
+                     exclude every closure by construction (the A9.13
+                     circularity bug).
+
+    Falls back to the full dataset (with a warning) when eligibility config
+    or columns are missing, preserving behavior for unconfigured clients.
+    """
+    data = ctx.data
+    if data is None or data.empty:
+        return pd.DataFrame()
+
+    subsets = getattr(ctx, "subsets", None)
+    elig = getattr(subsets, "eligible_data", None) if subsets is not None else None
+    epc = getattr(ctx.client, "eligible_prod_codes", None) or []
+    pcol = product_col(data)
+
+    if elig is None or len(elig) == 0 or not epc or pcol is None:
+        logger.warning(
+            "Attrition universe: eligibility config/subsets unavailable -- "
+            "falling back to ALL accounts (rates will include non-eligible products)"
+        )
+        return data
+
+    epc_norm = {str(c).strip().upper().removesuffix(".0") for c in epc}
+    is_closed = data["Date Closed"].notna()
+    closed_eligible = is_closed & _norm_codes(data[pcol]).isin(epc_norm)
+    open_eligible = (~is_closed) & data.index.isin(elig.index)
+    return data[closed_eligible | open_eligible]
+
+
 def prepare_attrition_data(
     ctx: PipelineContext,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Return (all_data, open_accts, closed_accts), cached in ctx.results."""
+    """Return (universe, open_accts, closed_accts), cached in ctx.results.
+
+    `universe` is the attrition population from attrition_universe() --
+    the eligible-comparable book, NOT the raw ODD. A9.13 (eligible vs
+    other products) intentionally reads ctx.data directly instead.
+    """
     cached = ctx.results.get("_attrition_data")
     if cached is not None:
         return cached
 
-    data = ctx.data
-    if data is None:
+    if ctx.data is None:
         empty = pd.DataFrame()
         return empty, empty, empty
+
+    data = attrition_universe(ctx)
 
     open_accts = data[data["Date Closed"].isna()].copy()
     closed_accts = data[data["Date Closed"].notna()].copy()

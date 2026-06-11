@@ -258,7 +258,8 @@ class ValueAnalysis(AnalysisModule):
         logger.info("A11.1: Value of a Debit Card")
 
         fee_amount = ctx.client.nsf_od_fee
-        rate_amount = ctx.client.ic_rate
+        from ars_analysis.shared.helpers import get_ic_rate
+        rate_amount = get_ic_rate(ctx)
 
         ep = ctx.subsets.eligible_personal
         if ep is None or ep.empty:
@@ -442,7 +443,8 @@ class ValueAnalysis(AnalysisModule):
         logger.info("A11.2: Value of Reg E Opt-In")
 
         fee_amount = ctx.client.nsf_od_fee
-        rate_amount = ctx.client.ic_rate
+        from ars_analysis.shared.helpers import get_ic_rate
+        rate_amount = get_ic_rate(ctx)
 
         # Get Reg E eligible base (personal + debit)
         ep = ctx.subsets.eligible_personal
