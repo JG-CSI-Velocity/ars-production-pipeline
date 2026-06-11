@@ -403,6 +403,17 @@ def build_combo_lines(
     spend_cols: list[str],
     swipe_cols: list[str],
 ) -> list[AnalysisResult]:
+    import os as _os
+    import time as _time
+    from pathlib import Path as _Path
+
+    # Kill switch that needs NO restart: set env ARS_SKIP_COMBO=1, or drop a
+    # file named SKIP_COMBO.flag at the ARS root (M:\ARS). Escape hatch for
+    # mid-deadline recovery after this cell hung a production run.
+    _flag = _Path(__file__).resolve().parents[4] / "SKIP_COMBO.flag"
+    if _os.environ.get("ARS_SKIP_COMBO") == "1" or _flag.exists():
+        logger.warning("A16.7 combo lines SKIPPED (kill switch active)")
+        return []
     """Per-wave combo chart: 2 rows (Spend top, Swipes bottom) x N segment panels.
 
     Each panel shows Responder vs Non-Responder avg monthly value, with a
@@ -449,6 +460,8 @@ def build_combo_lines(
     )[:2]
 
     for month, resp_col, mail_col in dated_pairs:
+        _wave_t0 = _time.monotonic()
+        logger.info("A16.7 {month}: starting combo render", month=month)
         mail_date = parse_month(month)
 
         # Classify accounts for this wave
@@ -664,6 +677,10 @@ def build_combo_lines(
         fig.savefig(save_to, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
+        logger.info(
+            "A16.7 {month}: {n} panels rendered in {secs:.1f}s",
+            month=month, n=len(all_segs), secs=_time.monotonic() - _wave_t0,
+        )
         results.append(
             AnalysisResult(
                 slide_id=f"A16.7.{month}",
