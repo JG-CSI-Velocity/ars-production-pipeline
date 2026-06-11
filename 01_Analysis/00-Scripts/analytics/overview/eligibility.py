@@ -8,8 +8,8 @@ from loguru import logger
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import TEAL
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.charts import draw_funnel
 
 
 @register
@@ -165,42 +165,32 @@ class EligibilityFunnel(AnalysisModule):
 
         er = (ec / ta) * 100 if ta else 0
 
-        # Chart -- table visualization
+        # Chart -- true horizontal funnel with drop-off connectors
         chart_path = None
         if ctx.paths.charts_dir != ctx.paths.base_dir:
             ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
             save_to = ctx.paths.charts_dir / "a3_eligibility_funnel.png"
             try:
-                tdf = funnel[~funnel["Stage"].str.startswith("   ")].copy()
-                tdf["Count"] = tdf["Count"].apply(lambda x: f"{x:,}")
-                tdf["Pct of Total"] = tdf["Pct of Total"].apply(lambda x: f"{x:.1%}")
-                tdf["Drop-off"] = tdf["Drop-off"].apply(
-                    lambda x: f"{x:,}" if pd.notna(x) else "---"
-                )
-                tdf["Drop-off %"] = tdf["Drop-off %"].apply(
-                    lambda x: f"{x:.1%}" if pd.notna(x) and x > 0 else "---"
-                )
-
-                with chart_figure(figsize=(14, 6), save_path=save_to) as (fig, ax):
-                    ax.axis("off")
-                    table = ax.table(
-                        cellText=tdf.values,
-                        colLabels=tdf.columns,
-                        cellLoc="center",
-                        loc="center",
-                        colColours=[TEAL] * len(tdf.columns),
-                    )
-                    table.auto_set_font_size(False)
-                    table.set_fontsize(9)
-                    table.scale(1.2, 1.8)
-                    for j in range(len(tdf.columns)):
-                        table[(0, j)].set_text_props(weight="bold", color="white")
+                fdf = funnel[~funnel["Stage"].str.startswith("   ")]
+                # "1. Total Accounts" -> "Total Accounts"
+                stage_names = [
+                    s.split(". ", 1)[1] if ". " in s else s for s in fdf["Stage"]
+                ]
+                with chart_figure(figsize=(14, 7), save_path=save_to) as (fig, ax):
+                    draw_funnel(ax, stage_names, [float(c) for c in fdf["Count"]])
                     ax.set_title(
-                        "Eligibility Funnel",
-                        fontsize=16,
+                        f"Eligibility Funnel — {er:.1f}% of accounts eligible",
+                        fontsize=20,
                         fontweight="bold",
                         pad=20,
                     )
+                    if ec > 0:
+                        ax.text(
+                            0.99, -0.06,
+                            f"Eligible split — Personal: {ep_count:,}  |  Business: {eb_count:,}",
+                            transform=ax.transAxes,
+                            ha="right", va="top", fontsize=13, color="#666666",
+                        )
                 chart_path = save_to
             except Exception as exc:
                 logger.warning("A3 chart failed: {err}", err=exc)
