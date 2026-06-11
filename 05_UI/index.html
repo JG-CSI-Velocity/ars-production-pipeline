@@ -1006,7 +1006,8 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     </div>
 </div>
 
-<footer>Computer Services, Inc. &middot; Velocity Report Pipeline &middot; 2026</footer>
+<footer>Computer Services, Inc. &middot; Velocity Report Pipeline &middot; 2026
+    &middot; <span id="codeVersion" class="mono" title="git version of the running server">code: ...</span></footer>
 
 <script>
 // ─── NAV ───
@@ -2215,6 +2216,19 @@ async function loadResultsClients() {
 
 // Load dashboard data on page load
 loadDashboardData();
+
+// Footer code-version chip: surfaces what checkout the server is running so
+// a stale work-PC clone is caught before a client run, not after.
+(async () => {
+    try {
+        const r = await fetch('/api/version');
+        const v = await r.json();
+        const el = document.getElementById('codeVersion');
+        el.textContent = 'code: ' + (v.label || 'unknown');
+        if (v.dirty) el.style.color = 'var(--gold)';
+        if (!v.sha) el.style.color = 'var(--red)';
+    } catch (e) {}
+})();
 
 // Manual data-drop (#124): stage pre-formatted ODD files for CSMs without
 // shared dump access. Calls POST /api/stage which copies the source

@@ -148,6 +148,22 @@ cd M:\ARS
 git pull
 ```
 
+### Before every client run: confirm you're on current code
+
+A run executed on a stale clone silently produces decks with last week's
+charts. Three checks, ten seconds:
+
+1. `cd M:\ARS && git pull origin main` — pull the latest merged fixes.
+2. Restart the UI (`Start Here.bat`). The server keeps the old code in
+   memory until restarted — pulling alone is not enough.
+3. Check the **code:** stamp in the UI footer (also printed at server
+   startup). It must match the latest commit on GitHub `main`. A `*`
+   suffix means local uncommitted edits; red means git wasn't found.
+
+The same stamp is written into every `run_manifest.json`
+(`code_version`) and the deck title slide's speaker notes, so any deck
+can be traced back to the checkout that built it.
+
 ## Troubleshooting
 
 ### OLE warning when opening formatted Excel

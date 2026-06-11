@@ -1524,12 +1524,23 @@ def _build_preamble_slides(client_name: str, month: str) -> list[SlideContent]:
 
     title_date = f"{month_name} {year}" if month_name else month
 
+    # Stamp the code version into the title slide's speaker notes so any
+    # deck can be traced back to the checkout that built it.
+    try:
+        from datetime import datetime
+
+        from ars_analysis.shared.version import version_label
+        version_note = f"Built by pipeline version {version_label()} on {datetime.now():%Y-%m-%d %H:%M}"
+    except Exception:
+        version_note = None
+
     return [
         # P01: Master title -- RPE branded title slide
         SlideContent(
             slide_type="title",
             title=f"{client_name}\nAccount Revenue Solution | {title_date}",
             layout_index=LAYOUT_TITLE_RPE,
+            notes_text=version_note,
         ),
         # P02: Executive Dashboard (replaced at runtime with KPI dashboard)
         SlideContent(slide_type="blank", title="Agenda", layout_index=LAYOUT_CONTENT),

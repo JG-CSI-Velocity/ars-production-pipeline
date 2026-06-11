@@ -58,6 +58,22 @@ runs = {}
 
 # ─── HELPERS ──────────────────────────────────────────────────────────
 
+def get_code_version() -> dict:
+    """Git stamp of the running checkout (sha/branch/dirty/label).
+
+    Lets the operator confirm the server is on the code they think it is
+    -- a stale work-PC clone produced an entire client run with last
+    week's charts before anyone noticed.
+    """
+    _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
+    if _scripts not in sys.path:
+        sys.path.insert(0, _scripts)
+    try:
+        from shared.version import get_code_version as _gcv
+        return _gcv()
+    except Exception:
+        return {"sha": "", "branch": "", "dirty": False, "label": "unknown"}
+
 def load_ars_config():
     """Load ars_config.json."""
     if ARS_CONFIG_PATH.exists():
@@ -249,6 +265,12 @@ async def index():
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
     return HTMLResponse("<h1>Velocity</h1><p>index.html not found</p>")
+
+
+@app.get("/api/version")
+async def api_version():
+    """Code-version stamp for the footer chip. See get_code_version()."""
+    return get_code_version()
 
 
 @app.get("/api/csms")
@@ -1338,6 +1360,7 @@ if __name__ == "__main__":
     print(f"  CSMs:        {get_csm_list() or '[none configured]'}")
     print(f"  index.html:  {Path(__file__).parent / 'index.html'} {'[OK]' if (Path(__file__).parent / 'index.html').exists() else '[NOT FOUND]'}")
     print(f"  SLIDE_MODE:  {slide_mode}  (env SLIDE_MODE=deep|standard|minimal)")
+    print(f"  Code:        {get_code_version().get('label', 'unknown')}")
     print(f"  URL:         http://localhost:{port}")
     print(f"  PID:         {_os.getpid()}")
     print("=" * 60)

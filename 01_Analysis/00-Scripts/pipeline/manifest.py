@@ -94,6 +94,21 @@ def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _code_version() -> dict[str, Any]:
+    """Git stamp for the manifest. Empty dict if shared.version is unimportable."""
+    try:
+        from shared.version import get_code_version
+    except ImportError:
+        try:
+            from ars_analysis.shared.version import get_code_version
+        except Exception:
+            return {}
+    try:
+        return get_code_version()
+    except Exception:
+        return {}
+
+
 import json
 import os
 import tempfile
@@ -146,6 +161,7 @@ class RunManifest:
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
+            "code_version": _code_version(),
             "run_id": self.run_id,
             "client_id": self.client_id,
             "client_name": self.client_name,
