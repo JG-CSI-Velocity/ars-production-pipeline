@@ -438,10 +438,18 @@ def build_combo_lines(
     spend_lookup = {c.replace(" Spend", ""): c for c in spend_cols}
     swipe_lookup = {c.replace(" Swipes", ""): c for c in swipe_cols}
 
-    for month, resp_col, mail_col in pairs:
+    # Only the most recent 2 waves get combo slides: the deck's main flow
+    # carries 2 month groups (older months are appendix), and each figure is
+    # expensive -- the first production run spent ~67 minutes rendering one
+    # figure for every wave in program history.
+    dated_pairs = sorted(
+        (p for p in pairs if not pd.isna(parse_month(p[0]))),
+        key=lambda p: parse_month(p[0]),
+        reverse=True,
+    )[:2]
+
+    for month, resp_col, mail_col in dated_pairs:
         mail_date = parse_month(month)
-        if pd.isna(mail_date):
-            continue
 
         # Classify accounts for this wave
         was_mailed = data[mail_col].isin(["NU", "TH-10", "TH-15", "TH-20", "TH-25"])
@@ -469,11 +477,11 @@ def build_combo_lines(
             nonresp_mask = seg_mask & ~is_resp
             if resp_mask.sum() >= 5 and nonresp_mask.sum() >= 5:
                 available_segs.append(seg)
-        extra_segs = [
-            s for s in seg_series[was_mailed].unique()
-            if s not in SEG_ORDER and s != "Unknown"
-        ]
-        all_segs = available_segs + sorted(extra_segs)
+        # SEG_ORDER only. The old code added a panel for EVERY distinct
+        # non-standard value in the mail column (dates/codes/typos), and the
+        # figure is 4in wide per panel -- a polluted column produced a
+        # multi-hundred-inch figure that matplotlib ground on for an hour.
+        all_segs = available_segs
 
         if not all_segs:
             continue
