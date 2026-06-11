@@ -188,11 +188,11 @@ class RegEStatus(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A8.1",
-                title="Overall Reg E Status (Eligible Personal)",
+                title="Overall Reg E Status (Eligible Personal w/Debit)",
                 chart_path=chart_path,
                 excel_data={"Summary": summary},
                 notes=notes,
-                denominator_label="Eligible Personal",
+                denominator_label="Eligible Personal w/Debit",
                 denominator_n=int(t_all or 0),
             )
         ]
@@ -334,7 +334,7 @@ class RegEStatus(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A8.2",
-                title="Reg E Opt-In Rate Historical (Eligible Personal, Year/Decade)",
+                title="Reg E Opt-In Rate Historical (Eligible Personal w/Debit, Year/Decade)",
                 chart_path=chart_path,
                 excel_data={"Yearly": yearly, "Decade": decade},
                 notes=notes,
@@ -351,7 +351,7 @@ class RegEStatus(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.3",
-                    title="L12M Monthly Reg E Opt-In Rate (Eligible Personal)",
+                    title="L12M Monthly Reg E Opt-In Rate (Eligible Personal w/Debit)",
                     success=False,
                     error="No L12M Reg E data",
                 )
@@ -587,7 +587,7 @@ class RegEStatus(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A8.12",
-                title="Reg E Opt-In Rate 24-Month Trend (Eligible Personal)",
+                title="Reg E Opt-In Rate 24-Month Trend (Eligible Personal w/Debit)",
                 chart_path=chart_path,
                 excel_data={"Trend": last_24[["Year_Month", "Total", "With_RegE", "Rate"]]},
                 notes=notes,

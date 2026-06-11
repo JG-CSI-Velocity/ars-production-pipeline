@@ -4,35 +4,39 @@
 # slides (A8.4a was already eliminated in code -- its run() result is
 # discarded; it only feeds ctx.results for A8.4b/c).
 #
+# IMPORTANT (owner-confirmed): A8.10 + A8.11 merge into ONE side-by-side
+# slide ("Reg E Funnel: All-Time vs TTM", deck_builder REGE_MERGES). Both
+# must stay Y or that slide leaves the main deck. Likewise A8.5 + A8.6
+# merge into the age-analysis slide.
+#
+# deck_builder also routes A8.1 / A8.2 / A8.12 / A8.4c / A8.7 to the
+# appendix via REGE_APPENDIX_IDS regardless of manifest decisions, so the
+# effective main deck is: A8.3 (L12M trend) -> A8.4b (branch combo) ->
+# A8.5+A8.6 (age, merged) -> A8.10+A8.11 (funnels, merged).
+#
 # Review notes (2026-06-11):
-#   Main-deck story (3 slides): opt-in status donuts (A8.1) -> L12M
-#   momentum (A8.3) -> branch variation (A8.4b).
-#   Chart fixes this cycle: ~23 hardcoded off-brand colors across the
-#   section (navy #1B2A4A x9, blues #B0C4DE/#4A6FA5/#1B4F72, red
-#   #E63946, string "red" reference lines x7) moved onto the brand
-#   palette; a dead `_DARK if False` ternary removed; A8.4b's subtitle
-#   no longer names the line color; A8.12's trend fit was navy-on-navy
-#   (invisible against the data line) -- now accent. The A8.10/A8.11
-#   funnels were rebuilt onto shared draw_funnel (was a custom
-#   FancyBboxPatch render with a rainbow palette ending in purple), so
-#   they now match the A3 eligibility funnel language.
-#   Reference-line convention going forward: overall-average / portfolio
-#   lines are brand-accent dashed (matches the DCTR cycle).
-#   Denominators: clean -- everything is computed on Eligible Personal
-#   per the W1 denominator-law audit.
+#   DATA FIX this cycle (owner-reported): the Reg E opt-in rate base is now
+#   Eligible Personal w/Debit (personal w/ Reg E / eligible personal with a
+#   debit card) via reg_e_base() -- previously the base skipped the debit
+#   filter, which also made A8.10's "Personal w/Debit" funnel stage an
+#   unfiltered (and potentially non-monotonic) count. Audit framework,
+#   slide titles, and MODULES.md updated to the new label.
+#   Chart fixes: ~23 off-brand colors; A8.12 navy-on-navy trend line;
+#   A8.10/A8.11 rebuilt onto shared draw_funnel. Brand colors are interim
+#   until the owner's branding skill lands (then re-skin via shared/brand).
 
 section: rege
 sheet: ARS - RegE
 defaults:
-  A8.1: Y      # all-time vs L12M opt-in donuts (headline)
   A8.3: Y      # L12M monthly trend + volume context
   A8.4b: Y     # branch volumes + opt-in rate + portfolio avg
+  A8.5: Y      # by account age (merges with A8.6)
+  A8.6: Y      # by holder age (merges with A8.5)
+  A8.10: Y     # all-time funnel (merges with A8.11 -- owner's slide)
+  A8.11: Y     # L12M funnel (merges with A8.10 -- owner's slide)
+  A8.1: A      # opt-in donuts (deck_builder routes to appendix)
   A8.2: A      # by year / by decade context
   A8.4c: A     # branch volume-vs-rate scatter
-  A8.5: A      # by account age
-  A8.6: A      # by holder age (historical vs L12M)
   A8.7: A      # by product code (top 15)
-  A8.10: A     # all-time funnel (now draw_funnel)
-  A8.11: A     # L12M funnel (now draw_funnel)
   A8.12: A     # 24-month trend + slope fit
   A8.13: A     # branch x month pivot (Excel)

@@ -13,7 +13,8 @@ Every rate the pipeline ships divides by one of four canonical bases. This is en
 | Label | What it means | Used by |
 |---|---|---|
 | **Eligible** | Open accounts that match the client's `EligibleStatusCodes` × `EligibleProductCodes` | DCTR, Attrition, Value, Mailer, Insights — the default |
-| **Eligible Personal** | Eligible filtered to `Business? != Y` | Reg E (Reg E applies to consumer accounts only by regulation) |
+| **Eligible Personal** | Eligible filtered to `Business? != Y` | personal-only metrics |
+| **Eligible Personal w/Debit** | Eligible Personal filtered to `has_debit` | Reg E (consumer-only by regulation; opt-in governs ATM/one-time **debit** overdraft, so the base is debit holders -- owner decision 2026-06-11) |
 | **Eligible Business** | Eligible filtered to `Business? == Y` | Business-only sub-views |
 | **Open** | Date Closed is blank OR Stat Code starts with `O` | Reference framing only — allowed as a primary denominator on `DCTR-2` (methodology slide) and flagged anywhere else |
 
@@ -101,11 +102,11 @@ Helpers: `dctr/_helpers.py::debit_mask` (the universal has-debit predicate), `an
 
 ### 4.3 Reg E / Overdraft — `analytics/rege/`
 
-13 slides. Reg E is regulated to consumer accounts only, so the denominator is always **Eligible Personal**.
+13 slides. Reg E is regulated to consumer accounts only and the opt-in governs debit-card overdraft, so the denominator is always **Eligible Personal w/Debit**.
 
 | Reads | Writes (`ctx.results`) | Slide IDs | Denominator |
 |---|---|---|---|
-| `subsets.eligible_personal`, `subsets.eligible_data`, `subsets.eligible_with_debit`, `subsets.last_12_months`, `subsets.open_accounts` | `reg_e_1` … `reg_e_13` | `A8.1` … `A8.13` | `Eligible Personal` |
+| `subsets.eligible_personal`, `subsets.eligible_data`, `subsets.eligible_with_debit`, `subsets.last_12_months`, `subsets.open_accounts` | `reg_e_1` … `reg_e_13` | `A8.1` … `A8.13` | `Eligible Personal w/Debit` |
 
 **Calculators** (anchor: `rege/penetration.py`, helpers in `rege/_helpers.py`):
 
@@ -114,7 +115,7 @@ Helpers: `dctr/_helpers.py::debit_mask` (the universal has-debit predicate), `an
 - `A8.4a/b/c` — three-pane Reg E by holder cohort.
 - `A8.7..13` — overdraft analyses: NSF revenue per opted-in vs opted-out account, recapture potential.
 
-**Why `Eligible Personal`** — the post-2010 Reg E amendment applies to consumer overdraft only. Filtering further to `eligible_personal ∩ has_debit` (audit item 2.2) would over-narrow; `_helpers.py` row 153–158 calls this out explicitly with a citation to the framework.
+**Why `Eligible Personal w/Debit`** — the post-2010 Reg E amendment applies to consumer overdraft only, and the opt-in decision specifically governs ATM / one-time **debit** transactions. Owner decision (2026-06-11): the rate base is `eligible_personal ∩ has_debit` (`reg_e_base()` in `_helpers.py`), superseding the earlier reading that kept the base at `Eligible Personal`.
 
 ### 4.4 Attrition — `analytics/attrition/`
 

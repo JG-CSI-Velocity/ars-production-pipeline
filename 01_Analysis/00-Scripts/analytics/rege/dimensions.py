@@ -189,7 +189,7 @@ class RegEDimensions(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A8.5",
-                title="Reg E Opt-In Rate by Account Age (Eligible Personal)",
+                title="Reg E Opt-In Rate by Account Age (Eligible Personal w/Debit)",
                 chart_path=chart_path,
                 excel_data={"Account Age": result},
                 notes=notes,
@@ -241,7 +241,7 @@ class RegEDimensions(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.6",
-                    title="Reg E Opt-In Rate by Holder Age (Eligible Personal)",
+                    title="Reg E Opt-In Rate by Holder Age (Eligible Personal w/Debit)",
                     success=False,
                     error="No holder age data (missing age column)",
                 )
@@ -366,7 +366,7 @@ class RegEDimensions(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.7",
-                    title="Reg E Opt-In Rate by Product Code (Eligible Personal)",
+                    title="Reg E Opt-In Rate by Product Code (Eligible Personal w/Debit)",
                     success=False,
                     error="No Product Code column found",
                 )
@@ -414,7 +414,7 @@ class RegEDimensions(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.7",
-                    title="Reg E Opt-In Rate by Product Code (Eligible Personal)",
+                    title="Reg E Opt-In Rate by Product Code (Eligible Personal w/Debit)",
                     success=False,
                     error="Could not compute overall opt-in rate (no product code groups with accounts)",
                 )
@@ -430,7 +430,7 @@ class RegEDimensions(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.7",
-                    title="Reg E Opt-In Rate by Product Code (Eligible Personal)",
+                    title="Reg E Opt-In Rate by Product Code (Eligible Personal w/Debit)",
                     success=False,
                     error="No product code rows to chart after filtering TOTAL row",
                 )
@@ -519,7 +519,7 @@ class RegEDimensions(AnalysisModule):
                 stages,
                 title_text="All-Time Account Eligibility & Reg E Funnel",
                 subtitle_text="All-Time Analysis",
-                metrics_text=f"Reg E Rate: {rege_rate:.1f}%",
+                metrics_text=f"Reg E Opt-In: {rege_rate:.1f}% of eligible personal w/debit",
             )
         chart_path = save_to
 
@@ -619,7 +619,7 @@ class RegEDimensions(AnalysisModule):
                 stages,
                 title_text="L12M Account Eligibility & Reg E Funnel",
                 subtitle_text=subtitle,
-                metrics_text=f"Reg E Rate: {rege_rate:.1f}%",
+                metrics_text=f"Reg E Opt-In: {rege_rate:.1f}% of eligible personal w/debit",
             )
         chart_path = save_to
 

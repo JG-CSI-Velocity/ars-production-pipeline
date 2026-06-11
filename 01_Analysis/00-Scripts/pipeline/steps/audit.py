@@ -9,6 +9,8 @@ Per project_denominator_framework.md (LAW):
 - Eligible is the primary default.
 - Eligible Personal / Eligible Business are sub-views for inherently personal-
   or business-only metrics.
+- Eligible Personal w/Debit is the Reg E base (owner decision 2026-06-11):
+  opt-in rate = personal w/ Reg E / eligible personal with a debit card.
 - Open is reference framing only. Allowed as primary denominator on the methodology
   slide DCTR-2 only; flagged anywhere else.
 """
@@ -25,6 +27,7 @@ from ars_analysis.pipeline.context import PipelineContext
 LAW_LABELS: frozenset[str] = frozenset((
     "Eligible",
     "Eligible Personal",
+    "Eligible Personal w/Debit",
     "Eligible Business",
     "Open",
 ))
@@ -47,11 +50,12 @@ DEFAULT_BY_PREFIX: dict[str, str] = {
     "DCTR-":     "Eligible",
     "A7":        "Eligible",            # A7.1, A7.2, A7.3, A7.6a, A7 combo
 
-    # Reg E section -- inherently personal-only by regulation
-    "rege_":     "Eligible Personal",
-    "REGE-":     "Eligible Personal",
-    "reg_e_":    "Eligible Personal",
-    "A8":        "Eligible Personal",   # A8.1, A8.2, A8.3, A8.12
+    # Reg E section -- personal-only by regulation, debit-holders only by
+    # definition (the opt-in governs ATM / one-time debit overdraft coverage)
+    "rege_":     "Eligible Personal w/Debit",
+    "REGE-":     "Eligible Personal w/Debit",
+    "reg_e_":    "Eligible Personal w/Debit",
+    "A8":        "Eligible Personal w/Debit",   # A8.1, A8.2, A8.3, A8.12
 
     # Attrition section
     "attrition_":   "Eligible",

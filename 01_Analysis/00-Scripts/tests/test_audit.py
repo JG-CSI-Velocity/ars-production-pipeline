@@ -40,9 +40,10 @@ class _FakeCtx:
     manifest: object = None
 
 
-def test_law_labels_are_the_four_layers():
+def test_law_labels_are_the_framework_layers():
     assert LAW_LABELS == frozenset((
-        "Eligible", "Eligible Personal", "Eligible Business", "Open",
+        "Eligible", "Eligible Personal", "Eligible Personal w/Debit",
+        "Eligible Business", "Open",
     ))
 
 
@@ -56,9 +57,9 @@ def test_default_label_dctr_is_eligible():
     assert _default_label("DCTR-7") == "Eligible"
 
 
-def test_default_label_rege_is_eligible_personal():
-    assert _default_label("rege_1") == "Eligible Personal"
-    assert _default_label("REGE-2") == "Eligible Personal"
+def test_default_label_rege_is_eligible_personal_w_debit():
+    assert _default_label("rege_1") == "Eligible Personal w/Debit"
+    assert _default_label("REGE-2") == "Eligible Personal w/Debit"
 
 
 def test_default_label_unknown_returns_empty():
@@ -77,9 +78,9 @@ def test_default_label_specific_prefix_beats_generic():
 
 
 def test_a8_prefix_resolves_to_eligible_personal():
-    """Reg E A8.x slides should all anchor to Eligible Personal per the law."""
+    """Reg E A8.x slides anchor to Eligible Personal w/Debit (owner decision)."""
     for sid in ("A8.1", "A8.2", "A8.3", "A8.12"):
-        assert _default_label(sid) == "Eligible Personal"
+        assert _default_label(sid) == "Eligible Personal w/Debit"
 
 
 def test_a7_prefix_resolves_to_eligible():
@@ -90,7 +91,8 @@ def test_a7_prefix_resolves_to_eligible():
 
 def test_default_label_covers_authored_spec_slides():
     """Every section authored in W3 specs should resolve to a 4-layer label."""
-    valid = {"Eligible", "Eligible Personal", "Eligible Business", "Open"}
+    valid = {"Eligible", "Eligible Personal", "Eligible Personal w/Debit",
+             "Eligible Business", "Open"}
     for sid in ("DCTR-MAIN-1", "REGE-MAIN-1", "OVERVIEW-MAIN-1",
                 "ATTRITION-MAIN-1", "VALUE-MAIN-1", "INSIGHTS-MAIN-1"):
         assert _default_label(sid) in valid, f"{sid}: not registered"
@@ -140,7 +142,7 @@ def test_write_rates_audit_creates_csv_and_flags_violations(tmp_path):
     by_id = {r["slide_id"]: r for r in rows}
     assert by_id["dctr_1"]["framework_compliant"] == "True"
     assert by_id["dctr_1"]["denominator_label"] == "Eligible"
-    assert by_id["rege_1"]["denominator_label"] == "Eligible Personal"
+    assert by_id["rege_1"]["denominator_label"] == "Eligible Personal w/Debit"
     assert by_id["mystery_1"]["framework_compliant"] == "False"
     assert by_id["dctr_2"]["framework_compliant"] == "True"
     assert by_id["value_1"]["framework_compliant"] == "False"

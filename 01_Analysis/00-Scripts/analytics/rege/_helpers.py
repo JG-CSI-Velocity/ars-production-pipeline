@@ -8,6 +8,7 @@ from loguru import logger
 
 from ars_analysis.analytics.dctr._helpers import filter_l12m
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.debit import has_debit
 
 # -- Reg E-specific age buckets (differ from DCTR) ---------------------------
 
@@ -150,14 +151,20 @@ def reg_e_base(ctx: PipelineContext) -> tuple[pd.DataFrame, pd.DataFrame | None,
     if not reg_e_col:
         raise ValueError("No Reg E column found in data")
 
-    # Base = eligible personal (per denominator framework; Reg E is personal-only
-    # by regulation, but we do NOT further narrow to debit-card holders -- that
-    # would violate the four-layer framework)
+    # Base = eligible personal WITH a debit card. Owner-confirmed definition
+    # (2026-06-11): Reg E opt-in rate = personal w/ Reg E / eligible personal
+    # w/ debit. The opt-in decision governs ATM / one-time debit overdraft
+    # coverage, so accounts without a debit card don't belong in the base.
+    # (Supersedes the earlier four-layer reading that kept the base at
+    # Eligible Personal; the audit framework now carries the
+    # "Eligible Personal w/Debit" label for all Reg E rates.)
     ep = ctx.subsets.eligible_personal
     if ep is None or ep.empty:
         raise ValueError("No eligible personal accounts")
 
-    base = ep.copy()
+    base = has_debit(ep).copy()
+    if base.empty:
+        raise ValueError("No eligible personal accounts with a debit card")
 
     # Normalize the Reg E column values (strip whitespace + fix truncated codes)
     if reg_e_col in base.columns:
