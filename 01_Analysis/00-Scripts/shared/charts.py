@@ -40,6 +40,7 @@ def draw_funnel(
     value_fmt: str = "{:,.0f}",
     highlight_biggest_drop: bool = True,
     label_fontsize: int = 14,
+    pct_of: str = "first",
 ) -> None:
     """Draw a horizontal funnel: centered bars + drop-off connectors.
 
@@ -74,7 +75,13 @@ def draw_funnel(
     for i, (stage, v) in enumerate(zip(stages, values)):
         color = final_color if i == n - 1 else bar_color
         ax.barh(i, v, left=(vmax - v) / 2, height=0.62, color=color, zorder=3)
-        label = f"{value_fmt.format(v)}  ({v / values[0]:.0%})"
+        # pct_of="first": share of the top stage. pct_of="prev": conversion
+        # from the preceding stage -- so a rate DEFINED as stageN/stageN-1
+        # (e.g. Reg E opt-in = personal w/ Reg E / eligible personal w/debit)
+        # appears on the bar itself, not just in a side box.
+        pct_base = values[0] if (pct_of == "first" or i == 0) else values[i - 1]
+        pct = (v / pct_base) if pct_base else 0.0
+        label = f"{value_fmt.format(v)}  ({pct:.1%})" if pct_of == "prev" else             f"{value_fmt.format(v)}  ({pct:.0%})"
         if v > vmax * 0.22:
             ax.text(vmax / 2, i, label, ha="center", va="center",
                     fontsize=label_fontsize, fontweight="bold", color="white", zorder=4)

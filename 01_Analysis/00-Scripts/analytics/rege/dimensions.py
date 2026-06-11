@@ -60,6 +60,9 @@ def _render_funnel(
         [s["name"] for s in stages],
         [float(s["total"]) for s in stages],
         label_fontsize=15,
+        pct_of="prev",  # owner formula: each stage as conversion of the prior
+                        # stage, so the final bar IS the Reg E opt-in rate
+                        # (personal w/ Reg E / eligible personal w/debit)
     )
     ax.set_title(title_text, fontsize=20, fontweight="bold", pad=34)
     ax.text(

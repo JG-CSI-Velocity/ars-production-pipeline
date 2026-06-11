@@ -136,9 +136,10 @@ def test_personal_business_normalizes_flag_values(tmp_path):
 
 
 def test_attrition_universe_scopes_to_eligible_products(tmp_path):
-    """Owner rule: attrition uses the proper open/eligible subsets.
-    Open rows = exactly ctx.subsets.eligible_data; closed rows = eligible
-    PRODUCT codes only (closure rewrites the stat code)."""
+    """Eligible-products scoping is OPT-IN (ARS_ATTRITION_ELIGIBLE_ONLY=1).
+    Default is the full book -- forced scoping collapsed real closure counts.
+    When opted in: open rows = ctx.subsets.eligible_data; closed rows =
+    eligible PRODUCT codes only (closure rewrites the stat code)."""
     df = pd.DataFrame({
         "Date Opened": ["2020-01-01"] * 6,
         "Date Closed": [None, None, None, "2025-12-01", "2025-12-01", "2025-12-01"],
@@ -150,8 +151,13 @@ def test_attrition_universe_scopes_to_eligible_products(tmp_path):
     # eligible_data = open + eligible stat ("2") + eligible product -> row 0 only
     ctx.subsets = SimpleNamespace(eligible_data=ctx.data.iloc[[0]])
 
+    import os
     from ars_analysis.analytics.attrition._helpers import prepare_attrition_data
-    universe, open_u, closed_u = prepare_attrition_data(ctx)
+    os.environ["ARS_ATTRITION_ELIGIBLE_ONLY"] = "1"
+    try:
+        universe, open_u, closed_u = prepare_attrition_data(ctx)
+    finally:
+        del os.environ["ARS_ATTRITION_ELIGIBLE_ONLY"]
 
     # Open: only the eligible_data row (row 1 wrong product, row 2 wrong stat)
     assert list(open_u.index) == [0]
