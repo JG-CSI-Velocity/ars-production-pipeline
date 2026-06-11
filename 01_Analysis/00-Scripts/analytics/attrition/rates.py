@@ -16,7 +16,9 @@ from matplotlib.ticker import FuncFormatter
 
 from ars_analysis.analytics.attrition._helpers import (
     DURATION_ORDER,
+    L12M_EXPOSURE_LABEL,
     _safe,
+    l12m_attrition,
     prepare_attrition_data,
 )
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
@@ -53,7 +55,10 @@ def _overall(ctx: PipelineContext) -> list[AnalysisResult]:
             )
         ]
 
-    overall_rate = n_closed / total
+    # Lifetime closure share -- context only, NOT a rate. It grows with
+    # program age and was previously presented as "Overall Attrition Rate",
+    # which made every long-running client look like an attrition crisis.
+    lifetime_share = n_closed / total
 
     # Annual closures trend
     yearly = None
@@ -64,17 +69,15 @@ def _overall(ctx: PipelineContext) -> list[AnalysisResult]:
         yearly.columns = ["Year", "Closures"]
         yearly = yearly.sort_values("Year")
 
-    # L12M rate
+    # Headline: L12M rate on the standardized exposure base (shared with
+    # A9.0 and A9.4 -- one definition, one number across the deck)
     l12m_rate = 0.0
-    if ctx.start_date and ctx.end_date and n_closed > 0:
-        sd = pd.Timestamp(ctx.start_date)
-        ed = pd.Timestamp(ctx.end_date)
-        l12m_closed = closed[(closed["Date Closed"] >= sd) & (closed["Date Closed"] <= ed)]
-        l12m_open_start = len(
-            all_data[(all_data["Date Closed"].isna()) | (all_data["Date Closed"] >= sd)]
-        )
-        if l12m_open_start > 0:
-            l12m_rate = len(l12m_closed) / l12m_open_start
+    l12m_base_n = 0
+    l12m_closed_n = 0
+    if ctx.start_date and ctx.end_date:
+        base_df, closures_df, l12m_rate = l12m_attrition(all_data, ctx.start_date, ctx.end_date)
+        l12m_base_n = len(base_df)
+        l12m_closed_n = len(closures_df)
 
     # Chart -- chart-cache adoption #3 (A9.1 Overall Attrition)
     chart_path = None
@@ -124,9 +127,15 @@ def _overall(ctx: PipelineContext) -> list[AnalysisResult]:
         cached_chart(save_to, cache_key, _draw)
         chart_path = save_to
 
+    # NOTE: "overall_rate" now carries the L12M rate -- the exec KPI
+    # dashboard and the A9.1 headline grade this key against 5%/10%
+    # annual thresholds, which the lifetime share could never satisfy.
     ctx.results["attrition_1"] = {
-        "overall_rate": overall_rate,
+        "overall_rate": l12m_rate,
         "l12m_rate": l12m_rate,
+        "l12m_base": l12m_base_n,
+        "l12m_closed": l12m_closed_n,
+        "lifetime_share": lifetime_share,
         "total": total,
         "closed": n_closed,
     }
@@ -134,11 +143,14 @@ def _overall(ctx: PipelineContext) -> list[AnalysisResult]:
     return [
         AnalysisResult(
             slide_id="A9.1",
-            title="Overall Attrition Rate",
+            title="Attrition Rate (L12M)",
             chart_path=chart_path,
-            notes=(f"{overall_rate:.1%} overall ({n_closed:,}/{total:,}), L12M: {l12m_rate:.1%}"),
-            denominator_label="Eligible",
-            denominator_n=int(total or 0),
+            notes=(
+                f"L12M attrition: {l12m_rate:.1%} ({l12m_closed_n:,}/{l12m_base_n:,} exposure base). "
+                f"Lifetime closure share: {lifetime_share:.1%} ({n_closed:,}/{total:,})"
+            ),
+            denominator_label=L12M_EXPOSURE_LABEL,
+            denominator_n=int(l12m_base_n or 0),
         )
     ]
 

@@ -43,7 +43,7 @@ class _FakeCtx:
 def test_law_labels_are_the_framework_layers():
     assert LAW_LABELS == frozenset((
         "Eligible", "Eligible Personal", "Eligible Personal w/Debit",
-        "Eligible Business", "Open",
+        "Eligible Business", "L12M Exposure", "Open",
     ))
 
 
@@ -92,7 +92,7 @@ def test_a7_prefix_resolves_to_eligible():
 def test_default_label_covers_authored_spec_slides():
     """Every section authored in W3 specs should resolve to a 4-layer label."""
     valid = {"Eligible", "Eligible Personal", "Eligible Personal w/Debit",
-             "Eligible Business", "Open"}
+             "Eligible Business", "L12M Exposure", "Open"}
     for sid in ("DCTR-MAIN-1", "REGE-MAIN-1", "OVERVIEW-MAIN-1",
                 "ATTRITION-MAIN-1", "VALUE-MAIN-1", "INSIGHTS-MAIN-1"):
         assert _default_label(sid) in valid, f"{sid}: not registered"

@@ -1315,8 +1315,12 @@ ATTRITION_APPENDIX_IDS = {
     "A9.13",
 }
 
-# Slides to skip entirely (not needed in deck)
-OVERVIEW_SKIP_IDS = {"A1", "A1b", "A3"}
+# Slides to skip entirely (not needed in deck).
+# A3 (eligibility funnel) and A1b (product mix) were skipped when A3 was an
+# ax.table screenshot and A1b was Excel-only; both were rebuilt as real
+# charts in the 2026-06 section review and now ship. A1 stays skipped
+# (status composition is covered by the exec dashboard).
+OVERVIEW_SKIP_IDS = {"A1"}
 DCTR_SKIP_IDS = {"DCTR-1"}
 
 
@@ -1664,13 +1668,13 @@ def _build_executive_kpi(ctx_results: dict, title_date: str = "") -> SlideConten
     else:
         kpis["Reg E Opt-In"] = "N/A|gray"
 
-    # Attrition Rate (lower is better)
+    # Attrition Rate, L12M exposure base (lower is better)
     att = _safe_get("attrition_1", "overall_rate")
     if att is not None and isinstance(att, (int, float)) and not math.isnan(att):
         color = _color_rate_low(att, 0.05, 0.10)
-        kpis["Attrition Rate"] = f"{att:.1%}|{color}"
+        kpis["Attrition (L12M)"] = f"{att:.1%}|{color}"
     else:
-        kpis["Attrition Rate"] = "N/A|gray"
+        kpis["Attrition (L12M)"] = "N/A|gray"
 
     # Total Eligible Accounts (neutral)
     total = _safe_get("dctr_1", "total_accounts")

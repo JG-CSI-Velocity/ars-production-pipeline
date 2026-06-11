@@ -130,6 +130,61 @@ def product_col(df: pd.DataFrame) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Standardized L12M attrition window (owner review cycle, 2026-06-11)
+#
+# Before this existed, A9.0 / A9.1 / A9.4 each used a different denominator
+# for "L12M attrition rate" (open-at-window-start vs open-at-start+window-opens
+# +partial-month-opens vs currently-open+window-closes) and printed three
+# different numbers for the same metric in one deck. ONE definition now:
+#
+#   base      = every account exposed during the window
+#             = opened on/before end_date AND (still open OR closed on/after
+#               start_date)
+#   closures  = base rows with Date Closed inside [start_date, end_date]
+#   rate      = closures / base
+# ---------------------------------------------------------------------------
+
+
+def l12m_exposure_base(
+    all_data: pd.DataFrame,
+    start_date,
+    end_date,
+) -> pd.DataFrame:
+    """The standardized L12M attrition denominator (see module comment)."""
+    if all_data is None or all_data.empty:
+        return pd.DataFrame()
+    sd, ed = pd.Timestamp(start_date), pd.Timestamp(end_date)
+    do = all_data["Date Opened"]
+    dc = all_data["Date Closed"]
+    mask = (do.isna() | (do <= ed)) & (dc.isna() | (dc >= sd))
+    return all_data[mask]
+
+
+def l12m_attrition(
+    all_data: pd.DataFrame,
+    start_date,
+    end_date,
+) -> tuple[pd.DataFrame, pd.DataFrame, float]:
+    """Return (base, closures, rate) on the standardized L12M window.
+
+    closures is a subset of base, so the rate can never exceed 100%.
+    """
+    base = l12m_exposure_base(all_data, start_date, end_date)
+    if base.empty:
+        return base, base, 0.0
+    sd, ed = pd.Timestamp(start_date), pd.Timestamp(end_date)
+    dc = base["Date Closed"]
+    closures = base[(dc >= sd) & (dc <= ed)]
+    return base, closures, len(closures) / len(base)
+
+
+# Audit-framework label for the standardized base. Attrition rates cannot
+# anchor to "Eligible" (an open-accounts-only subset that excludes every
+# closure by construction); they anchor here instead.
+L12M_EXPOSURE_LABEL = "L12M Exposure"
+
+
+# ---------------------------------------------------------------------------
 # Data preparation (cached)
 # ---------------------------------------------------------------------------
 
@@ -149,6 +204,22 @@ def prepare_attrition_data(
 
     open_accts = data[data["Date Closed"].isna()].copy()
     closed_accts = data[data["Date Closed"].notna()].copy()
+
+    # Closed-detection sanity check. Attrition defines closed purely as
+    # "Date Closed parsed", so an account with an open-looking Stat Code but
+    # a Date Closed is CLOSED here while ctx.subsets.open_accounts may call
+    # it open. Surface the disagreement instead of hiding it. (The reverse --
+    # non-"O" stat codes without a date -- is normal for institutions with
+    # numeric stat codes, so it can't be warned on reliably.)
+    if "Stat Code" in data.columns:
+        stat_open = data["Stat Code"].astype(str).str.strip().str.upper().str.startswith("O")
+        conflicting = int((stat_open & data["Date Closed"].notna()).sum())
+        if conflicting > 0:
+            logger.warning(
+                "Attrition: {n} account(s) have an open Stat Code AND a Date Closed -- "
+                "attrition treats them as CLOSED (by date)",
+                n=conflicting,
+            )
 
     if not closed_accts.empty:
         closed_accts["_duration_days"] = (

@@ -11,6 +11,9 @@ Per project_denominator_framework.md (LAW):
   or business-only metrics.
 - Eligible Personal w/Debit is the Reg E base (owner decision 2026-06-11):
   opt-in rate = personal w/ Reg E / eligible personal with a debit card.
+- L12M Exposure is the attrition base (closures can't anchor to the
+  open-only Eligible subset): opened on/before window end AND not closed
+  before window start.
 - Open is reference framing only. Allowed as primary denominator on the methodology
   slide DCTR-2 only; flagged anywhere else.
 """
@@ -29,6 +32,7 @@ LAW_LABELS: frozenset[str] = frozenset((
     "Eligible Personal",
     "Eligible Personal w/Debit",
     "Eligible Business",
+    "L12M Exposure",
     "Open",
 ))
 
@@ -57,10 +61,14 @@ DEFAULT_BY_PREFIX: dict[str, str] = {
     "reg_e_":    "Eligible Personal w/Debit",
     "A8":        "Eligible Personal w/Debit",   # A8.1, A8.2, A8.3, A8.12
 
-    # Attrition section
-    "attrition_":   "Eligible",
-    "ATTRITION-":   "Eligible",         # W3 spec slide IDs (ATTRITION-MAIN-1)
-    "A9":           "Eligible",         # A9.1, A9.2, A9.11
+    # Attrition section. Attrition CANNOT anchor to "Eligible" -- that subset
+    # is built from open accounts only and excludes every closure by
+    # construction. Rates anchor to the standardized L12M exposure base
+    # (attrition/_helpers.l12m_attrition: opened<=end AND not closed before
+    # start; closures within the window).
+    "attrition_":   "L12M Exposure",
+    "ATTRITION-":   "L12M Exposure",    # W3 spec slide IDs (ATTRITION-MAIN-1)
+    "A9":           "L12M Exposure",    # A9.1, A9.2, A9.11
 
     # Value section
     "value_":  "Eligible",
