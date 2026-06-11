@@ -722,6 +722,76 @@ CLIENT_CONFIGS = {
         },
     },
 
+    '1453': {  # Connex Credit Union (North Haven, CT -- New Haven/Hartford/Middlesex/Fairfield)
+        'fed_district': '1',
+        'credit_unions': [
+            # American Eagle Financial CU (East Hartford) -- largest CT CU.
+            # Bare 'AMERICAN EAGLE' intentionally omitted: collides with
+            # American Eagle Outfitters (apparel). Qualified forms only.
+            'AMERICAN EAGLE FINANCIAL CREDIT UNION', 'AMERICAN EAGLE FINANCIAL',
+            'AMERICAN EAGLE FCU', 'AMERICAN EAGLE CU', 'AEFCU',
+            # Sikorsky Financial CU (Stratford). Bare 'SIKORSKY' omitted:
+            # collides with Sikorsky Aircraft payroll/employer descriptors.
+            'SIKORSKY FINANCIAL CREDIT UNION', 'SIKORSKY CREDIT UNION',
+            'SIKORSKY FINANCIAL', 'SIKORSKY FCU', 'SIKORSKY CU',
+            # Nutmeg State Financial CU (Rocky Hill)
+            'NUTMEG STATE FINANCIAL CREDIT UNION', 'NUTMEG STATE FINANCIAL',
+            'NUTMEG STATE FCU', 'NUTMEG STATE CU', 'NUTMEG STATE',
+            # Mutual Security CU (Shelton)
+            'MUTUAL SECURITY CREDIT UNION', 'MUTUAL SECURITY CU', 'MUTUAL SECURITY',
+            # Seasons FCU (Middletown) -- rebranded to Ellafi FCU; data may carry either
+            'SEASONS FEDERAL CREDIT UNION', 'SEASONS FCU',
+            'ELLAFI FEDERAL CREDIT UNION', 'ELLAFI FCU',
+        ],
+        'local_banks': [
+            # Guilford Savings Bank -- rebranded to Ascend Bank (Branford/Guilford/Madison)
+            'GUILFORD SAVINGS BANK', 'GUILFORD SAVINGS', 'ASCEND BANK',
+            # Ion Bank (Naugatuck; formerly Naugatuck Savings Bank)
+            'ION BANK', 'NAUGATUCK SAVINGS BANK',
+            # The Milford Bank (Milford / Stratford)
+            'THE MILFORD BANK', 'MILFORD BANK',
+            # New Haven Bank
+            'NEW HAVEN BANK',
+            # Essex Savings Bank (Middlesex). Bare 'ESSEX' omitted: too generic.
+            'ESSEX SAVINGS BANK', 'ESSEX SAVINGS',
+            # M&T Bank -- successor to People's United (former dominant CT bank).
+            # People's United is on the District-1 top-25 list; M&T is the live brand.
+            'M&T BANK', 'M AND T BANK', 'M&T',
+            # KeyBank -- major CT regional, not on the District-1 top-25 list
+            'KEYBANK', 'KEY BANK',
+        ],
+        'custom': [],
+        'rollups': {
+            # --- Credit Unions ---
+            'AMERICAN EAGLE FINANCIAL':            'AMERICAN EAGLE FINANCIAL CREDIT UNION',
+            'AMERICAN EAGLE FCU':                  'AMERICAN EAGLE FINANCIAL CREDIT UNION',
+            'AMERICAN EAGLE CU':                   'AMERICAN EAGLE FINANCIAL CREDIT UNION',
+            'AEFCU':                               'AMERICAN EAGLE FINANCIAL CREDIT UNION',
+            'SIKORSKY CREDIT UNION':               'SIKORSKY FINANCIAL CREDIT UNION',
+            'SIKORSKY FINANCIAL':                  'SIKORSKY FINANCIAL CREDIT UNION',
+            'SIKORSKY FCU':                        'SIKORSKY FINANCIAL CREDIT UNION',
+            'SIKORSKY CU':                         'SIKORSKY FINANCIAL CREDIT UNION',
+            'NUTMEG STATE FINANCIAL':              'NUTMEG STATE FINANCIAL CREDIT UNION',
+            'NUTMEG STATE FCU':                    'NUTMEG STATE FINANCIAL CREDIT UNION',
+            'NUTMEG STATE CU':                     'NUTMEG STATE FINANCIAL CREDIT UNION',
+            'NUTMEG STATE':                        'NUTMEG STATE FINANCIAL CREDIT UNION',
+            'MUTUAL SECURITY CU':                  'MUTUAL SECURITY CREDIT UNION',
+            'MUTUAL SECURITY':                     'MUTUAL SECURITY CREDIT UNION',
+            'SEASONS FCU':                         'SEASONS FEDERAL CREDIT UNION',
+            'ELLAFI FEDERAL CREDIT UNION':         'SEASONS FEDERAL CREDIT UNION',
+            'ELLAFI FCU':                          'SEASONS FEDERAL CREDIT UNION',
+            # --- Local Banks ---
+            'GUILFORD SAVINGS':                    'GUILFORD SAVINGS BANK',
+            'ASCEND BANK':                         'GUILFORD SAVINGS BANK',
+            'NAUGATUCK SAVINGS BANK':              'ION BANK',
+            'MILFORD BANK':                        'THE MILFORD BANK',
+            'ESSEX SAVINGS':                       'ESSEX SAVINGS BANK',
+            'M AND T BANK':                        'M&T BANK',
+            'M&T':                                 'M&T BANK',
+            'KEY BANK':                            'KEYBANK',
+        },
+    },
+
     # Template for new clients -- copy and fill in:
     # 'XXXX': {  # Client Name (Location)
     #     'fed_district': '?',
