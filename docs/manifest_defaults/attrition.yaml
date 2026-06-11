@@ -1,0 +1,47 @@
+# Recommended SLIDE_MANIFEST defaults — ARS Attrition section
+#
+# Cycle 4 of the section-by-section pass (deck order). This cycle was a
+# DATA-CORRECTNESS audit (owner: "I don't trust the data") -- and the
+# distrust was justified. Fixed in code (see commit for full detail):
+#
+#   CRITICAL: A9.0/A9.1/A9.4 printed three different "L12M attrition
+#   rates" (three denominators) -- now one standardized L12M exposure
+#   base (_helpers.l12m_attrition), stamped as "L12M Exposure" in the
+#   rates audit (the old stamp claimed "Eligible", which is an
+#   open-accounts-only subset that cannot contain a closure).
+#   CRITICAL: A9.7 tenure rates could exceed 100% (numerator bucketed by
+#   lifespan-at-close, denominator by tenure-to-today) -- now a proper
+#   closure hazard.
+#   CRITICAL: A9.11 picked "last spend before closure" in ALPHABETICAL
+#   month order (effectively September) and summed every closure in
+#   history as "annual revenue lost" -- now chronological + L12M.
+#   CRITICAL: A9.13 was circular (closed accounts can't have an
+#   open-eligible stat code) -- now product-code-based eligibility.
+#   MAJOR: A9.5/A9.6/A9.8/A9.9/A9.10 presented lifetime closure shares
+#   as "attrition rates" (30-60% style numbers beside 5-15% L12M slides)
+#   -- all now L12M. A9.9/A9.10's fake retention lift (old closures
+#   piling into the comparison group) fixed by the same windowing.
+#   The exec KPI dashboard graded the lifetime share against 5%/10%
+#   annual thresholds (permanently red) -- now graded on the L12M rate.
+#
+# Deck routing: A9.3+A9.6 merge; A9.2/A9.4/A9.5/A9.7/A9.8/A9.13 are
+# appendix-routed by deck_builder. ic_rate fallback inconsistency
+# (0.007 here vs 0.0015 in insights/) still needs an owner decision.
+
+section: attrition
+sheet: ARS - Attrition
+defaults:
+  A9.0: Y      # cohort headline tiles + monthly trend
+  A9.1: Y      # L12M rate + closures-by-year
+  A9.3: Y      # open-vs-closed profile (merges with A9.6)
+  A9.6: Y      # personal vs business L12M (merges with A9.3)
+  A9.9: Y      # debit retention effect (L12M, caveated)
+  A9.10: Y     # mailer retention effect (L12M)
+  A9.11: Y     # revenue impact of L12M closures
+  A9.12: Y     # attrition velocity (monthly + 3-mo MA)
+  A9.2: A      # closure duration distribution
+  A9.4: A      # by branch (L12M)
+  A9.5: A      # by product (L12M)
+  A9.7: A      # closure hazard by tenure
+  A9.8: A      # by balance tier (L12M, stale-balance caveat)
+  A9.13: A     # eligible vs other products (L12M)

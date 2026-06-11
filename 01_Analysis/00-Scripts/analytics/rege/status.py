@@ -16,8 +16,9 @@ from ars_analysis.analytics.dctr._helpers import l12m_month_labels
 from ars_analysis.analytics.rege._helpers import reg_e_base, rege, total_row
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import ELIGIBLE, HISTORICAL, NEUTRAL, SILVER, TEAL
+from ars_analysis.charts.style import ELIGIBLE, HISTORICAL, NEUTRAL, PRIMARY, SILVER, TEAL, TTM
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -155,7 +156,7 @@ class RegEStatus(AnalysisModule):
                     ax_d.add_patch(centre)
 
                     ax_d.text(0, 0.05, f"{rate:.1%}", ha="center", va="center",
-                              fontsize=28, fontweight="bold", color="#1B2A4A")
+                              fontsize=28, fontweight="bold", color=PRIMARY)
                     ax_d.text(0, -0.18, "opt-in rate", ha="center", va="center",
                               fontsize=12, color=NEUTRAL)
 
@@ -187,11 +188,11 @@ class RegEStatus(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A8.1",
-                title="Overall Reg E Status (Eligible Personal)",
+                title="Overall Reg E Status (Eligible Personal w/Debit)",
                 chart_path=chart_path,
                 excel_data={"Summary": summary},
                 notes=notes,
-                denominator_label="Eligible Personal",
+                denominator_label="Eligible Personal w/Debit",
                 denominator_n=int(t_all or 0),
             )
         ]
@@ -276,7 +277,9 @@ class RegEStatus(AnalysisModule):
                         fontsize=10,
                         fontweight="bold",
                     )
-                ax1.axhline(y=overall * 100, color="red", linestyle="--", linewidth=2, alpha=0.7)
+                ax1.axhline(
+                    y=overall * 100, color=BRAND["accent"], linestyle="--", linewidth=2, alpha=0.8
+                )
                 ax1.set_xticks(list(x))
                 ax1.set_xticklabels(
                     [str(int(y)) for y in chart_yearly["Year"]], rotation=45, ha="right"
@@ -307,7 +310,7 @@ class RegEStatus(AnalysisModule):
                         fontweight="bold",
                     )
                 ax2.axhline(
-                    y=dec_overall * 100, color="red", linestyle="--", linewidth=2, alpha=0.7
+                    y=dec_overall * 100, color=BRAND["accent"], linestyle="--", linewidth=2, alpha=0.8
                 )
                 ax2.set_xticks(list(x2))
                 ax2.set_xticklabels(chart_decade["Decade"].tolist(), rotation=45, ha="right")
@@ -331,7 +334,7 @@ class RegEStatus(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A8.2",
-                title="Reg E Opt-In Rate Historical (Eligible Personal, Year/Decade)",
+                title="Reg E Opt-In Rate Historical (Eligible Personal w/Debit, Year/Decade)",
                 chart_path=chart_path,
                 excel_data={"Yearly": yearly, "Decade": decade},
                 notes=notes,
@@ -348,7 +351,7 @@ class RegEStatus(AnalysisModule):
             return [
                 AnalysisResult(
                     slide_id="A8.3",
-                    title="L12M Monthly Reg E Opt-In Rate (Eligible Personal)",
+                    title="L12M Monthly Reg E Opt-In Rate (Eligible Personal w/Debit)",
                     success=False,
                     error="No L12M Reg E data",
                 )
@@ -397,10 +400,8 @@ class RegEStatus(AnalysisModule):
             ax.bar(
                 x,
                 monthly_counts,
-                color="#B0C4DE",
-                edgecolor="#4A6FA5",
-                linewidth=1.2,
-                alpha=0.7,
+                color=NEUTRAL,
+                alpha=0.45,
                 width=0.6,
                 label="Eligible Accounts",
                 zorder=1,
@@ -415,7 +416,7 @@ class RegEStatus(AnalysisModule):
             # Historical rate (flat reference line)
             ax2.axhline(
                 y=historical_rate,
-                color="black",
+                color=PRIMARY,
                 linestyle="--",
                 linewidth=2.5,
                 alpha=0.7,
@@ -430,7 +431,7 @@ class RegEStatus(AnalysisModule):
                 ax2.plot(
                     x[valid_mask],
                     rates_arr[valid_mask],
-                    color="#1B4F72",
+                    color=TTM,
                     linewidth=3.5,
                     marker="o",
                     markersize=12,
@@ -479,10 +480,10 @@ class RegEStatus(AnalysisModule):
                     xytext=(x[li] + 0.3, rates_arr[li] + 2),
                     fontsize=14,
                     fontweight="bold",
-                    color="#1B4F72",
+                    color=TTM,
                     arrowprops={
                         "arrowstyle": "->",
-                        "color": "#1B4F72",
+                        "color": TTM,
                         "lw": 1.5,
                     },
                 )
@@ -554,9 +555,9 @@ class RegEStatus(AnalysisModule):
                     last_24["Date"],
                     p(x_num),
                     "--",
-                    color="navy",
+                    color=BRAND["accent"],
                     linewidth=2,
-                    alpha=0.6,
+                    alpha=0.8,
                     label=f"Trend ({z[0]:+.2f}pp/mo)",
                 )
                 slope = z[0]
@@ -586,7 +587,7 @@ class RegEStatus(AnalysisModule):
         return [
             AnalysisResult(
                 slide_id="A8.12",
-                title="Reg E Opt-In Rate 24-Month Trend (Eligible Personal)",
+                title="Reg E Opt-In Rate 24-Month Trend (Eligible Personal w/Debit)",
                 chart_path=chart_path,
                 excel_data={"Trend": last_24[["Year_Month", "Total", "With_RegE", "Rate"]]},
                 notes=notes,

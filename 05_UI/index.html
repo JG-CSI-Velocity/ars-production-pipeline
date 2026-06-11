@@ -18,12 +18,12 @@
     --accent: #F15D22;
     --accent-light: #fef0e8;
     --accent-dark: #d14e1a;
-    --gold: #FBAE40;
+    --gold: #F8971D;
     --green: #2e7d32;
     --green-bg: #e8f5e9;
-    --red: #c0392b;
+    --red: #EB2A2E;
     --red-bg: #fdecea;
-    --dark: #1A1A1A;
+    --dark: #00274C;
     --dark-muted: #9F9EA2;
 }
 body { font-family: 'Montserrat', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -798,28 +798,32 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             <select class="sel" id="rClientSel" onchange="loadResults()" style="width:280px;">
                 <option value="">Select a client...</option>
             </select>
-            <button class="btn btn-dark" onclick="openDeckShapeEditor()" style="font-size:12px;padding:8px 16px;">Deck Shape</button>
+            <button class="btn btn-dark" onclick="openDeckShapeEditor()" style="font-size:12px;padding:8px 16px;">Curate Deck</button>
             <button class="btn btn-dark" onclick="openHtmlPreview()"
                 style="font-size:12px;padding:8px 16px;">Preview as HTML</button>
         </div>
     </div>
 
-    <!-- Wave 4 follow-up: Deck Shape editor. Lists every slide from
-         SLIDE_MANIFEST.xlsx with a Keep? toggle (Y/A/N/blank). Save
-         posts to /api/manifest. No deck rebuild button -- operator
-         re-runs Generate to apply. -->
+    <!-- Curate Deck panel. With a client selected, shows every slide from the
+         run grouped by section WITH chart thumbnails (GET /api/curate/...),
+         so triage is visual. Without a client it falls back to the xlsx-only
+         table (GET /api/manifest). Keep?/Aux/Drop edits post to /api/manifest;
+         Sync appends this run's new slide IDs to SLIDE_MANIFEST.xlsx;
+         Rebuild deck re-shapes the PPTX without re-running analysis. -->
     <div id="deckShapePanel" style="display:none;margin-bottom:24px;border:2px solid var(--border);
         border-radius:12px;background:var(--card);padding:18px 22px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
             <div>
-                <div style="font-weight:700;font-size:16px;color:var(--dark);">Deck Shape</div>
+                <div style="font-weight:700;font-size:16px;color:var(--dark);">Curate Deck</div>
                 <div style="font-size:12px;color:var(--muted);" id="deckShapePath">--</div>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
                 <div id="deckShapeCounts" style="font-size:12px;color:var(--muted);"></div>
                 <input id="deckShapeFilter" placeholder="Filter by slide id or title..."
                     style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;width:240px;"
-                    oninput="renderDeckShapeRows()" />
+                    oninput="renderDeckShape()" />
+                <button class="btn" id="deckShapeSyncBtn" onclick="syncManifest()"
+                    style="display:none;font-size:12px;padding:6px 14px;background:var(--gold);color:var(--dark);">Sync new slides</button>
                 <button class="btn" id="deckShapeSaveBtn" onclick="saveDeckShape()"
                     style="font-size:12px;padding:6px 14px;" disabled>Save</button>
                 <button class="btn" id="deckShapeRebuildBtn" onclick="rebuildDeck()"
@@ -829,7 +833,10 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             </div>
         </div>
         <div id="deckShapeMsg" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
-        <div style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+        <!-- Visual mode: per-section thumbnail grid -->
+        <div id="curateSections" style="display:none;max-height:65vh;overflow-y:auto;"></div>
+        <!-- Fallback mode: xlsx rows only (no run selected) -->
+        <div id="deckShapeTableWrap" style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
             <table style="width:100%;border-collapse:collapse;font-size:12px;">
                 <thead style="position:sticky;top:0;background:#f5f5f5;">
                     <tr>
@@ -1006,7 +1013,8 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     </div>
 </div>
 
-<footer>Computer Services, Inc. &middot; Velocity Report Pipeline &middot; 2026</footer>
+<footer>Computer Services, Inc. &middot; Velocity Report Pipeline &middot; 2026
+    &middot; <span id="codeVersion" class="mono" title="git version of the running server">code: ...</span></footer>
 
 <script>
 // ─── NAV ───
@@ -1963,17 +1971,77 @@ async function loadResultsAfterRun(csm, month, clientId) {
     }
 }
 
-// Wave 4 follow-up: Deck Shape editor (SLIDE_MANIFEST.xlsx in-UI).
+// Curate Deck panel: visual per-run triage (thumbnails via /api/curate)
+// with an xlsx-only table fallback when no run is selected.
 let _deckShapeRowsCache = [];
 let _deckShapeEdits = {};  // slide_id -> "Y"|"A"|"N"|""
+let _curateData = null;    // /api/curate payload when in visual mode
+
+function _resultsSelection() {
+    // csm/month/clientId of the run being curated. The Results dropdown
+    // options carry data-csm/data-month; Generate tab is the fallback.
+    const sel = document.getElementById('rClientSel');
+    const opt = sel && sel.selectedOptions ? sel.selectedOptions[0] : null;
+    if (opt && opt.value) {
+        return {
+            csm: opt.dataset.csm || document.getElementById('gCsmSel')?.value,
+            month: opt.dataset.month || document.getElementById('gMonthSel')?.value,
+            clientId: opt.value,
+        };
+    }
+    return {
+        csm: document.getElementById('gCsmSel')?.value,
+        month: document.getElementById('gMonthSel')?.value,
+        clientId: document.getElementById('gClientSel')?.value,
+    };
+}
+
+function _renderDecisionCounts(c) {
+    document.getElementById('deckShapeCounts').innerHTML =
+        `<span style="color:var(--green);">${c.main || 0} main</span> · ` +
+        `<span style="color:var(--gold);">${c.aux || 0} aux</span> · ` +
+        `<span style="color:var(--red);">${c.drop || 0} dropped</span> · ` +
+        `<span>${c.blank || 0} blank</span>`;
+}
 
 async function openDeckShapeEditor() {
     const panel = document.getElementById('deckShapePanel');
     panel.style.display = '';
     const msg = document.getElementById('deckShapeMsg');
-    msg.textContent = 'Loading manifest...';
+    msg.textContent = 'Loading...';
     _deckShapeEdits = {};
+    _curateData = null;
     document.getElementById('deckShapeSaveBtn').disabled = true;
+    document.getElementById('deckShapeSyncBtn').style.display = 'none';
+
+    // Visual mode when a completed run is selected
+    const {csm, month, clientId} = _resultsSelection();
+    if (csm && month && clientId) {
+        try {
+            const r = await fetch(`/api/curate/${encodeURIComponent(csm)}/${encodeURIComponent(month)}/${encodeURIComponent(clientId)}`);
+            if (r.ok) {
+                _curateData = await r.json();
+                document.getElementById('deckShapePath').textContent =
+                    _curateData.manifest_path
+                        ? `${clientId} / ${month} — decisions in ${_curateData.manifest_path}`
+                        : `${clientId} / ${month} — SLIDE_MANIFEST.xlsx not found (use Sync to create it)`;
+                _renderDecisionCounts(_curateData.counts || {});
+                const missing = _curateData.missing_from_manifest || 0;
+                if (missing > 0) {
+                    const syncBtn = document.getElementById('deckShapeSyncBtn');
+                    syncBtn.style.display = '';
+                    syncBtn.textContent = `Sync ${missing} new slide${missing === 1 ? '' : 's'}`;
+                    msg.textContent = `${missing} slide(s) from this run are not in the manifest yet — Sync to make them editable.`;
+                } else {
+                    msg.textContent = `${_curateData.total_slides} slides across ${(_curateData.sections || []).length} sections.`;
+                }
+                renderDeckShape();
+                return;
+            }
+        } catch (err) { /* fall through to xlsx-only mode */ }
+    }
+
+    // Fallback: xlsx rows only
     try {
         const r = await fetch('/api/manifest');
         if (!r.ok) throw new Error('manifest fetch failed: ' + r.status);
@@ -1981,16 +2049,103 @@ async function openDeckShapeEditor() {
         _deckShapeRowsCache = data.rows || [];
         document.getElementById('deckShapePath').textContent =
             data.path ? `From: ${data.path}` : 'SLIDE_MANIFEST.xlsx not found';
-        const c = data.counts || {};
-        document.getElementById('deckShapeCounts').innerHTML =
-            `<span style="color:var(--green);">${c.main || 0} main</span> · ` +
-            `<span style="color:var(--gold);">${c.aux || 0} aux</span> · ` +
-            `<span style="color:var(--red);">${c.drop || 0} dropped</span> · ` +
-            `<span>${c.blank || 0} blank</span>`;
-        msg.textContent = `${_deckShapeRowsCache.length} slides across ${new Set(_deckShapeRowsCache.map(r=>r.sheet)).size} sections`;
-        renderDeckShapeRows();
+        _renderDecisionCounts(data.counts || {});
+        msg.textContent = `${_deckShapeRowsCache.length} slides across ` +
+            `${new Set(_deckShapeRowsCache.map(r=>r.sheet)).size} sections. ` +
+            `Select a client above to curate with chart thumbnails.`;
+        renderDeckShape();
     } catch (err) {
         msg.textContent = 'Error loading manifest: ' + err.message;
+    }
+}
+
+function renderDeckShape() {
+    const visual = !!_curateData;
+    document.getElementById('curateSections').style.display = visual ? '' : 'none';
+    document.getElementById('deckShapeTableWrap').style.display = visual ? 'none' : '';
+    if (visual) renderCurateSections();
+    else renderDeckShapeRows();
+}
+
+function _decisionSelect(sid, cur, inManifest) {
+    const tint = cur === 'Y' ? '#e8f5e9' : cur === 'A' ? '#fff4e0' : cur === 'N' ? '#fdecea' : '#fff';
+    if (inManifest === false) {
+        return `<span class="badge badge-accent" title="Run Sync to add this slide to SLIDE_MANIFEST.xlsx">not in manifest</span>`;
+    }
+    return `<select data-sid="${sid}" onchange="onDeckShapeChange(this)"
+        style="border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:11px;background:${tint};">
+        <option value=""  ${cur === '' ? 'selected' : ''}>(blank)</option>
+        <option value="Y" ${cur === 'Y' ? 'selected' : ''}>Y -- main</option>
+        <option value="A" ${cur === 'A' ? 'selected' : ''}>A -- aux</option>
+        <option value="N" ${cur === 'N' ? 'selected' : ''}>N -- drop</option>
+    </select>`;
+}
+
+function renderCurateSections() {
+    const host = document.getElementById('curateSections');
+    const filter = document.getElementById('deckShapeFilter').value.toLowerCase().trim();
+    host.innerHTML = '';
+    for (const section of (_curateData.sections || [])) {
+        const slides = (section.slides || []).filter(s =>
+            !filter ||
+            (s.slide_id || '').toLowerCase().includes(filter) ||
+            (s.title || '').toLowerCase().includes(filter)
+        );
+        if (slides.length === 0) continue;
+        const sec = document.createElement('div');
+        sec.style.cssText = 'margin-bottom:18px;';
+        const kept = slides.filter(s => (_deckShapeEdits[s.slide_id] ?? s.decision) !== 'N').length;
+        sec.innerHTML = `<div style="font-weight:700;font-size:13px;color:var(--dark);
+            padding:6px 2px;border-bottom:2px solid var(--border);margin-bottom:10px;
+            display:flex;justify-content:space-between;">
+            <span>${section.name}</span>
+            <span style="color:var(--muted);font-weight:500;">${kept}/${slides.length} kept</span></div>`;
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;';
+        for (const s of slides) {
+            const cur = (_deckShapeEdits[s.slide_id] !== undefined) ? _deckShapeEdits[s.slide_id] : (s.decision || '');
+            const card = document.createElement('div');
+            card.style.cssText = 'border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;';
+            const thumb = s.thumb_url
+                ? `<a href="${s.thumb_url}" target="_blank" title="Open full-size chart">
+                     <img src="${s.thumb_url}" loading="lazy" style="width:100%;display:block;aspect-ratio:16/9;object-fit:contain;background:#fafafa;"></a>`
+                : `<div style="aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;
+                     background:#fafafa;color:var(--faint);font-size:11px;">${s.error ? 'failed: ' + s.error.slice(0, 60) : 'no chart'}</div>`;
+            card.innerHTML = `${thumb}
+                <div style="padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                    <div style="min-width:0;">
+                        <div class="mono" style="font-size:10px;color:var(--accent);">${s.slide_id}</div>
+                        <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${(s.title || '').replace(/"/g, '&quot;')}">${s.title || ''}</div>
+                    </div>
+                    <div style="flex-shrink:0;">${_decisionSelect(s.slide_id, cur, s.in_manifest)}</div>
+                </div>`;
+            grid.appendChild(card);
+        }
+        sec.appendChild(grid);
+        host.appendChild(sec);
+    }
+}
+
+async function syncManifest() {
+    const {csm, month, clientId} = _resultsSelection();
+    const msg = document.getElementById('deckShapeMsg');
+    const btn = document.getElementById('deckShapeSyncBtn');
+    btn.disabled = true;
+    msg.textContent = 'Syncing slide list into SLIDE_MANIFEST.xlsx...';
+    try {
+        const r = await fetch(`/api/manifest/sync/${encodeURIComponent(csm)}/${encodeURIComponent(month)}/${encodeURIComponent(clientId)}`,
+            {method: 'POST'});
+        if (!r.ok) {
+            msg.textContent = 'Sync failed: ' + await r.text();
+            return;
+        }
+        const data = await r.json();
+        msg.textContent = `Added ${data.added} slide(s) to ${data.path}. Reloading...`;
+        setTimeout(openDeckShapeEditor, 600);
+    } catch (err) {
+        msg.textContent = 'Sync error: ' + err.message;
+    } finally {
+        btn.disabled = false;
     }
 }
 
@@ -2035,17 +2190,12 @@ function onDeckShapeChange(sel) {
 }
 
 async function rebuildDeck() {
-    // Wave 4 follow-up: rebuild the PPTX without re-running analysis.
-    // Uses the currently selected client on the Results tab; falls back to
-    // the Generate tab's selection. Reads the persisted run_report.json on
-    // the backend and feeds it to deck_builder.build_deck.
-    const csm = document.getElementById('gCsmSel')?.value;
-    const month = document.getElementById('gMonthSel')?.value;
-    const clientSel = document.getElementById('rClientSel') || document.getElementById('gClientSel');
-    const clientId = clientSel?.value;
+    // Rebuild the PPTX without re-running analysis: reads the persisted
+    // run_report.json on the backend and feeds it to deck_builder.build_deck.
+    const {csm, month, clientId} = _resultsSelection();
     const msg = document.getElementById('deckShapeMsg');
     if (!csm || !month || !clientId) {
-        msg.textContent = 'Pick a client/period on the Generate tab first (used to locate the analysis dir).';
+        msg.textContent = 'Select a client above (or on the Generate tab) first.';
         return;
     }
     const btn = document.getElementById('deckShapeRebuildBtn');
@@ -2090,7 +2240,7 @@ async function saveDeckShape() {
             return;
         }
         const data = await r.json();
-        msg.textContent = `Saved ${data.updated} row(s). Re-run Generate to rebuild the deck with these decisions.`;
+        msg.textContent = `Saved ${data.updated} row(s). Click "Rebuild deck" to apply without re-running analysis.`;
         _deckShapeEdits = {};
         // Reload to confirm
         setTimeout(openDeckShapeEditor, 800);
@@ -2215,6 +2365,19 @@ async function loadResultsClients() {
 
 // Load dashboard data on page load
 loadDashboardData();
+
+// Footer code-version chip: surfaces what checkout the server is running so
+// a stale work-PC clone is caught before a client run, not after.
+(async () => {
+    try {
+        const r = await fetch('/api/version');
+        const v = await r.json();
+        const el = document.getElementById('codeVersion');
+        el.textContent = 'code: ' + (v.label || 'unknown');
+        if (v.dirty) el.style.color = 'var(--gold)';
+        if (!v.sha) el.style.color = 'var(--red)';
+    } catch (e) {}
+})();
 
 // Manual data-drop (#124): stage pre-formatted ODD files for CSMs without
 // shared dump access. Calls POST /api/stage which copies the source

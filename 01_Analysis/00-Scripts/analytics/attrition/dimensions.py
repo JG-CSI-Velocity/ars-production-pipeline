@@ -20,6 +20,7 @@ from ars_analysis.analytics.attrition._helpers import (
     _safe,
     categorize_balance,
     categorize_tenure,
+    l12m_attrition,
     prepare_attrition_data,
     product_col,
 )
@@ -78,12 +79,13 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
                 error="L12M window not set on context",
             )
         ]
-    _dc = pd.to_datetime(closed["Date Closed"], errors="coerce")
-    l12m_closed = closed[(_dc >= pd.Timestamp(sd)) & (_dc <= pd.Timestamp(ed))].copy()
-
-    # Denominator: accounts open at start of L12M window
-    # Approximation: currently open + closed in L12M
-    l12m_base = pd.concat([open_accts, l12m_closed], ignore_index=True)
+    # Standardized L12M exposure base + closures (shared with A9.0 / A9.1).
+    # The old "currently open + L12M closed" approximation inflated the base
+    # with partial-current-month opens and dropped accounts closed after the
+    # window -- printing a third variant of the L12M rate in one deck.
+    l12m_base, l12m_closed, _ = l12m_attrition(all_data, sd, ed)
+    l12m_base = l12m_base.copy()
+    l12m_closed = l12m_closed.copy()
 
     l12m_base = _apply_branch_map(l12m_base, bmap)
     l12m_closed = _apply_branch_map(l12m_closed, bmap)
@@ -183,7 +185,10 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
     l12m_opened = _apply_branch_map(l12m_opened, bmap)
 
     if not l12m_opened.empty:
-        l12m_opened_and_closed = l12m_opened[l12m_opened["Date Closed"].notna()].copy()
+        # Bound closures to the window end -- the title says "Opened & Closed
+        # in {window}", so current-partial-month closures must not leak in.
+        _odc = pd.to_datetime(l12m_opened["Date Closed"], errors="coerce")
+        l12m_opened_and_closed = l12m_opened[_odc.notna() & (_odc <= pd.Timestamp(ed))].copy()
 
         opened_by = l12m_opened.groupby("Branch").size()
         opened_closed_by = l12m_opened_and_closed.groupby("Branch").size() if not l12m_opened_and_closed.empty else pd.Series(dtype=int)
@@ -280,21 +285,26 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
 
 
 def _by_product(ctx: PipelineContext) -> list[AnalysisResult]:
-    """Attrition rates by product code."""
+    """L12M attrition rates by product code (standardized exposure base).
+
+    Previously lifetime closed-ever / all-ever, which printed 30-60% style
+    'rates' next to the ~5-15% L12M slides and made the section incoherent.
+    """
     all_data, _, closed = prepare_attrition_data(ctx)
     pcol = product_col(all_data)
-    if closed.empty or pcol is None:
+    if closed.empty or pcol is None or ctx.start_date is None or ctx.end_date is None:
         return [
             AnalysisResult(
                 slide_id="A9.5",
                 title="Attrition by Product",
                 success=False,
-                error="No closed accounts or no product column",
+                error="No closed accounts, no product column, or no L12M window",
             )
         ]
 
-    total_by = all_data.groupby(pcol).size()
-    closed_by = closed.groupby(pcol).size()
+    base_df, closures_df, _ = l12m_attrition(all_data, ctx.start_date, ctx.end_date)
+    total_by = base_df.groupby(pcol).size()
+    closed_by = closures_df.groupby(pcol).size()
     prod_df = (
         pd.DataFrame(
             {"Total": total_by, "Closed": closed_by},
@@ -325,7 +335,7 @@ def _by_product(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         ax.set_title(
-            f"Attrition Rate by Product Code (Top {len(prod_df)})",
+            f"L12M Attrition Rate by Product Code (Top {len(prod_df)})",
             fontsize=24,
             fontweight="bold",
             pad=15,
@@ -356,9 +366,9 @@ def _by_product(ctx: PipelineContext) -> list[AnalysisResult]:
     return [
         AnalysisResult(
             slide_id="A9.5",
-            title="Attrition by Product Code",
+            title="L12M Attrition by Product Code",
             chart_path=save_to,
-            notes=f"Top {len(prod_df)} products by volume",
+            notes=f"Top {len(prod_df)} products by L12M exposure",
         )
     ]
 
@@ -369,22 +379,40 @@ def _by_product(ctx: PipelineContext) -> list[AnalysisResult]:
 
 
 def _personal_vs_business(ctx: PipelineContext) -> list[AnalysisResult]:
-    """Attrition split by personal vs business accounts."""
+    """L12M attrition split by personal vs business accounts.
+
+    Business? matching mirrors subsets.py (normalized YES/Y = business,
+    everything else personal) -- the old exact == "Yes"/"No" comparison
+    silently produced 0-count groups and 0.0% rates on data carrying
+    "Y"/"N", lowercase, or padded values.
+    """
     all_data, _, closed = prepare_attrition_data(ctx)
-    if closed.empty or "Business?" not in all_data.columns:
+    if closed.empty or "Business?" not in all_data.columns \
+            or ctx.start_date is None or ctx.end_date is None:
         return [
             AnalysisResult(
                 slide_id="A9.6",
                 title="Personal vs Business",
                 success=False,
-                error="No closed accounts or no Business? column",
+                error="No closed accounts, no Business? column, or no L12M window",
             )
         ]
 
+    base_df, closures_df, _ = l12m_attrition(all_data, ctx.start_date, ctx.end_date)
+
+    def _is_business(df: pd.DataFrame) -> pd.Series:
+        return df["Business?"].astype(str).str.strip().str.upper().isin(("YES", "Y"))
+
+    base_biz = _is_business(base_df)
+    closed_biz = _is_business(closures_df)
+
     rows = []
-    for btype, label in [("No", "Personal"), ("Yes", "Business")]:
-        total = len(all_data[all_data["Business?"] == btype])
-        n_closed = len(closed[closed["Business?"] == btype])
+    for label, base_mask, closed_mask in [
+        ("Personal", ~base_biz, ~closed_biz),
+        ("Business", base_biz, closed_biz),
+    ]:
+        total = int(base_mask.sum())
+        n_closed = int(closed_mask.sum())
         rate = n_closed / total if total > 0 else 0
         rows.append(
             {
@@ -419,7 +447,7 @@ def _personal_vs_business(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         ax.set_title(
-            "Attrition: Personal vs Business",
+            "L12M Attrition: Personal vs Business",
             fontsize=24,
             fontweight="bold",
             pad=15,
@@ -447,10 +475,10 @@ def _personal_vs_business(ctx: PipelineContext) -> list[AnalysisResult]:
     return [
         AnalysisResult(
             slide_id="A9.6",
-            title="Personal vs Business Attrition",
+            title="Personal vs Business Attrition (L12M)",
             chart_path=save_to,
             notes=(
-                f"Personal: {pb_df.iloc[0]['Attrition Rate']:.1%} | "
+                f"L12M -- Personal: {pb_df.iloc[0]['Attrition Rate']:.1%} | "
                 f"Business: {pb_df.iloc[1]['Attrition Rate']:.1%}"
             ),
         )
@@ -475,10 +503,16 @@ def _by_tenure(ctx: PipelineContext) -> list[AnalysisResult]:
             )
         ]
 
-    now = pd.Timestamp.now()
-    all_copy = all_data.copy()
-    all_copy["_tenure_days"] = (now - all_copy["Date Opened"]).dt.days
-    all_copy["_tenure_cat"] = all_copy["_tenure_days"].apply(categorize_tenure)
+    # Hazard-style rate: for each tenure bucket, closures whose lifespan fell
+    # in the bucket / accounts that SURVIVED INTO the bucket. The old version
+    # denominated by time-since-open-to-today (so "0-6 Months" only held
+    # recently-opened accounts while its numerator held every short-lived
+    # closure in history -- rates could exceed 100%). Exposure is anchored to
+    # ctx.end_date (last complete month), not today, for reproducibility.
+    end_anchor = pd.Timestamp(ctx.end_date) if ctx.end_date else pd.Timestamp.now()
+    do = pd.to_datetime(all_data["Date Opened"], errors="coerce")
+    dc = pd.to_datetime(all_data["Date Closed"], errors="coerce")
+    exposure_days = (dc.fillna(end_anchor) - do).dt.days
 
     closed_copy = closed.copy()
     closed_copy["_tenure_days"] = (closed_copy["Date Closed"] - closed_copy["Date Opened"]).dt.days
@@ -486,23 +520,29 @@ def _by_tenure(ctx: PipelineContext) -> list[AnalysisResult]:
         categorize_tenure,
     )
 
-    total_by = all_copy.groupby("_tenure_cat").size()
+    # Bucket lower bounds in days, consistent with categorize_tenure
+    bucket_start_days = {
+        "0-6 Months": 0.0,
+        "6-12 Months": 6 * 30.44,
+        "1-2 Years": 12 * 30.44,
+        "2-5 Years": 2 * 365.25,
+        "5-10 Years": 5 * 365.25,
+        "10+ Years": 10 * 365.25,
+    }
     closed_by = closed_copy.groupby("_tenure_cat").size()
-    tenure_df = (
-        pd.DataFrame(
-            {"Total": total_by, "Closed": closed_by},
+    rows = []
+    for bucket in TENURE_ORDER:
+        at_risk = int((exposure_days >= bucket_start_days[bucket]).sum())
+        n_closed_in = int(closed_by.get(bucket, 0))
+        rows.append(
+            {
+                "Tenure": bucket,
+                "Total": at_risk,
+                "Closed": n_closed_in,
+                "Attrition Rate": n_closed_in / at_risk if at_risk > 0 else 0.0,
+            }
         )
-        .fillna(0)
-        .astype(int)
-    )
-    tenure_df["Attrition Rate"] = tenure_df["Closed"] / tenure_df["Total"]
-    tenure_df.index = pd.CategoricalIndex(
-        tenure_df.index,
-        categories=TENURE_ORDER,
-        ordered=True,
-    )
-    tenure_df = tenure_df.sort_index().reset_index()
-    tenure_df.columns = ["Tenure", "Total", "Closed", "Attrition Rate"]
+    tenure_df = pd.DataFrame(rows)
 
     save_to = ctx.paths.charts_dir / "a9_7_tenure_attrition.png"
     ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
@@ -524,12 +564,13 @@ def _by_tenure(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         ax.set_title(
-            "Attrition Rate by Account Tenure",
-            fontsize=24,
+            "Closure Hazard by Account Tenure\n"
+            "(share of accounts reaching each tenure that closed within it)",
+            fontsize=22,
             fontweight="bold",
             pad=15,
         )
-        ax.set_ylabel("Attrition Rate (%)", fontsize=20)
+        ax.set_ylabel("Closure Rate (%)", fontsize=20)
         ax.yaxis.set_major_formatter(PCT_FORMATTER)
         ax.tick_params(labelsize=TICK_SIZE - 2)
         for lbl in ax.xaxis.get_majorticklabels():
@@ -537,25 +578,15 @@ def _by_tenure(ctx: PipelineContext) -> list[AnalysisResult]:
             lbl.set_ha("right")
         ax.grid(axis="y", alpha=0.2, linestyle="--")
         ax.set_axisbelow(True)
-        overall_rate = tenure_df["Closed"].sum() / tenure_df["Total"].sum()
-        ax.text(
-            0.98,
-            0.95,
-            f"Overall: {overall_rate:.1%}",
-            transform=ax.transAxes,
-            ha="right",
-            va="top",
-            fontsize=14,
-            fontweight="bold",
-            color="#1A1A1A",
-            bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": TEAL},
-        )
+        # NOTE: no "overall" box -- hazard-bucket denominators overlap
+        # (every account that reached 5 years also reached 6 months), so
+        # summing Closed/Total across buckets is not a meaningful rate.
         fig.tight_layout()
 
     return [
         AnalysisResult(
             slide_id="A9.7",
-            title="Attrition by Account Tenure",
+            title="Closure Hazard by Account Tenure",
             chart_path=save_to,
         )
     ]
@@ -567,21 +598,27 @@ def _by_tenure(ctx: PipelineContext) -> list[AnalysisResult]:
 
 
 def _by_balance(ctx: PipelineContext) -> list[AnalysisResult]:
-    """Attrition rates across balance tiers."""
+    """L12M attrition rates across balance tiers (standardized base).
+
+    Caveat (kept from review): a closed account's Avg Bal reflects its
+    post-close balance in many cores, so low tiers over-collect closures.
+    """
     all_data, _, closed = prepare_attrition_data(ctx)
-    if closed.empty or "Avg Bal" not in all_data.columns:
+    if closed.empty or "Avg Bal" not in all_data.columns \
+            or ctx.start_date is None or ctx.end_date is None:
         return [
             AnalysisResult(
                 slide_id="A9.8",
                 title="Attrition by Balance",
                 success=False,
-                error="No closed accounts or no Avg Bal column",
+                error="No closed accounts, no Avg Bal column, or no L12M window",
             )
         ]
 
-    all_copy = all_data.copy()
+    base_df, closures_df, _ = l12m_attrition(all_data, ctx.start_date, ctx.end_date)
+    all_copy = base_df.copy()
     all_copy["_bal_cat"] = all_copy["Avg Bal"].apply(categorize_balance)
-    closed_copy = closed.copy()
+    closed_copy = closures_df.copy()
     closed_copy["_bal_cat"] = closed_copy["Avg Bal"].apply(categorize_balance)
 
     total_by = all_copy.groupby("_bal_cat").size()
@@ -622,7 +659,7 @@ def _by_balance(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         ax.set_title(
-            "Attrition Rate by Balance Tier",
+            "L12M Attrition Rate by Balance Tier",
             fontsize=24,
             fontweight="bold",
             pad=15,
@@ -653,7 +690,7 @@ def _by_balance(ctx: PipelineContext) -> list[AnalysisResult]:
     return [
         AnalysisResult(
             slide_id="A9.8",
-            title="Attrition by Balance Tier",
+            title="L12M Attrition by Balance Tier",
             chart_path=save_to,
         )
     ]

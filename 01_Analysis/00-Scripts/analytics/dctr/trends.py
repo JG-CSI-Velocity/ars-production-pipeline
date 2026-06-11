@@ -18,7 +18,7 @@ from ars_analysis.analytics.dctr._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import BUSINESS, HISTORICAL, PERSONAL, TEAL, TTM
+from ars_analysis.charts.style import BUSINESS, HISTORICAL, NEUTRAL, PERSONAL, PRIMARY, TEAL, TTM
 from ars_analysis.pipeline.context import PipelineContext
 
 
@@ -357,10 +357,8 @@ class DCTRTrends(AnalysisModule):
                     ax.bar(
                         x,
                         monthly_counts,
-                        color="#B0C4DE",
-                        edgecolor="#4A6FA5",
-                        linewidth=1.2,
-                        alpha=0.7,
+                        color=NEUTRAL,
+                        alpha=0.45,
                         width=0.6,
                         label="Eligible Accounts",
                         zorder=1,
@@ -377,12 +375,12 @@ class DCTRTrends(AnalysisModule):
                         ax2.plot(
                             x[mask],
                             ov[mask],
-                            color="black",
+                            color=PRIMARY,
                             linewidth=3,
                             linestyle="--",
                             marker="o",
                             markersize=10,
-                            label="Historical DCTR",
+                            label="Overall DCTR",
                             zorder=3,
                         )
                     pr = np.array(personal_rates)
@@ -391,11 +389,11 @@ class DCTRTrends(AnalysisModule):
                         ax2.plot(
                             x[pmask],
                             pr[pmask],
-                            color="#1B4F72",
+                            color=TEAL,
                             linewidth=3.5,
                             marker="o",
                             markersize=12,
-                            label="TTM DCTR",
+                            label="Personal DCTR",
                             zorder=4,
                         )
                     if has_biz:
@@ -405,7 +403,7 @@ class DCTRTrends(AnalysisModule):
                             ax2.plot(
                                 x[bmask],
                                 br[bmask],
-                                color="#E74C3C",
+                                color=BUSINESS,
                                 linewidth=2.5,
                                 marker="s",
                                 markersize=10,
@@ -454,10 +452,10 @@ class DCTRTrends(AnalysisModule):
                             xytext=(x[li] + 0.3, ov[li] + 2),
                             fontsize=14,
                             fontweight="bold",
-                            color="black",
+                            color=PRIMARY,
                             arrowprops={
                                 "arrowstyle": "->",
-                                "color": "black",
+                                "color": PRIMARY,
                                 "lw": 1.5,
                             },
                         )

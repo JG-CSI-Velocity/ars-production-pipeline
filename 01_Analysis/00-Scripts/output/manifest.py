@@ -196,7 +196,7 @@ def load_manifest_decisions(
 # ---------------------------------------------------------------------------
 
 
-_TITLE_COL_CANDIDATES = ("Title", "Slide Title", "Headline", "Description")
+_TITLE_COL_CANDIDATES = ("Title", "Title Pattern", "Slide Title", "Headline", "Description")
 
 
 @dataclass
@@ -220,6 +220,162 @@ def read_manifest_rows(path: Path | str | None = None) -> list[ManifestRow]:
         logger.warning("read_manifest_rows: cannot open {p}: {err}", p=resolved, err=exc)
         return []
 
+    out = _rows_from_workbook(wb)
+    wb.close()
+    return out
+
+
+# Sheet routing: slide_id -> per-section sheet name, matching
+# SLIDE_MANIFEST.template.xlsx. TXN codes per analytics.txn_wrapper.TXN_SECTIONS.
+_TXN_CODE_SHEETS = {
+    "GEN": "TXN - General",
+    "MERCH": "TXN - Merchant",
+    "MCC": "TXN - MCC Code",
+    "BUS": "TXN - Business",
+    "PERS": "TXN - Personal",
+    "COMP": "TXN - Competition",
+    "FIN": "TXN - Financial Svc",
+    "ICSA": "TXN - ICS Acquisition",
+    "CAMP": "TXN - Campaign",
+    "BR": "TXN - Branch",
+    "TT": "TXN - TXN Type",
+    "PROD": "TXN - Product",
+    "ATR": "TXN - Attrition",
+    "BAL": "TXN - Balance",
+    "IC": "TXN - Interchange",
+    "REGE": "TXN - RegE Overdraft",
+    "PAY": "TXN - Payroll",
+    "REL": "TXN - Relationship",
+    "SEG": "TXN - Segment Evol",
+    "RET": "TXN - Retention",
+    "ENG": "TXN - Engagement",
+    "EXEC": "TXN - Executive",
+}
+
+
+def sheet_for_slide(slide_id: str, module_id: str = "") -> str:
+    """Template sheet name a slide row belongs on, from its slide_id prefix."""
+    sid = (slide_id or "").upper()
+    if sid.startswith("TXN-"):
+        code = sid.split("-")[1] if "-" in sid[4:] else sid[4:]
+        return _TXN_CODE_SHEETS.get(code, f"TXN - {code.title()}")
+    if sid.startswith("DCTR") or sid.startswith("A7"):
+        return "ARS - DCTR"
+    if sid.startswith("REGE") or sid.startswith("A8"):
+        return "ARS - RegE"
+    if sid.startswith("A9") or "ATTRITION" in sid:
+        return "ARS - Attrition"
+    if sid.startswith("A10") or sid.startswith("A11") or "VALUE" in sid:
+        return "ARS - Value"
+    if sid[:3] in {"A12", "A13", "A14", "A15", "A16", "A17"} or "MAILER" in sid:
+        return "ARS - Mailer"
+    if sid.startswith("A18") or sid.startswith("A19") or sid.startswith("A20") \
+            or sid.startswith("S") or "INSIGHT" in sid:
+        return "ARS - Insights"
+    if sid.startswith("ICS"):
+        return "ARS - ICS"
+    if sid.startswith("A1") or "OVERVIEW" in sid:
+        return "ARS - Overview"
+    return "Other"
+
+
+_MANIFEST_HEADER = (
+    "Slide #", "Slide ID", "Title", "Chart Type", "Layout #",
+    "Layout Name", "Slide Type", "Keep? (Y/N)", "Your Layout Choice", "Notes",
+)
+
+
+def _writable_manifest_target() -> Path | None:
+    """Where to create SLIDE_MANIFEST.xlsx when none exists yet."""
+    for cand in _candidate_paths():
+        if cand.parent.exists():
+            return cand
+    return None
+
+
+def ensure_manifest_rows(
+    slides: list[dict],
+    path: Path | str | None = None,
+) -> tuple[str | None, int]:
+    """Append rows for slides not yet present in SLIDE_MANIFEST.xlsx.
+
+    `slides`: dicts with at least slide_id, optionally title and module_id.
+    Slides already listed on any sheet are left untouched (the operator's
+    Keep? decisions survive). Creates the workbook -- and any missing
+    per-section sheet -- on demand, so a fresh run can be synced without
+    copying the template first. Returns (manifest_path, rows_added).
+    """
+    import openpyxl
+
+    resolved = _resolve_manifest_path(path)
+    creating = resolved is None
+    if creating:
+        resolved = Path(path) if path is not None else _writable_manifest_target()
+        if resolved is None:
+            logger.warning("ensure_manifest_rows: no writable location for SLIDE_MANIFEST.xlsx")
+            return None, 0
+
+    if creating:
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+    else:
+        try:
+            wb = openpyxl.load_workbook(str(resolved), read_only=False, data_only=False)
+        except Exception as exc:
+            logger.warning("ensure_manifest_rows: cannot open {p}: {err}", p=resolved, err=exc)
+            return str(resolved), 0
+
+    existing = {r.slide_id for r in _rows_from_workbook(wb)}
+
+    added = 0
+    for slide in slides:
+        sid = str(slide.get("slide_id", "") or "").strip()
+        if not sid or sid in existing:
+            continue
+        sheet_name = sheet_for_slide(sid, str(slide.get("module_id", "") or ""))
+        if sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+        else:
+            ws = wb.create_sheet(sheet_name)
+            ws.append(_MANIFEST_HEADER)
+        ws.append((
+            ws.max_row,  # header is row 1, so this numbers slides from 1
+            sid,
+            str(slide.get("title", "") or ""),
+            None, None, None,
+            str(slide.get("slide_type", "") or "") or None,
+            None,  # Keep? -- blank = undecided (default keep)
+            None, None,
+        ))
+        existing.add(sid)
+        added += 1
+
+    if added == 0 and not creating:
+        wb.close()
+        return str(resolved), 0
+
+    import tempfile
+    target = Path(resolved)
+    with tempfile.NamedTemporaryFile(
+        suffix=".xlsx", delete=False, dir=str(target.parent)
+    ) as tmp:
+        tmp_path = Path(tmp.name)
+    try:
+        wb.save(str(tmp_path))
+        os.replace(str(tmp_path), str(target))
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+    wb.close()
+    logger.info("ensure_manifest_rows: {n} row(s) added to {p}", n=added, p=resolved)
+    return str(target), added
+
+
+def _rows_from_workbook(wb) -> list[ManifestRow]:
+    """ManifestRow list from an already-open workbook (any mode)."""
     out: list[ManifestRow] = []
     for sheet_name in wb.sheetnames:
         if sheet_name in _SKIP_SHEETS:
@@ -252,14 +408,12 @@ def read_manifest_rows(path: Path | str | None = None) -> list[ManifestRow]:
             title_val = ""
             if title_idx is not None and title_idx < len(row) and row[title_idx] is not None:
                 title_val = str(row[title_idx]).strip()
-            decision = _normalize_decision(row[keep_idx]) or ""
             out.append(ManifestRow(
                 sheet=sheet_name,
                 slide_id=sid,
                 title=title_val,
-                decision=decision,
+                decision=_normalize_decision(row[keep_idx]) or "",
             ))
-    wb.close()
     return out
 
 

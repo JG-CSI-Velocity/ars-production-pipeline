@@ -130,25 +130,148 @@ def product_col(df: pd.DataFrame) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Standardized L12M attrition window (owner review cycle, 2026-06-11)
+#
+# Before this existed, A9.0 / A9.1 / A9.4 each used a different denominator
+# for "L12M attrition rate" (open-at-window-start vs open-at-start+window-opens
+# +partial-month-opens vs currently-open+window-closes) and printed three
+# different numbers for the same metric in one deck. ONE definition now:
+#
+#   base      = every account exposed during the window
+#             = opened on/before end_date AND (still open OR closed on/after
+#               start_date)
+#   closures  = base rows with Date Closed inside [start_date, end_date]
+#   rate      = closures / base
+# ---------------------------------------------------------------------------
+
+
+def l12m_exposure_base(
+    all_data: pd.DataFrame,
+    start_date,
+    end_date,
+) -> pd.DataFrame:
+    """The standardized L12M attrition denominator (see module comment)."""
+    if all_data is None or all_data.empty:
+        return pd.DataFrame()
+    sd, ed = pd.Timestamp(start_date), pd.Timestamp(end_date)
+    do = all_data["Date Opened"]
+    dc = all_data["Date Closed"]
+    mask = (do.isna() | (do <= ed)) & (dc.isna() | (dc >= sd))
+    return all_data[mask]
+
+
+def l12m_attrition(
+    all_data: pd.DataFrame,
+    start_date,
+    end_date,
+) -> tuple[pd.DataFrame, pd.DataFrame, float]:
+    """Return (base, closures, rate) on the standardized L12M window.
+
+    closures is a subset of base, so the rate can never exceed 100%.
+    """
+    base = l12m_exposure_base(all_data, start_date, end_date)
+    if base.empty:
+        return base, base, 0.0
+    sd, ed = pd.Timestamp(start_date), pd.Timestamp(end_date)
+    dc = base["Date Closed"]
+    closures = base[(dc >= sd) & (dc <= ed)]
+    return base, closures, len(closures) / len(base)
+
+
+# Audit-framework label for the standardized base. Attrition rates cannot
+# anchor to "Eligible" (an open-accounts-only subset that excludes every
+# closure by construction); they anchor here instead.
+L12M_EXPOSURE_LABEL = "L12M Exposure"
+
+
+# ---------------------------------------------------------------------------
 # Data preparation (cached)
 # ---------------------------------------------------------------------------
+
+
+def _norm_codes(s: pd.Series) -> pd.Series:
+    """subsets.py-style normalization: str, strip, drop trailing .0, upper."""
+    return s.astype(str).str.strip().str.replace(r"\.0$", "", regex=True).str.upper()
+
+
+def attrition_universe(ctx: PipelineContext) -> pd.DataFrame:
+    """The population attrition metrics are computed on (owner decision
+    2026-06-11: 'ensure the proper open vs eligible subsets').
+
+    ctx.subsets.eligible_data is OPEN accounts with eligible stat + product
+    codes -- it cannot contain a closure, so attrition can't anchor to it
+    directly. The comparable population is:
+
+      open rows   -> exactly ctx.subsets.eligible_data (same stat + product
+                     filters the rest of the deck uses)
+      closed rows -> eligible PRODUCT code only. Closure rewrites the stat
+                     code, so applying the stat test to closed rows would
+                     exclude every closure by construction (the A9.13
+                     circularity bug).
+
+    Falls back to the full dataset (with a warning) when eligibility config
+    or columns are missing, preserving behavior for unconfigured clients.
+    """
+    data = ctx.data
+    if data is None or data.empty:
+        return pd.DataFrame()
+
+    subsets = getattr(ctx, "subsets", None)
+    elig = getattr(subsets, "eligible_data", None) if subsets is not None else None
+    epc = getattr(ctx.client, "eligible_prod_codes", None) or []
+    pcol = product_col(data)
+
+    if elig is None or len(elig) == 0 or not epc or pcol is None:
+        logger.warning(
+            "Attrition universe: eligibility config/subsets unavailable -- "
+            "falling back to ALL accounts (rates will include non-eligible products)"
+        )
+        return data
+
+    epc_norm = {str(c).strip().upper().removesuffix(".0") for c in epc}
+    is_closed = data["Date Closed"].notna()
+    closed_eligible = is_closed & _norm_codes(data[pcol]).isin(epc_norm)
+    open_eligible = (~is_closed) & data.index.isin(elig.index)
+    return data[closed_eligible | open_eligible]
 
 
 def prepare_attrition_data(
     ctx: PipelineContext,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Return (all_data, open_accts, closed_accts), cached in ctx.results."""
+    """Return (universe, open_accts, closed_accts), cached in ctx.results.
+
+    `universe` is the attrition population from attrition_universe() --
+    the eligible-comparable book, NOT the raw ODD. A9.13 (eligible vs
+    other products) intentionally reads ctx.data directly instead.
+    """
     cached = ctx.results.get("_attrition_data")
     if cached is not None:
         return cached
 
-    data = ctx.data
-    if data is None:
+    if ctx.data is None:
         empty = pd.DataFrame()
         return empty, empty, empty
 
+    data = attrition_universe(ctx)
+
     open_accts = data[data["Date Closed"].isna()].copy()
     closed_accts = data[data["Date Closed"].notna()].copy()
+
+    # Closed-detection sanity check. Attrition defines closed purely as
+    # "Date Closed parsed", so an account with an open-looking Stat Code but
+    # a Date Closed is CLOSED here while ctx.subsets.open_accounts may call
+    # it open. Surface the disagreement instead of hiding it. (The reverse --
+    # non-"O" stat codes without a date -- is normal for institutions with
+    # numeric stat codes, so it can't be warned on reliably.)
+    if "Stat Code" in data.columns:
+        stat_open = data["Stat Code"].astype(str).str.strip().str.upper().str.startswith("O")
+        conflicting = int((stat_open & data["Date Closed"].notna()).sum())
+        if conflicting > 0:
+            logger.warning(
+                "Attrition: {n} account(s) have an open Stat Code AND a Date Closed -- "
+                "attrition treats them as CLOSED (by date)",
+                n=conflicting,
+            )
 
     if not closed_accts.empty:
         closed_accts["_duration_days"] = (

@@ -79,7 +79,7 @@ End-to-end map of the Velocity Pipeline: from raw ODD ZIPs in a CSM's data dump 
 - **Script:** `01_Analysis/run.py` → `00-Scripts/pipeline/runner.py` orchestrates `pipeline/steps/{load, scan, subsets, analyze, generate, format}.py`
 - **Module registry:** `00-Scripts/analytics/registry.py` enumerates 25 ARS modules + (per `--product`) 22 TXN sections wrapped by `analytics/txn_wrapper.py`
 - **API:** `POST /api/generate` in `app.py` streams the 5-stage checklist
-- **Analysis (ARS, 25 modules):** `overview` (3) · `dctr` debit-card take-rate (5) · `rege` Reg-E opt-in (3) · `attrition` (3) · `mailer` campaign (5) · `value` revenue (1) · `insights` synthesis (5). Each rate anchors to one of the 4 denominator layers (`Eligible / Eligible Personal / Eligible Business / Open`).
+- **Analysis (ARS, 25 modules):** `overview` (3) · `dctr` debit-card take-rate (5) · `rege` Reg-E opt-in (3) · `attrition` (3) · `mailer` campaign (5) · `value` revenue (1) · `insights` synthesis (5). Each rate anchors to one of the 4 denominator layers (`Eligible / Eligible Personal / Eligible Personal w/Debit / Eligible Business / Open`).
 - **Analysis (TXN sections, when `--product=txn` or `combined`):** `txn_setup` shared loaders + ~22 sections (`general, merchant, mcc_code, competition, financial_services, ics_acquisition, campaign, branch_txn, transaction_type, product, attrition_txn, balance, interchange, rege_overdraft, payroll, relationship, segment_evolution, retention, engagement, executive`, etc.).
 - **Output:** `01_Analysis/01_Completed_Analysis/<CSM>/<period>/<client>/`
   - `charts/*.png` — every chart for the deck

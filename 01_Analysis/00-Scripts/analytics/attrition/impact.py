@@ -20,9 +20,11 @@ from matplotlib.ticker import FuncFormatter
 
 from ars_analysis.analytics.attrition._helpers import (
     _safe,
+    l12m_attrition,
     prepare_attrition_data,
     product_col,
 )
+from ars_analysis.shared.helpers import get_ic_rate
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.dctr._helpers import debit_mask, detect_debit_col
 from ars_analysis.analytics.registry import register
@@ -46,25 +48,33 @@ from ars_analysis.pipeline.context import PipelineContext
 
 
 def _debit_retention(ctx: PipelineContext) -> list[AnalysisResult]:
-    """Do accounts with debit cards close less often?"""
+    """Do accounts with debit cards close less often? (L12M comparison.)
+
+    Previously compared LIFETIME closure shares against the CURRENT debit
+    flag -- closed accounts' debit indicators are often blanked at close, so
+    old closures piled into "Without Debit Card" and inflated the lift.
+    Windowing both groups to the L12M exposure base removes the years of
+    accumulated closures; the snapshot-flag caveat is noted on the slide.
+    """
     all_data, _, closed = prepare_attrition_data(ctx)
     _dc = detect_debit_col(all_data)
-    if closed.empty or _dc is None:
+    if closed.empty or _dc is None or ctx.start_date is None or ctx.end_date is None:
         return [
             AnalysisResult(
                 slide_id="A9.9",
                 title="Debit Card Retention",
                 success=False,
-                error="No closed accounts or no debit card column",
+                error="No closed accounts, no debit card column, or no L12M window",
             )
         ]
 
+    base_df, closures_df, _ = l12m_attrition(all_data, ctx.start_date, ctx.end_date)
     rows = []
-    _dm_all = debit_mask(all_data, _dc)
-    _dm_closed = debit_mask(closed, _dc)
-    for has_debit, label in [(True, "With Debit Card"), (False, "Without Debit Card")]:
-        total = int(_dm_all.sum()) if has_debit else int((~_dm_all).sum())
-        n_closed = int(_dm_closed.sum()) if has_debit else int((~_dm_closed).sum())
+    _dm_base = debit_mask(base_df, _dc)
+    _dm_closed = debit_mask(closures_df, _dc)
+    for with_debit, label in [(True, "With Debit Card"), (False, "Without Debit Card")]:
+        total = int(_dm_base.sum()) if with_debit else int((~_dm_base).sum())
+        n_closed = int(_dm_closed.sum()) if with_debit else int((~_dm_closed).sum())
         rate = n_closed / total if total > 0 else 0
         rows.append(
             {
@@ -103,12 +113,18 @@ def _debit_retention(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         ax.set_title(
-            "Debit Card Impact on Account Retention",
+            "Debit Card Impact on Account Retention (L12M)",
             fontsize=24,
             fontweight="bold",
             pad=15,
         )
-        ax.set_ylabel("Attrition Rate (%)", fontsize=20)
+        ax.set_ylabel("L12M Attrition Rate (%)", fontsize=20)
+        ax.text(
+            0.99, -0.10,
+            "Debit status as of file date; correlation, not causation",
+            transform=ax.transAxes, ha="right", va="top",
+            fontsize=11, style="italic", color="#777777",
+        )
         ax.yaxis.set_major_formatter(
             FuncFormatter(lambda x, p: f"{x:.0f}%"),
         )
@@ -144,15 +160,21 @@ def _debit_retention(ctx: PipelineContext) -> list[AnalysisResult]:
 
 
 def _mailer_retention(ctx: PipelineContext) -> list[AnalysisResult]:
-    """Do mailed/responding accounts close less often?"""
+    """Do mailed/responding accounts close less often? (L12M comparison.)
+
+    Previously compared LIFETIME closure shares: accounts that closed before
+    the mailer program existed could never have been mailed, so "Never
+    Mailed" absorbed every old closure and the lift was fake. The L12M
+    exposure window keeps pre-program closures out of every group.
+    """
     all_data, _, closed = prepare_attrition_data(ctx)
-    if closed.empty:
+    if closed.empty or ctx.start_date is None or ctx.end_date is None:
         return [
             AnalysisResult(
                 slide_id="A9.10",
                 title="Mailer Retention",
                 success=False,
-                error="No closed accounts",
+                error="No closed accounts or no L12M window",
             )
         ]
 
@@ -169,7 +191,11 @@ def _mailer_retention(ctx: PipelineContext) -> list[AnalysisResult]:
             )
         ]
 
-    all_copy = all_data.copy()
+    base_df, _, _ = l12m_attrition(all_data, ctx.start_date, ctx.end_date)
+    ed = pd.Timestamp(ctx.end_date)
+    sd = pd.Timestamp(ctx.start_date)
+
+    all_copy = base_df.copy()
     all_copy["_ever_mailed"] = all_copy[mail_cols].notna().any(axis=1)
     if resp_cols:
         all_copy["_ever_responded"] = all_copy[resp_cols].notna().any(axis=1)
@@ -182,11 +208,14 @@ def _mailer_retention(ctx: PipelineContext) -> list[AnalysisResult]:
         default="Never Mailed",
     )
 
+    _grp_dc = pd.to_datetime(all_copy["Date Closed"], errors="coerce")
+    all_copy["_closed_l12m"] = (_grp_dc >= sd) & (_grp_dc <= ed)
+
     rows = []
     for grp in ["Responded", "Mailed (No Response)", "Never Mailed"]:
         subset = all_copy[all_copy["_mail_group"] == grp]
         total = len(subset)
-        n_closed = int(subset["Date Closed"].notna().sum())
+        n_closed = int(subset["_closed_l12m"].sum())
         rate = n_closed / total if total > 0 else 0
         rows.append(
             {
@@ -225,7 +254,7 @@ def _mailer_retention(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         ax.set_title(
-            "Mailer Program Impact on Retention",
+            "Mailer Program Impact on Retention (L12M)",
             fontsize=24,
             fontweight="bold",
             pad=15,
@@ -266,25 +295,52 @@ def _mailer_retention(ctx: PipelineContext) -> list[AnalysisResult]:
 
 
 def _revenue_impact(ctx: PipelineContext) -> list[AnalysisResult]:
-    """Estimated annual revenue lost from closed accounts."""
-    _, _, closed = prepare_attrition_data(ctx)
-    if closed.empty:
+    """Estimated annual revenue lost from accounts closed in the L12M window.
+
+    Two prior defects (owner audit 2026-06-11):
+    1. Spend columns were sorted ALPHABETICALLY (Apr, Aug, Dec, ... Sep), so
+       "last spend before closure" was effectively September's value, not
+       the most recent month's. Columns now sort chronologically by their
+       %b%y name.
+    2. The total summed every account closed in program history but was
+       captioned as annual revenue lost -- closures are now windowed to
+       L12M, consistent with A9.12 next to it.
+    """
+    all_data, _, closed = prepare_attrition_data(ctx)
+    if closed.empty or ctx.start_date is None or ctx.end_date is None:
         return [
             AnalysisResult(
                 slide_id="A9.11",
                 title="Revenue Impact",
                 success=False,
-                error="No closed accounts",
+                error="No closed accounts or no L12M window",
             )
         ]
 
-    ic_rate = ctx.client.ic_rate or 0.007
+    ic_rate = get_ic_rate(ctx)
+
+    def _spend_month(col: str):
+        try:
+            return pd.to_datetime(col[:-len(" Spend")].strip(), format="%b%y")
+        except ValueError:
+            return pd.Timestamp.min  # unparseable names sort first
 
     spend_cols = sorted(
         [c for c in closed.columns if c.endswith(" Spend")],
+        key=_spend_month,
     )
 
-    closed_copy = closed.copy()
+    _, l12m_closed, _ = l12m_attrition(all_data, ctx.start_date, ctx.end_date)
+    closed_copy = l12m_closed.copy()
+    if closed_copy.empty:
+        return [
+            AnalysisResult(
+                slide_id="A9.11",
+                title="Revenue Impact",
+                success=False,
+                error="No L12M closures",
+            )
+        ]
     if spend_cols:
         closed_copy["_last_spend"] = (
             closed_copy[spend_cols].replace(0, np.nan).ffill(axis=1).iloc[:, -1].fillna(0)
@@ -338,7 +394,7 @@ def _revenue_impact(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         ax.set_title(
-            "Estimated Annual Revenue Lost by Tier",
+            "Estimated Annual Revenue Lost by Tier (L12M Closures)",
             fontsize=24,
             fontweight="bold",
             pad=15,
@@ -351,7 +407,7 @@ def _revenue_impact(ctx: PipelineContext) -> list[AnalysisResult]:
         ax.text(
             0.98,
             0.95,
-            f"Closed accounts represent\n${total_lost:,.0f} in est. annual revenue",
+            f"L12M closures represent\n${total_lost:,.0f} in est. annual revenue",
             transform=ax.transAxes,
             ha="right",
             va="top",
@@ -370,9 +426,9 @@ def _revenue_impact(ctx: PipelineContext) -> list[AnalysisResult]:
     return [
         AnalysisResult(
             slide_id="A9.11",
-            title="Revenue Impact of Attrition",
+            title="Revenue Impact of Attrition (L12M)",
             chart_path=save_to,
-            notes=f"Est. ${total_lost:,.0f} annual loss from {n_closed:,} accounts",
+            notes=f"Est. ${total_lost:,.0f} annual loss from {n_closed:,} L12M closures",
         )
     ]
 
@@ -519,22 +575,35 @@ def _velocity(ctx: PipelineContext) -> list[AnalysisResult]:
 
 
 def _ars_comparison(ctx: PipelineContext) -> list[AnalysisResult]:
-    """Compare attrition for ARS-eligible vs non-eligible accounts."""
-    all_data, _, closed = prepare_attrition_data(ctx)
-    if closed.empty:
+    """Compare L12M attrition for eligible-product vs other-product accounts.
+
+    The old version was CIRCULAR: it gated eligibility on the snapshot
+    Stat Code, but eligible stat codes are open-account codes -- a closed
+    account's stat code is a closed code, so every closure landed in
+    "Non-Eligible" by construction and the slide tautologically reported
+    eligible accounts as low-attrition. Eligibility is now defined on the
+    PRODUCT CODE only (time-invariant), normalized the same way
+    subsets.py normalizes codes, and rates are L12M on the exposure base.
+
+    Reads ctx.data directly (NOT prepare_attrition_data) -- the attrition
+    universe is already scoped to eligible products, which would leave the
+    "Other Products" group empty.
+    """
+    all_data = ctx.data if ctx.data is not None else pd.DataFrame()
+    closed = all_data[all_data["Date Closed"].notna()] if not all_data.empty else all_data
+    if closed.empty or ctx.start_date is None or ctx.end_date is None:
         return [
             AnalysisResult(
                 slide_id="A9.13",
                 title="ARS vs Non-ARS",
                 success=False,
-                error="No closed accounts",
+                error="No closed accounts or no L12M window",
             )
         ]
 
-    esc = ctx.client.eligible_stat_codes
     epc = ctx.client.eligible_prod_codes
     pcol = product_col(all_data)
-    if not esc or not epc or pcol is None:
+    if not epc or pcol is None:
         return [
             AnalysisResult(
                 slide_id="A9.13",
@@ -544,14 +613,27 @@ def _ars_comparison(ctx: PipelineContext) -> list[AnalysisResult]:
             )
         ]
 
-    all_copy = all_data.copy()
-    all_copy["_ars_eligible"] = all_copy["Stat Code"].isin(esc) & all_copy[pcol].isin(epc)
+    def _norm(s: pd.Series) -> pd.Series:
+        # Same normalization subsets.py applies: str, strip, drop ".0", upper
+        return (
+            s.astype(str).str.strip().str.replace(r"\.0$", "", regex=True).str.upper()
+        )
+
+    epc_norm = {str(c).strip().upper().removesuffix(".0") for c in epc}
+
+    base_df, _, _ = l12m_attrition(all_data, ctx.start_date, ctx.end_date)
+    all_copy = base_df.copy()
+    all_copy["_ars_eligible"] = _norm(all_copy[pcol]).isin(epc_norm)
+    _cmp_dc = pd.to_datetime(all_copy["Date Closed"], errors="coerce")
+    all_copy["_closed_l12m"] = (
+        (_cmp_dc >= pd.Timestamp(ctx.start_date)) & (_cmp_dc <= pd.Timestamp(ctx.end_date))
+    )
 
     rows = []
-    for elig, label in [(True, "ARS-Eligible"), (False, "Non-Eligible")]:
+    for elig, label in [(True, "Eligible Products"), (False, "Other Products")]:
         subset = all_copy[all_copy["_ars_eligible"] == elig]
         total = len(subset)
-        n_closed = int(subset["Date Closed"].notna().sum())
+        n_closed = int(subset["_closed_l12m"].sum())
         rate = n_closed / total if total > 0 else 0
         rows.append(
             {
@@ -590,7 +672,7 @@ def _ars_comparison(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         ax.set_title(
-            "Attrition: ARS-Eligible vs Non-Eligible",
+            "L12M Attrition: Eligible Products vs Other Products",
             fontsize=24,
             fontweight="bold",
             pad=15,
@@ -605,9 +687,9 @@ def _ars_comparison(ctx: PipelineContext) -> list[AnalysisResult]:
     ctx.results["attrition_13"] = {"diff": diff}
 
     if diff > 0:
-        notes = f"ARS-eligible show {diff:.1%} lower attrition"
+        notes = f"Eligible products show {diff:.1%} lower L12M attrition"
     else:
-        notes = "Attrition comparison by eligibility status"
+        notes = "L12M attrition comparison by product eligibility"
 
     return [
         AnalysisResult(

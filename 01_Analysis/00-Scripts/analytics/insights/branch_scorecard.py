@@ -324,7 +324,8 @@ class BranchScorecard(AnalysisModule):
         )
 
         # A19.2 -- Opportunity Map
-        ic_rate = ctx.client.ic_rate or 0.0015
+        from ars_analysis.shared.helpers import get_ic_rate
+        ic_rate = get_ic_rate(ctx)
         save_to = ctx.paths.charts_dir / "a19_2_opportunity_map.png"
         with chart_figure(figsize=(14, max(8, len(branch_df) * 0.6 + 2)), save_path=save_to) as (
             _fig,

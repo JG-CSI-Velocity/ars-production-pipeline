@@ -22,7 +22,7 @@ def add_bar_labels(
     fmt: str = "{:.1%}",
     inside_threshold: float = 0.15,
     fontsize: int = 11,
-    color: str = "#1A1A1A",
+    color: str = "#00274C",
     inside_color: str = "white",
 ) -> None:
     """Add value labels above or inside bars.
@@ -53,7 +53,7 @@ def label_line_ends(
     lines: list[Line2D],
     labels: list[str],
     fontsize: int = 14,
-    color: str = "#1A1A1A",
+    color: str = "#00274C",
     offset: float = 0.02,
 ) -> None:
     """Add labels at the right endpoint of each line.
@@ -104,7 +104,7 @@ def add_comparison_callout(
 def emphasis_colors(
     n_bars: int,
     hero_index: int = 0,
-    hero: str = "#1A1A1A",
+    hero: str = "#00274C",
     muted: str = "#D5D8DC",
 ) -> list[str]:
     """Return a list of colors where one bar is emphasized.

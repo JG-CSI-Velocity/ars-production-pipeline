@@ -165,14 +165,14 @@ def _dctr_8(insights: dict[str, Any]) -> str:
 
 
 def _attrition_1(insights: dict[str, Any]) -> str:
-    """A9.1: Overall Attrition Rate."""
+    """A9.1: Attrition Rate (L12M, exposure base)."""
     rate = insights.get("overall_rate")
-    closed = insights.get("closed")
+    closed = insights.get("l12m_closed") or insights.get("closed")
     if not _is_valid(rate):
         return ""
     severity = "elevated" if rate > 0.10 else "moderate" if rate > 0.05 else "healthy"
     closed_str = f" ({_fmt_int(closed)} accounts closed)" if _is_valid(closed) and closed > 0 else ""
-    return f"Attrition at {severity} {_fmt_pct(rate)}{closed_str}"
+    return f"L12M attrition at {severity} {_fmt_pct(rate)}{closed_str}"
 
 
 def _attrition_2(insights: dict[str, Any]) -> str:

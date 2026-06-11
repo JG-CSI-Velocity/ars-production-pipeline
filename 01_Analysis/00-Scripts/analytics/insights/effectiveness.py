@@ -112,7 +112,8 @@ def _draw_cumulative_value(
         return ""
 
     data = ctx.data
-    ic_rate = ctx.client.ic_rate or 0.0015
+    from ars_analysis.shared.helpers import get_ic_rate
+    ic_rate = get_ic_rate(ctx)
 
     # For each mail month, count new activations and compute incremental IC
     monthly_ic = []

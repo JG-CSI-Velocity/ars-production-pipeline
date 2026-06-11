@@ -30,16 +30,22 @@ SLIDE_MODE = os.environ.get('SLIDE_MODE', 'standard').lower()
 # is two PARALLEL recuts of cells 07/08/09/65 (banks-only + core-competition
 # minus ecosystems). 66/67 are ecosystem deep-dives. 70 is a head-to-head
 # comparison chart. All valuable but duplicative for a client exec review.
-# 18, 20-28 are segment-by-segment slices -- kept in 'deep' only.
+# 18, 20-24 are segment slices -- kept in 'deep' only.
+#
+# The per-competitor deep-dive cells (25 at-risk, 26 spend scatter,
+# 28 spend-vs-frequency, 29 wallet share -- one slide per DEEP_DIVE_TOP_N
+# competitor, ~32-45 slides) were DELETED outright (owner decision
+# 2026-06-11). The category-level segmentation (21-24) and the per-
+# competitor cross-sell CSV exports (41) are the surviving surfaces for
+# that analysis.
 _PRUNE_BY_MODE = {
     'standard': [
-        '18_', '20_', '21_', '22_', '23_', '24_', '26_', '28_',
+        '18_', '20_', '21_', '22_', '23_', '24_',
         '60_', '61_', '62_', '65_', '66_', '67_', '70_',
     ],
     'minimal': [
         '10_', '11_', '12_', '13_', '14_', '17_', '18_', '19_',
-        '20_', '21_', '22_', '23_', '24_', '25_', '26_', '27_',
-        '28_', '29_', '30_', '40_', '41_',
+        '20_', '21_', '22_', '23_', '24_', '27_', '30_', '40_', '41_',
         '60_', '61_', '62_', '65_', '66_', '67_', '68_', '70_',
     ],
     'deep': [],
@@ -809,16 +815,21 @@ CLIENT_CONFIGS = {
 # SECTION D: DERIVED VARIABLES (computed -- do not edit below this line)
 # ===========================================================================
 
-# Look up client config (fall back to empty if CLIENT_ID not found)
-_client_cfg = CLIENT_CONFIGS.get(CLIENT_ID if 'CLIENT_ID' in dir() else '', {})
+# Look up client config (fall back to empty if CLIENT_ID not found).
+# Normalize the id -- runs have delivered it as int, padded, or float-string.
+_cid = str(CLIENT_ID).strip() if 'CLIENT_ID' in dir() and CLIENT_ID is not None else ''
+_client_cfg = CLIENT_CONFIGS.get(_cid, {})
 
 # Loud warning if this client has no entry -- otherwise local_banks /
-# credit_unions silently become empty lists, and downstream reports show
-# zero matches for those categories. Run cell 68 for a full audit.
-if 'CLIENT_ID' in dir() and CLIENT_ID and CLIENT_ID not in CLIENT_CONFIGS:
-    print(f"  WARNING: CLIENT_ID '{CLIENT_ID}' has no entry in CLIENT_CONFIGS.")
+# credit_unions silently become empty lists, fed_district silently
+# defaults to '12' (San Francisco), and downstream reports show zero
+# matches for those categories. Run cell 68 for a full audit.
+if _cid and not _client_cfg:
+    print(f"  WARNING: CLIENT_ID '{_cid}' has no entry in CLIENT_CONFIGS.")
     print(f"           credit_unions / local_banks / custom patterns will be EMPTY")
-    print(f"           for this client. Add an entry to CLIENT_CONFIGS above, or")
+    print(f"           and fed_district DEFAULTS TO '12' (San Francisco) -- the")
+    print(f"           top_25_fed_district category will show ~ZERO matches for")
+    print(f"           clients outside the West. Add an entry to CLIENT_CONFIGS, or")
     print(f"           run competition/68_detection_diagnostic.py for help.")
 
 CLIENT_FED_DISTRICT = _client_cfg.get('fed_district', '12')

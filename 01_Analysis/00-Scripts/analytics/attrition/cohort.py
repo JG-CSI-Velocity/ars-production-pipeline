@@ -8,7 +8,8 @@ per-dimension slides (A9.1-A9.8) don't headline cleanly:
   - Net New = L12M opens - L12M closes
   - First-Year Close Rate (overall): of accounts opened in L12M,
     what fraction have already closed within their first 12 months?
-  - L12M Attrition Rate: closes / accounts open at the start of L12M
+  - L12M Attrition Rate: closes / L12M exposure base (the standardized
+    attrition denominator -- see _helpers.l12m_attrition)
   - Active vs. closed-lifetime headcount
 
 Plus a monthly trend showing opens vs. closes by month with a net-new
@@ -26,6 +27,7 @@ from matplotlib.ticker import FuncFormatter
 
 from ars_analysis.analytics.attrition._helpers import (
     _safe,
+    l12m_attrition,
     prepare_attrition_data,
 )
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
@@ -104,7 +106,8 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     else:
         max_close = pd.to_datetime(all_data["Date Closed"], errors="coerce").max()
         l12m_end = pd.Timestamp(max_close if pd.notna(max_close) else pd.Timestamp.today())
-        l12m_start = l12m_end - pd.DateOffset(months=12)
+        # 12 months inclusive of the end month (months=12 spanned 13 buckets)
+        l12m_start = (l12m_end - pd.DateOffset(months=11)).normalize().replace(day=1)
 
     do = pd.to_datetime(all_data["Date Opened"], errors="coerce")
     dc = pd.to_datetime(all_data["Date Closed"], errors="coerce")
@@ -120,19 +123,27 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     n_closes = int(l12m_closes_mask.sum())
     net_new = n_opens - n_closes
 
-    # Accounts open at the START of the L12M window
-    # (opened before start AND not closed before start)
+    # Accounts open at the START of the L12M window (growth-rate basis only)
     open_at_start = int(((do < l12m_start) & ((dc.isna()) | (dc >= l12m_start))).sum())
-    l12m_attrition_rate = (n_closes / open_at_start) if open_at_start > 0 else float("nan")
+
+    # L12M attrition on the standardized exposure base. The old denominator
+    # (open-at-start) excluded window opens whose closures sat in the
+    # numerator, overstating the rate -- and disagreed with A9.1 and A9.4.
+    l12m_base_df, _, l12m_attrition_rate = l12m_attrition(all_data, l12m_start, l12m_end)
+    l12m_base_n = len(l12m_base_df)
 
     # First-Year Close Rate (overall): of accounts opened in L12M,
     # how many have already closed within their first 12 months?
+    # Closures are capped at l12m_end so the current partial month doesn't
+    # leak in (the "L12M Closes" tile next to this one excludes it).
     l12m_opens = all_data[l12m_opens_mask]
     if not l12m_opens.empty:
         opens_dc = pd.to_datetime(l12m_opens["Date Closed"], errors="coerce")
         opens_do = pd.to_datetime(l12m_opens["Date Opened"], errors="coerce")
         days_open = (opens_dc - opens_do).dt.days
-        fy_closed = int(((days_open >= 0) & (days_open <= 365)).sum())
+        fy_closed = int(
+            ((days_open >= 0) & (days_open <= 365) & (opens_dc <= l12m_end)).sum()
+        )
         first_year_close_rate = fy_closed / n_opens
     else:
         fy_closed = 0
@@ -190,7 +201,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
             (_fmt_pct(first_year_close_rate),
                                             f"First-Year Close Rate\n({fy_closed:,} of {n_opens:,} new)",
                                             _DECAY),
-            (_fmt_pct(l12m_attrition_rate), f"L12M Attrition Rate\n({n_closes:,} of {open_at_start:,})",
+            (_fmt_pct(l12m_attrition_rate), f"L12M Attrition Rate\n({n_closes:,} of {l12m_base_n:,})",
                                             _DECAY),
             (_fmt_count(total_active),      "Active Accounts\n(current)",        _INFO),
             (_fmt_count(total_closed_lifetime),
@@ -266,7 +277,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
                      fontsize=24, fontweight="bold", color=_DARK, y=0.97)
         fig.text(0.5, 0.925,
                  f"Window: {l12m_start.strftime('%b %Y')} – {l12m_end.strftime('%b %Y')}  |  "
-                 f"Opened-at-start basis: {open_at_start:,} accounts",
+                 f"Exposure basis: {l12m_base_n:,} accounts",
                  ha="center", fontsize=13, color=_MUTED, style="italic")
 
     notes = (
@@ -287,6 +298,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         "first_year_close_rate": first_year_close_rate,
         "first_year_closed_count": fy_closed,
         "l12m_attrition_rate": l12m_attrition_rate,
+        "l12m_exposure_base": l12m_base_n,
         "open_at_start": open_at_start,
         "active": total_active,
         "closed_lifetime": total_closed_lifetime,
@@ -343,7 +355,8 @@ def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     else:
         max_close = pd.to_datetime(all_data["Date Closed"], errors="coerce").max()
         l12m_end = pd.Timestamp(max_close if pd.notna(max_close) else pd.Timestamp.today())
-        l12m_start = l12m_end - pd.DateOffset(months=12)
+        # 12 months inclusive of the end month (months=12 spanned 13 buckets)
+        l12m_start = (l12m_end - pd.DateOffset(months=11)).normalize().replace(day=1)
 
     do = pd.to_datetime(all_data["Date Opened"], errors="coerce")
     dc = pd.to_datetime(all_data["Date Closed"], errors="coerce")

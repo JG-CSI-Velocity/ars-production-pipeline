@@ -1,0 +1,24 @@
+# Recommended SLIDE_MANIFEST defaults — ARS Overview section
+#
+# First file of the per-section triage pass (deck order: overview first).
+# Decisions use the manifest vocabulary: Y = main deck, A = aux/support
+# deck, N = drop. Apply them via the Curate panel or copy into the
+# "ARS - Overview" sheet of SLIDE_MANIFEST.xlsx.
+#
+# Review notes (2026-06-11):
+#   A1   Account status composition — the section's anchor chart. Keep.
+#   A1b  Product mix personal/business — now renders its own stacked-bar
+#        chart (was Excel-only); shows the split A1 can't. Keep.
+#   A3   Eligibility funnel — rebuilt as a true funnel with drop-off
+#        connectors (was an ax.table screenshot). The "how big is the
+#        opportunity" slide. Keep.
+#
+# The overview section is the deck's Situation opener; all three slides
+# earn main. Slimming weight lives in the later, larger sections.
+
+section: overview
+sheet: ARS - Overview
+defaults:
+  A1: Y
+  A1b: Y
+  A3: Y

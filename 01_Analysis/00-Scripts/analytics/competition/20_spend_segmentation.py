@@ -5,7 +5,9 @@
 # 3-tier segments: Primary (<25%), Balanced (25-50%), Competitor-Heavy (>50%)
 # Vectorized: one bulk groupby + one merge, then split into dict.
 
-# How many competitors get individual deep-dive charts (cells 25-29)
+# Top-N competitors flagged in the cross-sell exports (cell 41). The
+# per-competitor chart cells (25/26/28/29) that consumed this were
+# deleted 2026-06-11 -- category segmentation (21-24) + CSVs survive.
 DEEP_DIVE_TOP_N = 8
 
 SEGMENT_LABELS = ['Primary', 'Balanced', 'Competitor-Heavy']
