@@ -672,6 +672,10 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                 <input type="checkbox" id="gLocalCopyCb" onchange="_toggleLocalCopy()" />
                 <span>Also save deck to a local folder (faster than downloading from the shared drive)</span>
             </label>
+            <label class="local-copy-toggle" title="Starts the other product automatically as soon as the shared formatting step finishes, so both analyses run concurrently.">
+                <input type="checkbox" id="gRunBothCb" />
+                <span>Run BOTH products in parallel (TXN + ARS) &mdash; companion run starts right after formatting</span>
+            </label>
             <div class="local-copy-input" id="gLocalCopyWrap" style="display:none;">
                 <input type="text" id="gLocalCopyPath" class="sel" placeholder="e.g. C:\Users\you\Documents\Velocity Decks" />
                 <div class="local-copy-hint">The folder will be created if it doesn't exist. We'll save the PowerPoint here as soon as it's built.</div>
@@ -708,6 +712,10 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                     <div class="run-clock-label">Elapsed</div>
                     <div class="run-clock-value" id="gElapsed">0:00</div>
                 </div>
+            </div>
+
+            <div id="gCompanion" style="display:none;margin:8px 0;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+                <strong id="gCompanionLabel"></strong> <span id="gCompanionState"></span>
             </div>
 
             <!-- Stage checklist -->
@@ -1690,6 +1698,40 @@ async function loadRunQuality(ctx) {
     }
 }
 
+// Companion run for "Run BOTH products in parallel": fires the second
+// product once the primary's formatting step is done (the format step is
+// shared, so simultaneous starts would collide on the formatted ODD).
+async function _startCompanionRun(csm, month, clientId, prod) {
+    const state = document.getElementById('gCompanionState');
+    try {
+        const url = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(prod)}`;
+        const resp = await fetch(url, {method: 'POST'});
+        if (!resp.ok) { state.textContent = 'failed to start: ' + resp.statusText; return; }
+        const {run_id} = await resp.json();
+        const t0 = Date.now();
+        const timer = setInterval(async () => {
+            try {
+                const r = await fetch(`/api/run/${run_id}`);
+                if (!r.ok) return;
+                const run = await r.json();
+                const mins = Math.floor((Date.now() - t0) / 60000);
+                if (run.status === 'complete') {
+                    clearInterval(timer);
+                    state.innerHTML = '<span style="color:var(--green);font-weight:700;">complete</span> — deck + outputs in Downloads below';
+                    loadDownloads(csm, month, clientId);
+                } else if (run.status === 'error' || run.status === 'failed') {
+                    clearInterval(timer);
+                    state.innerHTML = '<span style="color:var(--red);font-weight:700;">FAILED</span> — see History tab / logs';
+                } else {
+                    state.textContent = `running… (${mins}m) — ${run.current_step || ''}`;
+                }
+            } catch (e) {}
+        }, 5000);
+    } catch (e) {
+        state.textContent = 'failed to start: ' + e.message;
+    }
+}
+
 // Real pipeline run via API
 async function runGenReal() {
     const clientId = document.getElementById('gClientSel').value;
@@ -1743,6 +1785,20 @@ async function runGenReal() {
         return;
     }
 
+    // Run-both: companion product starts once formatting completes
+    const runBoth = document.getElementById('gRunBothCb')?.checked
+        && (curProd === 'ars' || curProd === 'txn');
+    const companionProd = curProd === 'txn' ? 'ars' : 'txn';
+    let companionStarted = false;
+    const compDiv = document.getElementById('gCompanion');
+    if (runBoth) {
+        compDiv.style.display = '';
+        document.getElementById('gCompanionLabel').textContent = companionProd.toUpperCase() + ' (parallel run): ';
+        document.getElementById('gCompanionState').textContent = 'waiting for the formatting step to finish…';
+    } else if (compDiv) {
+        compDiv.style.display = 'none';
+    }
+
     try {
         const runUrl = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
             + (localCopyPath ? `&local_copy_path=${encodeURIComponent(localCopyPath)}` : '');
@@ -1769,6 +1825,10 @@ async function runGenReal() {
                 if (run.log && run.log.length > lastSeen) {
                     for (let i = lastSeen; i < run.log.length; i++) {
                         const line = run.log[i];
+                        if (runBoth && !companionStarted && line.includes('STEP 2')) {
+                            companionStarted = true;
+                            _startCompanionRun(csm, month, clientId, companionProd);
+                        }
                         // Append to technical log
                         const el = document.createElement('div');
                         el.className = 'done';
@@ -1859,9 +1919,18 @@ async function runGenReal() {
                     runBtn.style.opacity = '';
                     runBtn.style.cursor = '';
                     if (run.status === 'complete') {
+                        // Safety net: if the STEP 2 log line was never seen
+                        // (log format drift), start the companion now.
+                        if (runBoth && !companionStarted) {
+                            companionStarted = true;
+                            _startCompanionRun(csm, month, clientId, companionProd);
+                        }
                         loadDownloads(csm, month, clientId);
                         loadResultsAfterRun(csm, month, clientId);
                         loadDashboardData();
+                    } else if (runBoth && !companionStarted) {
+                        document.getElementById('gCompanionState').textContent =
+                            'not started — the primary run failed before analysis began';
                     }
                     _renderCompletion(ctx);
                 }
