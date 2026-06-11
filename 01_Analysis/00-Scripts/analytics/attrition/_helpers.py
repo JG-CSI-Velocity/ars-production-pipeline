@@ -252,7 +252,16 @@ def prepare_attrition_data(
         empty = pd.DataFrame()
         return empty, empty, empty
 
-    data = attrition_universe(ctx)
+    # Full book by default. The eligible-products scoping (attrition_universe)
+    # collapsed closure counts to implausible levels on real data (owner
+    # report: ~100 L12M closures) -- the configured eligible products cover
+    # only part of the closing book. Opt in explicitly when wanted:
+    #   ARS_ATTRITION_ELIGIBLE_ONLY=1
+    import os as _os
+    if _os.environ.get("ARS_ATTRITION_ELIGIBLE_ONLY") == "1":
+        data = attrition_universe(ctx)
+    else:
+        data = ctx.data
 
     open_accts = data[data["Date Closed"].isna()].copy()
     closed_accts = data[data["Date Closed"].notna()].copy()
