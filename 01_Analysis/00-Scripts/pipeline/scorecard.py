@@ -111,6 +111,36 @@ def write(rm: RunManifest, path: Path) -> Path:
         out.extend(anomaly_lines)
         out.append("")
 
+    # Where did the time go? Per-cell timings are recorded on every run but
+    # were never surfaced -- runtime work was guesswork. Top 20 by elapsed.
+    timed = sorted(
+        (
+            (sec.name, sc.name, sc.elapsed_s, sc.slides)
+            for sec in rm.sections
+            for sc in sec.scripts
+            if sc.elapsed_s > 0
+        ),
+        key=lambda t: t[2],
+        reverse=True,
+    )[:20]
+    if timed:
+        total_cell_s = sum(
+            sc.elapsed_s for sec in rm.sections for sc in sec.scripts
+        )
+        out.append("## Slowest cells (top 20)")
+        out.append("")
+        out.append(f"Total cell time: **{total_cell_s:.0f}s** across "
+                   f"{totals['scripts_total']} cells. Cut from the top.")
+        out.append("")
+        out.append("| Section | Cell | Time | Slides | % of run |")
+        out.append("| --- | --- | --- | --- | --- |")
+        for sec_name, name, secs, slides in timed:
+            pct = (secs / total_cell_s * 100) if total_cell_s else 0
+            out.append(
+                f"| {sec_name} | {name} | {secs:.1f}s | {slides} | {pct:.0f}% |"
+            )
+        out.append("")
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(out), encoding="utf-8")
     return path
