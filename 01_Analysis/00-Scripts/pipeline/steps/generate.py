@@ -35,6 +35,15 @@ class SlideStatus:
     slide_type: str = "screenshot"
 
 
+def _txn_suffix(ctx: PipelineContext) -> str:
+    """'_txn' for TXN runs, '' otherwise -- keeps ARS artifact names legacy
+    while letting ARS + TXN run concurrently in one client folder."""
+    product = (getattr(ctx, "product", None)
+               or (getattr(ctx.settings, "product", "") if ctx.settings else "")
+               or "")
+    return "_txn" if str(product).lower() == "txn" else ""
+
+
 def _build_run_report(ctx: PipelineContext) -> list[SlideStatus]:
     """Build a diagnostic report of all slide statuses after analysis."""
     report: list[SlideStatus] = []
@@ -76,7 +85,20 @@ def rebuild_deck_from_report(ctx: PipelineContext) -> None:
 
     Returns silently; deck path is added to ctx.export_log on success.
     """
-    report_path = ctx.paths.base_dir / f"{ctx.client.client_id}_{ctx.client.month}_run_report.json"
+    report_path = ctx.paths.base_dir / (
+        f"{ctx.client.client_id}_{ctx.client.month}{_txn_suffix(ctx)}_run_report.json"
+    )
+    if not report_path.exists():
+        # Fall back to the most recent report of either product
+        _cands = sorted(
+            ctx.paths.base_dir.glob(
+                f"{ctx.client.client_id}_{ctx.client.month}*_run_report.json"
+            ),
+            key=lambda f: f.stat().st_mtime,
+            reverse=True,
+        )
+        if _cands:
+            report_path = _cands[0]
     if not report_path.exists():
         logger.warning("rebuild_deck_from_report: {p} not found", p=report_path)
         return
@@ -114,7 +136,9 @@ def rebuild_deck_from_report(ctx: PipelineContext) -> None:
 
 def _save_run_report(ctx: PipelineContext, report: list[SlideStatus]) -> None:
     """Save run report as JSON next to output files."""
-    report_path = ctx.paths.base_dir / f"{ctx.client.client_id}_{ctx.client.month}_run_report.json"
+    report_path = ctx.paths.base_dir / (
+        f"{ctx.client.client_id}_{ctx.client.month}{_txn_suffix(ctx)}_run_report.json"
+    )
     ctx.paths.base_dir.mkdir(parents=True, exist_ok=True)
 
     ok = sum(1 for s in report if s.success and s.has_chart)
@@ -215,7 +239,7 @@ def step_generate(ctx: PipelineContext) -> None:
     if _mf is not None:
         try:
             from ars_analysis.pipeline.scorecard import write as _scorecard_write
-            _scorecard_path = ctx.paths.base_dir / "run_scorecard.md"
+            _scorecard_path = ctx.paths.base_dir / f"run_scorecard{_txn_suffix(ctx)}.md"
             _scorecard_write(_mf, _scorecard_path)
             logger.info("Run scorecard written: {p}", p=_scorecard_path)
         except Exception as _exc:
@@ -233,7 +257,9 @@ def _write_excel(ctx: PipelineContext) -> None:
     Single-write pattern: one workbook with a tab per analysis.
     Then shutil.copy2 for the master/archive copy.
     """
-    excel_path = ctx.paths.excel_dir / f"{ctx.client.client_id}_{ctx.client.month}_analysis.xlsx"
+    excel_path = ctx.paths.excel_dir / (
+        f"{ctx.client.client_id}_{ctx.client.month}{_txn_suffix(ctx)}_analysis.xlsx"
+    )
     ctx.paths.excel_dir.mkdir(parents=True, exist_ok=True)
 
     wb = openpyxl.Workbook()
