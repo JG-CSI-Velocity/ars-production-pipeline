@@ -58,6 +58,18 @@ runs = {}
 
 # ─── HELPERS ──────────────────────────────────────────────────────────
 
+def _ensure_scripts_importable() -> None:
+    """Make 01_Analysis/00-Scripts importable as both top-level and ars_analysis.*"""
+    _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
+    if _scripts not in sys.path:
+        sys.path.insert(0, _scripts)
+    if "ars_analysis" not in sys.modules:
+        import types as _types
+        _pkg = _types.ModuleType("ars_analysis")
+        _pkg.__path__ = [_scripts]
+        sys.modules["ars_analysis"] = _pkg
+
+
 def get_code_version() -> dict:
     """Git stamp of the running checkout (sha/branch/dirty/label).
 
@@ -65,14 +77,24 @@ def get_code_version() -> dict:
     -- a stale work-PC clone produced an entire client run with last
     week's charts before anyone noticed.
     """
-    _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
-    if _scripts not in sys.path:
-        sys.path.insert(0, _scripts)
+    _ensure_scripts_importable()
     try:
         from shared.version import get_code_version as _gcv
         return _gcv()
     except Exception:
         return {"sha": "", "branch": "", "dirty": False, "label": "unknown"}
+
+
+def load_run_report(csm: str, month: str, client_id: str) -> dict | None:
+    """Load the persisted run_report.json for a completed run, or None."""
+    analysis_dir = _resolve_csm_dir(COMPLETED_ANALYSIS, csm) / month / client_id
+    report_path = analysis_dir / f"{client_id}_{month}_run_report.json"
+    if not report_path.exists():
+        return None
+    try:
+        return json.loads(report_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
 
 def load_ars_config():
     """Load ars_config.json."""
@@ -1103,6 +1125,128 @@ async def post_manifest(updates: dict):
     n = write_manifest_decisions(payload)
     resolved = _resolve_manifest_path()
     return {"updated": n, "path": str(resolved) if resolved else None}
+
+
+@app.get("/api/curate/{csm}/{month}/{client_id}")
+async def get_curate(csm: str, month: str, client_id: str):
+    """Per-run curation view: every slide from run_report.json, grouped by
+    section, joined with the current SLIDE_MANIFEST Keep? decisions and a
+    chart thumbnail URL.
+
+    Backs the visual Curate panel: the operator triages a 150-slide run by
+    looking at the charts, not by matching slide IDs to PowerPoint pages.
+
+    Response shape:
+      {
+        "client_id": "...", "month": "...", "csm": "...",
+        "manifest_path": "..." | null,
+        "total_slides": 150, "missing_from_manifest": 12,
+        "counts": {"main": 30, "aux": 80, "drop": 28, "blank": 12},
+        "sections": [
+          {"name": "TXN - Competition", "slides": [
+            {"slide_id": "TXN-COMP-01", "title": "...", "decision": "Y",
+             "in_manifest": true, "thumb_url": "/api/download?path=...",
+             "has_chart": true, "error": ""},
+          ]},
+        ]
+      }
+    """
+    from urllib.parse import quote
+
+    _ensure_scripts_importable()
+    from ars_analysis.output.manifest import (
+        _resolve_manifest_path,
+        read_manifest_rows,
+        sheet_for_slide,
+    )
+
+    payload = load_run_report(csm, month, client_id)
+    if payload is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Run report not found -- re-run analysis to regenerate.",
+        )
+    raw_slides = payload.get("slides") or []
+    analysis_dir = _resolve_csm_dir(COMPLETED_ANALYSIS, csm) / month / client_id
+
+    decisions = {r.slide_id: r.decision for r in read_manifest_rows()}
+
+    sections: dict[str, list] = {}
+    order: list[str] = []
+    counts = {"main": 0, "aux": 0, "drop": 0, "blank": 0}
+    missing = 0
+    for s in raw_slides:
+        sid = s.get("slide_id", "") or ""
+        chart = s.get("chart_path") or ""
+        cp = Path(chart) if chart and Path(chart).exists() else None
+        if cp is None and s.get("has_chart"):
+            # Pre-chart_path run reports: glob charts/ for the slide_id token
+            sid_token = sid.lower().replace("-", "_").replace(".", "_")
+            if sid_token:
+                for cand in (analysis_dir / "charts").glob("*.png"):
+                    if sid_token in cand.name.lower():
+                        cp = cand
+                        break
+        in_manifest = sid in decisions
+        decision = decisions.get(sid, "")
+        if not in_manifest:
+            missing += 1
+        counts[{"Y": "main", "A": "aux", "N": "drop"}.get(decision, "blank")] += 1
+        sheet = sheet_for_slide(sid, s.get("module_id", "") or "")
+        if sheet not in sections:
+            sections[sheet] = []
+            order.append(sheet)
+        sections[sheet].append({
+            "slide_id": sid,
+            "title": s.get("title", "") or "",
+            "decision": decision,
+            "in_manifest": in_manifest,
+            "thumb_url": f"/api/download?path={quote(str(cp))}&inline=true" if cp else None,
+            "has_chart": cp is not None,
+            "error": s.get("error", "") or "",
+        })
+
+    resolved = _resolve_manifest_path()
+    return {
+        "client_id": client_id,
+        "month": month,
+        "csm": csm,
+        "manifest_path": str(resolved) if resolved else None,
+        "total_slides": len(raw_slides),
+        "missing_from_manifest": missing,
+        "counts": counts,
+        "sections": [{"name": n, "slides": sections[n]} for n in order],
+    }
+
+
+@app.post("/api/manifest/sync/{csm}/{month}/{client_id}")
+async def post_manifest_sync(csm: str, month: str, client_id: str):
+    """Append this run's slides to SLIDE_MANIFEST.xlsx if not already listed.
+
+    New slide IDs land on their per-section sheet with a blank Keep? cell
+    (= keep, undecided). Existing rows -- and the operator's decisions --
+    are never modified. Creates the workbook when none exists yet.
+    """
+    _ensure_scripts_importable()
+    from ars_analysis.output.manifest import ensure_manifest_rows
+
+    payload = load_run_report(csm, month, client_id)
+    if payload is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Run report not found -- re-run analysis to regenerate.",
+        )
+    slides = [
+        {
+            "slide_id": s.get("slide_id", ""),
+            "title": s.get("title", ""),
+            "module_id": s.get("module_id", ""),
+            "slide_type": s.get("slide_type", ""),
+        }
+        for s in (payload.get("slides") or [])
+    ]
+    path, added = ensure_manifest_rows(slides)
+    return {"path": path, "added": added}
 @app.post("/api/preview_html/{csm}/{month}/{client_id}")
 async def post_preview_html(csm: str, month: str, client_id: str):
     """Build an HTML preview of a completed run and return its URL.
@@ -1174,8 +1318,9 @@ async def get_preview_root(csm: str, month: str, client_id: str):
 
 
 @app.get("/api/download")
-async def download_file(path: str):
-    """Download an output file."""
+async def download_file(path: str, inline: bool = False):
+    """Download an output file. `inline=true` serves it for in-page display
+    (Curate panel thumbnails / open-in-tab) instead of as an attachment."""
     file_path = Path(path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -1183,6 +1328,8 @@ async def download_file(path: str):
         file_path.resolve().relative_to(ARS_BASE.resolve())
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
+    if inline:
+        return FileResponse(file_path)
     return FileResponse(file_path, filename=file_path.name)
 
 
