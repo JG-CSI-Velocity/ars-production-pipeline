@@ -154,7 +154,11 @@ def write_rates_audit(ctx: PipelineContext) -> tuple[Path | None, int]:
     if out_dir is None:
         return None, 0
 
-    path = out_dir / "rates_audit.csv"
+    _product = (getattr(ctx, "product", None)
+                or (getattr(ctx.settings, "product", "") if getattr(ctx, "settings", None) else "")
+                or "")
+    _suffix = "_txn" if str(_product).lower() == "txn" else ""
+    path = out_dir / f"rates_audit{_suffix}.csv"
     rows: list[dict[str, object]] = []
     violations = 0
 

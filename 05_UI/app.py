@@ -85,11 +85,20 @@ def get_code_version() -> dict:
         return {"sha": "", "branch": "", "dirty": False, "label": "unknown"}
 
 
+def _newest_artifact(directory, pattern: str):
+    """Newest file matching pattern (TXN runs suffix their artifacts so ARS +
+    TXN can run concurrently; readers show whichever finished last)."""
+    candidates = sorted(
+        directory.glob(pattern), key=lambda f: f.stat().st_mtime, reverse=True
+    )
+    return candidates[0] if candidates else None
+
+
 def load_run_report(csm: str, month: str, client_id: str) -> dict | None:
     """Load the persisted run_report.json for a completed run, or None."""
     analysis_dir = _resolve_csm_dir(COMPLETED_ANALYSIS, csm) / month / client_id
-    report_path = analysis_dir / f"{client_id}_{month}_run_report.json"
-    if not report_path.exists():
+    report_path = _newest_artifact(analysis_dir, f"{client_id}_{month}*_run_report.json")
+    if report_path is None:
         return None
     try:
         return json.loads(report_path.read_text(encoding="utf-8"))
@@ -948,16 +957,16 @@ async def run_quality(csm: str, month: str, client_id: str):
     if not analysis_dir.exists():
         return out
 
-    sc = analysis_dir / "run_scorecard.md"
-    if sc.exists():
+    sc = _newest_artifact(analysis_dir, "run_scorecard*.md")
+    if sc:
         out["scorecard_path"] = str(sc)
         try:
             out["scorecard_md"] = sc.read_text(encoding="utf-8")
         except Exception:
             pass
 
-    ra = analysis_dir / "rates_audit.csv"
-    if ra.exists():
+    ra = _newest_artifact(analysis_dir, "rates_audit*.csv")
+    if ra:
         out["rates_audit_path"] = str(ra)
         try:
             with open(ra, newline="", encoding="utf-8") as f:
@@ -969,8 +978,8 @@ async def run_quality(csm: str, month: str, client_id: str):
         except Exception:
             pass
 
-    mf = analysis_dir / "run_manifest.json"
-    if mf.exists():
+    mf = _newest_artifact(analysis_dir, "run_manifest*.json")
+    if mf:
         try:
             data = _json.loads(mf.read_text(encoding="utf-8"))
             out["manifest_status"] = data.get("status", "unknown")

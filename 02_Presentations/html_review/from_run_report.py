@@ -94,9 +94,14 @@ def build_html_from_run_report(
     can email the HTML or scp it without dragging the assets folder along.
     """
     analysis_dir = completed_analysis_root / csm / month / client_id
-    report_path = analysis_dir / f"{client_id}_{month}_run_report.json"
-    if not report_path.exists():
+    _cands = sorted(
+        analysis_dir.glob(f"{client_id}_{month}*_run_report.json"),
+        key=lambda f: f.stat().st_mtime,
+        reverse=True,
+    )
+    if not _cands:
         return None
+    report_path = _cands[0]
 
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     raw_slides = payload.get("slides") or []

@@ -142,7 +142,10 @@ class RunManifest:
 
     @property
     def path(self) -> Path:
-        return self.output_dir / "run_manifest.json"
+        # TXN runs suffix their artifacts so ARS + TXN can run concurrently
+        # in the same client folder without clobbering each other.
+        suffix = "_txn" if str(self.product).lower() == "txn" else ""
+        return self.output_dir / f"run_manifest{suffix}.json"
 
     def start_run(self) -> None:
         self.started_at = _utcnow_iso()
