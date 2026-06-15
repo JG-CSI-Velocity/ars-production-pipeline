@@ -2171,9 +2171,9 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     # Build preamble
     preamble = _build_preamble_slides(client_name, month)
 
-    # Replace P02 (Agenda) with executive KPI dashboard
-    if len(preamble) > 1:
-        preamble[1] = _build_executive_kpi(_ctx_results, title_date=section_subtitle)
+    # P02 stays the Agenda slide (operator brings its content, like the other
+    # blank preamble slides). Owner decision 2026-06-14: slide 2 is an agenda,
+    # NOT a KPI dashboard -- the dashboard replacement was removed.
 
     # Wire preamble placeholders to actual results:
     # P08 (index 7) -> most recent A12.*.Swipes

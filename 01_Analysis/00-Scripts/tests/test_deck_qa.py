@@ -77,6 +77,16 @@ def test_text_overflow_flagged(tmp_path):
 def test_empty_body_flagged(tmp_path):
     prs = _blank_deck()
     slide = _add_slide(prs)
-    _add_text(slide, "Executive Summary", top=0.5)  # title only, no body, no chart
+    _add_text(slide, "Deposit Trends", top=0.5)  # title only, no body, no chart
     report = qa.audit_deck(_save(prs, tmp_path))
     assert any(f["code"] == "empty_body" for f in report["findings"])
+
+
+def test_operator_filled_slides_not_flagged(tmp_path):
+    """Agenda / Exec Summary / Monthly Revenue / ARS Lift are blank by design."""
+    prs = _blank_deck()
+    for title in ("Agenda", "Executive Summary",
+                  "Monthly Revenue – Last 12 Months", "ARS Lift Matrix"):
+        _add_text(_add_slide(prs), title, top=0.5)
+    report = qa.audit_deck(_save(prs, tmp_path))
+    assert not any(f["code"] == "empty_body" for f in report["findings"])

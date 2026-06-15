@@ -36,6 +36,9 @@ LEAKED_TOKEN = re.compile(r"\{[A-Za-z_][\w.]*(?::[^}]*)?\}")  # {x} or {x:.1f}
 
 # Layouts that are *meant* to be title-only (covers, section breaks) — not "empty body".
 _DIVIDER_HINTS = ("section", "divider", "cover", "title slide", "agenda")
+# Slides the operator fills by hand from their own PowerPoint/Excel. They ship
+# title-only by design, so they are not "empty body" defects.
+_OPERATOR_FILLED = ("agenda", "executive summary", "monthly revenue", "ars lift")
 # Rough text-capacity model at ~11pt body type.
 _CHARS_PER_INCH = 15.0
 _LINE_HEIGHT_IN = 0.20
@@ -109,6 +112,9 @@ def check_empty_body(prs) -> list[Finding]:
         has_picture = any(s.shape_type == 13 for s in slide.shapes)
         texts = [t for t in (_text(s) for s in slide.shapes) if t]
         if not has_picture and len(texts) == 1:
+            title = texts[0].lower()
+            if any(name in title for name in _OPERATOR_FILLED):
+                continue  # operator fills this slide by hand -- blank is intended
             out.append(Finding("MAJOR", "empty_body", i,
                               f"title-only slide '{texts[0][:40]}' (empty body or missing chart)"))
     return out
