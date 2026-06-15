@@ -27,6 +27,7 @@ from matplotlib.ticker import FuncFormatter
 
 from ars_analysis.analytics.attrition._helpers import (
     _safe,
+    attrition_universe,
     l12m_attrition,
     prepare_attrition_data,
 )
@@ -132,6 +133,22 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     l12m_base_df, _, l12m_attrition_rate = l12m_attrition(all_data, l12m_start, l12m_end)
     l12m_base_n = len(l12m_base_df)
 
+    # Eligible-scoped attrition (#208 A2). The same L12M window applied to the
+    # eligible-comparable book (open-eligible + closed-eligible-by-product), so
+    # the deck shows BOTH denominators instead of leaving the reader to guess
+    # which one the single rate used. Falls back to the all-accounts figures
+    # when eligibility config is unavailable.
+    try:
+        elig_universe = attrition_universe(ctx)
+        elig_base_df, elig_closures_df, elig_rate = l12m_attrition(
+            elig_universe, l12m_start, l12m_end
+        )
+        elig_base_n = len(elig_base_df)
+        elig_closures_n = len(elig_closures_df)
+    except Exception as exc:
+        logger.warning("A9.0 eligible attrition failed: {e}", e=exc)
+        elig_base_n, elig_closures_n, elig_rate = l12m_base_n, n_closes, l12m_attrition_rate
+
     # First-Year Close Rate (overall): of accounts opened in L12M,
     # how many have already closed within their first 12 months?
     # Closures are capped at l12m_end so the current partial month doesn't
@@ -190,22 +207,25 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         )
 
         # ----- KPI tiles (top row spans all 4 cols, 2 sub-rows of 4) -----
+        # 8 tiles (#208 A2): added the Eligible count and Eligible Closures,
+        # folded both attrition denominators (all vs eligible) into one tile, and
+        # dropped the redundant growth-rate and the meaningless lifetime-closed
+        # count the owner flagged as garbage.
         tiles = [
             (_fmt_count(n_opens),           "L12M Opens",                        _GROWTH),
             (_fmt_count(n_closes),          "L12M Closes",                       _DECAY),
             (("+" if net_new >= 0 else "") + _fmt_count(net_new),
                                             "Net New (L12M)",
                                             _GROWTH if net_new >= 0 else _DECAY),
-            (_fmt_pct(growth_rate),         "Growth Rate\n(net / open at start)",
-                                            _GROWTH if (net_new >= 0) else _DECAY),
+            (_fmt_count(total_active),      "Open Accounts\n(current, all)",     _INFO),
+            (_fmt_count(elig_base_n),       "Eligible Accounts\n(L12M exposure)", _INFO),
             (_fmt_pct(first_year_close_rate),
                                             f"First-Year Close Rate\n({fy_closed:,} of {n_opens:,} new)",
                                             _DECAY),
-            (_fmt_pct(l12m_attrition_rate), f"L12M Attrition Rate\n({n_closes:,} of {l12m_base_n:,})",
+            (f"{_fmt_pct(l12m_attrition_rate)} / {_fmt_pct(elig_rate)}",
+                                            "L12M Attrition\n(All / Eligible)",
                                             _DECAY),
-            (_fmt_count(total_active),      "Open Accounts\n(current)",          _INFO),
-            (_fmt_count(total_closed_lifetime),
-                                            "Total Closed\n(lifetime)",          _MUTED),
+            (_fmt_count(elig_closures_n),   "Eligible Closures\n(L12M)",         _DECAY),
         ]
 
         # Place the 8 tiles in a 2x4 grid in the TOP gridspec row
@@ -247,6 +267,13 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         ax2 = ax.twinx()
         ax2.plot(x, net_by_month.values, color=_DARK, linewidth=3,
                  marker="o", markersize=8, label="Net New", zorder=5)
+        # Net-new value labels at each point (#208 A2: "at least net numbers").
+        for xi, nv in zip(x, net_by_month.values):
+            ax2.annotate(
+                f"{int(nv):+,}", (xi, nv), textcoords="offset points",
+                xytext=(0, 9), ha="center", fontsize=10, fontweight="bold",
+                color=_DARK, zorder=6,
+            )
         ax2.axhline(0, color=_MUTED, linewidth=1, linestyle="--", zorder=2)
         ax2.set_ylabel("Net New", fontsize=14, fontweight="bold", color=_DARK)
         ax2.tick_params(axis="y", labelsize=TICK_SIZE - 4, colors=_DARK)
@@ -266,11 +293,12 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         ax.yaxis.grid(True, color="#E9ECEF", linewidth=0.5, alpha=0.7)
         ax.set_axisbelow(True)
 
-        # Combined legend
+        # Combined legend -- seated above the plot, top-right, so it never runs
+        # through the bars or the net-new line (#208 A2: "spacing of legend").
         h1, l1 = ax.get_legend_handles_labels()
         h2, l2 = ax2.get_legend_handles_labels()
-        ax.legend(h1 + h2, l1 + l2, loc="upper left",
-                  fontsize=13, frameon=False, ncol=3)
+        ax.legend(h1 + h2, l1 + l2, loc="upper right", bbox_to_anchor=(1.0, 1.16),
+                  fontsize=12, frameon=False, ncol=3)
 
         # Suptitle + subtitle with safe spacing
         fig.suptitle("Account Attrition & Churn — Last 12 Months",
@@ -299,6 +327,9 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         "first_year_closed_count": fy_closed,
         "l12m_attrition_rate": l12m_attrition_rate,
         "l12m_exposure_base": l12m_base_n,
+        "eligible_exposure_base": elig_base_n,
+        "eligible_closures": elig_closures_n,
+        "eligible_attrition_rate": elig_rate,
         "open_at_start": open_at_start,
         "active": total_active,
         "closed_lifetime": total_closed_lifetime,
@@ -312,7 +343,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     return [
         AnalysisResult(
             slide_id="A9.0",
-            title="Attrition Headline (L12M Cohort)",
+            title="Account Attrition & Churn — Last 12 Months",
             chart_path=save_to,
             notes=notes,
         )
