@@ -45,8 +45,7 @@ if 'GEN_COLORS' not in dir():
 # ------------------------------------------------------------------
 _ics_mask = (
     (data['ICS Account'] == 'Yes')
-    & (data['Stat Code'].astype(str).str.upper().str.strip()
-       == str(ICS_STAT_CODE).upper())
+    & is_target_status(data['Stat Code'])
 )
 _non_mask = data['ICS Account'] != 'Yes'
 

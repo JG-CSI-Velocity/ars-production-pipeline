@@ -211,10 +211,7 @@ def _render_activation(tbl, caption):
 # Both cohorts are consolidated by Opening Year with milestone values
 # weighted-averaged by Cohort Size across months.
 # ---------------------------------------------------------------------------
-_STAT_MASK = (
-    data['Stat Code'].astype(str).str.upper().str.strip()
-    == str(ICS_STAT_CODE).upper()
-)
+_STAT_MASK = is_target_status(data['Stat Code'])
 
 # ---- ICS = Yes -------------------------------------------------------------
 _ics = data.loc[(data['ICS Account'] == 'Yes') & _STAT_MASK].copy()

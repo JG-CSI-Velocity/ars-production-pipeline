@@ -32,6 +32,19 @@ except NameError:
     _missing_config.append('ICS_STAT_CODE')
 
 try:
+    ICS_STATUS_CODES
+except NameError:
+    ICS_STATUS_CODES = [ICS_STAT_CODE]
+    _missing_config.append('ICS_STATUS_CODES')
+
+try:
+    is_target_status
+except NameError:
+    def is_target_status(series):
+        return series.astype(str).str.strip().str.upper().isin(ICS_STATUS_CODES)
+    _missing_config.append('is_target_status')
+
+try:
     STAT_LABEL
 except NameError:
     STAT_LABEL = f"Stat Code {ICS_STAT_CODE}"
@@ -90,8 +103,7 @@ def ics_cohort(df):
     """
     mask = (
         (df['ICS Account'] == 'Yes') &
-        (df['Stat Code'].astype(str).str.upper().str.strip()
-         == str(ICS_STAT_CODE).upper())
+        is_target_status(df['Stat Code'])
     )
     return df.loc[mask].copy()
 

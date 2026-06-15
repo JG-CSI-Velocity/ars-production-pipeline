@@ -53,8 +53,7 @@ stat_code_dist = pd.concat([stat_code_dist, total_row], ignore_index=True).filln
 display_formatted(stat_code_dist, "ICS Accounts — Stat Code Distribution")
 
 # Highlight which Stat Code the config currently targets
-_target_rows = stat_code_dist['Stat Code'].astype(str).str.upper().str.strip() \
-               == str(ICS_STAT_CODE).upper()
+_target_rows = is_target_status(stat_code_dist['Stat Code'])
 _target_ct = int(stat_code_dist.loc[_target_rows, 'Count'].sum()) if _target_rows.any() else 0
 
 print(f"\n✅ Analysis completed")
