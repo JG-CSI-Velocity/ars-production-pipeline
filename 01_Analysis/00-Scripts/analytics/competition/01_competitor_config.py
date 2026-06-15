@@ -520,6 +520,67 @@ CLIENT_CONFIGS = {
             'MOUNT MCKINLEY BANK':                   'MT. MCKINLEY BANK',
         },
     },
+    '1759': {  # First Central Credit Union (Waco, TX)
+        'fed_district': '11',  # Dallas -- TX/LA/NM (was silently defaulting to '12' SF)
+        'credit_unions': [
+            # --- Waco / Central Texas locals ---
+            'GENCO FEDERAL CREDIT UNION', 'GENCO FCU', 'GENCO',          # Waco HQ -- top local CU
+            'MEMBERS CHOICE OF CENTRAL TEXAS',
+            'MEMBERS CHOICE OF CENTRAL TEXAS FEDERAL CREDIT UNION',
+            'TEXELL CREDIT UNION', 'TEXELL CU', 'TEXELL',                # Woodway / Temple
+            'EDUCATORS CREDIT UNION', 'EDUCATORS CU',                    # Waco
+            '1ST UNIVERSITY CREDIT UNION', 'FIRST UNIVERSITY CREDIT UNION', '1ST UNIVERSITY CU',
+            'GREATER CENTRAL TEXAS FEDERAL CREDIT UNION', 'GREATER CENTRAL TEXAS FCU',  # Killeen
+            # --- Large statewide CUs commonly seen in Central TX member data ---
+            'RANDOLPH-BROOKS FEDERAL CREDIT UNION', 'RANDOLPH BROOKS', 'RBFCU',
+            'UNIVERSITY FEDERAL CREDIT UNION', 'UFCU',
+            'TEXAS DOW EMPLOYEES CREDIT UNION', 'TDECU',
+            'SECURITY SERVICE FEDERAL CREDIT UNION', 'SECURITY SERVICE FCU', 'SSFCU',
+            # Heavy military presence nearby (Fort Cavazos / Killeen)
+            'NAVY FEDERAL CREDIT UNION', 'NAVY FEDERAL CU',
+        ],
+        'local_banks': [
+            # Waco-area community banks NOT already in the District 11 top-25
+            'CENTRAL NATIONAL BANK',                                     # Waco's leading independent bank
+            'EXTRACO BANKS', 'EXTRACO BANK', 'EXTRACO',                  # Temple / Waco
+            'TFNB', 'TFNB YOUR BANK FOR LIFE',
+            'FIRST NATIONAL BANK OF MCGREGOR', 'THE FIRST NATIONAL BANK OF MCGREGOR',
+            'ALLIANCE BANK CENTRAL TEXAS',                              # Woodway
+            'COMMUNITY BANK & TRUST', 'COMMUNITY BANK AND TRUST',        # Waco
+            'FIRST NATIONAL BANK OF CENTRAL TEXAS', 'FNBCT',
+            'FIRST NATIONAL BANK TEXAS', 'FIRST CONVENIENCE BANK',       # Killeen HQ; heavy HEB retail footprint
+            'AMERICAN BANK',                                             # Waco -- generic name, watch for out-of-market FPs
+        ],
+        'custom': [],
+        'rollups': {
+            # --- CU abbreviation / variant rollups ---
+            'GENCO FCU':                                            'GENCO FEDERAL CREDIT UNION',
+            'GENCO':                                                'GENCO FEDERAL CREDIT UNION',
+            'MEMBERS CHOICE OF CENTRAL TEXAS FEDERAL CREDIT UNION': 'MEMBERS CHOICE OF CENTRAL TEXAS',
+            'TEXELL CU':                                            'TEXELL CREDIT UNION',
+            'TEXELL':                                               'TEXELL CREDIT UNION',
+            'EDUCATORS CU':                                         'EDUCATORS CREDIT UNION',
+            'FIRST UNIVERSITY CREDIT UNION':                        '1ST UNIVERSITY CREDIT UNION',
+            '1ST UNIVERSITY CU':                                    '1ST UNIVERSITY CREDIT UNION',
+            'GREATER CENTRAL TEXAS FCU':                            'GREATER CENTRAL TEXAS FEDERAL CREDIT UNION',
+            'RANDOLPH BROOKS':                                      'RANDOLPH-BROOKS FEDERAL CREDIT UNION',
+            'RBFCU':                                                'RANDOLPH-BROOKS FEDERAL CREDIT UNION',
+            'UFCU':                                                 'UNIVERSITY FEDERAL CREDIT UNION',
+            'TDECU':                                                'TEXAS DOW EMPLOYEES CREDIT UNION',
+            'SECURITY SERVICE FCU':                                 'SECURITY SERVICE FEDERAL CREDIT UNION',
+            'SSFCU':                                                'SECURITY SERVICE FEDERAL CREDIT UNION',
+            'NAVY FEDERAL CU':                                      'NAVY FEDERAL CREDIT UNION',
+            # --- Local bank variant rollups ---
+            'EXTRACO BANK':                                         'EXTRACO BANKS',
+            'EXTRACO':                                              'EXTRACO BANKS',
+            'TFNB YOUR BANK FOR LIFE':                              'TFNB',
+            'FIRST NATIONAL BANK OF MCGREGOR':                      'TFNB',
+            'THE FIRST NATIONAL BANK OF MCGREGOR':                  'TFNB',
+            'COMMUNITY BANK AND TRUST':                             'COMMUNITY BANK & TRUST',
+            'FNBCT':                                                'FIRST NATIONAL BANK OF CENTRAL TEXAS',
+            'FIRST CONVENIENCE BANK':                               'FIRST NATIONAL BANK TEXAS',
+        },
+    },
     '1776': {  # CoastHills (Central Coast, CA)
         'fed_district': '12',
         'credit_unions': [
