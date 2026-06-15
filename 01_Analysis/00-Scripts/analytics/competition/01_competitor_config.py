@@ -123,28 +123,6 @@ UNIVERSAL_COMPETITORS = {
         ],
         'exact': [],
     },
-
-    # Crypto exchanges + digital-native investing apps. These pull deposits and
-    # primary-account engagement away from the FI, so they ARE true competitors
-    # (not payment ecosystems). Traditional full-service brokerages (Schwab,
-    # Fidelity, Vanguard, etc.) intentionally live in the Financial Services
-    # section -- keep them there to avoid double-counting; revisit in the FS audit.
-    'crypto_investing': {
-        'starts_with': [
-            'COINBASE', 'COINBASE INC',
-            'ROBINHOOD', 'ROBINHOOD SECURITIES', 'ROBINHOOD CRYPTO', 'ROBINHOOD GOLD',
-            'KRAKEN',
-            'BINANCE', 'BINANCE US', 'BINANCE.US',
-            'CRYPTO.COM', 'CRYPTO COM',
-            'GEMINI TRUST',
-            'BLOCKFI',
-            'WEBULL',
-            'ETORO',
-            'PUBLIC.COM', 'PUBLIC HLDG',
-            'BLOCKCHAIN COM',
-        ],
-        'exact': [],
-    },
 }
 
 UNIVERSAL_ECOSYSTEMS = {
