@@ -2157,14 +2157,19 @@ def _consolidate_mailer(results: list) -> tuple[list, list]:
     # in one figure, so the separate A12 Swipes / Spend slides are dropped from the
     # deck entirely (net slide reduction). P08/P09 preamble wiring is unaffected --
     # it reads the A12 results from ctx.results directly, not the mailer section.
-    def _is_a12_metric(r) -> bool:
+    # Every wave is exactly TWO slides: the A13 summary + its A16.7 combo. Drop
+    # everything else in the month group -- the separate A12 Swipes/Spend (the
+    # combo replaces them) AND the per-wave A15.{month} ladder/repeat slide the
+    # owner flagged worthless (#208 slide 47 "ladder movement"). The month-suffix
+    # router put A15.{month} into the wave block, so it slipped past the
+    # impact-slide drop that already removes the aggregate A15.2-4 / A16.1-6.
+    def _is_wave_keeper(r) -> bool:
         sid = getattr(r, "slide_id", "")
-        return sid.startswith("A12.") and ("Swipes" in sid or "Spend" in sid)
+        return sid.startswith("A13.") or sid.startswith("A16.7")
 
     for i, ym in enumerate(sorted_months):
         group = sorted(month_slides[ym], key=_intra_month_key)
-        # Drop the separate swipes/spend slides; the combo replaces them.
-        group = [r for r in group if not _is_a12_metric(r)]
+        group = [r for r in group if _is_wave_keeper(r)]
         if i < MAIN_MAILER_MONTHS:
             # Most recent waves lead in the main deck
             main_slides.extend(group)

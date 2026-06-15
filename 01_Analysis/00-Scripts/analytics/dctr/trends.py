@@ -106,7 +106,11 @@ class DCTRTrends(AnalysisModule):
                     vals = [p_hist, p_l12m]
                     colors = [PERSONAL, HISTORICAL]
 
-                with chart_figure(save_path=save_to) as (fig, ax):
+                # Match A7.6a's (16, 8) canvas so the two charts in the "Recent
+                # Trend & Segments" 2x1 render at the same font scale (#208: the
+                # two charts had 3-4 different font sizes). A bare default figsize
+                # here made these labels render far larger than the trend chart's.
+                with chart_figure(figsize=(16, 8), save_path=save_to) as (fig, ax):
                     x_pos = np.arange(len(cats))
                     ax.bar(
                         x_pos,
@@ -118,7 +122,7 @@ class DCTRTrends(AnalysisModule):
                         width=0.6,
                     )
                     for i, v in enumerate(vals):
-                        ax.text(i, v + 1, f"{v:.1f}%", ha="center", fontweight="bold", fontsize=12)
+                        ax.text(i, v + 1, f"{v:.1f}%", ha="center", fontweight="bold", fontsize=14)
                     ax.set_ylabel("DCTR (%)", fontsize=16, fontweight="bold")
                     ax.set_title(
                         "DCTR Segment Trends: Historical vs TTM",

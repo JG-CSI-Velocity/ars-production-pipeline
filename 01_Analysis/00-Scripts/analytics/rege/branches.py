@@ -346,7 +346,10 @@ class RegEBranches(AnalysisModule):
         fig_w = max(14, n * 1.0 + 2)
         x = np.arange(n)
 
-        with chart_figure(figsize=(fig_w, 9), save_path=save_to) as (fig, ax):
+        # Wider/shorter aspect so it doesn't bleed over the slide number, and the
+        # legend sits below the plot (off the opt-in line) -- mirrors the DCTR
+        # branch chart (A7.10a) per #208 slide 29 ("same comments as DCTR").
+        with chart_figure(figsize=(fig_w, 6.8), save_path=save_to) as (fig, ax):
             # Volume bars (L12M eligible accounts opened, by branch)
             ax.bar(
                 x,
@@ -429,12 +432,12 @@ class RegEBranches(AnalysisModule):
                      f"Dashed line: portfolio avg ({portfolio_rate:.1f}%)",
                      ha="center", fontsize=12, color=BRAND["text_muted"], style="italic")
 
-            # Compact two-entry legend (no third change-pp line)
+            # Legend below the plot so it never overlaps the opt-in line/dots.
             h1, l1 = ax.get_legend_handles_labels()
             h2, l2 = ax2.get_legend_handles_labels()
             ax.legend(h1 + h2, l1 + l2,
-                      loc="upper right", fontsize=12,
-                      frameon=False, ncol=1)
+                      loc="upper center", bbox_to_anchor=(0.5, -0.22),
+                      fontsize=12, frameon=False, ncol=3)
 
         improving = int((chart_data["L12M Rate"] > chart_data["Historical Rate"]).sum())
         notes = (
