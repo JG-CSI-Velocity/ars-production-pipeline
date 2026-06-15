@@ -1505,7 +1505,7 @@ _SECTION_LABELS = {
     "overview": "How Big Is This Program?",
     "dctr": "Operational KPI: Debit Card Take Rate",
     "rege": "Operational KPI: Reg E",
-    "attrition": "Are We Losing Accounts?",
+    "attrition": "Operational KPI: Attrition and Churn",
     "value": "What Is the Revenue Impact?",
     "mailer": "How Effective Are the Mailer Campaigns?",
     "transaction": "What Do Spending Patterns Reveal?",

@@ -81,7 +81,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         return [
             AnalysisResult(
                 slide_id="A9.0",
-                title="Attrition Headline (L12M Cohort)",
+                title="Account Attrition & Churn (L12M)",
                 success=False,
                 error="No account data",
             )
@@ -91,7 +91,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         return [
             AnalysisResult(
                 slide_id="A9.0",
-                title="Attrition Headline (L12M Cohort)",
+                title="Account Attrition & Churn (L12M)",
                 success=False,
                 error="Missing Date Opened / Date Closed",
             )
@@ -203,7 +203,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
                                             _DECAY),
             (_fmt_pct(l12m_attrition_rate), f"L12M Attrition Rate\n({n_closes:,} of {l12m_base_n:,})",
                                             _DECAY),
-            (_fmt_count(total_active),      "Active Accounts\n(current)",        _INFO),
+            (_fmt_count(total_active),      "Open Accounts\n(current)",          _INFO),
             (_fmt_count(total_closed_lifetime),
                                             "Total Closed\n(lifetime)",          _MUTED),
         ]
@@ -273,7 +273,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
                   fontsize=13, frameon=False, ncol=3)
 
         # Suptitle + subtitle with safe spacing
-        fig.suptitle("Attrition Headline — L12M Cohort",
+        fig.suptitle("Account Attrition & Churn — Last 12 Months",
                      fontsize=24, fontweight="bold", color=_DARK, y=0.97)
         fig.text(0.5, 0.925,
                  f"Window: {l12m_start.strftime('%b %Y')} – {l12m_end.strftime('%b %Y')}  |  "
