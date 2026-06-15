@@ -1670,8 +1670,8 @@ def _build_executive_kpi(ctx_results: dict, title_date: str = "") -> SlideConten
     else:
         kpis["DCTR Penetration"] = "N/A|gray"
 
-    # Reg E Opt-In Rate
-    rege = _safe_get("rege_1", "opt_in_rate")
+    # Reg E Opt-In Rate (key is reg_e_1, set by analytics/rege/status.py)
+    rege = _safe_get("reg_e_1", "opt_in_rate")
     if rege is not None and isinstance(rege, (int, float)) and not math.isnan(rege):
         color = _color_rate(rege, 0.70, 0.50)
         kpis["Reg E Opt-In"] = f"{rege:.1%}|{color}"
@@ -1686,12 +1686,13 @@ def _build_executive_kpi(ctx_results: dict, title_date: str = "") -> SlideConten
     else:
         kpis["Attrition (L12M)"] = "N/A|gray"
 
-    # Total Eligible Accounts (neutral)
+    # Eligible Accounts (neutral). dctr_1.total_accounts is the eligible-subset
+    # count, not the portfolio total -- label it accurately per the denominator law.
     total = _safe_get("dctr_1", "total_accounts")
     if total is not None and isinstance(total, (int, float)) and total > 0:
-        kpis["Total Accounts"] = f"{int(total):,}"
+        kpis["Eligible Accounts"] = f"{int(total):,}"
     else:
-        kpis["Total Accounts"] = "N/A|gray"
+        kpis["Eligible Accounts"] = "N/A|gray"
 
     title = f"Executive Dashboard | {title_date}" if title_date else "Executive Dashboard"
     return SlideContent(
