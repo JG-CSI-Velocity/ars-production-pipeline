@@ -1,28 +1,30 @@
 # Contributing to ars-production-pipeline
 
-This repo uses a three-branch soak flow so broken code doesn't reach real client runs.
+This repo ships real client reports off `main`. Work happens on short-lived
+branches that merge back into `main` via reviewed PR.
 
 ```
-feature/* ──► dev ──► main
-  (work)    (soak)   (blessed)
+feature/* ──► main
+  (work)     (production)
 ```
 
 ## Branches
 
 | Branch | Purpose | Who merges |
 |---|---|---|
-| `main` | Production. Runs real client reports. | Only via `promote.bat` after `dev` has been tested. |
-| `dev` | Soak / staging. Test new code here against real clients before promoting. | Feature branches merge here first. |
-| `feature/*`, `fix/*`, `claude/*` | One-task work branches. | Merge into `dev` via PR. |
+| `main` | Production. Runs real client reports. | Reviewed PRs only. |
+| `feature/*`, `fix/*`, `chore/*`, `claude/*` | One-task work branches, each cut from the latest `main`. | Merge into `main` via PR. |
+
+One concern per branch; always branch off the latest `main`.
 
 ## Day-to-day workflow
 
-1. **Start a new piece of work** — branch off `dev`:
+1. **Start a new piece of work** — branch off `main`:
 
    ```
-   git checkout dev
-   git pull origin dev
-   git checkout -b feature/my-change
+   git checkout main
+   git pull origin main
+   git checkout -b fix/my-change
    ```
 
 2. **Make changes, commit, push:**
@@ -30,33 +32,27 @@ feature/* ──► dev ──► main
    ```
    git add <files>
    git commit -m "fix(section): short description"
-   git push -u origin feature/my-change
+   git push -u origin fix/my-change
    ```
 
-3. **Open a PR into `dev`** on GitHub. CI runs automatically — green checkmark = syntax and lint are clean. Merge the PR.
+3. **Open a PR into `main`** on GitHub. CI runs automatically — green checkmark = syntax and lint are clean. Get it reviewed, then merge.
 
-4. **Test `dev` against a real client** locally:
-
-   ```
-   git checkout dev
-   git pull origin dev
-   # run pipeline via Start Here.bat or python run.py ...
-   ```
-
-5. **When `dev` looks good, promote to `main`:**
+4. **Verify against a real client** on the work PC after merging:
 
    ```
-   promote.bat
+   # on M:\ARS\ : pull main (or ZIP download), then
+   # close the Velocity Pipeline terminal, relaunch Start Here.bat, hard-refresh,
+   # and run the affected client from the UI.
    ```
 
-   This merges `dev` into `main` and pushes. After this, `main` has the new code and future real runs will use it.
+   CI can't run the pipeline (no M: drive), so a real client run is the only correctness test.
 
 ## Golden rules
 
-- **Never push directly to `main`.** Always go through `dev`. Branch protection on GitHub will enforce this.
-- **Never merge a feature branch into `main` directly.** Always `feature → dev → main`.
-- **Don't merge until you've tested.** CI catches syntax, not correctness. A real client run is the only real test.
-- **When in doubt, don't merge.** Feature branches cost nothing to leave open.
+- **Merge to `main` via reviewed PR** — don't push straight to `main`.
+- **Keep PRs focused** — one concern per branch, cut from the latest `main`.
+- **Don't merge until it's reviewed.** CI catches syntax, not correctness. A real client run is the only real test.
+- **When in doubt, don't merge.** Branches cost nothing to leave open.
 
 ## What CI does (and doesn't)
 
@@ -69,7 +65,7 @@ It does NOT:
 - Validate that outputs look right
 - Catch logic errors
 
-That's what the `dev` soak is for.
+A real client run on the work PC is the only correctness check.
 
 ---
 
