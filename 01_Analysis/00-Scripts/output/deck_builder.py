@@ -1507,7 +1507,7 @@ _SECTION_LABELS = {
     "rege": "Operational KPI: Reg E",
     "attrition": "Operational KPI: Attrition and Churn",
     "value": "What Is the Revenue Impact?",
-    "mailer": "How Effective Are the Mailer Campaigns?",
+    "mailer": "Campaign Performance",
     "transaction": "What Do Spending Patterns Reveal?",
     "ics": "Are ICS Accounts Performing?",
     "insights": "What Should We Do Next?",
@@ -1993,10 +1993,14 @@ def _consolidate_mailer(results: list) -> tuple[list, list]:
 
     # Aggregate summaries after monthly groups (main deck headline)
     main_slides.extend(aggregate)
-    # Impact slides last in main
-    main_slides.extend(impact)
     # Other (catch-all)
     main_slides.extend(other)
+    # Owner feedback (#208): keep ONLY the Market Penetration impact slide
+    # (A15.1) and lead the section with it; drop the rest of the impact/cohort
+    # slides (A15.2-4 ladder/age, A16.1-6 trajectory/spend-direction/cohort-size)
+    # -- all flagged worthless. The per-wave A16.7 combo stays in each wave block.
+    penetration = [r for r in impact if getattr(r, "slide_id", "").startswith("A15.1")]
+    main_slides[:0] = penetration
     # Rate trend etc. -> ancillary deck
     ancillary_slides.extend(mailer_app)
 

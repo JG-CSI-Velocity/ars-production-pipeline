@@ -71,3 +71,16 @@ def test_few_waves_all_stay_in_main():
     assert ancillary == []
     main_ids = [r.slide_id for r in main]
     assert "A13.Apr26" in main_ids and "A13.Dec25" in main_ids
+
+
+def test_only_penetration_kept_from_impact_and_leads():
+    """Owner #208: keep only A15.1 (penetration) at the section top; drop other impact."""
+    results = _waves(["Apr26", "Feb26"]) + [
+        _r("A15.1"), _r("A15.2"), _r("A15.3"), _r("A15.4"),
+        _r("A16.1"), _r("A16.5"), _r("A16.6"),
+    ]
+    main, _ = _consolidate_mailer(results)
+    main_ids = [r.slide_id for r in main]
+    assert main_ids[0] == "A15.1"                         # penetration leads
+    for dropped in ("A15.2", "A15.3", "A15.4", "A16.1", "A16.5", "A16.6"):
+        assert dropped not in main_ids, dropped
