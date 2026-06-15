@@ -734,30 +734,68 @@ class DeckBuilder:
                 p.font.color.rgb = RGBColor(100, 100, 100)
 
     def _build_multi_screenshot_slide(self, slide, content: SlideContent) -> None:
-        """Build slide with two images side by side."""
-        title_text = content.title
-        subtitle_text = None
+        """Build a 2x1 slide: navy title, optional one-line narrative, two images.
 
-        if "\n" in content.title:
-            parts = content.title.split("\n", 1)
-            title_text = parts[0]
-            subtitle_text = parts[1] if len(parts) > 1 else None
+        The images are pushed below the title/narrative and height-capped so they
+        never overlap the footer/slide number (#208: "charts overlapping text",
+        "move the charts down"). The narrative is a single why/what sentence
+        supplied via content.bullets[0] or a second title line.
+        """
+        # Draw our own title -- remove ALL placeholders to avoid orphan boxes.
+        for ph in list(slide.placeholders):
+            try:
+                ph.element.getparent().remove(ph.element)
+            except Exception:
+                pass
 
-        self._set_title(slide, content, title_text, subtitle_text)
+        try:
+            from ars_analysis.shared.brand import BRAND as _BRAND
+        except Exception:
+            _BRAND = {"navy": "#00274C"}
 
-        top, left_pos, right_pos, width = self._get_multi_positioning(content.layout_index)
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
 
-        positions = [
-            (left_pos, top, width),
-            (right_pos, top, width),
-        ]
+        navy = _hex(_BRAND.get("navy", "#00274C"))
 
+        parts = content.title.split("\n", 1) if content.title else [""]
+        title_text = parts[0]
+        narrative = parts[1] if len(parts) > 1 else ""
+        if not narrative and content.bullets:
+            narrative = content.bullets[0]
+
+        tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.32), Inches(12.33), Inches(0.8))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title_text
+        p.font.name = "Montserrat"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = navy
+
+        img_top = 1.5
+        if narrative:
+            sb = slide.shapes.add_textbox(Inches(0.5), Inches(1.18), Inches(12.33), Inches(0.6))
+            stf = sb.text_frame
+            stf.word_wrap = True
+            sp = stf.paragraphs[0]
+            sp.text = narrative
+            sp.font.name = "Montserrat"
+            sp.font.size = Pt(15)
+            sp.font.color.rgb = RGBColor(0x6B, 0x72, 0x80)
+            img_top = 2.0
+
+        max_height = Inches(6.8 - img_top)
+        # Two equal half-bands so each chart is centered in its half.
+        bands = [(Inches(0.3), Inches(6.2)), (Inches(6.83), Inches(6.2))]
         if content.images:
             for i, img_path in enumerate(content.images[:2]):
                 if Path(img_path).exists():
-                    left, img_top, img_width = positions[i]
-                    self._add_fitted_picture(
-                        slide, img_path, left, img_top, img_width, max_height=Inches(5.5)
+                    left, band_w = bands[i]
+                    self._add_centered_picture(
+                        slide, img_path, left, Inches(img_top), band_w, max_height
                     )
 
     def _build_summary_slide(self, slide, content: SlideContent) -> None:
@@ -1507,6 +1545,35 @@ def _consolidate(slides, merges, appendix_ids):
     return result, appendix_out
 
 
+def _attach_funnel_narrative(slides, ctx_results) -> None:
+    """#208 D5: add one why/what sentence to the merged DCTR funnel 2x1, comparing
+    the last-12-month (eligible-base) take rate to the all-time rate. The sentence
+    is rendered as the slide's narrative line by _build_multi_screenshot_slide."""
+    hist = (ctx_results.get("dctr_funnel") or {}).get("dctr_eligible")
+    ttm = (ctx_results.get("dctr_l12m_funnel") or {}).get("dctr")
+    if hist is None or ttm is None:
+        return
+    if ttm >= hist + 0.05:
+        sentence = (
+            f"Last-12-month take rate ({ttm:.1f}%) is above the all-time rate "
+            f"({hist:.1f}%) -- recent enrollment is outpacing the back book."
+        )
+    elif ttm <= hist - 0.05:
+        sentence = (
+            f"Last-12-month take rate ({ttm:.1f}%) trails the all-time rate "
+            f"({hist:.1f}%) -- recent enrollment is slipping."
+        )
+    else:
+        sentence = (
+            f"Last-12-month take rate ({ttm:.1f}%) is holding steady against the "
+            f"all-time rate ({hist:.1f}%)."
+        )
+    for sc in slides:
+        if sc.slide_type == "multi_screenshot" and (sc.title or "").startswith("DCTR Funnel"):
+            sc.bullets = [sentence]
+            break
+
+
 # =============================================================================
 # SECTION GROUPING
 # =============================================================================
@@ -2232,6 +2299,9 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     attrition_main, attrition_appendix = _consolidate(
         attrition_results, ATTRITION_MERGES, ATTRITION_APPENDIX_IDS
     )
+
+    # D5 (#208): one why/what sentence on the merged DCTR funnel 2x1.
+    _attach_funnel_narrative(dctr_main, getattr(ctx, "results", {}) or {})
 
     # Build section subtitle
     client_name = ctx.client.client_name
