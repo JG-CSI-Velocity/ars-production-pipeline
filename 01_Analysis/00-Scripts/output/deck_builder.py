@@ -66,9 +66,10 @@ LAYOUT_TITLE_ICS = 19         # 5_Title Slide_ICS -- ICS section title
 # Mailer deck shape. Every mailer gets a consistent two-slide block: the A13
 # summary plus the A16.7 combo chart (spend + swipes in one figure). The combo
 # REPLACES the separate A12 swipes/spend slides, so each mailer is a net slide
-# reduction. The most recent months lead in the main deck; older months follow
-# in the appendix -- but every mailer gets the same two slides.
-MAIN_MAILER_MONTHS = 2        # most recent months shown in the main deck; rest -> appendix
+# reduction. The most recent MAIN_MAILER_MONTHS lead in the main deck; older
+# waves move to a separate "Mailer Performance" ancillary deck (same two slides
+# each) so the main deck stays slim and needs no hand-deleting.
+MAIN_MAILER_MONTHS = 6        # most recent waves in the main deck; older -> ancillary deck
 
 
 # =============================================================================
@@ -1911,12 +1912,13 @@ def _parse_mailer_month(slide_id: str) -> tuple[int, int] | None:
 
 
 def _consolidate_mailer(results: list) -> tuple[list, list]:
-    """Split mailer results into main deck + appendix.
+    """Split mailer results into (main_deck_slides, ancillary_deck_slides).
 
-    Per-month groups: summary (A13.{month}) + swipes (A12.{month}.Swipes) + spend (A12.{month}.Spend).
-    Most recent 2 months -> main. Older months -> appendix.
-    A14.2 (mailer revisit) goes with most recent month.
-    Aggregate and impact slides stay in main.
+    Each wave = A13 summary + A16.7 combo (the separate A12 swipes/spend slides
+    are dropped; the combo replaces them). The most recent MAIN_MAILER_MONTHS
+    waves go to the main deck; older waves go to the "Mailer Performance"
+    ancillary deck. A14.2 (mailer revisit) and the aggregate/impact slides stay
+    in the main deck.
     """
     # Bucket slides
     month_slides: dict[tuple[int, int], list] = {}  # (year, month) -> [results]
@@ -1964,7 +1966,7 @@ def _consolidate_mailer(results: list) -> tuple[list, list]:
         return 4
 
     main_slides: list = []
-    appendix_slides: list = []
+    ancillary_slides: list = []
 
     # Owner decision (2026-06-14): every mailer is a consistent two-slide block --
     # the A13 summary and its A16.7 combo chart. The combo shows spend AND swipes
@@ -1980,25 +1982,76 @@ def _consolidate_mailer(results: list) -> tuple[list, list]:
         # Drop the separate swipes/spend slides; the combo replaces them.
         group = [r for r in group if not _is_a12_metric(r)]
         if i < MAIN_MAILER_MONTHS:
-            # Most recent months lead in the main deck
+            # Most recent waves lead in the main deck
             main_slides.extend(group)
             if i == 0:
-                # Mailer revisit goes after the most recent month
+                # Mailer revisit goes after the most recent wave
                 main_slides.extend(revisit)
         else:
-            # Older months follow in the appendix -- same two slides each
-            appendix_slides.extend(group)
+            # Older waves move to the "Mailer Performance" ancillary deck
+            ancillary_slides.extend(group)
 
-    # Aggregate summaries after monthly groups
+    # Aggregate summaries after monthly groups (main deck headline)
     main_slides.extend(aggregate)
     # Impact slides last in main
     main_slides.extend(impact)
     # Other (catch-all)
     main_slides.extend(other)
-    # Rate trend etc. to appendix
-    appendix_slides.extend(mailer_app)
+    # Rate trend etc. -> ancillary deck
+    ancillary_slides.extend(mailer_app)
 
-    return main_slides, appendix_slides
+    return main_slides, ancillary_slides
+
+
+def _build_mailer_performance_deck(
+    ctx,
+    ancillary_slides: list,
+    client_name: str,
+    subtitle: str,
+    template_path: str,
+    main_output_path,
+    notify=None,
+):
+    """Build the 'Mailer Performance' ancillary deck from older mailer waves.
+
+    Keeps the main deck slim: the older waves (already summary + combo) get their
+    own deck, saved next to the main one. The UI lists it via its rglob("*.pptx")
+    scan, so no extra endpoint is needed. No-op when there are no older waves.
+    """
+    if not ancillary_slides:
+        return None
+
+    cover = SlideContent(
+        slide_type="title",
+        title=f"{client_name}\nMailer Performance",
+        layout_index=LAYOUT_TITLE_RPE,
+    )
+    divider = SlideContent(
+        slide_type="section",
+        title=f"Mailer Performance by Wave\n{subtitle}",
+        layout_index=LAYOUT_SECTION,
+    )
+    slides = [cover, divider] + ancillary_slides
+
+    out_path = main_output_path.parent / (
+        f"{ctx.client.client_id}_{ctx.client.month}_Mailer_Performance.pptx"
+    )
+    try:
+        builder = DeckBuilder(str(template_path))
+        builder.build(slides, str(out_path))
+        ctx.export_log.append(str(out_path))
+        logger.info(
+            "Mailer Performance deck built: {path} ({n} slides)",
+            path=out_path.name, n=len(slides),
+        )
+        if notify:
+            notify(f"Mailer Performance deck saved: {out_path.name} ({len(slides)} slides)")
+        return out_path
+    except Exception as exc:
+        logger.error("Mailer Performance deck build failed: {err}", err=exc)
+        if notify:
+            notify(f"Mailer Performance deck failed: {exc}")
+        return None
 
 
 # =============================================================================
@@ -2110,7 +2163,7 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     analysis_slides: list[SlideContent] = []
 
     # Consolidate: merge paired slides, separate appendix for each section
-    mailer_main, mailer_appendix = _consolidate_mailer(mailer_results)
+    mailer_main, mailer_ancillary = _consolidate_mailer(mailer_results)
 
     # Separate value slides for DCTR and Reg E sections
     value_dctr_slides = _convert_list(
@@ -2138,7 +2191,8 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         "dctr": _convert_list(dctr_appendix),
         "rege": _convert_list(rege_appendix),
         "attrition": _convert_list(attrition_appendix),
-        "mailer": _convert_list(mailer_appendix),
+        # Older mailer waves are NOT in the main deck's appendix -- they go to the
+        # separate "Mailer Performance" ancillary deck (built after the main deck).
     }
 
     # Build main body in SCR order
@@ -2252,6 +2306,14 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         )
         if _notify:
             _notify(f"Deck saved: {output_path.name} ({len(final_slides)} slides)")
+
+        # Older mailer waves -> separate "Mailer Performance" deck so the main
+        # deck stays slim. Saved next to the main deck; the UI lists it via its
+        # rglob("*.pptx") scan, so no extra wiring is needed.
+        _build_mailer_performance_deck(
+            ctx, _convert_list(mailer_ancillary), client_name, section_subtitle,
+            str(template), output_path, _notify,
+        )
         return output_path
     except Exception as exc:
         logger.error("Deck build failed: {err}", err=exc)

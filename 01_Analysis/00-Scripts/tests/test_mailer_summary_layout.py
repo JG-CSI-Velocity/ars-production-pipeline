@@ -69,3 +69,40 @@ def test_no_text_overflow(mailer_deck):
 def test_no_leftover_placeholders(mailer_deck):
     prs = Presentation(str(mailer_deck))
     assert len(list(prs.slides[0].placeholders)) == 0
+
+
+def test_mailer_performance_ancillary_deck_is_written(tmp_path):
+    """Older waves produce a separate 'Mailer Performance' .pptx next to the main deck."""
+    if not _TEMPLATE.exists():
+        pytest.skip(f"template not present: {_TEMPLATE}")
+    from types import SimpleNamespace
+    from ars_analysis.output.deck_builder import _build_mailer_performance_deck
+
+    ctx = SimpleNamespace(
+        client=SimpleNamespace(client_id="1759", month="2026.06"),
+        export_log=[],
+    )
+    older = [
+        SlideContent(slide_type="mailer_summary", title="Apr25 mailer: 5,160 mailed, 14.8% response",
+                     layout_index=LAYOUT_PICTURE, bullets=["TH-25 led", "16%|opted in"], images=[]),
+        SlideContent(slide_type="title", title="Apr25 combo", layout_index=LAYOUT_PICTURE),
+    ]
+    main_output = tmp_path / "1759_2026.06_ars_deck.pptx"
+    out = _build_mailer_performance_deck(
+        ctx, older, "First Central CU", "First Central CU | June 2026",
+        str(_TEMPLATE), main_output,
+    )
+    assert out is not None and out.exists()
+    assert out.name == "1759_2026.06_Mailer_Performance.pptx"
+    # cover + divider + the 2 older-wave slides
+    assert len(Presentation(str(out)).slides) == 4
+
+
+def test_mailer_performance_deck_noop_when_no_older_waves(tmp_path):
+    from types import SimpleNamespace
+    from ars_analysis.output.deck_builder import _build_mailer_performance_deck
+    ctx = SimpleNamespace(client=SimpleNamespace(client_id="1759", month="2026.06"), export_log=[])
+    out = _build_mailer_performance_deck(
+        ctx, [], "First Central CU", "sub", "ignored.pptx", tmp_path / "main.pptx",
+    )
+    assert out is None
