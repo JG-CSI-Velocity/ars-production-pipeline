@@ -123,6 +123,28 @@ UNIVERSAL_COMPETITORS = {
         ],
         'exact': [],
     },
+
+    # Crypto exchanges + digital-native investing apps. These pull deposits and
+    # primary-account engagement away from the FI, so they ARE true competitors
+    # (not payment ecosystems). Traditional full-service brokerages (Schwab,
+    # Fidelity, Vanguard, etc.) intentionally live in the Financial Services
+    # section -- keep them there to avoid double-counting; revisit in the FS audit.
+    'crypto_investing': {
+        'starts_with': [
+            'COINBASE', 'COINBASE INC',
+            'ROBINHOOD', 'ROBINHOOD SECURITIES', 'ROBINHOOD CRYPTO', 'ROBINHOOD GOLD',
+            'KRAKEN',
+            'BINANCE', 'BINANCE US', 'BINANCE.US',
+            'CRYPTO.COM', 'CRYPTO COM',
+            'GEMINI TRUST',
+            'BLOCKFI',
+            'WEBULL',
+            'ETORO',
+            'PUBLIC.COM', 'PUBLIC HLDG',
+            'BLOCKCHAIN COM',
+        ],
+        'exact': [],
+    },
 }
 
 UNIVERSAL_ECOSYSTEMS = {
@@ -1054,9 +1076,17 @@ def tag_competitors(df, merchant_col='merchant_consolidated'):
 
 
 _FINANCIAL_KEYWORDS = [
+    # Traditional banking
     'BANK', 'BANKING', 'CREDIT UNION', 'CU ', 'FEDERAL CREDIT',
     'FINANCIAL', 'SAVINGS', 'LENDING', 'MORTGAGE', 'LOAN',
     'BROKERAGE', 'INVESTMENT', 'TRUST COMPANY',
+    # Fintech / crypto / investing -- these brands carry NO 'bank/financial'
+    # token, so the old keyword set silently hid them (e.g. COINBASE), which is
+    # why missed competitors never surfaced in the discovery output. Broadened
+    # so any untagged fintech/crypto/investing leakage shows up for review.
+    'CRYPTO', 'BITCOIN', 'BLOCKCHAIN', 'EXCHANGE', 'WALLET',
+    'SECURITIES', 'BROKER', 'WEALTH', 'ADVISOR', 'CAPITAL MANAGEMENT',
+    'NEOBANK', 'FINTECH', 'PAYMENTS', 'MONEY', 'FUNDING', 'VENTURES',
 ]
 
 def discover_unmatched_financial(df, merchant_col='merchant_consolidated', top_n=20):
