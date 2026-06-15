@@ -819,129 +819,134 @@ class DeckBuilder:
                 p.font.size = Pt(11)
 
     def _build_mailer_summary_slide(self, slide, content: SlideContent) -> None:
-        """Build composite mailer summary slide -- 3 equal columns."""
+        """Build composite mailer summary slide (#208 M2).
+
+        Layout: clean "MmmYY Mailer" header; the full multi-sentence commentary
+        sits top-left (replacing the old single worthless line); the Mailer KPIs
+        are raised to sit beside it top-right; below, three columns -- Response
+        Share (donut), Response Rate (hbar), and Inside the Numbers, which now
+        holds ONLY the numeric responder characteristics (the commentary that
+        used to spill into its bottom-right has moved up to the top-left).
+        """
         # Remove ALL layout placeholders, including the idx-0 title. This builder
         # draws its own title textbox; the layout's empty TITLE placeholder
-        # otherwise lingers at its default position and overlaps the insight text.
+        # otherwise lingers at its default position and overlaps the commentary.
         for ph in list(slide.placeholders):
             try:
                 ph.element.getparent().remove(ph.element)
             except Exception:
                 pass
 
+        try:
+            from ars_analysis.shared.brand import BRAND as _BRAND
+        except Exception:
+            _BRAND = {"navy": "#00274C"}
+
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
+
+        navy = _hex(_BRAND.get("navy", "#00274C"))
+
         COL1_L = Inches(0.2)
         COL2_L = Inches(4.4)
         COL3_L = Inches(8.8)
         COL_W = Inches(4.1)
         HEADER_SIZE = Pt(16)
+        SECT_TOP = Inches(3.25)
+        CHART_TOP = Inches(3.6)
 
-        ROW1_TOP = Inches(1.6)
-        KPI_VAL_TOP = Inches(2.1)
-        KPI_LBL_TOP = Inches(2.55)
-        SECT_TOP = Inches(3.2)
-        CHART_TOP = Inches(3.5)
-
-        # Title
-        tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.38), Inches(9.0), Inches(0.6))
+        # Header: a clean "MmmYY Mailer" rather than the long sentence title --
+        # the mailed/response numbers it carried now live in the KPI block.
+        import re as _re
+        header = content.title or "Mailer"
+        m = _re.match(r"\s*([A-Z][a-z]{2}\d{2})\b", header)
+        if m:
+            header = f"{m.group(1)} Mailer"
+        tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.32), Inches(12.33), Inches(0.7))
         tf = tb.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.text = content.title
-        p.font.size = Pt(24)
-        p.font.bold = False
-        # Explicit title color overrides layout master default. Layout 13 has
-        # white title text which is invisible on the white slide background.
-        if content.title_color:
-            _hex = content.title_color.lstrip("#")
-            p.font.color.rgb = RGBColor(
-                int(_hex[0:2], 16), int(_hex[2:4], 16), int(_hex[4:6], 16)
-            )
-        else:
-            p.font.color.rgb = RGBColor(255, 255, 255)
+        p.text = header
+        p.font.name = "Montserrat"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = navy
 
-        # Parse bullets
-        insight_text = ""
-        inside_numbers: list[str] = []
-        if content.bullets:
-            insight_text = content.bullets[0] if content.bullets[0] else ""
-            inside_numbers = content.bullets[1:]
+        # Split bullets into commentary (full sentences) and numbers (pct|desc).
+        commentary = [b for b in (content.bullets or []) if b and "|" not in b]
+        inside_numbers = [b for b in (content.bullets or []) if b and "|" in b]
 
-        # Insight text (upper-left)
-        if insight_text:
-            tb = slide.shapes.add_textbox(Inches(0.5), ROW1_TOP, Inches(5.0), Inches(1.0))
+        # Commentary block: top-left, the meaningful narrative (#208 M2).
+        if commentary:
+            tb = slide.shapes.add_textbox(Inches(0.4), Inches(1.12), Inches(7.3), Inches(2.0))
             tf = tb.text_frame
             tf.word_wrap = True
-            p = tf.paragraphs[0]
-            p.text = insight_text
-            p.font.size = Pt(15)
-            p.font.color.rgb = RGBColor(0, 0, 0)
+            for i, sentence in enumerate(commentary[:4]):
+                para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+                para.text = sentence.strip()
+                para.font.name = "Montserrat"
+                para.font.size = Pt(14)
+                para.font.color.rgb = RGBColor(0x22, 0x22, 0x22)
+                para.space_after = Pt(6)
 
-        # Mailer KPIs (upper-right)
+        # Mailer KPIs: raised to sit beside the commentary, top-right (#208 M2).
         if content.kpis:
-            kpi_left = Inches(7.8)
-            kpi_block_w = Inches(5.2)
-            tb = slide.shapes.add_textbox(kpi_left, ROW1_TOP, kpi_block_w, Inches(0.4))
+            kpi_left = 8.0
+            kpi_block_w = 5.0
+            tb = slide.shapes.add_textbox(Inches(kpi_left), Inches(1.12), Inches(kpi_block_w), Inches(0.4))
             tf = tb.text_frame
             p = tf.paragraphs[0]
             p.text = "Mailer KPIs"
             p.font.size = HEADER_SIZE
             p.font.bold = True
-            p.font.color.rgb = RGBColor(30, 61, 89)
+            p.font.color.rgb = navy
             p.alignment = PP_ALIGN.CENTER
 
             kpi_items = list(content.kpis.items())
-            kpi_each_w = 5.2 / max(len(kpi_items), 1)
-
+            kpi_each_w = kpi_block_w / max(len(kpi_items), 1)
             for i, (label_text, value) in enumerate(kpi_items):
-                x = 7.8 + i * kpi_each_w
-
-                tb = slide.shapes.add_textbox(
-                    Inches(x), KPI_VAL_TOP, Inches(kpi_each_w), Inches(0.5)
-                )
+                x = kpi_left + i * kpi_each_w
+                tb = slide.shapes.add_textbox(Inches(x), Inches(1.55), Inches(kpi_each_w), Inches(0.55))
                 tf = tb.text_frame
                 p = tf.paragraphs[0]
                 p.text = str(value)
-                p.font.size = Pt(24)
+                p.font.size = Pt(26)
                 p.font.bold = True
-                p.font.color.rgb = RGBColor(30, 61, 89)
+                p.font.color.rgb = navy
                 p.alignment = PP_ALIGN.CENTER
 
-                tb = slide.shapes.add_textbox(
-                    Inches(x), KPI_LBL_TOP, Inches(kpi_each_w), Inches(0.3)
-                )
+                tb = slide.shapes.add_textbox(Inches(x), Inches(2.15), Inches(kpi_each_w), Inches(0.3))
                 tf = tb.text_frame
                 p = tf.paragraphs[0]
                 p.text = label_text
                 p.font.size = Pt(13)
-                p.font.color.rgb = RGBColor(0, 0, 0)
+                p.font.color.rgb = RGBColor(0x22, 0x22, 0x22)
                 p.alignment = PP_ALIGN.CENTER
 
-        # Section headers (3 across)
-        for col_left, header_text in [
-            (COL1_L, "Response Share"),
-            (COL2_L, "Response Rate"),
-            (COL3_L, "Inside the Numbers"),
-        ]:
+        # Section headers (3 across), only above columns that have content.
+        headers = [(COL1_L, "Response Share"), (COL2_L, "Response Rate")]
+        if inside_numbers:
+            headers.append((COL3_L, "Inside the Numbers"))
+        for col_left, header_text in headers:
             tb = slide.shapes.add_textbox(col_left, SECT_TOP, COL_W, Inches(0.3))
             tf = tb.text_frame
             p = tf.paragraphs[0]
             p.text = header_text
             p.font.size = HEADER_SIZE
             p.font.bold = True
-            p.font.color.rgb = RGBColor(30, 61, 89)
+            p.font.color.rgb = navy
             p.alignment = PP_ALIGN.CENTER
 
-        # Donut chart (column 1)
+        # Donut + hbar charts, height-capped so they stay above the footer.
+        chart_max_h = Inches(6.9 - 3.6)
         if content.images and len(content.images) > 0 and Path(content.images[0]).exists():
-            slide.shapes.add_picture(content.images[0], COL1_L, CHART_TOP, width=COL_W)
-
-        # Horizontal bar chart (column 2)
+            self._add_centered_picture(slide, content.images[0], COL1_L, CHART_TOP, COL_W, chart_max_h)
         if content.images and len(content.images) > 1 and Path(content.images[1]).exists():
-            slide.shapes.add_picture(content.images[1], COL2_L, CHART_TOP, width=COL_W)
+            self._add_centered_picture(slide, content.images[1], COL2_L, CHART_TOP, COL_W, chart_max_h)
 
-        # Inside the Numbers (column 3)
+        # Inside the Numbers (column 3): numeric responder characteristics only.
         if inside_numbers:
-            # Dynamic spacing: compress to fit all items (up to 6)
             n_items = len(inside_numbers)
             row_h = min(1.2, 3.3 / max(n_items, 1))
             pct_size = Pt(22) if n_items > 4 else Pt(26)
@@ -950,29 +955,6 @@ class DeckBuilder:
 
             for i, item in enumerate(inside_numbers):
                 y_pos = 3.9 + i * row_h
-
-                if "|" not in item:
-                    # Full-sentence insight with no value split. Render it across
-                    # the whole column (wrapped) instead of cramming it into the
-                    # 1.4in value box, where word_wrap=False made it overflow into
-                    # the rows below.
-                    tb = slide.shapes.add_textbox(
-                        COL3_L, Inches(y_pos), Inches(4.0), row_box_h
-                    )
-                    tf = tb.text_frame
-                    tf.auto_size = None
-                    tf.word_wrap = True
-                    try:
-                        bodyPr = tf._txBody.find(qn("a:bodyPr"))
-                        bodyPr.set("anchor", "ctr")
-                    except Exception:
-                        pass
-                    p = tf.paragraphs[0]
-                    p.text = item.strip()
-                    p.font.size = desc_size
-                    p.font.color.rgb = RGBColor(0, 0, 0)
-                    continue
-
                 pct, desc = item.split("|", 1)
 
                 tb = slide.shapes.add_textbox(COL3_L, Inches(y_pos), Inches(1.4), row_box_h)
