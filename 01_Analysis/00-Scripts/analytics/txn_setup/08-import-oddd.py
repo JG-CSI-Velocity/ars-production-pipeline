@@ -32,7 +32,21 @@ if len(odd_candidates) > 1:
     print(f"WARNING: Multiple ODD files found, using: {odd_file.name}")
 
 print(f"Loading ODD file: {odd_file.name}")
-rewards_df = pd.read_excel(odd_file)
+# Reuse the pipeline's cached local-copy reader. step_load_file already read
+# this exact ODD at startup, so the (mtime, size)-keyed temp-copy cache is warm
+# here -> ~15s instead of a fresh ~6 min openpyxl parse of the 450-column
+# workbook straight off the M: network share. openpyxl makes one network
+# round-trip per random-access read; over SMB that single redundant read was
+# the dominant TXN-runtime cost (issue #214). _read_file returns the raw,
+# un-normalized columns -- identical to the previous pd.read_excel(odd_file) --
+# so downstream scripts that key off 'Prod Code'/'Stat Code'/etc. are
+# unaffected. Falls back to a direct read for standalone/notebook runs where
+# the pipeline package isn't importable, or if the cached read errors.
+try:
+    from ars_analysis.pipeline.steps.load import _read_file as _read_odd
+    rewards_df = _read_odd(odd_file)
+except Exception:
+    rewards_df = pd.read_excel(odd_file)
 print(f"Loaded: {len(rewards_df):,} rows, {len(rewards_df.columns)} columns")
 
 # ODD Columns
