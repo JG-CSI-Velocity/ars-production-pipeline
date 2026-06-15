@@ -63,6 +63,14 @@ LAYOUT_TITLE_RPE = 17         # 1_Title Slide_RPE -- master title (slide 1)
 LAYOUT_TITLE_ARS = 18         # 4_Title Slide_ARS -- ARS section title
 LAYOUT_TITLE_ICS = 19         # 5_Title Slide_ICS -- ICS section title
 
+# Mailer history caps. The per-month mailer detail is otherwise unbounded: every
+# historical month (Dec23..Apr26 = ~22) expanded into appendix slides, which is
+# the main driver of the 167-slide explosion. Keep the most recent months in the
+# main deck and a bounded window in the appendix; the all-time aggregate (A13.Agg)
+# covers the long tail. Tune these to trade depth for length.
+MAIN_MAILER_MONTHS = 2        # most recent months shown in detail in the main deck
+APPENDIX_MAILER_MONTHS = 6    # additional older months kept in the appendix
+
 
 # =============================================================================
 # SLIDE CONTENT DEFINITION
@@ -1947,19 +1955,32 @@ def _consolidate_mailer(results: list) -> tuple[list, list]:
         sid = getattr(r, "slide_id", "")
         return sid.startswith("A12.") and ("Swipes" in sid or "Spend" in sid)
 
+    appendix_cutoff = MAIN_MAILER_MONTHS + APPENDIX_MAILER_MONTHS
     for i, ym in enumerate(sorted_months):
         group = sorted(month_slides[ym], key=_intra_month_key)
         archived = [r for r in group if _is_a12_metric(r)]
         group = [r for r in group if not _is_a12_metric(r)]
-        appendix_slides.extend(archived)
-        if i < 2:
-            # Most recent 2 months -> main
+        if i < MAIN_MAILER_MONTHS:
+            # Most recent months -> main (A12 metric charts still archived)
+            appendix_slides.extend(archived)
             main_slides.extend(group)
             if i == 0:
                 # Mailer revisit goes after the most recent month
                 main_slides.extend(revisit)
-        else:
+        elif i < appendix_cutoff:
+            # A bounded window of older months -> appendix
+            appendix_slides.extend(archived)
             appendix_slides.extend(group)
+        # else: drop entirely -- the all-time aggregate covers the long tail
+
+    dropped = max(0, len(sorted_months) - appendix_cutoff)
+    if dropped:
+        logger.info(
+            "Mailer history capped: kept {kept} of {total} months "
+            "({main} main + {app} appendix), dropped {dropped} oldest",
+            kept=min(len(sorted_months), appendix_cutoff), total=len(sorted_months),
+            main=MAIN_MAILER_MONTHS, app=APPENDIX_MAILER_MONTHS, dropped=dropped,
+        )
 
     # Aggregate summaries after monthly groups
     main_slides.extend(aggregate)

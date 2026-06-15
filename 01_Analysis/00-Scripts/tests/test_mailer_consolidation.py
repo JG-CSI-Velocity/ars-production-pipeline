@@ -51,3 +51,22 @@ def test_month_groups_carry_summary_and_combo_only():
         "A12.Sep25.Swipes", "A12.Sep25.Spend",
         "A13.Sep25", "A16.7.Sep25",
     }
+
+
+def test_mailer_history_is_capped():
+    """Old months are dropped past the cap -- prevents the 167-slide explosion."""
+    from ars_analysis.output.deck_builder import (
+        MAIN_MAILER_MONTHS, APPENDIX_MAILER_MONTHS,
+    )
+    months = ["Apr26", "Mar26", "Feb26", "Jan26", "Dec25", "Nov25",
+              "Oct25", "Sep25", "Aug25", "Jul25", "Jun25", "May25"]
+    results = []
+    for m in months:
+        results += [_r(f"A13.{m}"), _r(f"A16.7.{m}"),
+                    _r(f"A12.{m}.Swipes"), _r(f"A12.{m}.Spend")]
+    main, appendix = _consolidate_mailer(results)
+    all_ids = [r.slide_id for r in (main + appendix)]
+    kept = {m for m in months if any(m in sid for sid in all_ids)}
+    assert len(kept) == MAIN_MAILER_MONTHS + APPENDIX_MAILER_MONTHS
+    assert "Apr26" in kept       # most recent kept
+    assert "May25" not in kept   # oldest dropped
