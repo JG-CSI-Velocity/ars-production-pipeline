@@ -73,3 +73,61 @@ def test_wrong_district_yields_zero_top25():
     df = ns["tag_competitors"](_CT_DESCRIPTORS.copy())
     cats = df["competitor_category"].astype(str).tolist()
     assert cats.count("top_25_fed_district") == 0
+
+
+# ---------------------------------------------------------------------------
+# Dedup optimization (issue #214): tag_competitors tags the DISTINCT merchant
+# strings and broadcasts back. These tests pin that the broadcast is identical
+# to applying the matching core to every row (the pre-optimization behavior),
+# so the speedup cannot silently change which transactions get tagged.
+# ---------------------------------------------------------------------------
+
+import numpy as np  # noqa: E402
+
+# Heavy duplication + edge cases the dedup/broadcast must survive: repeated
+# merchants, an FP-guard collision (NEIMAN MARCUS vs MARCUS), a venue collision
+# (CHASE FIELD vs CHASE), empty string, and a None.
+_DEDUP_FRAME = pd.DataFrame({
+    "merchant_consolidated": (
+        _CT_DESCRIPTORS["merchant_consolidated"].tolist() * 40
+        + ["NEIMAN MARCUS DALLAS TX", "CHASE FIELD PHOENIX AZ", "", None]
+        + ["WEBSTER BANK PAYMENT NEW HAVEN CT"] * 25
+    )
+})
+
+
+def test_dedup_tagging_matches_rowwise_reference():
+    """tag_competitors (dedup + broadcast) must yield the same per-row category
+    codes as running the pure matching core over every row."""
+    ns = _load_config("1453")
+    cat_names = list(ns["COMPETITOR_MERCHANTS"].keys())
+
+    # Reference: the pre-dedup path -- match every row directly.
+    ref_codes = np.asarray(
+        ns["_compute_category_codes"](_DEDUP_FRAME["merchant_consolidated"].astype(str)),
+        dtype="int8",
+    )
+
+    out = ns["tag_competitors"](_DEDUP_FRAME.copy())
+    got_codes = out["competitor_category"].cat.codes.to_numpy()
+
+    assert got_codes.shape == ref_codes.shape
+    assert np.array_equal(got_codes, ref_codes), (
+        "dedup broadcast diverged from row-wise tagging"
+    )
+    # Categories line up with the same code ordering used by the reference.
+    assert list(out["competitor_category"].cat.categories) == cat_names
+
+
+def test_dedup_preserves_row_order_and_duplicates():
+    """Duplicated merchants get the same tag on every occurrence, and row order
+    is preserved (broadcast must not shuffle or collapse rows)."""
+    ns = _load_config("1453")
+    out = ns["tag_competitors"](_DEDUP_FRAME.copy())
+
+    assert len(out) == len(_DEDUP_FRAME)  # no rows dropped/collapsed
+    webster = out.loc[
+        _DEDUP_FRAME["merchant_consolidated"] == "WEBSTER BANK PAYMENT NEW HAVEN CT",
+        "competitor_category",
+    ].astype(str)
+    assert (webster == "top_25_fed_district").all()  # every duplicate tagged identically
