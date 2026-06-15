@@ -1075,39 +1075,49 @@ class DeckBuilder:
             p.alignment = PP_ALIGN.CENTER
 
     def _build_chart_narrative_slide(self, slide, content: SlideContent) -> None:
-        """Build chart-left (60%) + text-right (40%) narrative slide."""
-        # Clear existing placeholders
-        for ph in slide.placeholders:
-            if ph.placeholder_format.idx != 0:
-                try:
-                    ph.element.getparent().remove(ph.element)
-                except Exception:
-                    pass
+        """Build chart-left (60%) + commentary-right (40%) narrative slide."""
+        # Remove ALL placeholders -- this builder draws its own title textbox, and
+        # the layout's empty title placeholder otherwise lingers white-on-white.
+        for ph in list(slide.placeholders):
+            try:
+                ph.element.getparent().remove(ph.element)
+            except Exception:
+                pass
 
-        # Title
-        tb = slide.shapes.add_textbox(Inches(0.4), Inches(0.38), Inches(12.0), Inches(0.7))
+        try:
+            from ars_analysis.shared.brand import BRAND as _BRAND
+        except Exception:
+            _BRAND = {"navy": "#00274C"}
+
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
+
+        # Title -- navy (was white, i.e. invisible on the white slide).
+        tb = slide.shapes.add_textbox(Inches(0.4), Inches(0.32), Inches(12.4), Inches(0.8))
         tf = tb.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
         title_text = content.title.split("\n")[0] if "\n" in content.title else content.title
         p.text = title_text
-        p.font.size = Pt(24)
-        p.font.bold = False
-        p.font.color.rgb = RGBColor(255, 255, 255)
+        p.font.name = "Montserrat"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = _hex(_BRAND.get("navy", "#00274C"))
 
-        # Chart image: left 60%
+        # Chart image: left ~60%, height-capped above the footer.
         if content.images and Path(content.images[0]).exists():
-            self._add_fitted_picture(
+            self._add_centered_picture(
                 slide,
                 content.images[0],
                 Inches(0.4),
-                Inches(1.6),
-                Inches(7.5),
-                max_height=Inches(5.2),
+                Inches(1.5),
+                Inches(7.6),
+                Inches(5.2),
             )
 
         # Text panel: right 40%
-        tb = slide.shapes.add_textbox(Inches(8.2), Inches(1.6), Inches(4.6), Inches(5.0))
+        tb = slide.shapes.add_textbox(Inches(8.3), Inches(1.6), Inches(4.6), Inches(5.0))
         tf = tb.text_frame
         tf.word_wrap = True
 
@@ -1349,7 +1359,8 @@ SLIDE_LAYOUT_MAP: dict[str, tuple[int, str]] = {
     # Reg E
     "A8.1": (LAYOUT_CUSTOM, "screenshot"),
     "A8.2": (LAYOUT_CUSTOM, "screenshot"),
-    "A8.3": (LAYOUT_CUSTOM, "screenshot"),
+    # A8.3 (TTM opt-in trend): 2x1 chart + commentary, not a lone PNG (#208 R2)
+    "A8.3": (LAYOUT_CUSTOM, "chart_narrative"),
     "A8.4a": (LAYOUT_CUSTOM, "screenshot"),
     "A8.4b": (LAYOUT_CUSTOM, "screenshot"),
     "A8.4c": (LAYOUT_CUSTOM, "screenshot"),
@@ -1466,9 +1477,16 @@ REGE_APPENDIX_IDS = {
     "A8.12",
 }
 
-# A9.3+A9.6 (open-vs-closed balance + personal-vs-business money comp) dropped
-# from the main body per #208 A4 ("we can drop slide 37"). Both go to appendix.
-ATTRITION_MERGES: list[tuple[str, str, str]] = []
+# #208 A4 (mapped against the real deck images):
+#  - drop slide 37 (A9.3 open-vs-closed + A9.6 personal-vs-business) -> appendix
+#  - slide 36 (A9.1 Account Closures by Year) + slide 43 (A9.12 Monthly Closures)
+#    -> one 2x1 "Account Closures: Annual & Monthly Trend"
+#  - slide 38 (A9.4b First-Year Close Rate by Branch) + slide 39 (A9.4c First-Year
+#    Share of Closures by Branch) -> one 2x1
+ATTRITION_MERGES: list[tuple[str, str, str]] = [
+    ("A9.1", "A9.12", "Account Closures: Annual & Monthly Trend"),
+    ("A9.4b", "A9.4c", "First-Year Closures by Branch: Rate & Share"),
+]
 
 ATTRITION_APPENDIX_IDS = {
     "A9.2",
@@ -1478,6 +1496,10 @@ ATTRITION_APPENDIX_IDS = {
     "A9.6",
     "A9.7",
     "A9.8",
+    # A9.9 (debit retention) shows 0.0% with-debit attrition (4 / 14,642): debit
+    # flags are blanked at close, so closures can't be attributed to with/without
+    # debit. Misleading in the main story -> appendix (#208 slide 40 "delete").
+    "A9.9",
     "A9.13",
 }
 

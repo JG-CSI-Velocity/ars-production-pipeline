@@ -112,11 +112,13 @@ def _debit_retention(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontsize=DATA_LABEL_SIZE,
                 fontweight="bold",
             )
+        # Headroom so the two-line bar labels clear the title (#208 slide 40).
+        ax.set_ylim(0, max(debit_df["Attrition Rate"]) * 100 * 1.32)
         ax.set_title(
             "Debit Card Impact on Account Retention (L12M)",
             fontsize=24,
             fontweight="bold",
-            pad=15,
+            pad=20,
         )
         ax.set_ylabel("L12M Attrition Rate (%)", fontsize=20)
         ax.text(
@@ -253,11 +255,13 @@ def _mailer_retention(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontsize=DATA_LABEL_SIZE,
                 fontweight="bold",
             )
+        # Headroom so the two-line bar labels clear the title (#208 slide 41).
+        ax.set_ylim(0, max(mail_df["Attrition Rate"]) * 100 * 1.32)
         ax.set_title(
             "Mailer Program Impact on Retention (L12M)",
             fontsize=24,
             fontweight="bold",
-            pad=15,
+            pad=20,
         )
         ax.set_ylabel("Attrition Rate (%)", fontsize=20)
         ax.yaxis.set_major_formatter(

@@ -495,13 +495,28 @@ class RegEStatus(AnalysisModule):
         )
         notes = f"Overall L12M: {overall_rate:.1f}%. Historical: {historical_rate:.1f}%. Best: {best_month}"
 
+        # Commentary for the 2x1 chart_narrative layout (#208 R2).
+        if overall_rate < historical_rate - 0.1:
+            _dir = f"below the {historical_rate:.1f}% all-time average -- recent opt-in is softening"
+        elif overall_rate > historical_rate + 0.1:
+            _dir = f"above the {historical_rate:.1f}% all-time average -- recent opt-in is strengthening"
+        else:
+            _dir = f"in line with the {historical_rate:.1f}% all-time average"
+        bullets = [
+            f"Last-12-month Reg E opt-in averages {overall_rate:.1f}%, {_dir}.",
+            f"Strongest month in the window: {best_month}.",
+            "Opt-in is captured at account open, so the trend tracks how each "
+            "month's new eligible accounts are being enrolled.",
+        ]
+
         ctx.results["reg_e_3"] = {"monthly": monthly}
         return [
             AnalysisResult(
                 slide_id="A8.3",
-                title="L12M Monthly Reg E",
+                title="Trailing Twelve Months: Reg E Opt-In",
                 chart_path=chart_path,
                 excel_data={"Monthly": monthly},
+                bullets=bullets,
                 notes=notes,
             )
         ]
