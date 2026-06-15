@@ -558,9 +558,17 @@ class RegEDimensions(AnalysisModule):
                 )
             ]
 
-        # Compute L12M stages from subsets
-        l12m_data = ctx.subsets.last_12_months
-        total_l12m = len(l12m_data) if l12m_data is not None else 0
+        # Anchor the funnel to OPEN accounts opened in L12M, matching the DCTR
+        # funnel base (dctr/funnel.py uses filter_l12m(open_accounts)). Using
+        # last_12_months here counts closed accounts too, inflating the
+        # denominator (1,817 vs 1,751) and breaking denominator-law parity with
+        # the DCTR funnel -- the eligible step then shows a different % for the
+        # identical eligible count.
+        oa = ctx.subsets.open_accounts
+        if oa is not None and ctx.start_date and ctx.end_date:
+            total_l12m = len(filter_l12m(oa, ctx.start_date, ctx.end_date))
+        else:
+            total_l12m = 0
 
         # Eligible L12M: filter eligible_data by L12M
         elig_l12m = 0
@@ -595,7 +603,7 @@ class RegEDimensions(AnalysisModule):
                 rege_l12m = int(p_debit_df[col].astype(str).str.strip().isin(opts).sum())
 
         stages = [
-            {"name": "L12M Opens", "total": total_l12m},
+            {"name": "L12M Open Accounts", "total": total_l12m},
             {"name": "L12M Eligible", "total": elig_l12m},
             {"name": "L12M w/Debit", "total": wd_l12m},
             {"name": "L12M Personal w/Debit", "total": p_wd_l12m},
