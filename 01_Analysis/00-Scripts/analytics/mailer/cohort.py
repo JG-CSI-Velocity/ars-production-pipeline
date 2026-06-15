@@ -460,6 +460,20 @@ def build_combo_lines(
         reverse=True,
     )
 
+    # Combos are expensive (~min/wave) and only the most-recent waves lead the
+    # main deck (deck_builder.MAIN_MAILER_MONTHS = 6); older waves go to the
+    # ancillary deck. Render combos only for that recent window so a full-history
+    # client doesn't pay ~3 min x ~22 waves (~67 min) -- the regression that
+    # pushed runs well past 30 min. Override with ARS_COMBO_MONTHS; 0 = no cap.
+    _cap = int(_os.environ.get("ARS_COMBO_MONTHS", "6") or 0)
+    if _cap and len(dated_pairs) > _cap:
+        logger.info(
+            "A16.7: rendering combos for the {k} most-recent waves; skipping {n} "
+            "older waves (in the ancillary deck). Set ARS_COMBO_MONTHS=0 for all.",
+            k=_cap, n=len(dated_pairs) - _cap,
+        )
+        dated_pairs = dated_pairs[:_cap]
+
     for month, resp_col, mail_col in dated_pairs:
         _wave_t0 = _time.monotonic()
         logger.info("A16.7 {month}: starting combo render", month=month)
