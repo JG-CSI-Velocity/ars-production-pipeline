@@ -1504,7 +1504,7 @@ _SECTION_MAP = {
 _SECTION_LABELS = {
     "overview": "How Big Is This Program?",
     "dctr": "Operational KPI: Debit Card Take Rate",
-    "rege": "Are Members Opting In to Overdraft Protection?",
+    "rege": "Operational KPI: Reg E",
     "attrition": "Are We Losing Accounts?",
     "value": "What Is the Revenue Impact?",
     "mailer": "How Effective Are the Mailer Campaigns?",

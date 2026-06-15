@@ -72,7 +72,10 @@ def _render_funnel(
     min_width = 0.08
     stage_gap = 0.02
     y_start = 0.82
-    stage_height = min(0.15, (y_start - 0.06 - (n - 1) * stage_gap) / max(n, 1))
+    # Reserve bottom space so the opt-in callout box sits clearly below the final
+    # (orange) stage instead of touching it.
+    bottom_reserve = 0.13
+    stage_height = min(0.15, (y_start - bottom_reserve - (n - 1) * stage_gap) / max(n, 1))
 
     current_y = y_start
     for i, stage in enumerate(stages):
