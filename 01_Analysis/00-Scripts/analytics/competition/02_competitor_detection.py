@@ -97,12 +97,20 @@ else:
     true_txns = len(competitor_txns[competitor_txns['competitor_category'].isin(TRUE_COMPETITORS)])
     eco_txns = len(competitor_txns[competitor_txns['competitor_category'].isin(PAYMENT_ECOSYSTEMS)])
 
+    # Headline reach should reflect TRUE competitors (banks/CUs/crypto-investing),
+    # not payment ecosystems. Local temps only -- the all-category vars above stay
+    # intact for the category breakdown panels below.
+    _true_panel    = competitor_txns[competitor_txns['competitor_category'].isin(TRUE_COMPETITORS)]
+    _true_accounts = _true_panel['primary_account_num'].nunique()
+    _pct_true_acct = (_true_accounts / total_accounts * 100) if total_accounts else 0
+    _true_unique   = _true_panel['competitor_match'].nunique()
+
     # --- Panel 1: Detection KPIs ---
     kpis = [
-        (f"{len(combined_df):,}",     "Transactions\nSearched",         GEN_COLORS['info']),
-        (f"{len(competitor_txns):,}",  "Competitor\nTransactions",       GEN_COLORS['accent']),
-        (f"{pct_comp_accounts:.1f}%",  "Accounts with\nCompetitor Activity", GEN_COLORS['accent']),
-        (f"{unique_competitors}",      "Unique\nCompetitors",            GEN_COLORS['warning']),
+        (f"{len(combined_df):,}",      "Transactions\nSearched",              GEN_COLORS['info']),
+        (f"{true_txns:,}",             "Competitor\nTransactions",            GEN_COLORS['accent']),
+        (f"{_pct_true_acct:.1f}%",     "Accounts Using\nCompetitor Banks/CUs", GEN_COLORS['accent']),
+        (f"{_true_unique}",            "Unique\nCompetitors",                 GEN_COLORS['warning']),
     ]
 
     fig, axes = plt.subplots(1, 4, figsize=(20, 4.5))
