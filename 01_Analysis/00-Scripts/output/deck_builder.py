@@ -1312,7 +1312,7 @@ def _match_prefix(slide_id: str) -> tuple[int, str]:
 # =============================================================================
 
 DCTR_MERGES = [
-    ("A7.6a", "A7.4", "DCTR Trajectory: Recent Trend & Segments"),
+    ("A7.6a", "A7.4", "Recent Trend & Segments"),
     ("A7.7", "A7.8", "DCTR Funnel: Historical vs TTM"),
     ("A7.11", "A7.12", "DCTR Opportunity: Age Analysis"),
 ]
@@ -1503,7 +1503,7 @@ _SECTION_MAP = {
 
 _SECTION_LABELS = {
     "overview": "How Big Is This Program?",
-    "dctr": "How Active Are Debit Cards?",
+    "dctr": "Operational KPI: Debit Card Take Rate",
     "rege": "Are Members Opting In to Overdraft Protection?",
     "attrition": "Are We Losing Accounts?",
     "value": "What Is the Revenue Impact?",
