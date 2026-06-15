@@ -332,6 +332,16 @@ FINANCIAL_SERVICES_PATTERNS = {
 }
 
 # ---------------------------------------------------------------------------
+# Addressable vs context categories (owner decision 2026-06-14)
+# ---------------------------------------------------------------------------
+# The "leakage" headline should reflect products the FI can realistically win
+# back. Insurance and Tax & Accounting are near-universal and NOT capturable by
+# a credit union, so they are reported as context, not headline leakage.
+NON_ADDRESSABLE_CATEGORIES = ['Insurance', 'Tax & Accounting']
+ADDRESSABLE_CATEGORIES = [c for c in FINANCIAL_SERVICES_PATTERNS
+                          if c not in NON_ADDRESSABLE_CATEGORIES]
+
+# ---------------------------------------------------------------------------
 # Auto-build BNPL and Wallets/P2P from UNIVERSAL_ECOSYSTEMS (section 06)
 # Single source of truth — both sections use the same patterns.
 # ---------------------------------------------------------------------------
