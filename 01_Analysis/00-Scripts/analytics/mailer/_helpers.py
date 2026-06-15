@@ -153,7 +153,14 @@ def analyze_ladder(
         "distribution": {t: 0 for t in SUCCESSFUL_TIERS},
     }
 
-    for _, row in data.iterrows():
+    # Only rows with a response in THIS wave can become ladder entries; every
+    # other row hits the NaN guard below and is skipped. Restricting iteration to
+    # responded rows avoids a full member-table iterrows() on every wave -- the
+    # O(rows x waves^2) cost that made mailer.response the run bottleneck (#208).
+    # Output is unchanged: the excluded rows are exactly the ones the NaN guard
+    # already dropped.
+    responded = data[data[resp_col].notna()]
+    for _, row in responded.iterrows():
         current = row.get(resp_col)
         if pd.isna(current):
             continue
@@ -382,6 +389,31 @@ def analyze_month(data: pd.DataFrame, resp_col: str, mail_col: str) -> tuple[dic
 # ---------------------------------------------------------------------------
 
 
+def _parsed_date_cols(ctx: PipelineContext, data: pd.DataFrame) -> dict[str, pd.Series]:
+    """Parse wave-invariant member date columns once per run.
+
+    ``compute_inside_numbers`` runs once per mail wave against the same full
+    member table, so parsing Date Opened / DOB (format="mixed", pandas' slow
+    per-element path) on every wave was pure waste. Cache the parsed datetime
+    Series on the run context and reuse across waves. When called with a frame
+    other than ctx.data, parse it directly without caching.
+    """
+    cols = ("Date Opened", "DOB")
+    if data is getattr(ctx, "data", None):
+        cache = ctx.results.setdefault("_mailer_parsed_dates", {})
+        if "_built" not in cache:
+            for col in cols:
+                if col in data.columns:
+                    cache[col] = pd.to_datetime(data[col], errors="coerce", format="mixed")
+            cache["_built"] = True
+        return cache
+    return {
+        col: pd.to_datetime(data[col], errors="coerce", format="mixed")
+        for col in cols
+        if col in data.columns
+    }
+
+
 def compute_inside_numbers(
     ctx: PipelineContext,
     data: pd.DataFrame,
@@ -404,17 +436,24 @@ def compute_inside_numbers(
     if n_resp == 0:
         return metrics
 
+    # Date Opened / DOB are wave-invariant, but were re-parsed with the slow
+    # format="mixed" path on every wave. Parse once per run, then subset to this
+    # wave's responders -- identical values, redundant re-parsing removed (#208).
+    _parsed = _parsed_date_cols(ctx, data)
+    do_full = _parsed.get("Date Opened")
+    dob_full = _parsed.get("DOB")
+
     # 1. Account age <2yr (existing)
-    if "Date Opened" in data.columns:
-        do = pd.to_datetime(responders["Date Opened"], errors="coerce", format="mixed")
+    if do_full is not None:
+        do = do_full.loc[responders.index]
         age_years = (pd.Timestamp.now() - do).dt.days / 365.25
         under_2 = int((age_years < 2).sum())
         pct = under_2 / n_resp * 100
         metrics.append((f"{pct:.0f}%", "of Responders were accounts opened fewer than 2 years ago"))
 
     # 2. Member age dominant bucket (from DOB)
-    if "DOB" in data.columns:
-        dob = pd.to_datetime(responders["DOB"], errors="coerce", format="mixed")
+    if dob_full is not None:
+        dob = dob_full.loc[responders.index]
         valid_dob = dob.notna()
         if valid_dob.sum() > 0:
             member_ages = (pd.Timestamp.now() - dob[valid_dob]).dt.days / 365.25
