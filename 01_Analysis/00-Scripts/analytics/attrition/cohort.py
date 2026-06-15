@@ -30,6 +30,7 @@ from ars_analysis.analytics.attrition._helpers import (
     attrition_universe,
     l12m_attrition,
     prepare_attrition_data,
+    product_col,
 )
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.registry import register
@@ -427,11 +428,36 @@ def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     tot_still = int(df["Still Open"].sum())
     tot_survival = (tot_still / tot_opens) if tot_opens > 0 else float("nan")
 
+    # Window closures beyond the new-account cohort (#208 A3). The table above
+    # only counts accounts that BOTH opened and closed inside the window; the
+    # owner also wants the seasoned closures (opened before the window, closed
+    # inside it) and an eligible-vs-other product split of all window closures.
+    window_close = (dc >= l12m_start) & (dc <= l12m_end)
+    total_window_closes = int(window_close.sum())
+    noncohort_closes = int((window_close & (do < l12m_start)).sum())
+    # In-window closures from in-window opens. Kept window-consistent with
+    # noncohort_closes (the two sum to total_window_closes) -- distinct from the
+    # survival table's "Closed" column, which is closed-as-of-now.
+    cohort_window_closes = total_window_closes - noncohort_closes
+    epc = {
+        str(c).strip().upper().removesuffix(".0")
+        for c in (getattr(ctx.client, "eligible_prod_codes", None) or [])
+    }
+    pcol = product_col(all_data)
+    if pcol and epc:
+        codes = (
+            all_data[pcol].astype(str).str.strip().str.replace(r"\.0$", "", regex=True).str.upper()
+        )
+        elig_close = int((window_close & codes.isin(epc)).sum())
+        other_close = total_window_closes - elig_close
+    else:
+        elig_close = other_close = None
+
     # ----- Render as a styled table figure -----
     save_to = ctx.paths.charts_dir / "a9_0b_monthly_cohort_survival.png"
     ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
 
-    n_rows = len(df) + 2  # header + data + totals
+    n_rows = len(df) + 4  # header + data + totals + 2 summary lines
     row_h = 0.50
     fig_h = max(8.0, 2.0 + n_rows * row_h)
 
@@ -454,8 +480,10 @@ def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         for x, h in zip(col_x, headers):
             ax.text(x, 0.6, h, fontsize=13, fontweight="bold",
                     color=_MUTED, ha="left", va="center")
-        ax.plot([0.05, 0.95], [0.9, 0.9], color="#E9ECEF", linewidth=1.4,
-                transform=ax.transAxes)
+        # Header rule in DATA coords (between the header at y=0.6 and the first
+        # row at y=1.5). It was previously drawn in axes coords, so it cut
+        # straight through the first data row (#208 A3).
+        ax.plot([0.05, 0.95], [1.0, 1.0], color="#E9ECEF", linewidth=1.4)
 
         for i, row in df.iterrows():
             y = i + 1.5
@@ -488,9 +516,26 @@ def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         ax.text(col_x[4], ty, _fmt_pct(tot_survival), fontsize=14,
                 fontweight="bold", color=_DARK, ha="left", va="center")
 
+        # Window-closure context (#208 A3): seasoned vs cohort, eligible vs other.
+        sy = len(df) + 2.9
+        ax.text(
+            col_x[0], sy,
+            f"Closures dated in this window: {total_window_closes:,}  "
+            f"= {cohort_window_closes:,} from in-window opens + {noncohort_closes:,} "
+            f"seasoned (opened before the window)",
+            fontsize=12, color=_DARK, ha="left", va="center",
+        )
+        if elig_close is not None:
+            ax.text(
+                col_x[0], sy + 0.75,
+                f"By product: {elig_close:,} eligible · {other_close:,} other",
+                fontsize=12, color=_MUTED, ha="left", va="center",
+            )
+
     notes = (
         f"L12M new opens: {tot_opens:,} | still open: {tot_still:,} | "
-        f"closed: {tot_closed:,} | survival: {_fmt_pct(tot_survival)}"
+        f"cohort closed: {tot_closed:,} | survival: {_fmt_pct(tot_survival)} | "
+        f"window closures: {total_window_closes:,} ({noncohort_closes:,} seasoned)"
     )
 
     # Stash structured data
