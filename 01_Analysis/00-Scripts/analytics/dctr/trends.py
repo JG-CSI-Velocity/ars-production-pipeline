@@ -118,17 +118,17 @@ class DCTRTrends(AnalysisModule):
                         width=0.6,
                     )
                     for i, v in enumerate(vals):
-                        ax.text(i, v + 1, f"{v:.1f}%", ha="center", fontweight="bold", fontsize=22)
-                    ax.set_ylabel("DCTR (%)", fontsize=20, fontweight="bold")
+                        ax.text(i, v + 1, f"{v:.1f}%", ha="center", fontweight="bold", fontsize=12)
+                    ax.set_ylabel("DCTR (%)", fontsize=16, fontweight="bold")
                     ax.set_title(
                         "DCTR Segment Trends: Historical vs TTM",
-                        fontsize=24,
+                        fontsize=20,
                         fontweight="bold",
                         pad=20,
                     )
                     ax.set_xticks(x_pos)
-                    ax.set_xticklabels(cats, fontsize=20)
-                    ax.tick_params(axis="y", labelsize=20)
+                    ax.set_xticklabels(cats, fontsize=13)
+                    ax.tick_params(axis="y", labelsize=13)
                     ax.set_ylim(0, max(vals) * 1.2 if vals else 100)
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
                     ax.spines["top"].set_visible(False)
@@ -145,7 +145,7 @@ class DCTRTrends(AnalysisModule):
                         transform=ax.transAxes,
                         ha="right",
                         va="top",
-                        fontsize=14,
+                        fontsize=12,
                         fontweight="bold",
                         color=badge_color,
                         bbox={
@@ -363,8 +363,8 @@ class DCTRTrends(AnalysisModule):
                         label="Eligible Accounts",
                         zorder=1,
                     )
-                    ax.set_ylabel("Eligible Accounts Opened", fontsize=20, fontweight="bold")
-                    ax.tick_params(axis="y", labelsize=18)
+                    ax.set_ylabel("Eligible Accounts Opened", fontsize=16, fontweight="bold")
+                    ax.tick_params(axis="y", labelsize=13)
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, p: f"{int(v):,}"))
 
                     # Lines: DCTR rates (right axis)
@@ -411,15 +411,15 @@ class DCTRTrends(AnalysisModule):
                                 zorder=3,
                             )
 
-                    ax2.set_ylabel("DCTR (%)", fontsize=20, fontweight="bold")
-                    ax2.tick_params(axis="y", labelsize=18)
+                    ax2.set_ylabel("DCTR (%)", fontsize=16, fontweight="bold")
+                    ax2.tick_params(axis="y", labelsize=13)
                     ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, p: f"{int(v)}%"))
 
                     ax.set_xticks(x)
-                    ax.set_xticklabels(months, rotation=45, ha="right", fontsize=18)
+                    ax.set_xticklabels(months, rotation=45, ha="right", fontsize=13)
                     ax.set_title(
                         "Trailing Twelve Months -- DCTR Trend",
-                        fontsize=24,
+                        fontsize=20,
                         fontweight="bold",
                         pad=20,
                     )
@@ -450,7 +450,7 @@ class DCTRTrends(AnalysisModule):
                             f"{ov[li]:.1f}%",
                             xy=(x[li], ov[li]),
                             xytext=(x[li] + 0.3, ov[li] + 2),
-                            fontsize=14,
+                            fontsize=12,
                             fontweight="bold",
                             color=PRIMARY,
                             arrowprops={

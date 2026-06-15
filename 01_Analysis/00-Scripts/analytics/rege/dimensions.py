@@ -5,7 +5,6 @@ Slide IDs: A8.5, A8.6, A8.7, A8.10, A8.11.
 
 from __future__ import annotations
 
-import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -24,9 +23,10 @@ from ars_analysis.analytics.rege._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import ELIGIBLE, HISTORICAL, NEGATIVE, POSITIVE, TEAL
+from ars_analysis.charts.style import ELIGIBLE, HISTORICAL, NEGATIVE, POSITIVE
 from ars_analysis.pipeline.context import PipelineContext
 from ars_analysis.shared.brand import BRAND
+from ars_analysis.shared.charts import draw_box_funnel
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -53,117 +53,23 @@ def _render_funnel(
 ) -> None:
     """Render a proportional funnel in the DCTR funnel's visual language.
 
-    Matches analytics/dctr/funnel.py::_draw_funnel -- light canvas, proportional
-    rounded boxes in the 4-colour brand palette, centered number-only labels,
-    left-side stage names, and between-stage conversion badges -- so the Reg E
-    and DCTR funnels read as one family. The final stage uses the brand accent
-    to make the surviving (opted-in) population pop. Each stage is shown as a
-    conversion of the prior stage, so the last badge is the Reg E opt-in rate.
+    Thin adapter over shared.charts.draw_box_funnel -- the single renderer
+    behind the Reg E, DCTR, and eligibility funnels so they read as one family
+    (light canvas, proportional rounded boxes in the brand palette, centered
+    number-only labels, left-side stage names, between-stage conversion badges,
+    final stage in the brand accent). Output is unchanged from when this drew
+    the boxes inline.
 
     stages: list of dicts with keys: name, total.
     """
-    palette = [HISTORICAL, ELIGIBLE, TEAL, POSITIVE, BRAND["accent"]]
-    totals = [float(s["total"]) for s in stages]
-    base_total = totals[0] if totals and totals[0] > 0 else 1.0
-    n = len(stages)
-
-    ax.set_facecolor("#f8f9fa")
-    max_width = 0.8
-    min_width = 0.08
-    stage_gap = 0.02
-    y_start = 0.82
-    # Reserve bottom space so the opt-in callout box sits clearly below the final
-    # (orange) stage instead of touching it.
-    bottom_reserve = 0.13
-    stage_height = min(0.15, (y_start - bottom_reserve - (n - 1) * stage_gap) / max(n, 1))
-
-    current_y = y_start
-    for i, stage in enumerate(stages):
-        total = totals[i]
-        width = max(min_width, max_width * (total / base_total))
-
-        rect = mpatches.FancyBboxPatch(
-            (0.5 - width / 2, current_y - stage_height),
-            width,
-            stage_height,
-            boxstyle="round,pad=0.01",
-            facecolor=palette[i % len(palette)],
-            edgecolor="white",
-            linewidth=3,
-            alpha=0.9,
-        )
-        ax.add_patch(rect)
-        ax.text(
-            0.5,
-            current_y - stage_height / 2,
-            f"{int(total):,}",
-            ha="center",
-            va="center",
-            fontsize=24,
-            fontweight="bold",
-            color="white",
-            zorder=10,
-        )
-        ax.text(
-            0.5 - width / 2 - 0.04,
-            current_y - stage_height / 2,
-            stage["name"].replace(" ", "\n", 1),
-            ha="right",
-            va="center",
-            fontsize=18,
-            fontweight="600",
-            color="#2c3e50",
-        )
-        if i > 0 and totals[i - 1] > 0:
-            conv = total / totals[i - 1] * 100
-            arrow_y = current_y + stage_gap / 2
-            ax.annotate(
-                "",
-                xy=(0.5, arrow_y - stage_gap + 0.01),
-                xytext=(0.5, arrow_y - 0.01),
-                arrowprops={"arrowstyle": "->", "lw": 3, "color": NEGATIVE},
-            )
-            ax.text(
-                0.45,
-                arrow_y - stage_gap / 2,
-                f"{conv:.1f}%",
-                ha="center",
-                va="center",
-                fontsize=16,
-                fontweight="bold",
-                color="#e74c3c",
-                bbox={
-                    "boxstyle": "round,pad=0.3",
-                    "facecolor": "white",
-                    "edgecolor": "#e74c3c",
-                    "alpha": 0.9,
-                },
-            )
-        current_y -= stage_height + stage_gap
-
-    ax.text(
-        0.5, 0.98, title_text, ha="center", va="top", fontsize=26,
-        fontweight="bold", color="#1e3d59", transform=ax.transAxes,
+    draw_box_funnel(
+        ax,
+        [s["name"] for s in stages],
+        [s["total"] for s in stages],
+        title=title_text,
+        subtitle=subtitle_text,
+        callout=metrics_text,
     )
-    ax.text(
-        0.5, 0.93, subtitle_text, ha="center", va="top", fontsize=18,
-        style="italic", color="#7f8c8d", transform=ax.transAxes,
-    )
-    if metrics_text:
-        ax.text(
-            0.5, 0.015, metrics_text, transform=ax.transAxes,
-            fontsize=13, fontweight="bold", ha="center", va="bottom",
-            bbox={
-                "boxstyle": "round,pad=0.5",
-                "facecolor": "white",
-                "edgecolor": BRAND["navy"],
-                "linewidth": 1.5,
-            },
-        )
-
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.axis("off")
 
 
 @register
@@ -221,7 +127,10 @@ class RegEDimensions(AnalysisModule):
         chart = result[result["Account Age"] != "TOTAL"].copy()
         overall = result[result["Account Age"] == "TOTAL"]["Opt-In Rate"].iloc[0] * 100
 
-        with chart_figure(figsize=(14, 8), save_path=save_to) as (fig, ax):
+        # Wider/shorter landscape aspect so the chart doesn't bleed over the
+        # slide number when placed (mirrors the DCTR branch chart fix). No
+        # legend on this single-series chart, so only the aspect is adjusted.
+        with chart_figure(figsize=(16, 7.2), save_path=save_to) as (fig, ax):
             x = range(len(chart))
             rates = chart["Opt-In Rate"] * 100
             colors = [NEGATIVE if r < overall else POSITIVE for r in rates]
@@ -332,7 +241,10 @@ class RegEDimensions(AnalysisModule):
             l12m_df[l12m_df["Age Group"] != "TOTAL"].copy() if not l12m_df.empty else pd.DataFrame()
         )
 
-        with chart_figure(figsize=(14, 8), save_path=save_to) as (fig, ax):
+        # Wider/shorter landscape aspect so the chart doesn't bleed over the
+        # slide number, and the Historical/L12M legend goes below the plot (off
+        # all data) -- the same fix applied to the DCTR branch chart.
+        with chart_figure(figsize=(16, 7.2), save_path=save_to) as (fig, ax):
             x = np.arange(len(ch))
             w = 0.35
             hist_rates = ch["Opt-In Rate"] * 100
@@ -404,7 +316,11 @@ class RegEDimensions(AnalysisModule):
                 "Reg E Opt-In by Account Holder Age", fontweight="bold", fontsize=24, pad=15
             )
             ax.tick_params(axis="y", labelsize=18)
-            ax.legend(fontsize=16)
+            # Legend below the plot (off all data) so it never overlaps the bars.
+            ax.legend(
+                loc="upper center", bbox_to_anchor=(0.5, -0.22),
+                fontsize=16, frameon=False, ncol=3,
+            )
             ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
         chart_path = save_to
 
