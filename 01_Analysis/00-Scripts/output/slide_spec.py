@@ -244,7 +244,12 @@ def _compile_pattern_key(key: str) -> tuple["re.Pattern[str]", list[str]]:
                 continue
             name = key[i + 1:end]
             names.append(name)
-            pattern_chars.append(f"(?P<{name}>[^.]+)")
+            # Capture only month-shaped tokens (e.g. "Apr26"): 3 letters + 2-4
+            # digit year. A13.{month} is the sole placeholder-keyed spec; keeping
+            # the capture tight stops non-month A13 slides (A13.5, A13.6, A13.Agg)
+            # from matching and dragging in unresolved {overall_rate}/{total_*}
+            # template tokens that then leak onto the slide.
+            pattern_chars.append(rf"(?P<{name}>[A-Za-z]{{3}}\d{{2,4}})")
             i = end + 1
         else:
             pattern_chars.append(re.escape(ch))
@@ -365,6 +370,24 @@ def render_spec(
     tertiary, w4 = _format(spec.callout.tertiary, ns)
     source, w5 = _format(spec.footer.source, ns)
     warnings += w1 + w2 + w3 + w4 + w5
+
+    # Defense in depth: never let an unresolved {token} reach a client slide.
+    # If substitution failed, drop the callout/footer field rather than rendering
+    # literal template code. action_title is left for the deck-side guard, which
+    # falls back to a legacy title when braces remain.
+    import re as _re
+    _residual = _re.compile(r"\{[A-Za-z_][\w.]*(?::[^}]*)?\}")
+
+    def _clean(text: str, field: str) -> str:
+        if text and _residual.search(text):
+            warnings.append(f"dropped {field}: unresolved template token in {text!r}")
+            return ""
+        return text
+
+    hero = _clean(hero, "callout.hero")
+    sub = _clean(sub, "callout.sub")
+    tertiary = _clean(tertiary, "callout.tertiary")
+    source = _clean(source, "footer.source")
 
     return SlideContent(
         slide_id=spec.slide_id,
