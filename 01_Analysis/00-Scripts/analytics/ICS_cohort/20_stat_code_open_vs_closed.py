@@ -53,8 +53,7 @@ display_formatted(
 # Surface the non-target-Stat closure rate (old cell had this hardcoded).
 _non_target = stat_code_open_vs_closed[
     (stat_code_open_vs_closed['Stat Code'] != 'Total')
-    & (stat_code_open_vs_closed['Stat Code'].astype(str).str.upper().str.strip()
-       != str(ICS_STAT_CODE).upper())
+    & (~is_target_status(stat_code_open_vs_closed['Stat Code']))
 ]
 _non_open   = int(_non_target['Open'].sum())
 _non_closed = int(_non_target['Closed'].sum())

@@ -7,7 +7,12 @@
 # Renders a seaborn heatmap of activation/retention % by opening month × milestone.
 
 import matplotlib.pyplot as plt
-import seaborn as sns
+
+# seaborn is optional. When it isn't installed the wrapper/harness injects a
+# permissive `sns` shim into the namespace; only import here if neither is
+# already present so a missing package can't crash the whole section.
+if 'sns' not in dir():
+    import seaborn as sns
 
 print(f"\n📊 ics-30 — Cohort retention heatmap for ICS {STAT_LABEL}...")
 

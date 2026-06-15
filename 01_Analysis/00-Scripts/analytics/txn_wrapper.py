@@ -350,6 +350,7 @@ TXN_SECTIONS = {
     "competition": {"display": "Competition", "order": 150, "code": "COMP"},
     "financial_services": {"display": "Financial Services", "order": 160, "code": "FIN"},
     "ics_acquisition": {"display": "ICS Acquisition", "order": 170, "code": "ICSA"},
+    "ICS_cohort": {"display": "ICS Cohort", "order": 175, "code": "ICSC"},
     "campaign": {"display": "Campaign Analysis", "order": 180, "code": "CAMP"},
     "branch_txn": {"display": "Branch Performance", "order": 190, "code": "BR"},
     "transaction_type": {"display": "Transaction Type", "order": 200, "code": "TT"},
@@ -564,6 +565,8 @@ def _build_namespace(ctx: PipelineContext) -> dict[str, Any]:
         "CSM": ctx.client.assigned_csm,
         # Data (if loaded)
         "odd_df": ctx.data,
+        # Per-client eligible status codes (drives ICS_cohort stat-code filter)
+        "ELIGIBLE_STATUS_CODES": list(getattr(ctx.client, "eligible_stat_codes", None) or []),
         # Builtins
         "__builtins__": __builtins__,
     }
