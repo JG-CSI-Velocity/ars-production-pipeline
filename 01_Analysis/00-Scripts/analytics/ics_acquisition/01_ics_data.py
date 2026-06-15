@@ -14,18 +14,29 @@ _ICS_YES = {'YES', 'Y'}
 ICS_CHANNELS = ['REF', 'DM']
 
 try:
-    # Pull both ICS Account (Y/N flag) and Source (channel code)
-    ics_subset = rewards_df[['Acct Number', 'ICS Account', 'Source']].copy()
+    # Detect rewards_df columns -- exports vary (Acct Number vs Account Number,
+    # ICS Account vs ICS Acct, Source vs Source Channel). Hard-coded names
+    # previously skipped the ENTIRE section via the except below when one differed.
+    def _pick(cols, *cands):
+        return next((c for c in cands if c in cols), None)
+    _acct_col = _pick(rewards_df.columns, 'Acct Number', ' Acct Number', 'Account Number', 'AcctNumber')
+    _ics_col  = _pick(rewards_df.columns, 'ICS Account', 'ICS Acct', 'ICS', 'ICS?')
+    _src_col  = _pick(rewards_df.columns, 'Source', 'Source Channel', 'Channel', 'Acquisition Source')
+    if not all((_acct_col, _ics_col, _src_col)):
+        raise KeyError(
+            f"ICS columns missing in rewards_df (acct={_acct_col}, ics={_ics_col}, src={_src_col})"
+        )
+
+    ics_subset = rewards_df[[_acct_col, _ics_col, _src_col]].copy()
     ics_subset.columns = ['account_number', 'ics_flag', 'source_channel']
     ics_subset['account_number'] = ics_subset['account_number'].astype(str).str.strip()
-
-    # Clean both fields
     ics_subset['ics_flag'] = ics_subset['ics_flag'].astype(str).str.strip().str.upper()
     ics_subset['source_channel'] = ics_subset['source_channel'].astype(str).str.strip().str.upper()
 
-    # Diagnostic: show raw values BEFORE classification
+    # Diagnostic: show detected columns + raw values BEFORE classification
     _flag_vals = ics_subset['ics_flag'].value_counts()
     _src_vals = ics_subset['source_channel'].value_counts()
+    print(f"    ICS columns: acct={_acct_col!r}  ics={_ics_col!r}  source={_src_col!r}")
     print("    Raw ICS Account flag values:")
     for val, cnt in _flag_vals.items():
         marker = " <-- ICS" if val in _ICS_YES else ""
@@ -35,36 +46,34 @@ try:
         marker = " <-- channel" if val in ICS_CHANNELS else ""
         print(f"      {val!r:12s} {cnt:>8,} accounts{marker}")
 
-    # Build ics_account: use Source channel for ICS accounts, 'Non-ICS' for rest
+    # Build ics_account: Source channel for ICS accounts, 'Non-ICS' for the rest
     is_ics = ics_subset['ics_flag'].isin(_ICS_YES)
     ics_subset['ics_account'] = 'Non-ICS'
     ics_subset.loc[is_ics, 'ics_account'] = ics_subset.loc[is_ics, 'source_channel']
 
-    # If Source is missing/invalid for an ICS-flagged account, label as 'ICS-Unknown'
+    # ICS-flagged but no valid Source channel -> ICS-Unknown (still counts as ICS)
     valid_channels = set(ICS_CHANNELS)
     bad_source = is_ics & ~ics_subset['source_channel'].isin(valid_channels)
     if bad_source.sum() > 0:
         ics_subset.loc[bad_source, 'ics_account'] = 'ICS-Unknown'
         print(f"    Note: {bad_source.sum():,} ICS accounts have no valid Source channel")
 
-    # Keep only the columns needed for merge
-    ics_subset = ics_subset[['account_number', 'ics_account']]
+    # One row per account. Prefer an ICS-flagged row over a Non-ICS duplicate so a
+    # fan-out in rewards_df can't bury the ICS label.
+    ics_subset = ics_subset[['account_number', 'ics_account']].copy()
+    ics_subset['_is_ics'] = ics_subset['ics_account'] != 'Non-ICS'
+    ics_subset = (ics_subset.sort_values('_is_ics', ascending=False)
+                            .drop_duplicates(subset='account_number', keep='first')
+                            .drop(columns='_is_ics'))
 
-    # Drop stale merge columns if re-running
-    if 'ics_account' in combined_df.columns:
-        combined_df.drop(columns='ics_account', inplace=True)
-
-    ics_merged = combined_df.merge(
-        ics_subset,
-        left_on='primary_account_num',
-        right_on='account_number',
-        how='left',
-    ).drop(columns='account_number')
-
-    ics_merged['ics_account'] = ics_merged['ics_account'].fillna('Non-ICS')
-
-    # Store on combined_df
-    combined_df['ics_account'] = ics_merged['ics_account']
+    # Assign by mapping on a NORMALIZED key. Avoids the prior left-merge that
+    # (a) joined primary_account_num un-normalized -- any format drift made every
+    # account fall to Non-ICS -- and (b) could fan out + misalign on positional
+    # reassignment. map+fillna aligns on combined_df's own index, length-safe.
+    _ics_map = ics_subset.set_index('account_number')['ics_account']
+    _key = combined_df['primary_account_num'].astype(str).str.strip()
+    combined_df['ics_account'] = _key.map(_ics_map).fillna('Non-ICS')
+    ics_merged = combined_df
 
     # Account-level map for other folders
     ics_acct_map = ics_subset.rename(columns={'account_number': 'primary_account_num'})
