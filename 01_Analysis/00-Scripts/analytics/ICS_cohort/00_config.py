@@ -7,13 +7,71 @@
 import pandas as pd
 
 # =========================================================
+# DATA BRIDGE — wire the section to the pipeline ODD
+# =========================================================
+# The TXN wrapper pre-populates `odd_df` (account-level ODD) in the shared
+# namespace. Legacy notebook cells assume a bare `data` frame exists, so we
+# bridge it here. If no ODD is available, skip the whole section cleanly.
+try:
+    data = odd_df if odd_df is not None else None
+except NameError:
+    data = None
+
+if data is None:
+    SKIP_SECTION = True
+    print("ICS_cohort SKIPPED: no ODD data available (odd_df missing/None).")
+
+# =========================================================
+# OWNER GATE — ICS_cohort only runs when ICS Account + Source exist
+# =========================================================
+# This section is the ICS cohort analysis. It is only meaningful when the ODD
+# carries BOTH the `ICS Account` (Yes/No) and `Source` (DM/REF) columns. If
+# either is missing, this client does not own this section; skip it.
+if not (locals().get("SKIP_SECTION")):
+    if data is None:
+        SKIP_SECTION = True
+        print("ICS_cohort SKIPPED: data is None.")
+    elif 'ICS Account' not in data.columns:
+        SKIP_SECTION = True
+        print("ICS_cohort SKIPPED: 'ICS Account' column not present in ODD.")
+    elif 'Source' not in data.columns:
+        SKIP_SECTION = True
+        print("ICS_cohort SKIPPED: 'Source' column not present in ODD.")
+
+# Column-name bridge: the ODD loader renames 'Prod Code' -> 'Product Code', but
+# the legacy product cells (06/08/12) reference 'Prod Code'. Alias whichever is
+# present so those cells work regardless of which name the ODD carries.
+if not (locals().get("SKIP_SECTION")) and data is not None:
+    if 'Prod Code' not in data.columns and 'Product Code' in data.columns:
+        data['Prod Code'] = data['Product Code']
+    elif 'Product Code' not in data.columns and 'Prod Code' in data.columns:
+        data['Product Code'] = data['Prod Code']
+
+# =========================================================
 # KNOBS — edit these per client / per report
 # =========================================================
 
-# (1) Which Stat Code identifies an "ICS" account for this client?
-#     Some clients use the letter 'O', some use the digit '0'.
-#     The filter is case/space-robust; just put the character.
-ICS_STAT_CODE = 'O'
+# (1) Which Stat Codes identify an eligible "ICS" account for this client?
+#     This is NOT hardcoded — it varies by client (e.g. 1759/1746 use 'A',
+#     1226 uses ['ACTIVE','INACTIVE']). It is derived from the per-client
+#     ELIGIBLE_STATUS_CODES the wrapper injects into the namespace.
+#     The filter is case/space-robust.
+try:
+    _raw_eligible = ELIGIBLE_STATUS_CODES
+except NameError:
+    _raw_eligible = []
+
+ICS_STATUS_CODES = [str(s).strip().upper() for s in (_raw_eligible or []) if str(s).strip()]
+if not ICS_STATUS_CODES:
+    ICS_STATUS_CODES = ['O']
+    print("ICS_cohort WARNING: ELIGIBLE_STATUS_CODES empty; falling back to ['O'].")
+
+# Back-compat scalar for any reference not yet converted to the list form.
+ICS_STAT_CODE = ICS_STATUS_CODES[0] if ICS_STATUS_CODES else 'O'
+
+def is_target_status(series):
+    """True where the Stat Code series matches any eligible code (case/space-robust)."""
+    return series.astype(str).str.strip().str.upper().isin(ICS_STATUS_CODES)
 
 # (2) Cohort start — the earliest Opening Month that counts as
 #     a "new cohort" for cohort/activation/persona/growth cells.
@@ -44,7 +102,7 @@ ACTIVITY_END_MONTH     = None
 # DERIVED — do not edit below
 # =========================================================
 
-STAT_LABEL = f"Stat Code {ICS_STAT_CODE}"
+STAT_LABEL = f"Stat {'/'.join(ICS_STATUS_CODES)}"
 
 # --- Cohort start resolution ------------------------------
 if COHORT_START_MONTH:
@@ -86,7 +144,7 @@ ACTIVITY_ANCHOR_YEAR = ACTIVITY_END_DATE.year
 print("=" * 60)
 print("ICS COHORT CONFIG")
 print("=" * 60)
-print(f"ICS_STAT_CODE        : {ICS_STAT_CODE!r}  ({STAT_LABEL})")
+print(f"ICS_STATUS_CODES     : {ICS_STATUS_CODES!r}  ({STAT_LABEL})")
 if COHORT_START_MONTH:
     _src = f"COHORT_START_MONTH={COHORT_START_MONTH}"
 elif COHORT_START_YEAR:
@@ -109,10 +167,9 @@ try:
     )
     print("\nActual Stat Code values seen in data (top 15):")
     print(_sc.to_string())
-    _match = int((data['Stat Code'].astype(str).str.upper().str.strip()
-                 == str(ICS_STAT_CODE).upper()).sum())
-    print(f"\nRows matching ICS_STAT_CODE={ICS_STAT_CODE!r}: {_match:,}")
+    _match = int(is_target_status(data['Stat Code']).sum())
+    print(f"\nRows matching ICS_STATUS_CODES={ICS_STATUS_CODES!r}: {_match:,}")
     if _match == 0:
-        print("⚠️  Zero rows match. Check whether this client uses 'O' (letter) or '0' (digit).")
+        print("⚠️  Zero rows match. Check the client's eligible status codes.")
 except NameError:
     print("\n(Load `data` first, then re-run this cell for the Stat Code audit.)")

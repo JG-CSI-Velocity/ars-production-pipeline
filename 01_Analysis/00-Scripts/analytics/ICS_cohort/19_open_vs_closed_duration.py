@@ -22,10 +22,7 @@ ics_accounts['Duration Days'] = np.where(
 )
 ics_accounts['Duration Range'] = ics_accounts['Duration Days'].map(_age_bucket)
 ics_accounts['Status'] = np.where(_closed_mask, 'Closed', 'Open')
-ics_accounts['Is Target Stat'] = (
-    ics_accounts['Stat Code'].astype(str).str.upper().str.strip()
-    == str(ICS_STAT_CODE).upper()
-)
+ics_accounts['Is Target Stat'] = is_target_status(ics_accounts['Stat Code'])
 
 # Per-bucket rows in canonical order.
 rows = []
