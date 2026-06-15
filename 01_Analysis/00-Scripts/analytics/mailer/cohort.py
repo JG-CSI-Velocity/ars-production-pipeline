@@ -756,8 +756,16 @@ class ResponderCohort(AnalysisModule):
         results: list[AnalysisResult] = []
         ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
 
+        # A16.1-A16.6 (trajectory / direction / cohort-size) are dropped from the
+        # deck (#208 -- owner flagged them worthless) and have no downstream
+        # consumers, yet each build_cohort_trajectory + render is costly (~min).
+        # Skip by default; re-enable with ARS_RENDER_DROPPED_MAILER=1. The A16.7
+        # combo below is the only cohort slide the deck keeps.
+        import os as _os
+        _render_dropped = _os.environ.get("ARS_RENDER_DROPPED_MAILER") == "1"
+
         # A16.1 -- Responder vs Non-Resp Spend Trajectory
-        if spend_cols:
+        if _render_dropped and spend_cols:
             traj = build_cohort_trajectory(ctx, "Spend", by_segment=False)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_1_spend_trajectory.png"
@@ -774,7 +782,7 @@ class ResponderCohort(AnalysisModule):
                 ctx.results["a16_spend_traj"] = traj
 
         # A16.2 -- Responder vs Non-Resp Swipe Trajectory
-        if swipe_cols:
+        if _render_dropped and swipe_cols:
             traj = build_cohort_trajectory(ctx, "Swipes", by_segment=False)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_2_swipe_trajectory.png"
@@ -790,7 +798,7 @@ class ResponderCohort(AnalysisModule):
                 )
 
         # A16.3 -- Per-Segment Spend Trajectory
-        if spend_cols:
+        if _render_dropped and spend_cols:
             traj = build_cohort_trajectory(ctx, "Spend", by_segment=True)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_3_segment_spend.png"
@@ -806,7 +814,7 @@ class ResponderCohort(AnalysisModule):
                 )
 
         # A16.4 -- Per-Segment Swipe Trajectory
-        if swipe_cols:
+        if _render_dropped and swipe_cols:
             traj = build_cohort_trajectory(ctx, "Swipes", by_segment=True)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_4_segment_swipes.png"
@@ -822,7 +830,7 @@ class ResponderCohort(AnalysisModule):
                 )
 
         # A16.5 -- Direction Change Proof
-        if spend_cols:
+        if _render_dropped and spend_cols:
             traj_resp = build_cohort_trajectory(ctx, "Spend", by_segment=False)
             if not traj_resp.empty:
                 save_to = ctx.paths.charts_dir / "a16_5_direction_change.png"
@@ -839,7 +847,7 @@ class ResponderCohort(AnalysisModule):
 
         # A16.6 -- Cohort Size (optional, only if 8+ metric months)
         metric_count = max(len(spend_cols), len(swipe_cols))
-        if metric_count >= 8:
+        if _render_dropped and metric_count >= 8:
             traj = build_cohort_trajectory(ctx, "Spend", by_segment=False)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_6_cohort_size.png"

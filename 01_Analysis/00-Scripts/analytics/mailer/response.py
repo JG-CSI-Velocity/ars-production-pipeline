@@ -977,6 +977,12 @@ class MailerResponse(AnalysisModule):
         results += _safe(lambda c: _aggregate_summary(c), "A13.Agg", ctx)
         results += _safe(lambda c: _count_trend(c), "A13.5", ctx)
         results += _safe(lambda c: _rate_trend(c), "A13.6", ctx)
-        results += _safe(lambda c: _account_age(c), "A14.2", ctx)
-        results += _safe(lambda c: _ladder_slides(c), "A15", ctx)
+        # A14.2 account-age (#208 slide 48) and the per-wave A15.{month} ladder
+        # (#208 slide 47) are owner-flagged worthless and dropped from the deck,
+        # but each renders charts for ~every wave (the ladder ~one per wave).
+        # Skip by default; re-enable with ARS_RENDER_DROPPED_MAILER=1.
+        import os as _os
+        if _os.environ.get("ARS_RENDER_DROPPED_MAILER") == "1":
+            results += _safe(lambda c: _account_age(c), "A14.2", ctx)
+            results += _safe(lambda c: _ladder_slides(c), "A15", ctx)
         return results

@@ -399,7 +399,25 @@ class MailerInsights(AnalysisModule):
             ]
 
         results: list[AnalysisResult] = []
-        for month, resp_col, mail_col in pairs:
+        # A12 swipes/spend are now only a preamble fallback -- the deck leads with
+        # the A16.7 combo and drops the per-wave A12 slides -- so rendering all
+        # ~22 waves wastes minutes. Cap to the recent window like the combos
+        # (ARS_COMBO_MONTHS, default 6; 0 = no cap).
+        import os as _os
+        _cap = int(_os.environ.get("ARS_COMBO_MONTHS", "6") or 0)
+        _dated = sorted(
+            (p for p in pairs if not pd.isna(parse_month(p[0]))),
+            key=lambda p: parse_month(p[0]),
+            reverse=True,
+        )
+        _undated = [p for p in pairs if pd.isna(parse_month(p[0]))]
+        if _cap and len(_dated) > _cap:
+            logger.info(
+                "A12: rendering swipes/spend for {k} recent waves; skipping {n} older.",
+                k=_cap, n=len(_dated) - _cap,
+            )
+            _dated = _dated[:_cap]
+        for month, resp_col, mail_col in (_dated + _undated):
             try:
                 results += _month_analysis(
                     ctx,
