@@ -35,6 +35,7 @@ _config_dir = Path(__file__).resolve().parent.parent / "03_Config"
 sys.path.insert(0, str(_config_dir))
 
 import pandas as pd
+from month_resolver import resolve_source_month_dir
 from settings import load_settings
 from shared.format_odd import format_odd
 
@@ -484,7 +485,11 @@ def main():
 
     def _process_one_csm(csm_name, csm_source):
         """Process a single CSM -- can be called in parallel."""
-        src = Path(csm_source) / month
+        # CSMs name their monthly dump folders inconsistently ("2026.06",
+        # "June, 2026", ...), so resolve the source month folder by parsing
+        # candidates rather than assuming the canonical name (issue #220).
+        # Our own staging/output dirs stay normalized to the canonical month.
+        src = resolve_source_month_dir(csm_source, month)
         staging = staging_base / csm_name / month
         output = output_base / csm_name / month
 
