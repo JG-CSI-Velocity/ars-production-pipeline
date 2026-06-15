@@ -481,10 +481,62 @@ def build_combo_lines(
         )
         dated_pairs = _kept
 
+    # Persistent cross-run chart cache: a past wave's combo doesn't change once
+    # the wave is in the past, so cache it keyed by the wave's input data and copy
+    # it forward on later runs instead of re-rendering (#208 -- "just update the
+    # combo charts"). Disable with ARS_CHART_CACHE=0.
+    from ars_analysis.charts.cache import (
+        chart_is_cached,
+        fingerprint_df,
+        persistent_chart_dir,
+        write_chart_key,
+    )
+    import shutil as _shutil
+
+    _cache_dir = persistent_chart_dir(getattr(ctx.client, "client_id", "unknown"))
+    _metric_cols = list(spend_cols) + list(swipe_cols)
+    _COMBO_CACHE_V = "combo-v1"
+
     for month, resp_col, mail_col in dated_pairs:
         _wave_t0 = _time.monotonic()
         logger.info("A16.7 {month}: starting combo render", month=month)
         mail_date = parse_month(month)
+
+        # Cache check: if this wave's inputs are unchanged from a prior run, copy
+        # the cached PNG into the run's charts dir and skip the render entirely.
+        _combo_title = (
+            f"Spend + Swipe Trajectory -- {month}: "
+            f"higher-challenge segments show stronger post-mail lift"
+        )
+        _run_path = ctx.paths.charts_dir / f"a16_7_{month.lower()}_combo.png"
+        _cache_path = _cache_dir / f"a16_7_{month.lower()}_combo.png"
+        _cache_key = fingerprint_df(
+            data,
+            columns=[mail_col, resp_col, *_metric_cols],
+            extras={
+                "client": getattr(ctx.client, "client_id", ""),
+                "month": month,
+                "v": _COMBO_CACHE_V,
+            },
+        )
+        if chart_is_cached(_cache_path, _cache_key):
+            _run_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                _shutil.copyfile(_cache_path, _run_path)
+            except OSError:
+                _run_path = None
+            if _run_path is not None:
+                logger.info("A16.7 {month}: cache hit -- render skipped", month=month)
+                results.append(
+                    AnalysisResult(
+                        slide_id=f"A16.7.{month}",
+                        title=_combo_title,
+                        title_color=NAVY,
+                        chart_path=_run_path,
+                        notes="Cached from a prior run (wave unchanged).",
+                    )
+                )
+                continue
 
         # Classify accounts for this wave
         was_mailed = data[mail_col].isin(["NU", "TH-10", "TH-15", "TH-20", "TH-25"])
@@ -695,9 +747,16 @@ def build_combo_lines(
         plt.tight_layout()
         plt.subplots_adjust(hspace=0.30)
 
-        save_to = ctx.paths.charts_dir / f"a16_7_{month.lower()}_combo.png"
+        save_to = _run_path
         fig.savefig(save_to, dpi=150, bbox_inches="tight")
         plt.close(fig)
+        # Persist to the cross-run cache so next month copies instead of rendering.
+        try:
+            _cache_path.parent.mkdir(parents=True, exist_ok=True)
+            _shutil.copyfile(save_to, _cache_path)
+            write_chart_key(_cache_path, _cache_key)
+        except OSError:
+            pass
 
         logger.info(
             "A16.7 {month}: {n} panels rendered in {secs:.1f}s",

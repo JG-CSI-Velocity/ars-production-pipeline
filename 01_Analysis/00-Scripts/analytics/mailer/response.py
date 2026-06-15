@@ -180,6 +180,21 @@ def _monthly_summaries(ctx: PipelineContext) -> list[AnalysisResult]:
     all_monthly: dict = {}
     # prev_rate removed -- MoM delta no longer used
 
+    # Persistent cross-run cache: a past wave's summary charts don't change, so
+    # copy them forward instead of re-rendering each month (#208). ARS_CHART_CACHE=0
+    # disables it.
+    import shutil as _shutil
+
+    from ars_analysis.charts.cache import (
+        chart_is_cached,
+        fingerprint_df,
+        persistent_chart_dir,
+        write_chart_key,
+    )
+
+    _cache_dir = persistent_chart_dir(getattr(ctx.client, "client_id", "unknown"))
+    _A13_CACHE_V = "a13-v1"
+
     for idx, (month, resp_col, mail_col) in enumerate(pairs):
         seg_details, total_mailed, total_resp, overall_rate = analyze_month(
             data,
@@ -203,8 +218,40 @@ def _monthly_summaries(ctx: PipelineContext) -> list[AnalysisResult]:
         # Save donut and hbar as SEPARATE PNGs for 3-column mailer_summary layout
         donut_path = ctx.paths.charts_dir / f"a13_{month.lower()}_donut.png"
         hbar_path = ctx.paths.charts_dir / f"a13_{month.lower()}_hbar.png"
-        ok_donut = _render_donut_chart(seg_details, donut_path, "Response Share")
-        ok_hbar = _render_hbar_chart(seg_details, hbar_path, "Response Rate")
+        _cd = _cache_dir / f"a13_{month.lower()}_donut.png"
+        _ch = _cache_dir / f"a13_{month.lower()}_hbar.png"
+        _sk = fingerprint_df(
+            data,
+            columns=[mail_col, resp_col],
+            extras={
+                "client": getattr(ctx.client, "client_id", ""),
+                "month": month,
+                "v": _A13_CACHE_V,
+            },
+        )
+        if chart_is_cached(_cd, _sk) and chart_is_cached(_ch, _sk):
+            donut_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                _shutil.copyfile(_cd, donut_path)
+                _shutil.copyfile(_ch, hbar_path)
+                ok_donut = ok_hbar = True
+                logger.info("A13 {month}: summary cache hit -- render skipped", month=month)
+            except OSError:
+                ok_donut = _render_donut_chart(seg_details, donut_path, "Response Share")
+                ok_hbar = _render_hbar_chart(seg_details, hbar_path, "Response Rate")
+        else:
+            ok_donut = _render_donut_chart(seg_details, donut_path, "Response Share")
+            ok_hbar = _render_hbar_chart(seg_details, hbar_path, "Response Rate")
+            try:
+                _cd.parent.mkdir(parents=True, exist_ok=True)
+                if ok_donut and donut_path.exists():
+                    _shutil.copyfile(donut_path, _cd)
+                    write_chart_key(_cd, _sk)
+                if ok_hbar and hbar_path.exists():
+                    _shutil.copyfile(hbar_path, _ch)
+                    write_chart_key(_ch, _sk)
+            except OSError:
+                pass
 
         # Compute ladder for this month
         ladder = analyze_ladder(data, pairs, idx)
