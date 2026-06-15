@@ -2442,14 +2442,15 @@ def build_deck(ctx: PipelineContext) -> Path | None:
 
     _mailer_by_id = {getattr(r, "slide_id", ""): r for r in mailer_results}
 
-    # Most recent per-wave combo (A16.7.{month}: spend + swipes in one figure).
+    # Furthest-back per-wave combo for the "ARS Mailer Revisit" slide (#208): the
+    # oldest campaign has the most post-mail months to look back on, and it isn't
+    # a duplicate of the recent waves shown in the Campaign Performance section.
     _combo = next(
         (
             _mailer_by_id[k]
             for k in sorted(
                 (kk for kk in _mailer_by_id if kk.startswith("A16.7")),
-                key=lambda x: _parse_mailer_month(x) or (0, 0),
-                reverse=True,
+                key=lambda x: _parse_mailer_month(x) or (9999, 99),
             )
         ),
         None,

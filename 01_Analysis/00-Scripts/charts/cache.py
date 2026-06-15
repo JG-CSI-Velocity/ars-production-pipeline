@@ -134,6 +134,45 @@ def cached_chart(
     return False
 
 
+def persistent_chart_dir(client_id: object) -> Path:
+    """Stable, cross-run cache root for a client's charts.
+
+    The per-run charts_dir is created fresh each run, so persisting chart PNGs
+    here lets unchanged past waves (mailer summaries / combos) skip re-rendering
+    month to month. Override the root with ARS_CHART_CACHE_DIR; the default is
+    <repo root>/.chart_cache (M:\\ARS\\.chart_cache on the work machine).
+    """
+    root = os.environ.get("ARS_CHART_CACHE_DIR")
+    base = Path(root) if root else (Path(__file__).resolve().parents[3] / ".chart_cache")
+    return base / str(client_id)
+
+
+def chart_is_cached(save_path: Path | str, key: str) -> bool:
+    """True if a cached PNG with a matching key sidecar already exists."""
+    if CACHE_DISABLED:
+        return False
+    save_path = Path(save_path)
+    sidecar = _sidecar_for(save_path)
+    if save_path.exists() and sidecar.exists():
+        try:
+            return sidecar.read_text(encoding="utf-8").strip() == key
+        except OSError:
+            return False
+    return False
+
+
+def write_chart_key(save_path: Path | str, key: str) -> None:
+    """Record the cache-key sidecar next to a freshly rendered PNG."""
+    if CACHE_DISABLED:
+        return
+    save_path = Path(save_path)
+    if save_path.exists():
+        try:
+            _sidecar_for(save_path).write_text(key, encoding="utf-8")
+        except OSError as exc:
+            logger.warning("Cache sidecar write failed for {p}: {err}", p=save_path, err=exc)
+
+
 def purge_cache(root: Path) -> int:
     """Delete every `.cachekey` sidecar under `root`. Returns count deleted.
 

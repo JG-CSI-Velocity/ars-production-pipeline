@@ -467,12 +467,19 @@ def build_combo_lines(
     # pushed runs well past 30 min. Override with ARS_COMBO_MONTHS; 0 = no cap.
     _cap = int(_os.environ.get("ARS_COMBO_MONTHS", "6") or 0)
     if _cap and len(dated_pairs) > _cap:
+        # Keep the recent window for the main deck, plus the OLDEST wave -- the
+        # "ARS Mailer Revisit" preamble slide features the furthest-back campaign
+        # (#208), so its combo must be rendered even though it's outside the
+        # recent window. dated_pairs is most-recent-first, so [-1] is the oldest.
+        _kept = dated_pairs[:_cap]
+        if dated_pairs[-1] not in _kept:
+            _kept = _kept + [dated_pairs[-1]]
         logger.info(
-            "A16.7: rendering combos for the {k} most-recent waves; skipping {n} "
-            "older waves (in the ancillary deck). Set ARS_COMBO_MONTHS=0 for all.",
-            k=_cap, n=len(dated_pairs) - _cap,
+            "A16.7: rendering {k} combos ({n} recent + oldest for the revisit); "
+            "skipping {s} mid waves. Set ARS_COMBO_MONTHS=0 for all.",
+            k=len(_kept), n=_cap, s=len(dated_pairs) - len(_kept),
         )
-        dated_pairs = dated_pairs[:_cap]
+        dated_pairs = _kept
 
     for month, resp_col, mail_col in dated_pairs:
         _wave_t0 = _time.monotonic()
