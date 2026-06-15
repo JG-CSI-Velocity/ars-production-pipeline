@@ -39,48 +39,106 @@ def _read_with_sep(filepath, sep):
                        na_values=['', 'NA', 'N/A'])
 
 
+_SEP_LABELS = {'\t': 'tab', ',': 'comma', '|': 'pipe', ';': 'semicolon'}
+
+
+def _peek_delimiter(filepath, candidates=('\t', ',', '|', ';'), sample_lines=20):
+    """Sniff the most likely delimiter from a small header sample.
+
+    Reads up to ``sample_lines`` non-empty lines from the top of the file and
+    counts how often each candidate appears per line, returning the delimiter
+    with the highest median count >= 1 (else tab). Cheap (a few KB) and handles
+    pipe / semicolon exports that the old tab-or-comma logic mishandled
+    silently -- producing a 1-column DataFrame of raw lines that downstream
+    analytics couldn't read (issue #137, client 1585).
+    """
+    try:
+        with open(filepath, 'r', encoding='utf-8', errors='replace') as fh:
+            sample = []
+            for line in fh:
+                if line.strip():
+                    sample.append(line)
+                if len(sample) >= sample_lines:
+                    break
+        if not sample:
+            return '\t'
+        counts = {sep: [line.count(sep) for line in sample] for sep in candidates}
+        scored = sorted(
+            counts.items(),
+            key=lambda kv: sorted(kv[1])[len(kv[1]) // 2],  # median per-line count
+            reverse=True,
+        )
+        best, best_counts = scored[0]
+        if sorted(best_counts)[len(best_counts) // 2] >= 1:
+            return best
+        return '\t'
+    except Exception:
+        return '\t'
+
+
 def load_transaction_file(filepath):
     """Load a debit card transaction file (.txt, .csv, or no extension).
 
-    Picks an initial delimiter from the file extension (.csv -> comma,
-    else tab), then auto-retries with the other delimiter if the first
-    attempt either raises a ParserError or yields a single-column
-    DataFrame (which means the file is delimited by the OTHER character).
+    Strategy:
+      1. Sniff the delimiter from a small header sample (tab / comma / pipe /
+         semicolon supported).
+      2. Read with the sniffed delimiter.
+      3. If that yields a 1-column frame (wrong guess) or a ParserError, fall
+         through to every other candidate and keep whichever produces the
+         column count closest to EXPECTED_COLUMNS.
 
-    This makes the loader robust to:
-      - .csv files that are actually tab-delimited (common from card
-        processors that mislabel TSV exports)
-      - .txt files that are actually comma-delimited
-      - extensionless files
+    The old logic only tried tab and comma, so card-processor exports using
+    pipe (`|`) or semicolon (`;`) silently produced a 1-column frame of raw
+    lines that downstream analytics couldn't use (issue #137, client 1585).
     """
     filepath = Path(filepath)
-
-    # First guess from extension; everything not-.csv defaults to tab.
-    first_sep = ',' if filepath.suffix.lower() == '.csv' else '\t'
-    other_sep = '\t' if first_sep == ',' else ','
+    target_cols = len(EXPECTED_COLUMNS)
+    candidates = ['\t', ',', '|', ';']
 
     def _label(s):
-        return 'comma' if s == ',' else 'tab'
+        return _SEP_LABELS.get(s, repr(s))
+
+    def _try(sep):
+        try:
+            return _read_with_sep(filepath, sep)
+        except pd.errors.ParserError as exc:
+            print(f"  WARNING: {filepath.name} ParserError with {_label(sep)} delimiter: {exc}")
+            return None
+
+    # Sniff first so the most likely delimiter is tried first, then the rest.
+    primary = _peek_delimiter(filepath, tuple(candidates))
+    ordered = [primary] + [s for s in candidates if s != primary]
 
     df = None
-    try:
-        df = _read_with_sep(filepath, first_sep)
-    except pd.errors.ParserError as e:
-        # Most common: .csv extension but tab-delimited body. Some rows happen
-        # to contain a stray comma which makes pandas error out instead of
-        # falling through to the 1-column check below.
-        print(f"  WARNING: {filepath.name} failed to parse as {_label(first_sep)}-delimited ({e.__class__.__name__}); "
-              f"retrying as {_label(other_sep)}-delimited...")
-        df = _read_with_sep(filepath, other_sep)
+    best_df = None
+    best_sep = None
+    for sep in ordered:
+        attempt = _try(sep)
+        if attempt is None:
+            continue
+        if len(attempt.columns) == target_cols:
+            df = attempt
+            if sep != primary:
+                print(f"  Loaded with {_label(sep)} delimiter (sniffer guessed {_label(primary)}).")
+            break
+        # Track the closest-to-expected result as a fallback.
+        if best_df is None or abs(len(attempt.columns) - target_cols) < abs(len(best_df.columns) - target_cols):
+            best_df = attempt
+            best_sep = sep
 
-    # 1-column result means we picked the wrong delimiter. Retry the other way.
-    if len(df.columns) == 1 and other_sep is not None:
-        print(f"  WARNING: {filepath.name} parsed as 1 column with {_label(first_sep)} delimiter; "
-              f"retrying with {_label(other_sep)}...")
-        df = _read_with_sep(filepath, other_sep)
+    if df is None and best_df is None:
+        raise ValueError(
+            f"{filepath.name}: could not parse with any delimiter "
+            f"(tab/comma/pipe/semicolon)"
+        )
 
-    if len(df.columns) != len(EXPECTED_COLUMNS):
-        print(f"  WARNING: {filepath.name} has {len(df.columns)} columns (expected {len(EXPECTED_COLUMNS)})")
+    if df is None:
+        df = best_df
+        print(f"  WARNING: no delimiter yielded {target_cols} columns for {filepath.name}; "
+              f"using {_label(best_sep)} ({len(df.columns)} cols). Downstream analytics may fail.")
+
+    if len(df.columns) != target_cols:
+        print(f"  WARNING: {filepath.name} has {len(df.columns)} columns (expected {target_cols})")
 
     # ----------------------------------------------------------
     # Drop header rows that survived skiprows=1
