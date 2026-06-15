@@ -136,6 +136,7 @@ def draw_box_funnel(
     subtitle: str = "",
     callout: str = "",
     palette: list[str] | None = None,
+    equal_width: bool = False,
 ) -> None:
     """Draw a proportional box funnel: centered rounded boxes + conversion badges.
 
@@ -159,6 +160,11 @@ def draw_box_funnel(
         callout: Optional metric callout drawn in a boxed label at the bottom.
         palette: Optional per-stage color override; defaults to the canonical
             box-funnel palette (final stage = brand accent).
+        equal_width: When True, every stage box is drawn at the same (max) width
+            instead of tapering to its count. The drop-off is still carried by
+            the between-stage conversion badges and the number labels. Used by
+            the Reg E funnel (#208 R4a) where the steep opt-in drop made the
+            proportional boxes read as lopsided.
     """
     palette = palette or BOX_FUNNEL_PALETTE
     totals = [float(t) for t in stage_totals]
@@ -185,10 +191,12 @@ def draw_box_funnel(
     cycle = palette[:-1] if len(palette) > 1 else palette
 
     current_y = y_start
+    box_bottom = current_y
     for i in range(n):
         total = totals[i]
-        width = max(min_width, max_width * (total / base_total))
+        width = max_width if equal_width else max(min_width, max_width * (total / base_total))
         face = final_color if i == n - 1 else cycle[i % len(cycle)]
+        box_bottom = current_y - stage_height
 
         rect = mpatches.FancyBboxPatch(
             (0.5 - width / 2, current_y - stage_height),
@@ -259,9 +267,12 @@ def draw_box_funnel(
             style="italic", color="#7f8c8d", transform=ax.transAxes,
         )
     if callout:
+        # Sit the callout a consistent gap below the final (orange) box rather
+        # than pinning it to the axes floor, so it never crowds the box (#208 R4a).
+        callout_y = max(0.03, box_bottom - 0.06)
         ax.text(
-            0.5, 0.015, callout, transform=ax.transAxes,
-            fontsize=13, fontweight="bold", ha="center", va="bottom",
+            0.5, callout_y, callout, transform=ax.transAxes,
+            fontsize=13, fontweight="bold", ha="center", va="top",
             bbox={
                 "boxstyle": "round,pad=0.5",
                 "facecolor": "white",

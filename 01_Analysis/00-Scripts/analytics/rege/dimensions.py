@@ -69,6 +69,7 @@ def _render_funnel(
         title=title_text,
         subtitle=subtitle_text,
         callout=metrics_text,
+        equal_width=True,  # #208 R4a: uniform boxes; drop-off lives in the badges
     )
 
 
