@@ -1466,14 +1466,16 @@ REGE_APPENDIX_IDS = {
     "A8.12",
 }
 
-ATTRITION_MERGES = [
-    ("A9.3", "A9.6", "Attrition Profile: Open vs Closed & Personal vs Business"),
-]
+# A9.3+A9.6 (open-vs-closed balance + personal-vs-business money comp) dropped
+# from the main body per #208 A4 ("we can drop slide 37"). Both go to appendix.
+ATTRITION_MERGES: list[tuple[str, str, str]] = []
 
 ATTRITION_APPENDIX_IDS = {
     "A9.2",
+    "A9.3",
     "A9.4",
     "A9.5",
+    "A9.6",
     "A9.7",
     "A9.8",
     "A9.13",
@@ -1486,6 +1488,12 @@ ATTRITION_APPENDIX_IDS = {
 # (status composition is covered by the exec dashboard).
 OVERVIEW_SKIP_IDS = {"A1"}
 DCTR_SKIP_IDS = {"DCTR-1"}
+
+# Eligibility funnel (A3) + product mix (A1b) side by side instead of two bare
+# single-PNG slides (#208 P3: "slide 15 and 16 ... combined into a 2x1").
+OVERVIEW_MERGES = [
+    ("A3", "A1b", "Program Eligibility & Product Mix"),
+]
 
 
 def _consolidate(slides, merges, appendix_ids):
@@ -2334,11 +2342,16 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         [r for r in value_results if getattr(r, "slide_id", "") == "A11.2"]
     )
 
+    # Overview: drop A1, then merge the eligibility funnel + product mix into a
+    # single 2x1 (#208 P3).
+    overview_kept = [
+        r for r in overview_results if getattr(r, "slide_id", "") not in OVERVIEW_SKIP_IDS
+    ]
+    overview_main, _ = _consolidate(overview_kept, OVERVIEW_MERGES, set())
+
     # Prepare per-section slide lists (main body + appendix)
     _section_main = {
-        "overview": _convert_list(
-            [r for r in overview_results if getattr(r, "slide_id", "") not in OVERVIEW_SKIP_IDS]
-        ),
+        "overview": _convert_list(overview_main),
         "dctr": _convert_list(dctr_main) + value_dctr_slides,
         "rege": _convert_list(rege_main) + value_rege_slides,
         "attrition": _convert_list(attrition_main),
