@@ -581,6 +581,178 @@ CLIENT_CONFIGS = {
             'FIRST CONVENIENCE BANK':                               'FIRST NATIONAL BANK TEXAS',
         },
     },
+    '1226': {  # Ellafi Federal Credit Union (formerly Seasons FCU) -- Middletown, CT
+        'fed_district': '1',  # Boston -- central CT (Middlesex County)
+        'credit_unions': [
+            'AMERICAN EAGLE FINANCIAL CREDIT UNION', 'AMERICAN EAGLE CREDIT UNION',
+            'AMERICAN EAGLE FCU', 'AEFCU',                       # CT's largest community CU; serves Middlesex
+            'CONNEX CREDIT UNION', 'CONNEX CU',                  # North Haven; serves Middlesex
+            'NUTMEG STATE FINANCIAL CREDIT UNION', 'NUTMEG STATE CREDIT UNION', 'NUTMEG STATE CU',
+            'DUTCH POINT CREDIT UNION', 'DUTCH POINT CU',        # Wethersfield; absorbed MidConn of Middletown
+            'CHARTER OAK FEDERAL CREDIT UNION', 'CHARTER OAK FCU',
+            'NAVY FEDERAL CREDIT UNION', 'NAVY FEDERAL CU',
+        ],
+        'local_banks': [
+            'LIBERTY BANK',                                      # Middletown HQ -- 3rd largest CT bank
+            'WEBSTER BANK',
+            'ION BANK',
+            'THOMASTON SAVINGS BANK',
+            'CHELSEA GROTON BANK',
+        ],
+        'custom': [],
+        'rollups': {
+            'AMERICAN EAGLE CREDIT UNION':       'AMERICAN EAGLE FINANCIAL CREDIT UNION',
+            'AMERICAN EAGLE FCU':                'AMERICAN EAGLE FINANCIAL CREDIT UNION',
+            'AEFCU':                             'AMERICAN EAGLE FINANCIAL CREDIT UNION',
+            'CONNEX CU':                         'CONNEX CREDIT UNION',
+            'NUTMEG STATE CREDIT UNION':         'NUTMEG STATE FINANCIAL CREDIT UNION',
+            'NUTMEG STATE CU':                   'NUTMEG STATE FINANCIAL CREDIT UNION',
+            'DUTCH POINT CU':                    'DUTCH POINT CREDIT UNION',
+            'CHARTER OAK FCU':                   'CHARTER OAK FEDERAL CREDIT UNION',
+            'NAVY FEDERAL CU':                   'NAVY FEDERAL CREDIT UNION',
+        },
+    },
+    '1746': {  # PrimeTrust Federal Credit Union -- Muncie, IN
+        'fed_district': '7',  # Chicago -- covers Indiana
+        'credit_unions': [
+            'BALL STATE FEDERAL CREDIT UNION', 'BALL STATE FCU',  # Muncie / Ball State
+            'INDIANA MEMBERS CREDIT UNION', 'IMCU',               # Muncie branch
+            'PROFED CREDIT UNION', 'PROFED FEDERAL CREDIT UNION', 'PROFED FCU',
+            'FORUM CREDIT UNION', 'FORUM CU',
+            'CENTRA CREDIT UNION', 'CENTRA CU',
+            'NAVY FEDERAL CREDIT UNION', 'NAVY FEDERAL CU',
+        ],
+        'local_banks': [
+            'FIRST MERCHANTS BANK', 'FIRST MERCHANTS',            # Muncie HQ -- dominant Central IN bank
+            'MUTUALBANK', 'MUTUAL BANK',                          # Muncie HQ legacy (acq. Northwest 2020)
+            'NORTHWEST BANK',
+            'OLD NATIONAL BANK',
+            'STAR FINANCIAL BANK', 'STAR BANK',
+        ],
+        'custom': [],
+        'rollups': {
+            'BALL STATE FCU':            'BALL STATE FEDERAL CREDIT UNION',
+            'IMCU':                      'INDIANA MEMBERS CREDIT UNION',
+            'PROFED FEDERAL CREDIT UNION': 'PROFED CREDIT UNION',
+            'PROFED FCU':                'PROFED CREDIT UNION',
+            'FORUM CU':                  'FORUM CREDIT UNION',
+            'CENTRA CU':                 'CENTRA CREDIT UNION',
+            'NAVY FEDERAL CU':           'NAVY FEDERAL CREDIT UNION',
+            'FIRST MERCHANTS':           'FIRST MERCHANTS BANK',
+            'MUTUAL BANK':               'MUTUALBANK',
+            'STAR BANK':                 'STAR FINANCIAL BANK',
+        },
+    },
+    '1217': {  # Pioneer Federal Credit Union -- Mountain Home, ID
+        'fed_district': '12',  # San Francisco -- covers Idaho
+        'credit_unions': [
+            'IDAHO CENTRAL CREDIT UNION', 'ICCU',                 # dominant ID CU; Mountain Home branch
+            'CAPED CREDIT UNION', 'CAP ED CREDIT UNION', 'CAPED CU',
+            'ICON CREDIT UNION', 'ICON CU',
+            'WESTMARK CREDIT UNION', 'WESTMARK CU',
+            'MOUNTAIN AMERICA CREDIT UNION', 'MOUNTAIN AMERICA CU', 'MACU',
+            'NORTHWEST CHRISTIAN CREDIT UNION',                   # Mountain Home
+            'CLARITY CREDIT UNION',                               # Meridian
+        ],
+        'local_banks': [
+            # Treasure Valley locals NOT already in the District 12 top-25
+            'D.L. EVANS BANK', 'DL EVANS BANK', 'D L EVANS BANK',
+            'BANK OF IDAHO',
+            'IDAHO FIRST BANK',
+            'IDAHO INDEPENDENT BANK',                             # legacy (merged into First Interstate)
+            'FIRST INTERSTATE BANK',
+        ],
+        'custom': [],
+        'rollups': {
+            'ICCU':                      'IDAHO CENTRAL CREDIT UNION',
+            'CAP ED CREDIT UNION':       'CAPED CREDIT UNION',
+            'CAPED CU':                  'CAPED CREDIT UNION',
+            'ICON CU':                   'ICON CREDIT UNION',
+            'WESTMARK CU':               'WESTMARK CREDIT UNION',
+            'MOUNTAIN AMERICA CU':       'MOUNTAIN AMERICA CREDIT UNION',
+            'MACU':                      'MOUNTAIN AMERICA CREDIT UNION',
+            'DL EVANS BANK':             'D.L. EVANS BANK',
+            'D L EVANS BANK':            'D.L. EVANS BANK',
+        },
+    },
+    '1780': {  # USF Federal Credit Union (now USF CU) -- Tampa, FL
+        'fed_district': '6',  # Atlanta -- covers Florida
+        'credit_unions': [
+            'SUNCOAST CREDIT UNION', 'SUNCOAST CU', 'SUNCOAST SCHOOLS FEDERAL CREDIT UNION',  # Tampa HQ; FL's largest
+            'GTE FINANCIAL', 'GTE FEDERAL CREDIT UNION', 'GTE FCU',  # Tampa HQ
+            'GROW FINANCIAL FEDERAL CREDIT UNION', 'GROW FINANCIAL', 'GROW FINANCIAL FCU',  # Tampa HQ
+            'ACHIEVA CREDIT UNION', 'ACHIEVA CU',
+            'MIDFLORIDA CREDIT UNION', 'MIDFLORIDA CU', 'MID FLORIDA CREDIT UNION',
+            'VYSTAR CREDIT UNION', 'VYSTAR CU',
+            'NAVY FEDERAL CREDIT UNION', 'NAVY FEDERAL CU',      # MacDill AFB
+        ],
+        'local_banks': [
+            'THE BANK OF TAMPA', 'BANK OF TAMPA',                # Tampa HQ community bank
+            'AMERANT BANK', 'AMERANT',
+            'SEACOAST BANK', 'SEACOAST NATIONAL BANK',
+            'SOUTHSTATE BANK', 'SOUTH STATE BANK',
+            'RAYMOND JAMES BANK',                               # St. Petersburg
+        ],
+        'custom': ['USAA'],                                     # MacDill AFB military presence
+        'rollups': {
+            'SUNCOAST CU':                          'SUNCOAST CREDIT UNION',
+            'SUNCOAST SCHOOLS FEDERAL CREDIT UNION': 'SUNCOAST CREDIT UNION',
+            'GTE FEDERAL CREDIT UNION':             'GTE FINANCIAL',
+            'GTE FCU':                              'GTE FINANCIAL',
+            'GROW FINANCIAL FCU':                   'GROW FINANCIAL FEDERAL CREDIT UNION',
+            'GROW FINANCIAL':                       'GROW FINANCIAL FEDERAL CREDIT UNION',
+            'ACHIEVA CU':                           'ACHIEVA CREDIT UNION',
+            'MIDFLORIDA CU':                        'MIDFLORIDA CREDIT UNION',
+            'MID FLORIDA CREDIT UNION':             'MIDFLORIDA CREDIT UNION',
+            'VYSTAR CU':                            'VYSTAR CREDIT UNION',
+            'NAVY FEDERAL CU':                      'NAVY FEDERAL CREDIT UNION',
+            'BANK OF TAMPA':                        'THE BANK OF TAMPA',
+            'AMERANT':                              'AMERANT BANK',
+            'SEACOAST NATIONAL BANK':               'SEACOAST BANK',
+            'SOUTH STATE BANK':                     'SOUTHSTATE BANK',
+        },
+    },
+    '1766': {  # Fort Sill Federal Credit Union -- Lawton, OK (Army post)
+        'fed_district': '10',  # Kansas City -- covers Oklahoma
+        'credit_unions': [
+            'COMANCHE COUNTY FEDERAL CREDIT UNION', 'COMANCHE COUNTY FCU',  # Lawton
+            'SOUTHWEST OKLAHOMA FEDERAL CREDIT UNION', 'SOUTHWEST OKLAHOMA FCU',  # Lawton
+            'TINKER FEDERAL CREDIT UNION', 'TINKER FCU', 'TFCU',  # OK's largest CU
+            'COMMUNICATION FEDERAL CREDIT UNION', 'COMMUNICATION FCU',
+            'WEOKIE CREDIT UNION', 'WEOKIE FEDERAL CREDIT UNION', 'WEOKIE',
+            'NAVY FEDERAL CREDIT UNION', 'NAVY FEDERAL CU',
+        ],
+        'local_banks': [
+            # NOTE: FSNB / Fort Sill National Bank is a SEPARATE institution from the
+            # client (Fort Sill FEDERAL CREDIT UNION). Full-string patterns only -- never
+            # a bare 'FORT SILL' that would match the client against itself.
+            'FSNB', 'FORT SILL NATIONAL BANK',                  # Lawton HQ
+            'CITY NATIONAL BANK & TRUST', 'CITY NATIONAL BANK AND TRUST',  # Lawton
+            'LIBERTY NATIONAL BANK',                            # Lawton
+            'FIRST NATIONAL BANK & TRUST', 'FIRST NATIONAL BANK AND TRUST',  # Lawton
+            'ARVEST BANK',
+            'BANCFIRST',
+            'BANK OF OKLAHOMA', 'BOK FINANCIAL', 'BOKF',
+            'IBC BANK', 'INTERNATIONAL BANK OF COMMERCE',
+        ],
+        'custom': ['USAA'],                                     # Fort Sill Army post military presence
+        'rollups': {
+            'COMANCHE COUNTY FCU':       'COMANCHE COUNTY FEDERAL CREDIT UNION',
+            'SOUTHWEST OKLAHOMA FCU':    'SOUTHWEST OKLAHOMA FEDERAL CREDIT UNION',
+            'TINKER FCU':                'TINKER FEDERAL CREDIT UNION',
+            'TFCU':                      'TINKER FEDERAL CREDIT UNION',
+            'COMMUNICATION FCU':         'COMMUNICATION FEDERAL CREDIT UNION',
+            'WEOKIE FEDERAL CREDIT UNION': 'WEOKIE CREDIT UNION',
+            'WEOKIE':                    'WEOKIE CREDIT UNION',
+            'NAVY FEDERAL CU':           'NAVY FEDERAL CREDIT UNION',
+            'FORT SILL NATIONAL BANK':   'FSNB',
+            'CITY NATIONAL BANK AND TRUST': 'CITY NATIONAL BANK & TRUST',
+            'FIRST NATIONAL BANK AND TRUST': 'FIRST NATIONAL BANK & TRUST',
+            'BOK FINANCIAL':             'BANK OF OKLAHOMA',
+            'BOKF':                      'BANK OF OKLAHOMA',
+            'INTERNATIONAL BANK OF COMMERCE': 'IBC BANK',
+        },
+    },
     '1776': {  # CoastHills (Central Coast, CA)
         'fed_district': '12',
         'credit_unions': [
