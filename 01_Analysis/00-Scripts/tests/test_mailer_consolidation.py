@@ -44,20 +44,15 @@ def test_month_groups_carry_summary_and_combo_only():
         "A13.Nov25", "A16.7.Nov25",
         "A13.Agg",
     ]
-    # Every A12 Swipes/Spend slide is archived, plus the older month's group
-    assert set(appendix_ids) == {
-        "A12.Jan26.Swipes", "A12.Jan26.Spend",
-        "A12.Nov25.Swipes", "A12.Nov25.Spend",
-        "A12.Sep25.Swipes", "A12.Sep25.Spend",
-        "A13.Sep25", "A16.7.Sep25",
-    }
+    # Older month -> appendix as the same two slides. A12 swipes/spend are
+    # dropped entirely (the combo replaces them), nowhere in the deck.
+    assert appendix_ids == ["A13.Sep25", "A16.7.Sep25"]
+    all_ids = main_ids + appendix_ids
+    assert not any(sid.startswith("A12.") for sid in all_ids)
 
 
-def test_mailer_history_is_capped():
-    """Old months are dropped past the cap -- prevents the 167-slide explosion."""
-    from ars_analysis.output.deck_builder import (
-        MAIN_MAILER_MONTHS, APPENDIX_MAILER_MONTHS,
-    )
+def test_every_mailer_kept_as_summary_plus_combo():
+    """No month dropping: every mailer is summary + combo, swipes/spend dropped."""
     months = ["Apr26", "Mar26", "Feb26", "Jan26", "Dec25", "Nov25",
               "Oct25", "Sep25", "Aug25", "Jul25", "Jun25", "May25"]
     results = []
@@ -66,7 +61,9 @@ def test_mailer_history_is_capped():
                     _r(f"A12.{m}.Swipes"), _r(f"A12.{m}.Spend")]
     main, appendix = _consolidate_mailer(results)
     all_ids = [r.slide_id for r in (main + appendix)]
-    kept = {m for m in months if any(m in sid for sid in all_ids)}
-    assert len(kept) == MAIN_MAILER_MONTHS + APPENDIX_MAILER_MONTHS
-    assert "Apr26" in kept       # most recent kept
-    assert "May25" not in kept   # oldest dropped
+    # Every month appears as exactly its summary + combo
+    for m in months:
+        assert f"A13.{m}" in all_ids, m
+        assert f"A16.7.{m}" in all_ids, m
+    # No swipes/spend slides survive anywhere
+    assert not any(sid.startswith("A12.") for sid in all_ids)

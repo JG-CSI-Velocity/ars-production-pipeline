@@ -63,13 +63,12 @@ LAYOUT_TITLE_RPE = 17         # 1_Title Slide_RPE -- master title (slide 1)
 LAYOUT_TITLE_ARS = 18         # 4_Title Slide_ARS -- ARS section title
 LAYOUT_TITLE_ICS = 19         # 5_Title Slide_ICS -- ICS section title
 
-# Mailer history caps. The per-month mailer detail is otherwise unbounded: every
-# historical month (Dec23..Apr26 = ~22) expanded into appendix slides, which is
-# the main driver of the 167-slide explosion. Keep the most recent months in the
-# main deck and a bounded window in the appendix; the all-time aggregate (A13.Agg)
-# covers the long tail. Tune these to trade depth for length.
-MAIN_MAILER_MONTHS = 2        # most recent months shown in detail in the main deck
-APPENDIX_MAILER_MONTHS = 6    # additional older months kept in the appendix
+# Mailer deck shape. Every mailer gets a consistent two-slide block: the A13
+# summary plus the A16.7 combo chart (spend + swipes in one figure). The combo
+# REPLACES the separate A12 swipes/spend slides, so each mailer is a net slide
+# reduction. The most recent months lead in the main deck; older months follow
+# in the appendix -- but every mailer gets the same two slides.
+MAIN_MAILER_MONTHS = 2        # most recent months shown in the main deck; rest -> appendix
 
 
 # =============================================================================
@@ -1967,41 +1966,28 @@ def _consolidate_mailer(results: list) -> tuple[list, list]:
     main_slides: list = []
     appendix_slides: list = []
 
-    # Owner decision (2026-06-11): each month carries TWO main slides --
-    # the revised A13 summary and its A16.7 combo trajectory. The separate
-    # A12 Swipes / Spend slides are archived to the appendix (every month);
-    # the combo shows both metrics in one chart. P08/P09 preamble wiring is
-    # unaffected -- it reads A12 results directly, not the main deck.
+    # Owner decision (2026-06-14): every mailer is a consistent two-slide block --
+    # the A13 summary and its A16.7 combo chart. The combo shows spend AND swipes
+    # in one figure, so the separate A12 Swipes / Spend slides are dropped from the
+    # deck entirely (net slide reduction). P08/P09 preamble wiring is unaffected --
+    # it reads the A12 results from ctx.results directly, not the mailer section.
     def _is_a12_metric(r) -> bool:
         sid = getattr(r, "slide_id", "")
         return sid.startswith("A12.") and ("Swipes" in sid or "Spend" in sid)
 
-    appendix_cutoff = MAIN_MAILER_MONTHS + APPENDIX_MAILER_MONTHS
     for i, ym in enumerate(sorted_months):
         group = sorted(month_slides[ym], key=_intra_month_key)
-        archived = [r for r in group if _is_a12_metric(r)]
+        # Drop the separate swipes/spend slides; the combo replaces them.
         group = [r for r in group if not _is_a12_metric(r)]
         if i < MAIN_MAILER_MONTHS:
-            # Most recent months -> main (A12 metric charts still archived)
-            appendix_slides.extend(archived)
+            # Most recent months lead in the main deck
             main_slides.extend(group)
             if i == 0:
                 # Mailer revisit goes after the most recent month
                 main_slides.extend(revisit)
-        elif i < appendix_cutoff:
-            # A bounded window of older months -> appendix
-            appendix_slides.extend(archived)
+        else:
+            # Older months follow in the appendix -- same two slides each
             appendix_slides.extend(group)
-        # else: drop entirely -- the all-time aggregate covers the long tail
-
-    dropped = max(0, len(sorted_months) - appendix_cutoff)
-    if dropped:
-        logger.info(
-            "Mailer history capped: kept {kept} of {total} months "
-            "({main} main + {app} appendix), dropped {dropped} oldest",
-            kept=min(len(sorted_months), appendix_cutoff), total=len(sorted_months),
-            main=MAIN_MAILER_MONTHS, app=APPENDIX_MAILER_MONTHS, dropped=dropped,
-        )
 
     # Aggregate summaries after monthly groups
     main_slides.extend(aggregate)

@@ -449,15 +449,16 @@ def build_combo_lines(
     spend_lookup = {c.replace(" Spend", ""): c for c in spend_cols}
     swipe_lookup = {c.replace(" Swipes", ""): c for c in swipe_cols}
 
-    # Only the most recent 2 waves get combo slides: the deck's main flow
-    # carries 2 month groups (older months are appendix), and each figure is
-    # expensive -- the first production run spent ~67 minutes rendering one
-    # figure for every wave in program history.
+    # Every wave gets a combo slide: it is each mailer's second slide and
+    # replaces the separate swipes/spend slides. NOTE: each figure is expensive
+    # -- a full-history run rendered ~3 min/wave (~67 min for ~22 waves). For an
+    # emergency fast run, use the kill switch above (ARS_SKIP_COMBO=1 or
+    # SKIP_COMBO.flag). Reducing per-wave cost is a separate optimization.
     dated_pairs = sorted(
         (p for p in pairs if not pd.isna(parse_month(p[0]))),
         key=lambda p: parse_month(p[0]),
         reverse=True,
-    )[:2]
+    )
 
     for month, resp_col, mail_col in dated_pairs:
         _wave_t0 = _time.monotonic()
