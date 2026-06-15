@@ -38,7 +38,12 @@ LEAKED_TOKEN = re.compile(r"\{[A-Za-z_][\w.]*(?::[^}]*)?\}")  # {x} or {x:.1f}
 _DIVIDER_HINTS = ("section", "divider", "cover", "title slide", "agenda")
 # Slides the operator fills by hand from their own PowerPoint/Excel. They ship
 # title-only by design, so they are not "empty body" defects.
-_OPERATOR_FILLED = ("agenda", "executive summary", "monthly revenue", "ars lift")
+_OPERATOR_FILLED = (
+    "agenda", "executive summary", "monthly revenue", "ars lift",
+    # Preamble framing blanks the operator fills by hand (or that carry only a
+    # heading): they ship title-only by design, like the others above.
+    "all program results", "data check overview",
+)
 # Rough text-capacity model at ~11pt body type.
 _CHARS_PER_INCH = 15.0
 _LINE_HEIGHT_IN = 0.20
