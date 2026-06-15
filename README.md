@@ -158,8 +158,7 @@ M:\ARS\
 |-- Actionable Lists for Clients/    Cross-sell candidate lists (was: output/)
 |
 |-- Start Here.bat                    Double-click to launch the UI
-|-- setup.bat                         Install Python dependencies
-|-- requirements.txt
+|-- requirements.txt                  Python deps (pip install -r requirements.txt)
 |-- SETUP.md                          First-time setup, common operations, troubleshooting
 |-- SLIDE_MANIFEST.template.xlsx      Read-only manifest template (gitignored copy is yours)
 |-- SLIDE_MANIFEST.xlsx               Your personal Keep?-marked manifest (NOT tracked)
