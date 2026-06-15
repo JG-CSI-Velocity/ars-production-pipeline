@@ -545,14 +545,17 @@ class DeckBuilder:
         has_callout = bool(content.callout_hero or content.callout_sub)
         has_footer = bool(content.footer_source)
 
-        # Make room for callout + footer when present.
+        # Cap the image height so the PNG never bleeds over the slide number /
+        # CSI logo in the footer band (#208 R2: "covers up the slide number and
+        # csi logo"). Leave extra room when a callout/footer overlay is present.
+        # Charts bake their own titles, so no slide-level title is drawn here.
         left = Inches(0.4)
         top = Inches(0.3)
         width = Inches(12.5)
-        max_height = Inches(6.0 if (has_callout or has_footer) else 6.8)
+        max_height = Inches(5.6 if (has_callout or has_footer) else 6.5)
 
         if content.images and Path(content.images[0]).exists():
-            self._add_fitted_picture(slide, content.images[0], left, top, width, max_height=max_height)
+            self._add_centered_picture(slide, content.images[0], left, top, width, max_height)
 
         if has_callout:
             self._draw_callout_box(slide, content)
