@@ -69,7 +69,6 @@ def _render_funnel(
         title=title_text,
         subtitle=subtitle_text,
         callout=metrics_text,
-        equal_width=True,  # #208 R4a: uniform boxes; drop-off lives in the badges
     )
 
 
@@ -591,12 +590,16 @@ class RegEDimensions(AnalysisModule):
             if col in p_debit_df.columns:
                 rege_l12m = int(p_debit_df[col].astype(str).str.strip().isin(opts).sum())
 
+        # Same stage labels as the all-time funnel (A8.10) so the two funnels
+        # render at identical size in the 2x1 -- the period is already in the
+        # title/subtitle, and differing label widths previously made the tight
+        # bbox (and thus the scaled funnel) larger on one side (#208).
         stages = [
-            {"name": "L12M Open Accounts", "total": total_l12m},
-            {"name": "L12M Eligible", "total": elig_l12m},
-            {"name": "L12M w/Debit", "total": wd_l12m},
-            {"name": "L12M Personal w/Debit", "total": p_wd_l12m},
-            {"name": "L12M w/Reg E", "total": rege_l12m},
+            {"name": "Open Accounts", "total": total_l12m},
+            {"name": "Eligible Accounts", "total": elig_l12m},
+            {"name": "Eligible w/Debit", "total": wd_l12m},
+            {"name": "Personal w/Debit", "total": p_wd_l12m},
+            {"name": "Personal w/Reg E", "total": rege_l12m},
         ]
 
         funnel_df = pd.DataFrame([{"Stage": s["name"], "Count": s["total"]} for s in stages])
