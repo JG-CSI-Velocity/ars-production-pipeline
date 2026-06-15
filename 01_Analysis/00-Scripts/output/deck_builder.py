@@ -1431,7 +1431,10 @@ def _match_prefix(slide_id: str) -> tuple[int, str]:
 DCTR_MERGES = [
     ("A7.6a", "A7.4", "Recent Trend & Segments"),
     ("A7.7", "A7.8", "DCTR Funnel: Historical vs TTM"),
-    ("A7.11", "A7.12", "DCTR Opportunity: Age Analysis"),
+    # Holder-age (DCTR-11) + account-age (DCTR-10). The old pair (A7.11/A7.12)
+    # never existed as slide_ids, so this 2x1 never fired and the two age charts
+    # rendered as separate bare slides (#208 D6).
+    ("DCTR-11", "DCTR-10", "DCTR Opportunity: Age Analysis"),
 ]
 
 DCTR_APPENDIX_IDS = {
