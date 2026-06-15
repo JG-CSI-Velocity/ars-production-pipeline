@@ -494,7 +494,6 @@ def build_combo_lines(
     import shutil as _shutil
 
     _cache_dir = persistent_chart_dir(getattr(ctx.client, "client_id", "unknown"))
-    _metric_cols = list(spend_cols) + list(swipe_cols)
     _COMBO_CACHE_V = "combo-v1"
 
     for month, resp_col, mail_col in dated_pairs:
@@ -510,9 +509,20 @@ def build_combo_lines(
         )
         _run_path = ctx.paths.charts_dir / f"a16_7_{month.lower()}_combo.png"
         _cache_path = _cache_dir / f"a16_7_{month.lower()}_combo.png"
+        # Key ONLY by the columns this wave actually plots (its -6..+12 offset
+        # window) so adding next month's metric column doesn't invalidate every
+        # past wave's cache.
+        _wave_cols = [mail_col, resp_col]
+        if not pd.isna(mail_date):
+            for _o in range(-6, 13):
+                _tgt = (mail_date + pd.DateOffset(months=_o)).strftime("%b%y")
+                if _tgt in spend_lookup:
+                    _wave_cols.append(spend_lookup[_tgt])
+                if _tgt in swipe_lookup:
+                    _wave_cols.append(swipe_lookup[_tgt])
         _cache_key = fingerprint_df(
             data,
-            columns=[mail_col, resp_col, *_metric_cols],
+            columns=_wave_cols,
             extras={
                 "client": getattr(ctx.client, "client_id", ""),
                 "month": month,
