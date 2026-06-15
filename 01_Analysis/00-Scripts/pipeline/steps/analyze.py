@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from loguru import logger
 
 from ars_analysis.analytics.registry import get_module, ordered_modules
@@ -25,6 +27,7 @@ def step_analyze(ctx: PipelineContext) -> None:
     success_count = 0
     skip_count = 0
     fail_count = 0
+    timings: list[tuple[str, float]] = []
 
     for idx, mod_cls in enumerate(modules, 1):
         mod = mod_cls()
@@ -44,17 +47,24 @@ def step_analyze(ctx: PipelineContext) -> None:
             skip_count += 1
             continue
 
-        # Execute with isolation
+        # Execute with isolation. Time each module so the run log names the
+        # bottleneck instead of leaving it to timestamp arithmetic.
         try:
+            _t0 = time.monotonic()
             results = mod.run(ctx)
+            dt = time.monotonic() - _t0
+            timings.append((mid, dt))
             ctx.results[mid] = results
             ctx.all_slides.extend(results)
             success_count += 1
             logger.info(
-                "Module {id} produced {n} result(s)",
+                "Module {id} produced {n} result(s) in {secs:.1f}s",
                 id=mid,
                 n=len(results),
+                secs=dt,
             )
+            if _notify and dt >= 60:
+                _notify(f"  ({mid} took {dt:.0f}s)")
         except Exception as exc:
             fail_count += 1
             logger.error(
@@ -69,6 +79,14 @@ def step_analyze(ctx: PipelineContext) -> None:
         skip=skip_count,
         fail=fail_count,
     )
+    if timings:
+        total_s = sum(s for _, s in timings)
+        top = sorted(timings, key=lambda x: x[1], reverse=True)[:8]
+        logger.info(
+            "Analysis timing: {tot:.0f}s total | slowest: {slow}",
+            tot=total_s,
+            slow=", ".join(f"{m} {s:.0f}s" for m, s in top),
+        )
     _log_soft_failures(ctx)
 
 
