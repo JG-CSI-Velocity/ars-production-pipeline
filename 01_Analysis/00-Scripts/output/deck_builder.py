@@ -228,6 +228,7 @@ class DeckBuilder:
             "kpi_dashboard": self._build_kpi_dashboard_slide,
             "chart_narrative": self._build_chart_narrative_slide,
             "kpi_hero": self._build_kpi_hero_slide,
+            "titled_image": self._build_titled_image_slide,
         }
 
         builder = builders.get(content.slide_type)
@@ -1173,6 +1174,102 @@ class DeckBuilder:
                 max_height=Inches(3.5),
             )
 
+    def _add_centered_picture(self, slide, img_path, left, top, max_width, max_height):
+        """Fit an image inside (max_width, max_height) and center it horizontally
+        within the [left, left + max_width] band."""
+        from pptx.util import Emu
+
+        try:
+            import warnings
+
+            from PIL import Image
+
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=Image.DecompressionBombWarning)
+                with Image.open(img_path) as im:
+                    native_w, native_h = im.size
+            aspect = native_h / native_w
+            w = int(max_width)
+            h = int(w * aspect)
+            if h > int(max_height):
+                h = int(max_height)
+                w = int(h / aspect)
+            cx = int(left) + (int(max_width) - w) // 2
+            slide.shapes.add_picture(img_path, Emu(cx), top, width=Emu(w))
+        except Exception:
+            slide.shapes.add_picture(img_path, left, top, width=max_width)
+
+    def _build_titled_image_slide(self, slide, content: SlideContent) -> None:
+        """Bare chart PNG + a proper slide title (and optional one-line commentary).
+
+        For charts that bake NO matplotlib title of their own (the value slides,
+        the mailer-revisit combo, bare Reg E charts). Fixes the recurring #208
+        complaint: no slide title and the PNG bleeding over the slide number/logo.
+        The title sits at the top; the image is pushed down and height-capped so
+        it never overlaps the footer band.
+        """
+        # Remove ALL placeholders -- this builder draws its own title textbox.
+        for ph in list(slide.placeholders):
+            try:
+                ph.element.getparent().remove(ph.element)
+            except Exception:
+                pass
+
+        try:
+            from ars_analysis.shared.brand import BRAND as _BRAND
+        except Exception:
+            _BRAND = {"navy": "#00274C"}
+
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
+
+        navy = _hex(_BRAND.get("navy", "#00274C"))
+
+        # Title (line 1) + optional commentary (line 2 / callout_sub / first bullet)
+        parts = content.title.split("\n", 1) if content.title else [""]
+        title_text = parts[0]
+        sub_text = parts[1] if len(parts) > 1 else (content.callout_sub or "")
+        if not sub_text and content.bullets:
+            sub_text = content.bullets[0]
+
+        tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.32), Inches(12.33), Inches(0.85))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title_text
+        p.font.name = "Montserrat"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = navy
+
+        img_top = 1.35
+        if sub_text:
+            sb = slide.shapes.add_textbox(Inches(0.5), Inches(1.18), Inches(12.33), Inches(0.55))
+            stf = sb.text_frame
+            stf.word_wrap = True
+            sp = stf.paragraphs[0]
+            sp.text = sub_text
+            sp.font.name = "Montserrat"
+            sp.font.size = Pt(15)
+            sp.font.color.rgb = RGBColor(0x6B, 0x72, 0x80)
+            img_top = 1.9
+
+        # Image: centered, height-capped so its bottom stays above the footer (~6.8").
+        if content.images and Path(content.images[0]).exists():
+            self._add_centered_picture(
+                slide,
+                content.images[0],
+                Inches(0.5),
+                Inches(img_top),
+                Inches(12.33),
+                Inches(6.75 - img_top),
+            )
+
+        if content.notes_text or content.title:
+            notes = slide.notes_slide
+            notes.notes_text_frame.text = content.notes_text or content.title
+
 
 # =============================================================================
 # SLIDE LAYOUT MAP -- slide_id -> (layout_index, slide_type)
@@ -1240,9 +1337,9 @@ SLIDE_LAYOUT_MAP: dict[str, tuple[int, str]] = {
     "A8.11": (LAYOUT_CUSTOM, "screenshot"),
     "A8.12": (LAYOUT_CUSTOM, "screenshot"),
     "A8.13": (LAYOUT_CUSTOM, "screenshot"),
-    # Value
-    "A11.1": (LAYOUT_CUSTOM, "screenshot"),
-    "A11.2": (LAYOUT_CUSTOM, "screenshot"),
+    # Value -- titled_image: chart bakes no title, so the slide must draw one (#208 D7/R5)
+    "A11.1": (LAYOUT_CUSTOM, "titled_image"),
+    "A11.2": (LAYOUT_CUSTOM, "titled_image"),
     # Mailer
     "A13.5": (LAYOUT_CUSTOM, "screenshot"),
     "A13.6": (LAYOUT_CUSTOM, "screenshot"),
@@ -1326,6 +1423,8 @@ DCTR_APPENDIX_IDS = {
     "A7.9",
     "A7.10b",
     "A7.10c",
+    # Branch DCTR Top-10 overview -> appendix (#208 D2): detail table, not a headline.
+    "DCTR-9",
 }
 
 REGE_MERGES = [
@@ -2233,13 +2332,30 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     # blank preamble slides). Owner decision 2026-06-14: slide 2 is an agenda,
     # NOT a KPI dashboard -- the dashboard replacement was removed.
 
-    # Wire preamble placeholders to actual results:
-    # P08 (index 7) -> most recent A12.*.Swipes
-    # P09 (index 8) -> most recent A12.*.Spend
-    # P12 (index 11) -> A13.5 (count trend)
+    # Wire preamble placeholders to actual results. Match by title rather than a
+    # hardcoded index so the ordering edits below (P1) and the combo swap (P2)
+    # can't desync the wiring.
+    def _pre_idx(prefix: str) -> int:
+        for i, sc in enumerate(preamble):
+            first_line = (sc.title or "").split("\n")[0]
+            if first_line.startswith(prefix):
+                return i
+        return -1
+
     _mailer_by_id = {getattr(r, "slide_id", ""): r for r in mailer_results}
 
-    # Find most recent Swipes and Spend from A12 results
+    # Most recent per-wave combo (A16.7.{month}: spend + swipes in one figure).
+    _combo = next(
+        (
+            _mailer_by_id[k]
+            for k in sorted(
+                (kk for kk in _mailer_by_id if kk.startswith("A16.7")),
+                key=lambda x: _parse_mailer_month(x) or (0, 0),
+                reverse=True,
+            )
+        ),
+        None,
+    )
     _swipes = next(
         (
             _mailer_by_id[k]
@@ -2258,11 +2374,45 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     )
     _count_trend = _mailer_by_id.get("A13.5")
 
-    for idx, result in [(7, _swipes), (8, _spend), (11, _count_trend)]:
-        if result and idx < len(preamble):
-            sc = _result_to_slide(result, ctx_results=_ctx_results)
+    # P2 (#208): the "ARS Mailer Revisit" Swipes/Spend pair is the old separate
+    # format. Replace it with the single combo chart (spend + swipes together)
+    # and drop the now-redundant Spend slide. Fall back to the legacy pair when
+    # no combo was produced.
+    _i_swipes = _pre_idx("ARS Mailer Revisit – Swipes")
+    _i_spend = _pre_idx("ARS Mailer Revisit – Spend")
+    if _combo is not None and _i_swipes != -1:
+        sc = _result_to_slide(_combo, ctx_results=_ctx_results)
+        if sc:
+            sc.slide_type = "titled_image"
+            sc.title = "ARS Mailer Revisit"
+            sc.layout_index = LAYOUT_CUSTOM
+            preamble[_i_swipes] = sc
+            if _i_spend != -1:
+                preamble.pop(_i_spend)
+    else:
+        if _swipes and _i_swipes != -1:
+            sc = _result_to_slide(_swipes, ctx_results=_ctx_results)
             if sc:
-                preamble[idx] = sc
+                preamble[_i_swipes] = sc
+        if _spend and _i_spend != -1:
+            sc = _result_to_slide(_spend, ctx_results=_ctx_results)
+            if sc:
+                preamble[_i_spend] = sc
+
+    _i_count = _pre_idx("Program Responses to Date")
+    if _count_trend and _i_count != -1:
+        sc = _result_to_slide(_count_trend, ctx_results=_ctx_results)
+        if sc:
+            preamble[_i_count] = sc
+
+    # P1 (#208): move "Data Check Overview" up to right after "ARS Lift Matrix"
+    # (it frames the program before the mailer detail, instead of trailing it).
+    _i_dco = _pre_idx("Data Check Overview")
+    _i_lift = _pre_idx("ARS Lift Matrix")
+    if _i_dco != -1 and _i_lift != -1 and _i_dco != _i_lift + 1:
+        _dco = preamble.pop(_i_dco)
+        _i_lift = _pre_idx("ARS Lift Matrix")  # recompute after pop
+        preamble.insert(_i_lift + 1, _dco)
 
     # Combine
     final_slides = preamble + analysis_slides
