@@ -53,3 +53,6 @@ _archive/
 
 # Windows shortcuts
 *.lnk
+
+# Persistent cross-run chart cache (mailer summaries/combos)
+.chart_cache/

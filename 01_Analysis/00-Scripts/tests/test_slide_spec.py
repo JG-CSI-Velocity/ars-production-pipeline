@@ -140,6 +140,39 @@ def test_pattern_key_compiles_to_regex(specs_dir):
     assert pattern.match("A14.Jan26") is None
 
 
+def test_pattern_key_excludes_non_month_tokens(specs_dir):
+    """Non-month A13 slides (A13.5, A13.6, A13.Agg) must NOT match A13.{month}.
+
+    Regression: these matched the per-month template, captured month='5'/'Agg',
+    failed input resolution, and leaked '{overall_rate:.1f}%' onto the slide.
+    """
+    pattern, _ = ss._compile_pattern_key("A13.{month}")
+    assert pattern.match("A13.Apr26") is not None
+    for non_month in ("A13.5", "A13.6", "A13.Agg"):
+        assert pattern.match(non_month) is None, non_month
+
+
+def test_render_spec_drops_unresolved_callout_tokens(specs_dir):
+    """A callout whose input can't resolve renders empty, never leaking braces."""
+    (specs_dir / "demo.yml").write_text(
+        """
+DEMO:
+  action_title: "Static title"
+  inputs:
+    overall_rate: ctx.results.missing.insights.rate
+  callout:
+    hero: "{overall_rate:.1f}%"
+    sub: "{total_resp:,} respondents"
+"""
+    )
+    spec = ss.get_spec("demo", "DEMO")
+    rendered = ss.render_spec(spec, {}, _Client())
+    assert rendered.callout_hero == ""
+    assert rendered.callout_sub == ""
+    assert "{" not in rendered.callout_hero
+    assert any("dropped" in w for w in rendered.render_warnings)
+
+
 def test_get_spec_resolves_pattern_keyed_template(specs_dir):
     """Pattern-keyed templates render one spec per matching slide_id."""
     (specs_dir / "demo.yml").write_text(

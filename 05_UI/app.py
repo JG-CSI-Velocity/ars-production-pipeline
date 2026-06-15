@@ -23,6 +23,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+# Force the headless matplotlib backend for this process AND every analysis
+# subprocess it spawns (children inherit os.environ). Parallel client runs that
+# fall back to the interactive TkAgg backend exhaust Windows GDI/Tk pixmaps
+# under concurrent figure creation -> "Fail to create pixmap with Tk_GetPixmap
+# in TkImgPhotoInstanceSetSize" (issue #214). An in-code matplotlib.use("Agg")
+# only wins if it runs before the first pyplot import in every entry path;
+# setting the env var here makes Agg authoritative regardless of import order.
+# setdefault so an explicit operator override (rare) still takes precedence.
+os.environ.setdefault("MPLBACKEND", "Agg")
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles

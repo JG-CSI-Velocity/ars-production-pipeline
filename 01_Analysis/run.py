@@ -17,6 +17,14 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Force the headless matplotlib backend before anything imports pyplot. This is
+# the analysis process that renders every product's deck (ARS, TXN, mailer); a
+# fallback to the interactive TkAgg backend exhausts Windows GDI/Tk pixmaps in
+# parallel runs -> "Fail to create pixmap with Tk_GetPixmap" (issue #214).
+# Belt-and-braces with the UI's env set and txn_wrapper's matplotlib.use("Agg")
+# so the backend is correct even on direct CLI runs.
+os.environ.setdefault("MPLBACKEND", "Agg")
+
 
 class TeeLogger:
     """Write everything to both terminal and a log file."""

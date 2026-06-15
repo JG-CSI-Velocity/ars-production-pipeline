@@ -449,20 +449,104 @@ def build_combo_lines(
     spend_lookup = {c.replace(" Spend", ""): c for c in spend_cols}
     swipe_lookup = {c.replace(" Swipes", ""): c for c in swipe_cols}
 
-    # Only the most recent 2 waves get combo slides: the deck's main flow
-    # carries 2 month groups (older months are appendix), and each figure is
-    # expensive -- the first production run spent ~67 minutes rendering one
-    # figure for every wave in program history.
+    # Every wave gets a combo slide: it is each mailer's second slide and
+    # replaces the separate swipes/spend slides. NOTE: each figure is expensive
+    # -- a full-history run rendered ~3 min/wave (~67 min for ~22 waves). For an
+    # emergency fast run, use the kill switch above (ARS_SKIP_COMBO=1 or
+    # SKIP_COMBO.flag). Reducing per-wave cost is a separate optimization.
     dated_pairs = sorted(
         (p for p in pairs if not pd.isna(parse_month(p[0]))),
         key=lambda p: parse_month(p[0]),
         reverse=True,
-    )[:2]
+    )
+
+    # Combos are expensive (~min/wave) and only the most-recent waves lead the
+    # main deck (deck_builder.MAIN_MAILER_MONTHS = 6); older waves go to the
+    # ancillary deck. Render combos only for that recent window so a full-history
+    # client doesn't pay ~3 min x ~22 waves (~67 min) -- the regression that
+    # pushed runs well past 30 min. Override with ARS_COMBO_MONTHS; 0 = no cap.
+    _cap = int(_os.environ.get("ARS_COMBO_MONTHS", "6") or 0)
+    if _cap and len(dated_pairs) > _cap:
+        # Keep the recent window for the main deck, plus the OLDEST wave -- the
+        # "ARS Mailer Revisit" preamble slide features the furthest-back campaign
+        # (#208), so its combo must be rendered even though it's outside the
+        # recent window. dated_pairs is most-recent-first, so [-1] is the oldest.
+        _kept = dated_pairs[:_cap]
+        if dated_pairs[-1] not in _kept:
+            _kept = _kept + [dated_pairs[-1]]
+        logger.info(
+            "A16.7: rendering {k} combos ({n} recent + oldest for the revisit); "
+            "skipping {s} mid waves. Set ARS_COMBO_MONTHS=0 for all.",
+            k=len(_kept), n=_cap, s=len(dated_pairs) - len(_kept),
+        )
+        dated_pairs = _kept
+
+    # Persistent cross-run chart cache: a past wave's combo doesn't change once
+    # the wave is in the past, so cache it keyed by the wave's input data and copy
+    # it forward on later runs instead of re-rendering (#208 -- "just update the
+    # combo charts"). Disable with ARS_CHART_CACHE=0.
+    from ars_analysis.charts.cache import (
+        chart_is_cached,
+        fingerprint_df,
+        persistent_chart_dir,
+        write_chart_key,
+    )
+    import shutil as _shutil
+
+    _cache_dir = persistent_chart_dir(getattr(ctx.client, "client_id", "unknown"))
+    _COMBO_CACHE_V = "combo-v1"
 
     for month, resp_col, mail_col in dated_pairs:
         _wave_t0 = _time.monotonic()
         logger.info("A16.7 {month}: starting combo render", month=month)
         mail_date = parse_month(month)
+
+        # Cache check: if this wave's inputs are unchanged from a prior run, copy
+        # the cached PNG into the run's charts dir and skip the render entirely.
+        _combo_title = (
+            f"Spend + Swipe Trajectory -- {month}: "
+            f"higher-challenge segments show stronger post-mail lift"
+        )
+        _run_path = ctx.paths.charts_dir / f"a16_7_{month.lower()}_combo.png"
+        _cache_path = _cache_dir / f"a16_7_{month.lower()}_combo.png"
+        # Key ONLY by the columns this wave actually plots (its -6..+12 offset
+        # window) so adding next month's metric column doesn't invalidate every
+        # past wave's cache.
+        _wave_cols = [mail_col, resp_col]
+        if not pd.isna(mail_date):
+            for _o in range(-6, 13):
+                _tgt = (mail_date + pd.DateOffset(months=_o)).strftime("%b%y")
+                if _tgt in spend_lookup:
+                    _wave_cols.append(spend_lookup[_tgt])
+                if _tgt in swipe_lookup:
+                    _wave_cols.append(swipe_lookup[_tgt])
+        _cache_key = fingerprint_df(
+            data,
+            columns=_wave_cols,
+            extras={
+                "client": getattr(ctx.client, "client_id", ""),
+                "month": month,
+                "v": _COMBO_CACHE_V,
+            },
+        )
+        if chart_is_cached(_cache_path, _cache_key):
+            _run_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                _shutil.copyfile(_cache_path, _run_path)
+            except OSError:
+                _run_path = None
+            if _run_path is not None:
+                logger.info("A16.7 {month}: cache hit -- render skipped", month=month)
+                results.append(
+                    AnalysisResult(
+                        slide_id=f"A16.7.{month}",
+                        title=_combo_title,
+                        title_color=NAVY,
+                        chart_path=_run_path,
+                        notes="Cached from a prior run (wave unchanged).",
+                    )
+                )
+                continue
 
         # Classify accounts for this wave
         was_mailed = data[mail_col].isin(["NU", "TH-10", "TH-15", "TH-20", "TH-25"])
@@ -673,9 +757,16 @@ def build_combo_lines(
         plt.tight_layout()
         plt.subplots_adjust(hspace=0.30)
 
-        save_to = ctx.paths.charts_dir / f"a16_7_{month.lower()}_combo.png"
+        save_to = _run_path
         fig.savefig(save_to, dpi=150, bbox_inches="tight")
         plt.close(fig)
+        # Persist to the cross-run cache so next month copies instead of rendering.
+        try:
+            _cache_path.parent.mkdir(parents=True, exist_ok=True)
+            _shutil.copyfile(save_to, _cache_path)
+            write_chart_key(_cache_path, _cache_key)
+        except OSError:
+            pass
 
         logger.info(
             "A16.7 {month}: {n} panels rendered in {secs:.1f}s",
@@ -741,8 +832,16 @@ class ResponderCohort(AnalysisModule):
         results: list[AnalysisResult] = []
         ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
 
+        # A16.1-A16.6 (trajectory / direction / cohort-size) are dropped from the
+        # deck (#208 -- owner flagged them worthless) and have no downstream
+        # consumers, yet each build_cohort_trajectory + render is costly (~min).
+        # Skip by default; re-enable with ARS_RENDER_DROPPED_MAILER=1. The A16.7
+        # combo below is the only cohort slide the deck keeps.
+        import os as _os
+        _render_dropped = _os.environ.get("ARS_RENDER_DROPPED_MAILER") == "1"
+
         # A16.1 -- Responder vs Non-Resp Spend Trajectory
-        if spend_cols:
+        if _render_dropped and spend_cols:
             traj = build_cohort_trajectory(ctx, "Spend", by_segment=False)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_1_spend_trajectory.png"
@@ -759,7 +858,7 @@ class ResponderCohort(AnalysisModule):
                 ctx.results["a16_spend_traj"] = traj
 
         # A16.2 -- Responder vs Non-Resp Swipe Trajectory
-        if swipe_cols:
+        if _render_dropped and swipe_cols:
             traj = build_cohort_trajectory(ctx, "Swipes", by_segment=False)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_2_swipe_trajectory.png"
@@ -775,7 +874,7 @@ class ResponderCohort(AnalysisModule):
                 )
 
         # A16.3 -- Per-Segment Spend Trajectory
-        if spend_cols:
+        if _render_dropped and spend_cols:
             traj = build_cohort_trajectory(ctx, "Spend", by_segment=True)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_3_segment_spend.png"
@@ -791,7 +890,7 @@ class ResponderCohort(AnalysisModule):
                 )
 
         # A16.4 -- Per-Segment Swipe Trajectory
-        if swipe_cols:
+        if _render_dropped and swipe_cols:
             traj = build_cohort_trajectory(ctx, "Swipes", by_segment=True)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_4_segment_swipes.png"
@@ -807,7 +906,7 @@ class ResponderCohort(AnalysisModule):
                 )
 
         # A16.5 -- Direction Change Proof
-        if spend_cols:
+        if _render_dropped and spend_cols:
             traj_resp = build_cohort_trajectory(ctx, "Spend", by_segment=False)
             if not traj_resp.empty:
                 save_to = ctx.paths.charts_dir / "a16_5_direction_change.png"
@@ -824,7 +923,7 @@ class ResponderCohort(AnalysisModule):
 
         # A16.6 -- Cohort Size (optional, only if 8+ metric months)
         metric_count = max(len(spend_cols), len(swipe_cols))
-        if metric_count >= 8:
+        if _render_dropped and metric_count >= 8:
             traj = build_cohort_trajectory(ctx, "Spend", by_segment=False)
             if not traj.empty:
                 save_to = ctx.paths.charts_dir / "a16_6_cohort_size.png"

@@ -312,8 +312,10 @@ class DCTRBranches(AnalysisModule):
                     if tot > 0 else 0.0
                 )
 
+                # Wider/shorter aspect so the chart doesn't bleed over the slide
+                # number when placed; legend goes below the plot (off the data).
                 with chart_figure(
-                    figsize=(fig_w, 9), save_path=save_to
+                    figsize=(fig_w, 6.8), save_path=save_to
                 ) as (fig, ax):
                     x = np.arange(n)
 
@@ -400,11 +402,12 @@ class DCTRBranches(AnalysisModule):
                              f"Dashed line: portfolio avg ({portfolio_rate:.1f}%)",
                              ha="center", fontsize=12, color=BRAND["text_muted"], style="italic")
 
+                    # Legend below the plot so it never overlaps the DCTR line
                     h1, l1 = ax.get_legend_handles_labels()
                     h2, l2 = ax2.get_legend_handles_labels()
                     ax.legend(h1 + h2, l1 + l2,
-                              loc="upper right", fontsize=12,
-                              frameon=False, ncol=1)
+                              loc="upper center", bbox_to_anchor=(0.5, -0.22),
+                              fontsize=12, frameon=False, ncol=3)
 
                 chart_path = save_to
             except Exception as exc:

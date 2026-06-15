@@ -107,9 +107,27 @@ else:
         'competitor_match', 'competitor_category',
     ]
 
+    # Suppress single-/few-account noise so the export matches what the deck
+    # shows. Competitor detection finds thousands of one-off transaction
+    # variants (3,400+ with <10 accounts for a typical client); writing 3 CSVs
+    # each to the M: network share is ~10,000 tiny files and stalls the run for
+    # many minutes -> the pipeline "airs out" mid-export (issue #214). The
+    # deck's own segment summary uses the same threshold, so the CSV hand-off
+    # now lines up with the competitors the CSM actually sees on the slides.
+    MIN_EXPORT_ACCOUNTS = 10  # mirrors competition/21_segment_summary.py
+
+    _groups = list(_acct_comp.groupby('competitor_match'))
+    _eligible = [(name, grp) for name, grp in _groups if len(grp) >= MIN_EXPORT_ACCOUNTS]
+    _suppressed = len(_groups) - len(_eligible)
+    print(
+        f"    Exporting cross-sell lists for {len(_eligible)} competitors "
+        f"(>= {MIN_EXPORT_ACCOUNTS} accounts); {_suppressed} low-volume "
+        f"competitors suppressed as noise"
+    )
+
     _exported = 0
     _index_rows = []
-    for comp_name, df in _acct_comp.groupby('competitor_match'):
+    for comp_name, df in _eligible:
         safe_name = (
             str(comp_name).replace(' ', '_').replace('/', '_')
                           .replace('*', '_').replace('?', '_')

@@ -63,6 +63,14 @@ LAYOUT_TITLE_RPE = 17         # 1_Title Slide_RPE -- master title (slide 1)
 LAYOUT_TITLE_ARS = 18         # 4_Title Slide_ARS -- ARS section title
 LAYOUT_TITLE_ICS = 19         # 5_Title Slide_ICS -- ICS section title
 
+# Mailer deck shape. Every mailer gets a consistent two-slide block: the A13
+# summary plus the A16.7 combo chart (spend + swipes in one figure). The combo
+# REPLACES the separate A12 swipes/spend slides, so each mailer is a net slide
+# reduction. The most recent MAIN_MAILER_MONTHS lead in the main deck; older
+# waves move to a separate "Mailer Performance" ancillary deck (same two slides
+# each) so the main deck stays slim and needs no hand-deleting.
+MAIN_MAILER_MONTHS = 6        # most recent waves in the main deck; older -> ancillary deck
+
 
 # =============================================================================
 # SLIDE CONTENT DEFINITION
@@ -220,6 +228,7 @@ class DeckBuilder:
             "kpi_dashboard": self._build_kpi_dashboard_slide,
             "chart_narrative": self._build_chart_narrative_slide,
             "kpi_hero": self._build_kpi_hero_slide,
+            "titled_image": self._build_titled_image_slide,
         }
 
         builder = builders.get(content.slide_type)
@@ -536,14 +545,17 @@ class DeckBuilder:
         has_callout = bool(content.callout_hero or content.callout_sub)
         has_footer = bool(content.footer_source)
 
-        # Make room for callout + footer when present.
+        # Cap the image height so the PNG never bleeds over the slide number /
+        # CSI logo in the footer band (#208 R2: "covers up the slide number and
+        # csi logo"). Leave extra room when a callout/footer overlay is present.
+        # Charts bake their own titles, so no slide-level title is drawn here.
         left = Inches(0.4)
         top = Inches(0.3)
         width = Inches(12.5)
-        max_height = Inches(6.0 if (has_callout or has_footer) else 6.8)
+        max_height = Inches(5.6 if (has_callout or has_footer) else 6.5)
 
         if content.images and Path(content.images[0]).exists():
-            self._add_fitted_picture(slide, content.images[0], left, top, width, max_height=max_height)
+            self._add_centered_picture(slide, content.images[0], left, top, width, max_height)
 
         if has_callout:
             self._draw_callout_box(slide, content)
@@ -725,30 +737,68 @@ class DeckBuilder:
                 p.font.color.rgb = RGBColor(100, 100, 100)
 
     def _build_multi_screenshot_slide(self, slide, content: SlideContent) -> None:
-        """Build slide with two images side by side."""
-        title_text = content.title
-        subtitle_text = None
+        """Build a 2x1 slide: navy title, optional one-line narrative, two images.
 
-        if "\n" in content.title:
-            parts = content.title.split("\n", 1)
-            title_text = parts[0]
-            subtitle_text = parts[1] if len(parts) > 1 else None
+        The images are pushed below the title/narrative and height-capped so they
+        never overlap the footer/slide number (#208: "charts overlapping text",
+        "move the charts down"). The narrative is a single why/what sentence
+        supplied via content.bullets[0] or a second title line.
+        """
+        # Draw our own title -- remove ALL placeholders to avoid orphan boxes.
+        for ph in list(slide.placeholders):
+            try:
+                ph.element.getparent().remove(ph.element)
+            except Exception:
+                pass
 
-        self._set_title(slide, content, title_text, subtitle_text)
+        try:
+            from ars_analysis.shared.brand import BRAND as _BRAND
+        except Exception:
+            _BRAND = {"navy": "#00274C"}
 
-        top, left_pos, right_pos, width = self._get_multi_positioning(content.layout_index)
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
 
-        positions = [
-            (left_pos, top, width),
-            (right_pos, top, width),
-        ]
+        navy = _hex(_BRAND.get("navy", "#00274C"))
 
+        parts = content.title.split("\n", 1) if content.title else [""]
+        title_text = parts[0]
+        narrative = parts[1] if len(parts) > 1 else ""
+        if not narrative and content.bullets:
+            narrative = content.bullets[0]
+
+        tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.32), Inches(12.33), Inches(0.8))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title_text
+        p.font.name = "Montserrat"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = navy
+
+        img_top = 1.5
+        if narrative:
+            sb = slide.shapes.add_textbox(Inches(0.5), Inches(1.18), Inches(12.33), Inches(0.6))
+            stf = sb.text_frame
+            stf.word_wrap = True
+            sp = stf.paragraphs[0]
+            sp.text = narrative
+            sp.font.name = "Montserrat"
+            sp.font.size = Pt(15)
+            sp.font.color.rgb = RGBColor(0x6B, 0x72, 0x80)
+            img_top = 2.0
+
+        max_height = Inches(6.8 - img_top)
+        # Two equal half-bands so each chart is centered in its half.
+        bands = [(Inches(0.3), Inches(6.2)), (Inches(6.83), Inches(6.2))]
         if content.images:
             for i, img_path in enumerate(content.images[:2]):
                 if Path(img_path).exists():
-                    left, img_top, img_width = positions[i]
-                    self._add_fitted_picture(
-                        slide, img_path, left, img_top, img_width, max_height=Inches(5.5)
+                    left, band_w = bands[i]
+                    self._add_centered_picture(
+                        slide, img_path, left, Inches(img_top), band_w, max_height
                     )
 
     def _build_summary_slide(self, slide, content: SlideContent) -> None:
@@ -772,127 +822,134 @@ class DeckBuilder:
                 p.font.size = Pt(11)
 
     def _build_mailer_summary_slide(self, slide, content: SlideContent) -> None:
-        """Build composite mailer summary slide -- 3 equal columns."""
-        for ph in slide.placeholders:
-            if ph.placeholder_format.idx != 0:
-                try:
-                    ph.element.getparent().remove(ph.element)
-                except Exception:
-                    pass
+        """Build composite mailer summary slide (#208 M2).
+
+        Layout: clean "MmmYY Mailer" header; the full multi-sentence commentary
+        sits top-left (replacing the old single worthless line); the Mailer KPIs
+        are raised to sit beside it top-right; below, three columns -- Response
+        Share (donut), Response Rate (hbar), and Inside the Numbers, which now
+        holds ONLY the numeric responder characteristics (the commentary that
+        used to spill into its bottom-right has moved up to the top-left).
+        """
+        # Remove ALL layout placeholders, including the idx-0 title. This builder
+        # draws its own title textbox; the layout's empty TITLE placeholder
+        # otherwise lingers at its default position and overlaps the commentary.
+        for ph in list(slide.placeholders):
+            try:
+                ph.element.getparent().remove(ph.element)
+            except Exception:
+                pass
+
+        try:
+            from ars_analysis.shared.brand import BRAND as _BRAND
+        except Exception:
+            _BRAND = {"navy": "#00274C"}
+
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
+
+        navy = _hex(_BRAND.get("navy", "#00274C"))
 
         COL1_L = Inches(0.2)
         COL2_L = Inches(4.4)
         COL3_L = Inches(8.8)
         COL_W = Inches(4.1)
         HEADER_SIZE = Pt(16)
+        SECT_TOP = Inches(3.25)
+        CHART_TOP = Inches(3.6)
 
-        ROW1_TOP = Inches(1.6)
-        KPI_VAL_TOP = Inches(2.1)
-        KPI_LBL_TOP = Inches(2.55)
-        SECT_TOP = Inches(3.2)
-        CHART_TOP = Inches(3.5)
-
-        # Title
-        tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.38), Inches(9.0), Inches(0.6))
+        # Header: a clean "MmmYY Mailer" rather than the long sentence title --
+        # the mailed/response numbers it carried now live in the KPI block.
+        import re as _re
+        header = content.title or "Mailer"
+        m = _re.match(r"\s*([A-Z][a-z]{2}\d{2})\b", header)
+        if m:
+            header = f"{m.group(1)} Mailer"
+        tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.32), Inches(12.33), Inches(0.7))
         tf = tb.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
-        p.text = content.title
-        p.font.size = Pt(24)
-        p.font.bold = False
-        # Explicit title color overrides layout master default. Layout 13 has
-        # white title text which is invisible on the white slide background.
-        if content.title_color:
-            _hex = content.title_color.lstrip("#")
-            p.font.color.rgb = RGBColor(
-                int(_hex[0:2], 16), int(_hex[2:4], 16), int(_hex[4:6], 16)
-            )
-        else:
-            p.font.color.rgb = RGBColor(255, 255, 255)
+        p.text = header
+        p.font.name = "Montserrat"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = navy
 
-        # Parse bullets
-        insight_text = ""
-        inside_numbers: list[str] = []
-        if content.bullets:
-            insight_text = content.bullets[0] if content.bullets[0] else ""
-            inside_numbers = content.bullets[1:]
+        # Split bullets into commentary (full sentences) and numbers (pct|desc).
+        commentary = [b for b in (content.bullets or []) if b and "|" not in b]
+        inside_numbers = [b for b in (content.bullets or []) if b and "|" in b]
 
-        # Insight text (upper-left)
-        if insight_text:
-            tb = slide.shapes.add_textbox(Inches(0.5), ROW1_TOP, Inches(5.0), Inches(1.0))
+        # Commentary block: top-left, the meaningful narrative (#208 M2).
+        if commentary:
+            tb = slide.shapes.add_textbox(Inches(0.4), Inches(1.12), Inches(7.3), Inches(2.0))
             tf = tb.text_frame
             tf.word_wrap = True
-            p = tf.paragraphs[0]
-            p.text = insight_text
-            p.font.size = Pt(15)
-            p.font.color.rgb = RGBColor(0, 0, 0)
+            for i, sentence in enumerate(commentary[:4]):
+                para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+                para.text = sentence.strip()
+                para.font.name = "Montserrat"
+                para.font.size = Pt(14)
+                para.font.color.rgb = RGBColor(0x22, 0x22, 0x22)
+                para.space_after = Pt(6)
 
-        # Mailer KPIs (upper-right)
+        # Mailer KPIs: raised to sit beside the commentary, top-right (#208 M2).
         if content.kpis:
-            kpi_left = Inches(7.8)
-            kpi_block_w = Inches(5.2)
-            tb = slide.shapes.add_textbox(kpi_left, ROW1_TOP, kpi_block_w, Inches(0.4))
+            kpi_left = 8.0
+            kpi_block_w = 5.0
+            tb = slide.shapes.add_textbox(Inches(kpi_left), Inches(1.12), Inches(kpi_block_w), Inches(0.4))
             tf = tb.text_frame
             p = tf.paragraphs[0]
             p.text = "Mailer KPIs"
             p.font.size = HEADER_SIZE
             p.font.bold = True
-            p.font.color.rgb = RGBColor(30, 61, 89)
+            p.font.color.rgb = navy
             p.alignment = PP_ALIGN.CENTER
 
             kpi_items = list(content.kpis.items())
-            kpi_each_w = 5.2 / max(len(kpi_items), 1)
-
+            kpi_each_w = kpi_block_w / max(len(kpi_items), 1)
             for i, (label_text, value) in enumerate(kpi_items):
-                x = 7.8 + i * kpi_each_w
-
-                tb = slide.shapes.add_textbox(
-                    Inches(x), KPI_VAL_TOP, Inches(kpi_each_w), Inches(0.5)
-                )
+                x = kpi_left + i * kpi_each_w
+                tb = slide.shapes.add_textbox(Inches(x), Inches(1.55), Inches(kpi_each_w), Inches(0.55))
                 tf = tb.text_frame
                 p = tf.paragraphs[0]
                 p.text = str(value)
-                p.font.size = Pt(24)
+                p.font.size = Pt(26)
                 p.font.bold = True
-                p.font.color.rgb = RGBColor(30, 61, 89)
+                p.font.color.rgb = navy
                 p.alignment = PP_ALIGN.CENTER
 
-                tb = slide.shapes.add_textbox(
-                    Inches(x), KPI_LBL_TOP, Inches(kpi_each_w), Inches(0.3)
-                )
+                tb = slide.shapes.add_textbox(Inches(x), Inches(2.15), Inches(kpi_each_w), Inches(0.3))
                 tf = tb.text_frame
                 p = tf.paragraphs[0]
                 p.text = label_text
                 p.font.size = Pt(13)
-                p.font.color.rgb = RGBColor(0, 0, 0)
+                p.font.color.rgb = RGBColor(0x22, 0x22, 0x22)
                 p.alignment = PP_ALIGN.CENTER
 
-        # Section headers (3 across)
-        for col_left, header_text in [
-            (COL1_L, "Response Share"),
-            (COL2_L, "Response Rate"),
-            (COL3_L, "Inside the Numbers"),
-        ]:
+        # Section headers (3 across), only above columns that have content.
+        headers = [(COL1_L, "Response Share"), (COL2_L, "Response Rate")]
+        if inside_numbers:
+            headers.append((COL3_L, "Inside the Numbers"))
+        for col_left, header_text in headers:
             tb = slide.shapes.add_textbox(col_left, SECT_TOP, COL_W, Inches(0.3))
             tf = tb.text_frame
             p = tf.paragraphs[0]
             p.text = header_text
             p.font.size = HEADER_SIZE
             p.font.bold = True
-            p.font.color.rgb = RGBColor(30, 61, 89)
+            p.font.color.rgb = navy
             p.alignment = PP_ALIGN.CENTER
 
-        # Donut chart (column 1)
+        # Donut + hbar charts, height-capped so they stay above the footer.
+        chart_max_h = Inches(6.9 - 3.6)
         if content.images and len(content.images) > 0 and Path(content.images[0]).exists():
-            slide.shapes.add_picture(content.images[0], COL1_L, CHART_TOP, width=COL_W)
-
-        # Horizontal bar chart (column 2)
+            self._add_centered_picture(slide, content.images[0], COL1_L, CHART_TOP, COL_W, chart_max_h)
         if content.images and len(content.images) > 1 and Path(content.images[1]).exists():
-            slide.shapes.add_picture(content.images[1], COL2_L, CHART_TOP, width=COL_W)
+            self._add_centered_picture(slide, content.images[1], COL2_L, CHART_TOP, COL_W, chart_max_h)
 
-        # Inside the Numbers (column 3)
+        # Inside the Numbers (column 3): numeric responder characteristics only.
         if inside_numbers:
-            # Dynamic spacing: compress to fit all items (up to 6)
             n_items = len(inside_numbers)
             row_h = min(1.2, 3.3 / max(n_items, 1))
             pct_size = Pt(22) if n_items > 4 else Pt(26)
@@ -900,12 +957,8 @@ class DeckBuilder:
             row_box_h = Inches(row_h * 0.85)
 
             for i, item in enumerate(inside_numbers):
-                if "|" in item:
-                    pct, desc = item.split("|", 1)
-                else:
-                    pct, desc = item, ""
-
                 y_pos = 3.9 + i * row_h
+                pct, desc = item.split("|", 1)
 
                 tb = slide.shapes.add_textbox(COL3_L, Inches(y_pos), Inches(1.4), row_box_h)
                 tf = tb.text_frame
@@ -1022,39 +1075,49 @@ class DeckBuilder:
             p.alignment = PP_ALIGN.CENTER
 
     def _build_chart_narrative_slide(self, slide, content: SlideContent) -> None:
-        """Build chart-left (60%) + text-right (40%) narrative slide."""
-        # Clear existing placeholders
-        for ph in slide.placeholders:
-            if ph.placeholder_format.idx != 0:
-                try:
-                    ph.element.getparent().remove(ph.element)
-                except Exception:
-                    pass
+        """Build chart-left (60%) + commentary-right (40%) narrative slide."""
+        # Remove ALL placeholders -- this builder draws its own title textbox, and
+        # the layout's empty title placeholder otherwise lingers white-on-white.
+        for ph in list(slide.placeholders):
+            try:
+                ph.element.getparent().remove(ph.element)
+            except Exception:
+                pass
 
-        # Title
-        tb = slide.shapes.add_textbox(Inches(0.4), Inches(0.38), Inches(12.0), Inches(0.7))
+        try:
+            from ars_analysis.shared.brand import BRAND as _BRAND
+        except Exception:
+            _BRAND = {"navy": "#00274C"}
+
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
+
+        # Title -- navy (was white, i.e. invisible on the white slide).
+        tb = slide.shapes.add_textbox(Inches(0.4), Inches(0.32), Inches(12.4), Inches(0.8))
         tf = tb.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
         title_text = content.title.split("\n")[0] if "\n" in content.title else content.title
         p.text = title_text
-        p.font.size = Pt(24)
-        p.font.bold = False
-        p.font.color.rgb = RGBColor(255, 255, 255)
+        p.font.name = "Montserrat"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = _hex(_BRAND.get("navy", "#00274C"))
 
-        # Chart image: left 60%
+        # Chart image: left ~60%, height-capped above the footer.
         if content.images and Path(content.images[0]).exists():
-            self._add_fitted_picture(
+            self._add_centered_picture(
                 slide,
                 content.images[0],
                 Inches(0.4),
-                Inches(1.6),
-                Inches(7.5),
-                max_height=Inches(5.2),
+                Inches(1.5),
+                Inches(7.6),
+                Inches(5.2),
             )
 
         # Text panel: right 40%
-        tb = slide.shapes.add_textbox(Inches(8.2), Inches(1.6), Inches(4.6), Inches(5.0))
+        tb = slide.shapes.add_textbox(Inches(8.3), Inches(1.6), Inches(4.6), Inches(5.0))
         tf = tb.text_frame
         tf.word_wrap = True
 
@@ -1144,6 +1207,102 @@ class DeckBuilder:
                 max_height=Inches(3.5),
             )
 
+    def _add_centered_picture(self, slide, img_path, left, top, max_width, max_height):
+        """Fit an image inside (max_width, max_height) and center it horizontally
+        within the [left, left + max_width] band."""
+        from pptx.util import Emu
+
+        try:
+            import warnings
+
+            from PIL import Image
+
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=Image.DecompressionBombWarning)
+                with Image.open(img_path) as im:
+                    native_w, native_h = im.size
+            aspect = native_h / native_w
+            w = int(max_width)
+            h = int(w * aspect)
+            if h > int(max_height):
+                h = int(max_height)
+                w = int(h / aspect)
+            cx = int(left) + (int(max_width) - w) // 2
+            slide.shapes.add_picture(img_path, Emu(cx), top, width=Emu(w))
+        except Exception:
+            slide.shapes.add_picture(img_path, left, top, width=max_width)
+
+    def _build_titled_image_slide(self, slide, content: SlideContent) -> None:
+        """Bare chart PNG + a proper slide title (and optional one-line commentary).
+
+        For charts that bake NO matplotlib title of their own (the value slides,
+        the mailer-revisit combo, bare Reg E charts). Fixes the recurring #208
+        complaint: no slide title and the PNG bleeding over the slide number/logo.
+        The title sits at the top; the image is pushed down and height-capped so
+        it never overlaps the footer band.
+        """
+        # Remove ALL placeholders -- this builder draws its own title textbox.
+        for ph in list(slide.placeholders):
+            try:
+                ph.element.getparent().remove(ph.element)
+            except Exception:
+                pass
+
+        try:
+            from ars_analysis.shared.brand import BRAND as _BRAND
+        except Exception:
+            _BRAND = {"navy": "#00274C"}
+
+        def _hex(color: str) -> "RGBColor":
+            color = color.lstrip("#")
+            return RGBColor(int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16))
+
+        navy = _hex(_BRAND.get("navy", "#00274C"))
+
+        # Title (line 1) + optional commentary (line 2 / callout_sub / first bullet)
+        parts = content.title.split("\n", 1) if content.title else [""]
+        title_text = parts[0]
+        sub_text = parts[1] if len(parts) > 1 else (content.callout_sub or "")
+        if not sub_text and content.bullets:
+            sub_text = content.bullets[0]
+
+        tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.32), Inches(12.33), Inches(0.85))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title_text
+        p.font.name = "Montserrat"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = navy
+
+        img_top = 1.35
+        if sub_text:
+            sb = slide.shapes.add_textbox(Inches(0.5), Inches(1.18), Inches(12.33), Inches(0.55))
+            stf = sb.text_frame
+            stf.word_wrap = True
+            sp = stf.paragraphs[0]
+            sp.text = sub_text
+            sp.font.name = "Montserrat"
+            sp.font.size = Pt(15)
+            sp.font.color.rgb = RGBColor(0x6B, 0x72, 0x80)
+            img_top = 1.9
+
+        # Image: centered, height-capped so its bottom stays above the footer (~6.8").
+        if content.images and Path(content.images[0]).exists():
+            self._add_centered_picture(
+                slide,
+                content.images[0],
+                Inches(0.5),
+                Inches(img_top),
+                Inches(12.33),
+                Inches(6.75 - img_top),
+            )
+
+        if content.notes_text or content.title:
+            notes = slide.notes_slide
+            notes.notes_text_frame.text = content.notes_text or content.title
+
 
 # =============================================================================
 # SLIDE LAYOUT MAP -- slide_id -> (layout_index, slide_type)
@@ -1200,7 +1359,8 @@ SLIDE_LAYOUT_MAP: dict[str, tuple[int, str]] = {
     # Reg E
     "A8.1": (LAYOUT_CUSTOM, "screenshot"),
     "A8.2": (LAYOUT_CUSTOM, "screenshot"),
-    "A8.3": (LAYOUT_CUSTOM, "screenshot"),
+    # A8.3 (TTM opt-in trend): 2x1 chart + commentary, not a lone PNG (#208 R2)
+    "A8.3": (LAYOUT_CUSTOM, "chart_narrative"),
     "A8.4a": (LAYOUT_CUSTOM, "screenshot"),
     "A8.4b": (LAYOUT_CUSTOM, "screenshot"),
     "A8.4c": (LAYOUT_CUSTOM, "screenshot"),
@@ -1211,9 +1371,9 @@ SLIDE_LAYOUT_MAP: dict[str, tuple[int, str]] = {
     "A8.11": (LAYOUT_CUSTOM, "screenshot"),
     "A8.12": (LAYOUT_CUSTOM, "screenshot"),
     "A8.13": (LAYOUT_CUSTOM, "screenshot"),
-    # Value
-    "A11.1": (LAYOUT_CUSTOM, "screenshot"),
-    "A11.2": (LAYOUT_CUSTOM, "screenshot"),
+    # Value -- titled_image: chart bakes no title, so the slide must draw one (#208 D7/R5)
+    "A11.1": (LAYOUT_CUSTOM, "titled_image"),
+    "A11.2": (LAYOUT_CUSTOM, "titled_image"),
     # Mailer
     "A13.5": (LAYOUT_CUSTOM, "screenshot"),
     "A13.6": (LAYOUT_CUSTOM, "screenshot"),
@@ -1283,9 +1443,12 @@ def _match_prefix(slide_id: str) -> tuple[int, str]:
 # =============================================================================
 
 DCTR_MERGES = [
-    ("A7.6a", "A7.4", "DCTR Trajectory: Recent Trend & Segments"),
+    ("A7.6a", "A7.4", "Recent Trend & Segments"),
     ("A7.7", "A7.8", "DCTR Funnel: Historical vs TTM"),
-    ("A7.11", "A7.12", "DCTR Opportunity: Age Analysis"),
+    # Holder-age (DCTR-11) + account-age (DCTR-10). The old pair (A7.11/A7.12)
+    # never existed as slide_ids, so this 2x1 never fired and the two age charts
+    # rendered as separate bare slides (#208 D6).
+    ("DCTR-11", "DCTR-10", "DCTR Opportunity: Age Analysis"),
 ]
 
 DCTR_APPENDIX_IDS = {
@@ -1297,6 +1460,8 @@ DCTR_APPENDIX_IDS = {
     "A7.9",
     "A7.10b",
     "A7.10c",
+    # Branch DCTR Top-10 overview -> appendix (#208 D2): detail table, not a headline.
+    "DCTR-9",
 }
 
 REGE_MERGES = [
@@ -1312,16 +1477,29 @@ REGE_APPENDIX_IDS = {
     "A8.12",
 }
 
-ATTRITION_MERGES = [
-    ("A9.3", "A9.6", "Attrition Profile: Open vs Closed & Personal vs Business"),
+# #208 A4 (mapped against the real deck images):
+#  - drop slide 37 (A9.3 open-vs-closed + A9.6 personal-vs-business) -> appendix
+#  - slide 36 (A9.1 Account Closures by Year) + slide 43 (A9.12 Monthly Closures)
+#    -> one 2x1 "Account Closures: Annual & Monthly Trend"
+#  - slide 38 (A9.4b First-Year Close Rate by Branch) + slide 39 (A9.4c First-Year
+#    Share of Closures by Branch) -> one 2x1
+ATTRITION_MERGES: list[tuple[str, str, str]] = [
+    ("A9.1", "A9.12", "Account Closures: Annual & Monthly Trend"),
+    ("A9.4b", "A9.4c", "First-Year Closures by Branch: Rate & Share"),
 ]
 
 ATTRITION_APPENDIX_IDS = {
     "A9.2",
+    "A9.3",
     "A9.4",
     "A9.5",
+    "A9.6",
     "A9.7",
     "A9.8",
+    # A9.9 (debit retention) shows 0.0% with-debit attrition (4 / 14,642): debit
+    # flags are blanked at close, so closures can't be attributed to with/without
+    # debit. Misleading in the main story -> appendix (#208 slide 40 "delete").
+    "A9.9",
     "A9.13",
 }
 
@@ -1332,6 +1510,12 @@ ATTRITION_APPENDIX_IDS = {
 # (status composition is covered by the exec dashboard).
 OVERVIEW_SKIP_IDS = {"A1"}
 DCTR_SKIP_IDS = {"DCTR-1"}
+
+# Eligibility funnel (A3) + product mix (A1b) side by side instead of two bare
+# single-PNG slides (#208 P3: "slide 15 and 16 ... combined into a 2x1").
+OVERVIEW_MERGES = [
+    ("A3", "A1b", "Program Eligibility & Product Mix"),
+]
 
 
 def _consolidate(slides, merges, appendix_ids):
@@ -1377,6 +1561,35 @@ def _consolidate(slides, merges, appendix_ids):
             result.append(r)
 
     return result, appendix_out
+
+
+def _attach_funnel_narrative(slides, ctx_results) -> None:
+    """#208 D5: add one why/what sentence to the merged DCTR funnel 2x1, comparing
+    the last-12-month (eligible-base) take rate to the all-time rate. The sentence
+    is rendered as the slide's narrative line by _build_multi_screenshot_slide."""
+    hist = (ctx_results.get("dctr_funnel") or {}).get("dctr_eligible")
+    ttm = (ctx_results.get("dctr_l12m_funnel") or {}).get("dctr")
+    if hist is None or ttm is None:
+        return
+    if ttm >= hist + 0.05:
+        sentence = (
+            f"Last-12-month take rate ({ttm:.1f}%) is above the all-time rate "
+            f"({hist:.1f}%) -- recent enrollment is outpacing the back book."
+        )
+    elif ttm <= hist - 0.05:
+        sentence = (
+            f"Last-12-month take rate ({ttm:.1f}%) trails the all-time rate "
+            f"({hist:.1f}%) -- recent enrollment is slipping."
+        )
+    else:
+        sentence = (
+            f"Last-12-month take rate ({ttm:.1f}%) is holding steady against the "
+            f"all-time rate ({hist:.1f}%)."
+        )
+    for sc in slides:
+        if sc.slide_type == "multi_screenshot" and (sc.title or "").startswith("DCTR Funnel"):
+            sc.bullets = [sentence]
+            break
 
 
 # =============================================================================
@@ -1474,11 +1687,11 @@ _SECTION_MAP = {
 
 _SECTION_LABELS = {
     "overview": "How Big Is This Program?",
-    "dctr": "How Active Are Debit Cards?",
-    "rege": "Are Members Opting In to Overdraft Protection?",
-    "attrition": "Are We Losing Accounts?",
+    "dctr": "Operational KPI: Debit Card Take Rate",
+    "rege": "Operational KPI: Reg E",
+    "attrition": "Operational KPI: Attrition and Churn",
     "value": "What Is the Revenue Impact?",
-    "mailer": "How Effective Are the Mailer Campaigns?",
+    "mailer": "Campaign Performance",
     "transaction": "What Do Spending Patterns Reveal?",
     "ics": "Are ICS Accounts Performing?",
     "insights": "What Should We Do Next?",
@@ -1670,8 +1883,8 @@ def _build_executive_kpi(ctx_results: dict, title_date: str = "") -> SlideConten
     else:
         kpis["DCTR Penetration"] = "N/A|gray"
 
-    # Reg E Opt-In Rate
-    rege = _safe_get("rege_1", "opt_in_rate")
+    # Reg E Opt-In Rate (key is reg_e_1, set by analytics/rege/status.py)
+    rege = _safe_get("reg_e_1", "opt_in_rate")
     if rege is not None and isinstance(rege, (int, float)) and not math.isnan(rege):
         color = _color_rate(rege, 0.70, 0.50)
         kpis["Reg E Opt-In"] = f"{rege:.1%}|{color}"
@@ -1686,12 +1899,13 @@ def _build_executive_kpi(ctx_results: dict, title_date: str = "") -> SlideConten
     else:
         kpis["Attrition (L12M)"] = "N/A|gray"
 
-    # Total Eligible Accounts (neutral)
+    # Eligible Accounts (neutral). dctr_1.total_accounts is the eligible-subset
+    # count, not the portfolio total -- label it accurately per the denominator law.
     total = _safe_get("dctr_1", "total_accounts")
     if total is not None and isinstance(total, (int, float)) and total > 0:
-        kpis["Total Accounts"] = f"{int(total):,}"
+        kpis["Eligible Accounts"] = f"{int(total):,}"
     else:
-        kpis["Total Accounts"] = "N/A|gray"
+        kpis["Eligible Accounts"] = "N/A|gray"
 
     title = f"Executive Dashboard | {title_date}" if title_date else "Executive Dashboard"
     return SlideContent(
@@ -1882,12 +2096,13 @@ def _parse_mailer_month(slide_id: str) -> tuple[int, int] | None:
 
 
 def _consolidate_mailer(results: list) -> tuple[list, list]:
-    """Split mailer results into main deck + appendix.
+    """Split mailer results into (main_deck_slides, ancillary_deck_slides).
 
-    Per-month groups: summary (A13.{month}) + swipes (A12.{month}.Swipes) + spend (A12.{month}.Spend).
-    Most recent 2 months -> main. Older months -> appendix.
-    A14.2 (mailer revisit) goes with most recent month.
-    Aggregate and impact slides stay in main.
+    Each wave = A13 summary + A16.7 combo (the separate A12 swipes/spend slides
+    are dropped; the combo replaces them). The most recent MAIN_MAILER_MONTHS
+    waves go to the main deck; older waves go to the "Mailer Performance"
+    ancillary deck. A14.2 (mailer revisit) and the aggregate/impact slides stay
+    in the main deck.
     """
     # Bucket slides
     month_slides: dict[tuple[int, int], list] = {}  # (year, month) -> [results]
@@ -1935,41 +2150,101 @@ def _consolidate_mailer(results: list) -> tuple[list, list]:
         return 4
 
     main_slides: list = []
-    appendix_slides: list = []
+    ancillary_slides: list = []
 
-    # Owner decision (2026-06-11): each month carries TWO main slides --
-    # the revised A13 summary and its A16.7 combo trajectory. The separate
-    # A12 Swipes / Spend slides are archived to the appendix (every month);
-    # the combo shows both metrics in one chart. P08/P09 preamble wiring is
-    # unaffected -- it reads A12 results directly, not the main deck.
-    def _is_a12_metric(r) -> bool:
+    # Owner decision (2026-06-14): every mailer is a consistent two-slide block --
+    # the A13 summary and its A16.7 combo chart. The combo shows spend AND swipes
+    # in one figure, so the separate A12 Swipes / Spend slides are dropped from the
+    # deck entirely (net slide reduction). P08/P09 preamble wiring is unaffected --
+    # it reads the A12 results from ctx.results directly, not the mailer section.
+    # Every wave is exactly TWO slides: the A13 summary + its A16.7 combo. Drop
+    # everything else in the month group -- the separate A12 Swipes/Spend (the
+    # combo replaces them) AND the per-wave A15.{month} ladder/repeat slide the
+    # owner flagged worthless (#208 slide 47 "ladder movement"). The month-suffix
+    # router put A15.{month} into the wave block, so it slipped past the
+    # impact-slide drop that already removes the aggregate A15.2-4 / A16.1-6.
+    def _is_wave_keeper(r) -> bool:
         sid = getattr(r, "slide_id", "")
-        return sid.startswith("A12.") and ("Swipes" in sid or "Spend" in sid)
+        return sid.startswith("A13.") or sid.startswith("A16.7")
 
     for i, ym in enumerate(sorted_months):
         group = sorted(month_slides[ym], key=_intra_month_key)
-        archived = [r for r in group if _is_a12_metric(r)]
-        group = [r for r in group if not _is_a12_metric(r)]
-        appendix_slides.extend(archived)
-        if i < 2:
-            # Most recent 2 months -> main
+        group = [r for r in group if _is_wave_keeper(r)]
+        if i < MAIN_MAILER_MONTHS:
+            # Most recent waves lead in the main deck
             main_slides.extend(group)
             if i == 0:
-                # Mailer revisit goes after the most recent month
+                # Mailer revisit goes after the most recent wave
                 main_slides.extend(revisit)
         else:
-            appendix_slides.extend(group)
+            # Older waves move to the "Mailer Performance" ancillary deck
+            ancillary_slides.extend(group)
 
-    # Aggregate summaries after monthly groups
+    # Aggregate summaries after monthly groups (main deck headline)
     main_slides.extend(aggregate)
-    # Impact slides last in main
-    main_slides.extend(impact)
     # Other (catch-all)
     main_slides.extend(other)
-    # Rate trend etc. to appendix
-    appendix_slides.extend(mailer_app)
+    # Owner feedback (#208): keep ONLY the Market Penetration impact slide
+    # (A15.1) and lead the section with it; drop the rest of the impact/cohort
+    # slides (A15.2-4 ladder/age, A16.1-6 trajectory/spend-direction/cohort-size)
+    # -- all flagged worthless. The per-wave A16.7 combo stays in each wave block.
+    penetration = [r for r in impact if getattr(r, "slide_id", "").startswith("A15.1")]
+    main_slides[:0] = penetration
+    # Rate trend etc. -> ancillary deck
+    ancillary_slides.extend(mailer_app)
 
-    return main_slides, appendix_slides
+    return main_slides, ancillary_slides
+
+
+def _build_mailer_performance_deck(
+    ctx,
+    ancillary_slides: list,
+    client_name: str,
+    subtitle: str,
+    template_path: str,
+    main_output_path,
+    notify=None,
+):
+    """Build the 'Mailer Performance' ancillary deck from older mailer waves.
+
+    Keeps the main deck slim: the older waves (already summary + combo) get their
+    own deck, saved next to the main one. The UI lists it via its rglob("*.pptx")
+    scan, so no extra endpoint is needed. No-op when there are no older waves.
+    """
+    if not ancillary_slides:
+        return None
+
+    cover = SlideContent(
+        slide_type="title",
+        title=f"{client_name}\nMailer Performance",
+        layout_index=LAYOUT_TITLE_RPE,
+    )
+    divider = SlideContent(
+        slide_type="section",
+        title=f"Mailer Performance by Wave\n{subtitle}",
+        layout_index=LAYOUT_SECTION,
+    )
+    slides = [cover, divider] + ancillary_slides
+
+    out_path = main_output_path.parent / (
+        f"{ctx.client.client_id}_{ctx.client.month}_Mailer_Performance.pptx"
+    )
+    try:
+        builder = DeckBuilder(str(template_path))
+        builder.build(slides, str(out_path))
+        ctx.export_log.append(str(out_path))
+        logger.info(
+            "Mailer Performance deck built: {path} ({n} slides)",
+            path=out_path.name, n=len(slides),
+        )
+        if notify:
+            notify(f"Mailer Performance deck saved: {out_path.name} ({len(slides)} slides)")
+        return out_path
+    except Exception as exc:
+        logger.error("Mailer Performance deck build failed: {err}", err=exc)
+        if notify:
+            notify(f"Mailer Performance deck failed: {exc}")
+        return None
 
 
 # =============================================================================
@@ -2048,6 +2323,9 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         attrition_results, ATTRITION_MERGES, ATTRITION_APPENDIX_IDS
     )
 
+    # D5 (#208): one why/what sentence on the merged DCTR funnel 2x1.
+    _attach_funnel_narrative(dctr_main, getattr(ctx, "results", {}) or {})
+
     # Build section subtitle
     client_name = ctx.client.client_name
     month = ctx.client.month
@@ -2081,7 +2359,7 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     analysis_slides: list[SlideContent] = []
 
     # Consolidate: merge paired slides, separate appendix for each section
-    mailer_main, mailer_appendix = _consolidate_mailer(mailer_results)
+    mailer_main, mailer_ancillary = _consolidate_mailer(mailer_results)
 
     # Separate value slides for DCTR and Reg E sections
     value_dctr_slides = _convert_list(
@@ -2091,11 +2369,16 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         [r for r in value_results if getattr(r, "slide_id", "") == "A11.2"]
     )
 
+    # Overview: drop A1, then merge the eligibility funnel + product mix into a
+    # single 2x1 (#208 P3).
+    overview_kept = [
+        r for r in overview_results if getattr(r, "slide_id", "") not in OVERVIEW_SKIP_IDS
+    ]
+    overview_main, _ = _consolidate(overview_kept, OVERVIEW_MERGES, set())
+
     # Prepare per-section slide lists (main body + appendix)
     _section_main = {
-        "overview": _convert_list(
-            [r for r in overview_results if getattr(r, "slide_id", "") not in OVERVIEW_SKIP_IDS]
-        ),
+        "overview": _convert_list(overview_main),
         "dctr": _convert_list(dctr_main) + value_dctr_slides,
         "rege": _convert_list(rege_main) + value_rege_slides,
         "attrition": _convert_list(attrition_main),
@@ -2109,7 +2392,8 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         "dctr": _convert_list(dctr_appendix),
         "rege": _convert_list(rege_appendix),
         "attrition": _convert_list(attrition_appendix),
-        "mailer": _convert_list(mailer_appendix),
+        # Older mailer waves are NOT in the main deck's appendix -- they go to the
+        # separate "Mailer Performance" ancillary deck (built after the main deck).
     }
 
     # Build main body in SCR order
@@ -2142,17 +2426,35 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     # Build preamble
     preamble = _build_preamble_slides(client_name, month)
 
-    # Replace P02 (Agenda) with executive KPI dashboard
-    if len(preamble) > 1:
-        preamble[1] = _build_executive_kpi(_ctx_results, title_date=section_subtitle)
+    # P02 stays the Agenda slide (operator brings its content, like the other
+    # blank preamble slides). Owner decision 2026-06-14: slide 2 is an agenda,
+    # NOT a KPI dashboard -- the dashboard replacement was removed.
 
-    # Wire preamble placeholders to actual results:
-    # P08 (index 7) -> most recent A12.*.Swipes
-    # P09 (index 8) -> most recent A12.*.Spend
-    # P12 (index 11) -> A13.5 (count trend)
+    # Wire preamble placeholders to actual results. Match by title rather than a
+    # hardcoded index so the ordering edits below (P1) and the combo swap (P2)
+    # can't desync the wiring.
+    def _pre_idx(prefix: str) -> int:
+        for i, sc in enumerate(preamble):
+            first_line = (sc.title or "").split("\n")[0]
+            if first_line.startswith(prefix):
+                return i
+        return -1
+
     _mailer_by_id = {getattr(r, "slide_id", ""): r for r in mailer_results}
 
-    # Find most recent Swipes and Spend from A12 results
+    # Furthest-back per-wave combo for the "ARS Mailer Revisit" slide (#208): the
+    # oldest campaign has the most post-mail months to look back on, and it isn't
+    # a duplicate of the recent waves shown in the Campaign Performance section.
+    _combo = next(
+        (
+            _mailer_by_id[k]
+            for k in sorted(
+                (kk for kk in _mailer_by_id if kk.startswith("A16.7")),
+                key=lambda x: _parse_mailer_month(x) or (9999, 99),
+            )
+        ),
+        None,
+    )
     _swipes = next(
         (
             _mailer_by_id[k]
@@ -2171,11 +2473,45 @@ def build_deck(ctx: PipelineContext) -> Path | None:
     )
     _count_trend = _mailer_by_id.get("A13.5")
 
-    for idx, result in [(7, _swipes), (8, _spend), (11, _count_trend)]:
-        if result and idx < len(preamble):
-            sc = _result_to_slide(result, ctx_results=_ctx_results)
+    # P2 (#208): the "ARS Mailer Revisit" Swipes/Spend pair is the old separate
+    # format. Replace it with the single combo chart (spend + swipes together)
+    # and drop the now-redundant Spend slide. Fall back to the legacy pair when
+    # no combo was produced.
+    _i_swipes = _pre_idx("ARS Mailer Revisit – Swipes")
+    _i_spend = _pre_idx("ARS Mailer Revisit – Spend")
+    if _combo is not None and _i_swipes != -1:
+        sc = _result_to_slide(_combo, ctx_results=_ctx_results)
+        if sc:
+            sc.slide_type = "titled_image"
+            sc.title = "ARS Mailer Revisit"
+            sc.layout_index = LAYOUT_CUSTOM
+            preamble[_i_swipes] = sc
+            if _i_spend != -1:
+                preamble.pop(_i_spend)
+    else:
+        if _swipes and _i_swipes != -1:
+            sc = _result_to_slide(_swipes, ctx_results=_ctx_results)
             if sc:
-                preamble[idx] = sc
+                preamble[_i_swipes] = sc
+        if _spend and _i_spend != -1:
+            sc = _result_to_slide(_spend, ctx_results=_ctx_results)
+            if sc:
+                preamble[_i_spend] = sc
+
+    _i_count = _pre_idx("Program Responses to Date")
+    if _count_trend and _i_count != -1:
+        sc = _result_to_slide(_count_trend, ctx_results=_ctx_results)
+        if sc:
+            preamble[_i_count] = sc
+
+    # P1 (#208): move "Data Check Overview" up to right after "ARS Lift Matrix"
+    # (it frames the program before the mailer detail, instead of trailing it).
+    _i_dco = _pre_idx("Data Check Overview")
+    _i_lift = _pre_idx("ARS Lift Matrix")
+    if _i_dco != -1 and _i_lift != -1 and _i_dco != _i_lift + 1:
+        _dco = preamble.pop(_i_dco)
+        _i_lift = _pre_idx("ARS Lift Matrix")  # recompute after pop
+        preamble.insert(_i_lift + 1, _dco)
 
     # Combine
     final_slides = preamble + analysis_slides
@@ -2223,6 +2559,14 @@ def build_deck(ctx: PipelineContext) -> Path | None:
         )
         if _notify:
             _notify(f"Deck saved: {output_path.name} ({len(final_slides)} slides)")
+
+        # Older mailer waves -> separate "Mailer Performance" deck so the main
+        # deck stays slim. Saved next to the main deck; the UI lists it via its
+        # rglob("*.pptx") scan, so no extra wiring is needed.
+        _build_mailer_performance_deck(
+            ctx, _convert_list(mailer_ancillary), client_name, section_subtitle,
+            str(template), output_path, _notify,
+        )
         return output_path
     except Exception as exc:
         logger.error("Deck build failed: {err}", err=exc)

@@ -27,8 +27,10 @@ from matplotlib.ticker import FuncFormatter
 
 from ars_analysis.analytics.attrition._helpers import (
     _safe,
+    attrition_universe,
     l12m_attrition,
     prepare_attrition_data,
+    product_col,
 )
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.registry import register
@@ -81,7 +83,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         return [
             AnalysisResult(
                 slide_id="A9.0",
-                title="Attrition Headline (L12M Cohort)",
+                title="Account Attrition & Churn (L12M)",
                 success=False,
                 error="No account data",
             )
@@ -91,7 +93,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         return [
             AnalysisResult(
                 slide_id="A9.0",
-                title="Attrition Headline (L12M Cohort)",
+                title="Account Attrition & Churn (L12M)",
                 success=False,
                 error="Missing Date Opened / Date Closed",
             )
@@ -117,6 +119,18 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     total_closed_lifetime = int(dc.notna().sum())
     total_active = int(dc.isna().sum())
 
+    # Active cardholders = OPEN accounts with recent swipe activity (#208 slide 34:
+    # "what is active? not all 21k are swiping a card"). Swipe counts live in the
+    # ODD (shared/format_odd builds "last 3-mon swipes" / "Total Swipes"); prefer
+    # the recent window, fall back to lifetime, and skip the metric only if no
+    # swipe column is present.
+    active_swipers = None
+    for _swipe_col in ("last 3-mon swipes", "MonthlySwipes3", "Total Swipes"):
+        if _swipe_col in all_data.columns:
+            _sv = pd.to_numeric(all_data[_swipe_col], errors="coerce").fillna(0)
+            active_swipers = int(((dc.isna()) & (_sv > 0)).sum())
+            break
+
     l12m_opens_mask = (do >= l12m_start) & (do <= l12m_end)
     l12m_closes_mask = (dc >= l12m_start) & (dc <= l12m_end)
     n_opens = int(l12m_opens_mask.sum())
@@ -131,6 +145,22 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     # numerator, overstating the rate -- and disagreed with A9.1 and A9.4.
     l12m_base_df, _, l12m_attrition_rate = l12m_attrition(all_data, l12m_start, l12m_end)
     l12m_base_n = len(l12m_base_df)
+
+    # Eligible-scoped attrition (#208 A2). The same L12M window applied to the
+    # eligible-comparable book (open-eligible + closed-eligible-by-product), so
+    # the deck shows BOTH denominators instead of leaving the reader to guess
+    # which one the single rate used. Falls back to the all-accounts figures
+    # when eligibility config is unavailable.
+    try:
+        elig_universe = attrition_universe(ctx)
+        elig_base_df, elig_closures_df, elig_rate = l12m_attrition(
+            elig_universe, l12m_start, l12m_end
+        )
+        elig_base_n = len(elig_base_df)
+        elig_closures_n = len(elig_closures_df)
+    except Exception as exc:
+        logger.warning("A9.0 eligible attrition failed: {e}", e=exc)
+        elig_base_n, elig_closures_n, elig_rate = l12m_base_n, n_closes, l12m_attrition_rate
 
     # First-Year Close Rate (overall): of accounts opened in L12M,
     # how many have already closed within their first 12 months?
@@ -190,22 +220,28 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         )
 
         # ----- KPI tiles (top row spans all 4 cols, 2 sub-rows of 4) -----
+        # 8 tiles (#208 A2): added the Eligible count and Eligible Closures,
+        # folded both attrition denominators (all vs eligible) into one tile, and
+        # dropped the redundant growth-rate and the meaningless lifetime-closed
+        # count the owner flagged as garbage.
         tiles = [
             (_fmt_count(n_opens),           "L12M Opens",                        _GROWTH),
             (_fmt_count(n_closes),          "L12M Closes",                       _DECAY),
             (("+" if net_new >= 0 else "") + _fmt_count(net_new),
                                             "Net New (L12M)",
                                             _GROWTH if net_new >= 0 else _DECAY),
-            (_fmt_pct(growth_rate),         "Growth Rate\n(net / open at start)",
-                                            _GROWTH if (net_new >= 0) else _DECAY),
+            (_fmt_count(active_swipers) if active_swipers is not None else _fmt_count(total_active),
+                                            (f"Active Cardholders\n(swiped recently, of {total_active:,} open)"
+                                             if active_swipers is not None else "Open Accounts\n(current, all)"),
+                                            _INFO),
+            (_fmt_count(elig_base_n),       "Eligible Accounts\n(L12M exposure)", _INFO),
             (_fmt_pct(first_year_close_rate),
                                             f"First-Year Close Rate\n({fy_closed:,} of {n_opens:,} new)",
                                             _DECAY),
-            (_fmt_pct(l12m_attrition_rate), f"L12M Attrition Rate\n({n_closes:,} of {l12m_base_n:,})",
+            (f"{_fmt_pct(l12m_attrition_rate)} / {_fmt_pct(elig_rate)}",
+                                            "L12M Attrition\n(All / Eligible)",
                                             _DECAY),
-            (_fmt_count(total_active),      "Active Accounts\n(current)",        _INFO),
-            (_fmt_count(total_closed_lifetime),
-                                            "Total Closed\n(lifetime)",          _MUTED),
+            (_fmt_count(elig_closures_n),   "Eligible Closures\n(L12M)",         _DECAY),
         ]
 
         # Place the 8 tiles in a 2x4 grid in the TOP gridspec row
@@ -247,6 +283,13 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         ax2 = ax.twinx()
         ax2.plot(x, net_by_month.values, color=_DARK, linewidth=3,
                  marker="o", markersize=8, label="Net New", zorder=5)
+        # Net-new value labels at each point (#208 A2: "at least net numbers").
+        for xi, nv in zip(x, net_by_month.values):
+            ax2.annotate(
+                f"{int(nv):+,}", (xi, nv), textcoords="offset points",
+                xytext=(0, 9), ha="center", fontsize=10, fontweight="bold",
+                color=_DARK, zorder=6,
+            )
         ax2.axhline(0, color=_MUTED, linewidth=1, linestyle="--", zorder=2)
         ax2.set_ylabel("Net New", fontsize=14, fontweight="bold", color=_DARK)
         ax2.tick_params(axis="y", labelsize=TICK_SIZE - 4, colors=_DARK)
@@ -266,14 +309,15 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         ax.yaxis.grid(True, color="#E9ECEF", linewidth=0.5, alpha=0.7)
         ax.set_axisbelow(True)
 
-        # Combined legend
+        # Combined legend -- seated above the plot, top-right, so it never runs
+        # through the bars or the net-new line (#208 A2: "spacing of legend").
         h1, l1 = ax.get_legend_handles_labels()
         h2, l2 = ax2.get_legend_handles_labels()
-        ax.legend(h1 + h2, l1 + l2, loc="upper left",
-                  fontsize=13, frameon=False, ncol=3)
+        ax.legend(h1 + h2, l1 + l2, loc="upper right", bbox_to_anchor=(1.0, 1.16),
+                  fontsize=12, frameon=False, ncol=3)
 
         # Suptitle + subtitle with safe spacing
-        fig.suptitle("Attrition Headline — L12M Cohort",
+        fig.suptitle("Account Attrition & Churn — Last 12 Months",
                      fontsize=24, fontweight="bold", color=_DARK, y=0.97)
         fig.text(0.5, 0.925,
                  f"Window: {l12m_start.strftime('%b %Y')} – {l12m_end.strftime('%b %Y')}  |  "
@@ -299,8 +343,12 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         "first_year_closed_count": fy_closed,
         "l12m_attrition_rate": l12m_attrition_rate,
         "l12m_exposure_base": l12m_base_n,
+        "eligible_exposure_base": elig_base_n,
+        "eligible_closures": elig_closures_n,
+        "eligible_attrition_rate": elig_rate,
         "open_at_start": open_at_start,
         "active": total_active,
+        "active_swipers": active_swipers,
         "closed_lifetime": total_closed_lifetime,
         "total_accounts": total_accts,
         "monthly_opens": opens_by_month.astype(int).tolist(),
@@ -312,7 +360,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     return [
         AnalysisResult(
             slide_id="A9.0",
-            title="Attrition Headline (L12M Cohort)",
+            title="Account Attrition & Churn — Last 12 Months",
             chart_path=save_to,
             notes=notes,
         )
@@ -396,11 +444,36 @@ def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     tot_still = int(df["Still Open"].sum())
     tot_survival = (tot_still / tot_opens) if tot_opens > 0 else float("nan")
 
+    # Window closures beyond the new-account cohort (#208 A3). The table above
+    # only counts accounts that BOTH opened and closed inside the window; the
+    # owner also wants the seasoned closures (opened before the window, closed
+    # inside it) and an eligible-vs-other product split of all window closures.
+    window_close = (dc >= l12m_start) & (dc <= l12m_end)
+    total_window_closes = int(window_close.sum())
+    noncohort_closes = int((window_close & (do < l12m_start)).sum())
+    # In-window closures from in-window opens. Kept window-consistent with
+    # noncohort_closes (the two sum to total_window_closes) -- distinct from the
+    # survival table's "Closed" column, which is closed-as-of-now.
+    cohort_window_closes = total_window_closes - noncohort_closes
+    epc = {
+        str(c).strip().upper().removesuffix(".0")
+        for c in (getattr(ctx.client, "eligible_prod_codes", None) or [])
+    }
+    pcol = product_col(all_data)
+    if pcol and epc:
+        codes = (
+            all_data[pcol].astype(str).str.strip().str.replace(r"\.0$", "", regex=True).str.upper()
+        )
+        elig_close = int((window_close & codes.isin(epc)).sum())
+        other_close = total_window_closes - elig_close
+    else:
+        elig_close = other_close = None
+
     # ----- Render as a styled table figure -----
     save_to = ctx.paths.charts_dir / "a9_0b_monthly_cohort_survival.png"
     ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
 
-    n_rows = len(df) + 2  # header + data + totals
+    n_rows = len(df) + 4  # header + data + totals + 2 summary lines
     row_h = 0.50
     fig_h = max(8.0, 2.0 + n_rows * row_h)
 
@@ -423,8 +496,10 @@ def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         for x, h in zip(col_x, headers):
             ax.text(x, 0.6, h, fontsize=13, fontweight="bold",
                     color=_MUTED, ha="left", va="center")
-        ax.plot([0.05, 0.95], [0.9, 0.9], color="#E9ECEF", linewidth=1.4,
-                transform=ax.transAxes)
+        # Header rule in DATA coords (between the header at y=0.6 and the first
+        # row at y=1.5). It was previously drawn in axes coords, so it cut
+        # straight through the first data row (#208 A3).
+        ax.plot([0.05, 0.95], [1.0, 1.0], color="#E9ECEF", linewidth=1.4)
 
         for i, row in df.iterrows():
             y = i + 1.5
@@ -457,9 +532,26 @@ def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         ax.text(col_x[4], ty, _fmt_pct(tot_survival), fontsize=14,
                 fontweight="bold", color=_DARK, ha="left", va="center")
 
+        # Window-closure context (#208 A3): seasoned vs cohort, eligible vs other.
+        sy = len(df) + 2.9
+        ax.text(
+            col_x[0], sy,
+            f"Closures dated in this window: {total_window_closes:,}  "
+            f"= {cohort_window_closes:,} from in-window opens + {noncohort_closes:,} "
+            f"seasoned (opened before the window)",
+            fontsize=12, color=_DARK, ha="left", va="center",
+        )
+        if elig_close is not None:
+            ax.text(
+                col_x[0], sy + 0.75,
+                f"By product: {elig_close:,} eligible · {other_close:,} other",
+                fontsize=12, color=_MUTED, ha="left", va="center",
+            )
+
     notes = (
         f"L12M new opens: {tot_opens:,} | still open: {tot_still:,} | "
-        f"closed: {tot_closed:,} | survival: {_fmt_pct(tot_survival)}"
+        f"cohort closed: {tot_closed:,} | survival: {_fmt_pct(tot_survival)} | "
+        f"window closures: {total_window_closes:,} ({noncohort_closes:,} seasoned)"
     )
 
     # Stash structured data

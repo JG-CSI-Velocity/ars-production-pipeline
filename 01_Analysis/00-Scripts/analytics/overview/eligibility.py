@@ -9,7 +9,7 @@ from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
 from ars_analysis.pipeline.context import PipelineContext
-from ars_analysis.shared.charts import draw_funnel
+from ars_analysis.shared.charts import draw_box_funnel
 
 
 @register
@@ -165,7 +165,10 @@ class EligibilityFunnel(AnalysisModule):
 
         er = (ec / ta) * 100 if ta else 0
 
-        # Chart -- true horizontal funnel with drop-off connectors
+        # Chart -- proportional box funnel (shared renderer; same visual family
+        # as the DCTR and Reg E funnels). Centered rounded boxes in the brand
+        # palette, white number labels, left-side stage names, between-stage
+        # conversion badges, and the final eligible stage in the brand accent.
         chart_path = None
         if ctx.paths.charts_dir != ctx.paths.base_dir:
             ctx.paths.charts_dir.mkdir(parents=True, exist_ok=True)
@@ -176,21 +179,20 @@ class EligibilityFunnel(AnalysisModule):
                 stage_names = [
                     s.split(". ", 1)[1] if ". " in s else s for s in fdf["Stage"]
                 ]
-                with chart_figure(figsize=(14, 7), save_path=save_to) as (fig, ax):
-                    draw_funnel(ax, stage_names, [float(c) for c in fdf["Count"]])
-                    ax.set_title(
-                        f"Eligibility Funnel — {er:.1f}% of accounts eligible",
-                        fontsize=20,
-                        fontweight="bold",
-                        pad=20,
+                callout = (
+                    f"Eligible split — Personal: {ep_count:,}  |  Business: {eb_count:,}"
+                    if ec > 0
+                    else ""
+                )
+                with chart_figure(figsize=(12, 10), save_path=save_to) as (fig, ax):
+                    draw_box_funnel(
+                        ax,
+                        stage_names,
+                        [float(c) for c in fdf["Count"]],
+                        title="Eligibility Funnel",
+                        subtitle=f"{er:.1f}% of accounts eligible",
+                        callout=callout,
                     )
-                    if ec > 0:
-                        ax.text(
-                            0.99, -0.06,
-                            f"Eligible split — Personal: {ep_count:,}  |  Business: {eb_count:,}",
-                            transform=ax.transAxes,
-                            ha="right", va="top", fontsize=13, color="#666666",
-                        )
                 chart_path = save_to
             except Exception as exc:
                 logger.warning("A3 chart failed: {err}", err=exc)

@@ -196,10 +196,20 @@ class DCTROverlays(AnalysisModule):
                                 fontweight="bold",
                             )
 
-                        # Overall average reference line
-                        overall_row = df[df["Age Group"] == "TOTAL"]
-                        if not overall_row.empty:
-                            avg = overall_row["DCTR %"].iloc[0] * 100
+                        # Overall average reference line. Use the portfolio
+                        # eligible take rate that the DCTR funnel headlines, so the
+                        # two slides agree (#208 D6: funnel showed 91.8 here 91.7).
+                        # The TOTAL row averages only the valid-age subset, which
+                        # drops missing-age eligible accounts and drifts ~0.1%.
+                        _fr = ctx.results.get("dctr_funnel") or {}
+                        avg = _fr.get("dctr_eligible")
+                        if avg is None and len(ed):
+                            from ars_analysis.analytics.dctr._helpers import debit_mask as _dm
+                            avg = _dm(ed).sum() / len(ed) * 100
+                        if avg is None:
+                            _tot = df[df["Age Group"] == "TOTAL"]
+                            avg = float(_tot["DCTR %"].iloc[0] * 100) if not _tot.empty else None
+                        if avg is not None:
                             ax.axhline(y=avg, color="red", linestyle="--", linewidth=2, alpha=0.7)
                             ax.text(
                                 len(dr) - 0.5,

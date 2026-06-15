@@ -1165,41 +1165,29 @@ def normalize_for_match(s):
     return s.strip()
 
 
-def tag_competitors(df, merchant_col='merchant_consolidated'):
-    """Tag transactions with competitor_category column.
+def _compute_category_codes(merchant_values):
+    """Return an int8 array of competitor-category codes for a sequence of raw
+    merchant strings. ``-1`` means untagged (-> NaN in the Categorical).
 
-    Matching strategy:
-      - Both patterns and merchant strings are normalized via
-        normalize_for_match() (strips card-descriptor prefixes, collapses
-        FEDERAL CREDIT UNION / FCU / FINANCIAL / etc. to canonical short forms).
-      - Word-boundary regex contains-match (was anchored ^ start-match,
-        which never matched truncated card descriptors like
-        'POS DEBIT TROPICAL FIN CU FT LAUDER FL').
-
-    Memory-optimized for large DataFrames (13M+ rows):
-      - Drops old columns + gc.collect() before allocating new ones
-      - pd.Categorical for category (~13 MiB vs ~102 MiB object array)
-      - numpy arrays in the loop to reduce pandas overhead
-      - competitor_match is NOT stored here (saves 102 MiB); derive it
-        downstream on the filtered competitor subset instead
+    The code for a merchant is a pure function of its string: normalize, then
+    first-match-wins across COMPETITOR_MERCHANTS with a false-positive guard.
+    Because it depends only on the string, tag_competitors() runs this over the
+    DISTINCT merchant values and broadcasts the result back over every row --
+    turning ~10 full-Series regex passes over millions of rows into the same
+    passes over a few hundred uniques (issue #214 runtime). Keeping the match
+    logic in one place means the dedup cannot drift from the row-wise result.
     """
-    import re, gc
+    import re
     import numpy as np
 
-    # Free memory from any previous run
-    for col in ('competitor_category', 'competitor_match'):
-        if col in df.columns:
-            df.drop(columns=col, inplace=True)
-    gc.collect()
-
-    n = len(df)
-    # Vectorized normalization: apply each rule once across the whole Series
-    merchant_norm = df[merchant_col].astype(str).str.upper().str.strip()
+    merchant_norm = pd.Series(merchant_values, dtype="object").astype(str).str.upper().str.strip()
     merchant_norm = merchant_norm.str.replace(_CARD_PREFIX_RE.pattern, '',
                                               regex=True, flags=_re.IGNORECASE)
     for pat, repl in _BANK_ABBREV_RULES:
         merchant_norm = merchant_norm.str.replace(pat, repl, regex=True)
     merchant_norm = merchant_norm.str.strip()
+
+    n = len(merchant_norm)
 
     # False-positive exclusions: a merchant name (already normalized) that
     # matches any of these substrings will NOT be tagged as a competitor,
@@ -1237,7 +1225,6 @@ def tag_competitors(df, merchant_col='merchant_consolidated'):
     _fp_mask = merchant_norm.str.contains(_comp_fp_regex, na=False, regex=True).values
 
     tagged = np.zeros(n, dtype=bool)
-    cat_names = list(COMPETITOR_MERCHANTS.keys())
     cat_codes = np.full(n, -1, dtype=np.int8)  # -1 -> NaN in Categorical
 
     for cat_idx, (category, patterns) in enumerate(COMPETITOR_MERCHANTS.items()):
@@ -1271,16 +1258,55 @@ def tag_competitors(df, merchant_col='merchant_consolidated'):
             cat_codes[new_hits] = cat_idx
             tagged |= new_hits
 
-    # Free the large normalized Series (~250 MiB) before allocating results
-    del merchant_norm, tagged
+    return cat_codes
+
+
+def tag_competitors(df, merchant_col='merchant_consolidated'):
+    """Tag transactions with competitor_category column.
+
+    Matching strategy:
+      - Both patterns and merchant strings are normalized via
+        normalize_for_match() (strips card-descriptor prefixes, collapses
+        FEDERAL CREDIT UNION / FCU / FINANCIAL / etc. to canonical short forms).
+      - Word-boundary regex contains-match (was anchored ^ start-match,
+        which never matched truncated card descriptors like
+        'POS DEBIT TROPICAL FIN CU FT LAUDER FL').
+
+    Optimized for large DataFrames (millions of rows):
+      - Tags only the DISTINCT merchant strings, then broadcasts back across
+        every row via a merchant->code map. Category depends only on the
+        string, so this is identical to tagging row-by-row -- but a 6.85M-row
+        client typically has a few hundred thousand distinct merchant strings
+        (often far fewer), so the regex passes run over the uniques instead of
+        the full column. This was ~3.8 min of the TXN runtime (issue #214).
+      - pd.Categorical for category (~13 MiB vs ~102 MiB object array)
+      - competitor_match is NOT stored here (saves 102 MiB); derive it
+        downstream on the filtered competitor subset instead
+    """
+    import gc
+    import numpy as np
+
+    # Free memory from any previous run
+    for col in ('competitor_category', 'competitor_match'):
+        if col in df.columns:
+            df.drop(columns=col, inplace=True)
     gc.collect()
+
+    cat_names = list(COMPETITOR_MERCHANTS.keys())
+
+    raw = df[merchant_col].astype(str)
+    uniq = pd.Index(raw.unique())
+    uniq_codes = _compute_category_codes(uniq)
+
+    # Broadcast unique codes back to every row in original order. Every raw
+    # value is present in `uniq`, so the reindex introduces no NaN and the
+    # int8 dtype (hence the -1 = untagged sentinel) is preserved.
+    code_by_merchant = pd.Series(uniq_codes, index=uniq)
+    codes = code_by_merchant.reindex(raw.to_numpy()).to_numpy(dtype=np.int8)
 
     # Categorical column: ~13 MiB (int8 codes) vs ~102 MiB (object array)
     # from_codes treats -1 as NaN automatically
-    df['competitor_category'] = pd.Categorical.from_codes(
-        cat_codes, categories=cat_names
-    )
-    del cat_codes
+    df['competitor_category'] = pd.Categorical.from_codes(codes, categories=cat_names)
     gc.collect()
 
     return df

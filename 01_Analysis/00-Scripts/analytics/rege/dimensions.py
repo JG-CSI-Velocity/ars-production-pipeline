@@ -26,7 +26,7 @@ from ars_analysis.charts.guards import chart_figure
 from ars_analysis.charts.style import ELIGIBLE, HISTORICAL, NEGATIVE, POSITIVE
 from ars_analysis.pipeline.context import PipelineContext
 from ars_analysis.shared.brand import BRAND
-from ars_analysis.shared.charts import draw_funnel
+from ars_analysis.shared.charts import draw_box_funnel
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -51,46 +51,24 @@ def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
 def _render_funnel(
     ax, stages: list[dict], title_text: str, subtitle_text: str, metrics_text: str
 ) -> None:
-    """Render a proportional funnel via the shared draw_funnel helper.
+    """Render a proportional funnel in the DCTR funnel's visual language.
+
+    Thin adapter over shared.charts.draw_box_funnel -- the single renderer
+    behind the Reg E, DCTR, and eligibility funnels so they read as one family
+    (light canvas, proportional rounded boxes in the brand palette, centered
+    number-only labels, left-side stage names, between-stage conversion badges,
+    final stage in the brand accent). Output is unchanged from when this drew
+    the boxes inline.
 
     stages: list of dicts with keys: name, total.
     """
-    draw_funnel(
+    draw_box_funnel(
         ax,
         [s["name"] for s in stages],
-        [float(s["total"]) for s in stages],
-        label_fontsize=15,
-        pct_of="prev",  # owner formula: each stage as conversion of the prior
-                        # stage, so the final bar IS the Reg E opt-in rate
-                        # (personal w/ Reg E / eligible personal w/debit)
-    )
-    ax.set_title(title_text, fontsize=20, fontweight="bold", pad=34)
-    ax.text(
-        0.5,
-        1.015,
-        subtitle_text,
-        ha="center",
-        va="bottom",
-        fontsize=13,
-        style="italic",
-        color=BRAND["text_muted"],
-        transform=ax.transAxes,
-    )
-    ax.text(
-        0.02,
-        0.03,
-        metrics_text,
-        transform=ax.transAxes,
-        fontsize=13,
-        fontweight="bold",
-        ha="left",
-        va="bottom",
-        bbox={
-            "boxstyle": "round,pad=0.5",
-            "facecolor": "white",
-            "edgecolor": BRAND["navy"],
-            "linewidth": 1.5,
-        },
+        [s["total"] for s in stages],
+        title=title_text,
+        subtitle=subtitle_text,
+        callout=metrics_text,
     )
 
 
@@ -149,7 +127,10 @@ class RegEDimensions(AnalysisModule):
         chart = result[result["Account Age"] != "TOTAL"].copy()
         overall = result[result["Account Age"] == "TOTAL"]["Opt-In Rate"].iloc[0] * 100
 
-        with chart_figure(figsize=(14, 8), save_path=save_to) as (fig, ax):
+        # Wider/shorter landscape aspect so the chart doesn't bleed over the
+        # slide number when placed (mirrors the DCTR branch chart fix). No
+        # legend on this single-series chart, so only the aspect is adjusted.
+        with chart_figure(figsize=(16, 7.2), save_path=save_to) as (fig, ax):
             x = range(len(chart))
             rates = chart["Opt-In Rate"] * 100
             colors = [NEGATIVE if r < overall else POSITIVE for r in rates]
@@ -260,7 +241,10 @@ class RegEDimensions(AnalysisModule):
             l12m_df[l12m_df["Age Group"] != "TOTAL"].copy() if not l12m_df.empty else pd.DataFrame()
         )
 
-        with chart_figure(figsize=(14, 8), save_path=save_to) as (fig, ax):
+        # Wider/shorter landscape aspect so the chart doesn't bleed over the
+        # slide number, and the Historical/L12M legend goes below the plot (off
+        # all data) -- the same fix applied to the DCTR branch chart.
+        with chart_figure(figsize=(16, 7.2), save_path=save_to) as (fig, ax):
             x = np.arange(len(ch))
             w = 0.35
             hist_rates = ch["Opt-In Rate"] * 100
@@ -332,7 +316,11 @@ class RegEDimensions(AnalysisModule):
                 "Reg E Opt-In by Account Holder Age", fontweight="bold", fontsize=24, pad=15
             )
             ax.tick_params(axis="y", labelsize=18)
-            ax.legend(fontsize=16)
+            # Legend below the plot (off all data) so it never overlaps the bars.
+            ax.legend(
+                loc="upper center", bbox_to_anchor=(0.5, -0.22),
+                fontsize=16, frameon=False, ncol=3,
+            )
             ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
         chart_path = save_to
 
@@ -558,9 +546,17 @@ class RegEDimensions(AnalysisModule):
                 )
             ]
 
-        # Compute L12M stages from subsets
-        l12m_data = ctx.subsets.last_12_months
-        total_l12m = len(l12m_data) if l12m_data is not None else 0
+        # Anchor the funnel to OPEN accounts opened in L12M, matching the DCTR
+        # funnel base (dctr/funnel.py uses filter_l12m(open_accounts)). Using
+        # last_12_months here counts closed accounts too, inflating the
+        # denominator (1,817 vs 1,751) and breaking denominator-law parity with
+        # the DCTR funnel -- the eligible step then shows a different % for the
+        # identical eligible count.
+        oa = ctx.subsets.open_accounts
+        if oa is not None and ctx.start_date and ctx.end_date:
+            total_l12m = len(filter_l12m(oa, ctx.start_date, ctx.end_date))
+        else:
+            total_l12m = 0
 
         # Eligible L12M: filter eligible_data by L12M
         elig_l12m = 0
@@ -594,12 +590,16 @@ class RegEDimensions(AnalysisModule):
             if col in p_debit_df.columns:
                 rege_l12m = int(p_debit_df[col].astype(str).str.strip().isin(opts).sum())
 
+        # Same stage labels as the all-time funnel (A8.10) so the two funnels
+        # render at identical size in the 2x1 -- the period is already in the
+        # title/subtitle, and differing label widths previously made the tight
+        # bbox (and thus the scaled funnel) larger on one side (#208).
         stages = [
-            {"name": "L12M Opens", "total": total_l12m},
-            {"name": "L12M Eligible", "total": elig_l12m},
-            {"name": "L12M w/Debit", "total": wd_l12m},
-            {"name": "L12M Personal w/Debit", "total": p_wd_l12m},
-            {"name": "L12M w/Reg E", "total": rege_l12m},
+            {"name": "Open Accounts", "total": total_l12m},
+            {"name": "Eligible Accounts", "total": elig_l12m},
+            {"name": "Eligible w/Debit", "total": wd_l12m},
+            {"name": "Personal w/Debit", "total": p_wd_l12m},
+            {"name": "Personal w/Reg E", "total": rege_l12m},
         ]
 
         funnel_df = pd.DataFrame([{"Stage": s["name"], "Count": s["total"]} for s in stages])
