@@ -613,6 +613,37 @@ def _optimize_combined_df(namespace: dict[str, Any]) -> None:
     )
 
 
+def _log_total_vs_eligible(namespace: dict[str, Any], eligible_set: set[str] | None) -> None:
+    """Report distinct TXN accounts vs the eligible book -- visibility only.
+
+    TXN does not strictly enforce the eligible denominator, but the operator
+    still wants to see how the transaction universe compares to the ARS-side
+    eligible book. Counts distinct accounts in the *unfiltered* combined_df, so
+    this must be called before any eligible filtering replaces combined_df.
+    Prints to stdout so the UI run-log polling surfaces it.
+    """
+    combined = namespace.get("combined_df")
+    if combined is None or not hasattr(combined, "columns") \
+            or "primary_account_num" not in combined.columns:
+        return
+    accts = combined["primary_account_num"].astype(str).str.strip()
+    total = int(accts.nunique())
+    if eligible_set:
+        eligible_in_data = int(accts[accts.isin(eligible_set)].nunique())
+        pct = (eligible_in_data / total * 100) if total else 0
+        msg = (
+            f"TXN accounts -- total: {total:,} | eligible: {eligible_in_data:,} "
+            f"({pct:.1f}%) | eligible book (ODD): {len(eligible_set):,}"
+        )
+    else:
+        msg = (
+            f"TXN accounts -- total: {total:,} | eligible: unknown "
+            "(eligible_data unavailable; not enforced for TXN)"
+        )
+    logger.info(msg)
+    print(f"  {msg}")
+
+
 def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> None:
     """Filter combined_df and rewards_df to eligible accounts only.
 
@@ -640,6 +671,7 @@ def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> 
         )
         namespace["ELIGIBLE_ACCOUNTS"] = set()
         namespace["ELIGIBLE_FILTER_APPLIED"] = False
+        _log_total_vs_eligible(namespace, None)
         return
 
     elig_df = ctx.subsets.eligible_data
@@ -662,6 +694,10 @@ def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> 
     eligible_set = set(elig_df[acct_col].astype(str).str.strip())
     namespace["ELIGIBLE_ACCOUNTS"] = eligible_set
     namespace["ELIGIBLE_FILTER_APPLIED"] = True
+
+    # Visibility: report total vs eligible on the UNFILTERED combined_df, before
+    # the filtering below replaces it.
+    _log_total_vs_eligible(namespace, eligible_set)
 
     combined = namespace.get("combined_df")
     if combined is not None and hasattr(combined, "columns") and "primary_account_num" in combined.columns:
