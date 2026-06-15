@@ -119,6 +119,18 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
     total_closed_lifetime = int(dc.notna().sum())
     total_active = int(dc.isna().sum())
 
+    # Active cardholders = OPEN accounts with recent swipe activity (#208 slide 34:
+    # "what is active? not all 21k are swiping a card"). Swipe counts live in the
+    # ODD (shared/format_odd builds "last 3-mon swipes" / "Total Swipes"); prefer
+    # the recent window, fall back to lifetime, and skip the metric only if no
+    # swipe column is present.
+    active_swipers = None
+    for _swipe_col in ("last 3-mon swipes", "MonthlySwipes3", "Total Swipes"):
+        if _swipe_col in all_data.columns:
+            _sv = pd.to_numeric(all_data[_swipe_col], errors="coerce").fillna(0)
+            active_swipers = int(((dc.isna()) & (_sv > 0)).sum())
+            break
+
     l12m_opens_mask = (do >= l12m_start) & (do <= l12m_end)
     l12m_closes_mask = (dc >= l12m_start) & (dc <= l12m_end)
     n_opens = int(l12m_opens_mask.sum())
@@ -218,7 +230,10 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
             (("+" if net_new >= 0 else "") + _fmt_count(net_new),
                                             "Net New (L12M)",
                                             _GROWTH if net_new >= 0 else _DECAY),
-            (_fmt_count(total_active),      "Open Accounts\n(current, all)",     _INFO),
+            (_fmt_count(active_swipers) if active_swipers is not None else _fmt_count(total_active),
+                                            (f"Active Cardholders\n(swiped recently, of {total_active:,} open)"
+                                             if active_swipers is not None else "Open Accounts\n(current, all)"),
+                                            _INFO),
             (_fmt_count(elig_base_n),       "Eligible Accounts\n(L12M exposure)", _INFO),
             (_fmt_pct(first_year_close_rate),
                                             f"First-Year Close Rate\n({fy_closed:,} of {n_opens:,} new)",
@@ -333,6 +348,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         "eligible_attrition_rate": elig_rate,
         "open_at_start": open_at_start,
         "active": total_active,
+        "active_swipers": active_swipers,
         "closed_lifetime": total_closed_lifetime,
         "total_accounts": total_accts,
         "monthly_opens": opens_by_month.astype(int).tolist(),

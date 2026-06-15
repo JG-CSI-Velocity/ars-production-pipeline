@@ -1457,6 +1457,18 @@ function _parseModuleProgress(line) {
     return {current: parseInt(m[1], 10), total: parseInt(m[2], 10), moduleId, theme};
 }
 
+function _parseMailerWave(line) {
+    // The mailer module renders one combo chart per wave (~minutes each) and logs
+    // "A16.7 Apr26: starting combo render" / "A16.7 Apr26: 5 panels rendered ...".
+    // Surface that so the "Mailer effectiveness" step shows live motion instead
+    // of sitting frozen on the same module count.
+    let m = line.match(/A16\.7\s+(\w+):\s*starting combo render/i);
+    if (m) return {wave: m[1], state: 'start'};
+    m = line.match(/A16\.7\s+(\w+):\s*\d+\s+panels rendered/i);
+    if (m) return {wave: m[1], state: 'done'};
+    return null;
+}
+
 function _parseSoftFailure(line) {
     // "  A8.7: A8.7 -- single positional indexer is out-of-bounds"
     const m = line.match(/^\s*([A-Z]\d+(?:\.\d+)?):\s*\1\s*--\s*(.+)$/);
@@ -1865,9 +1877,24 @@ async function runGenReal() {
                         if (mod) {
                             const pct = Math.round((mod.current / mod.total) * 100);
                             document.getElementById('gAnalyzeBar').style.width = pct + '%';
-                            document.getElementById('gAnalyzeMeta').textContent = `${mod.current} of ${mod.total} reports complete · ${mod.theme}`;
+                            // The mailer module renders per-wave combo charts, so it
+                            // dwells on one module count for minutes -- flag it so the
+                            // operator knows it isn't stuck.
+                            const slow = mod.moduleId.startsWith('mailer')
+                                ? ' · per-wave charts, this can take a few minutes' : '';
+                            document.getElementById('gAnalyzeMeta').textContent = `${mod.current} of ${mod.total} reports complete · ${mod.theme}${slow}`;
                             document.getElementById('gRunTitle').textContent = `Analyzing ${mod.theme.toLowerCase()}…`;
                             document.getElementById('gRunSub').textContent = `Working through ${mod.total} analytics reports for this client`;
+                        }
+
+                        // Live sub-progress during the slow mailer combo step.
+                        const wave = _parseMailerWave(line);
+                        if (wave) {
+                            const label = wave.state === 'start'
+                                ? `Rendering ${wave.wave} mailer combo…`
+                                : `Finished ${wave.wave} mailer combo ✓`;
+                            document.getElementById('gAnalyzeMeta').textContent =
+                                `${label} · per-wave charts, a few minutes total`;
                         }
 
                         // Soft failures
