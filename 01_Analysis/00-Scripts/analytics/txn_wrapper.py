@@ -32,6 +32,12 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib
+# Force the non-interactive Agg backend BEFORE pyplot is imported. The pipeline
+# runs headless and in parallel; the default interactive backend (TkAgg on the
+# work PC) exhausts Tk pixmaps under concurrent figure creation -> "Fail to
+# create pixmap with Tk_GetPixmap in TkImgPhotoInstanceSetSize" (issue #214).
+os.environ.setdefault("MPLBACKEND", "Agg")
+matplotlib.use("Agg", force=True)
 import matplotlib.pyplot as plt
 from loguru import logger
 
