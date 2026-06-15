@@ -1287,9 +1287,17 @@ def tag_competitors(df, merchant_col='merchant_consolidated'):
 
 
 _FINANCIAL_KEYWORDS = [
+    # Traditional banking
     'BANK', 'BANKING', 'CREDIT UNION', 'CU ', 'FEDERAL CREDIT',
     'FINANCIAL', 'SAVINGS', 'LENDING', 'MORTGAGE', 'LOAN',
     'BROKERAGE', 'INVESTMENT', 'TRUST COMPANY',
+    # Fintech / crypto / investing -- these brands carry NO 'bank/financial'
+    # token, so the old keyword set silently hid them (e.g. COINBASE), which is
+    # why missed competitors never surfaced in the discovery output. Broadened
+    # so any untagged fintech/crypto/investing leakage shows up for review.
+    'CRYPTO', 'BITCOIN', 'BLOCKCHAIN', 'EXCHANGE', 'WALLET',
+    'SECURITIES', 'BROKER', 'WEALTH', 'ADVISOR', 'CAPITAL MANAGEMENT',
+    'NEOBANK', 'FINTECH', 'PAYMENTS', 'MONEY', 'FUNDING', 'VENTURES',
 ]
 
 def discover_unmatched_financial(df, merchant_col='merchant_consolidated', top_n=20):
