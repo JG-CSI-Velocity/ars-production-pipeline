@@ -406,6 +406,20 @@ def _personal_vs_business(ctx: PipelineContext) -> list[AnalysisResult]:
     base_biz = _is_business(base_df)
     closed_biz = _is_business(closures_df)
 
+    # Graceful skip: consumer-only clients (no business accounts) must not
+    # render an empty 0/0 Business bar. Drop the slide instead -- mirrors the
+    # original analysis cells, which omitted the chart when a segment was empty.
+    if int(base_biz.sum()) == 0:
+        logger.info("A9.6 skipped: client has no business accounts")
+        return [
+            AnalysisResult(
+                slide_id="A9.6",
+                title="Personal vs Business",
+                success=False,
+                error="No business accounts -- slide skipped",
+            )
+        ]
+
     rows = []
     for label, base_mask, closed_mask in [
         ("Personal", ~base_biz, ~closed_biz),
