@@ -781,12 +781,14 @@ class DeckBuilder:
 
     def _build_mailer_summary_slide(self, slide, content: SlideContent) -> None:
         """Build composite mailer summary slide -- 3 equal columns."""
-        for ph in slide.placeholders:
-            if ph.placeholder_format.idx != 0:
-                try:
-                    ph.element.getparent().remove(ph.element)
-                except Exception:
-                    pass
+        # Remove ALL layout placeholders, including the idx-0 title. This builder
+        # draws its own title textbox; the layout's empty TITLE placeholder
+        # otherwise lingers at its default position and overlaps the insight text.
+        for ph in list(slide.placeholders):
+            try:
+                ph.element.getparent().remove(ph.element)
+            except Exception:
+                pass
 
         COL1_L = Inches(0.2)
         COL2_L = Inches(4.4)
@@ -908,12 +910,31 @@ class DeckBuilder:
             row_box_h = Inches(row_h * 0.85)
 
             for i, item in enumerate(inside_numbers):
-                if "|" in item:
-                    pct, desc = item.split("|", 1)
-                else:
-                    pct, desc = item, ""
-
                 y_pos = 3.9 + i * row_h
+
+                if "|" not in item:
+                    # Full-sentence insight with no value split. Render it across
+                    # the whole column (wrapped) instead of cramming it into the
+                    # 1.4in value box, where word_wrap=False made it overflow into
+                    # the rows below.
+                    tb = slide.shapes.add_textbox(
+                        COL3_L, Inches(y_pos), Inches(4.0), row_box_h
+                    )
+                    tf = tb.text_frame
+                    tf.auto_size = None
+                    tf.word_wrap = True
+                    try:
+                        bodyPr = tf._txBody.find(qn("a:bodyPr"))
+                        bodyPr.set("anchor", "ctr")
+                    except Exception:
+                        pass
+                    p = tf.paragraphs[0]
+                    p.text = item.strip()
+                    p.font.size = desc_size
+                    p.font.color.rgb = RGBColor(0, 0, 0)
+                    continue
+
+                pct, desc = item.split("|", 1)
 
                 tb = slide.shapes.add_textbox(COL3_L, Inches(y_pos), Inches(1.4), row_box_h)
                 tf = tb.text_frame
