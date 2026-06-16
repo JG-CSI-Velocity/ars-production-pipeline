@@ -1,0 +1,69 @@
+name: Build Python Bundle
+
+# Builds a self-contained Windows Python (interpreter + every package in
+# requirements.txt) and publishes it as the "python-bundle" release asset.
+# "CSM Setup.bat" downloads that asset onto each CSM machine.
+#
+# Run it: Actions tab -> "Build Python Bundle" -> "Run workflow".
+# It also rebuilds automatically whenever requirements.txt changes.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - requirements.txt
+      - .github/workflows/build-python-bundle.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download standalone CPython (Windows x64, relocatable)
+        shell: pwsh
+        run: |
+          $headers = @{ "User-Agent" = "velocity-bundle"; "Authorization" = "Bearer $env:GH_TOKEN" }
+          $rel = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/astral-sh/python-build-standalone/releases/latest"
+          $asset = $rel.assets |
+            Where-Object { $_.name -like "cpython-3.12.*-x86_64-pc-windows-msvc-install_only.tar.gz" } |
+            Select-Object -First 1
+          if (-not $asset) { throw "No matching CPython install_only asset found" }
+          Write-Host "Downloading $($asset.name)"
+          Invoke-WebRequest -Headers $headers -Uri $asset.browser_download_url -OutFile cpython.tar.gz
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract CPython
+        shell: pwsh
+        run: |
+          tar -xzf cpython.tar.gz   # extracts to .\python\
+          .\python\python.exe --version
+
+      - name: Install packages into the bundle
+        shell: pwsh
+        run: |
+          .\python\python.exe -m pip install --upgrade pip
+          .\python\python.exe -m pip install -r requirements.txt
+          .\python\python.exe -c "import fastapi, pandas, numpy, matplotlib, pptx, openpyxl, xlsxwriter; print('verify ok')"
+
+      - name: Zip the bundle (python\ at archive root)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path python -DestinationPath Velocity-Python.zip -Force
+          $size = [math]::Round((Get-Item Velocity-Python.zip).Length / 1MB, 1)
+          Write-Host "Velocity-Python.zip = $size MB"
+
+      - name: Publish to the python-bundle release
+        shell: pwsh
+        run: |
+          gh release delete python-bundle --yes 2>$null
+          gh release create python-bundle Velocity-Python.zip `
+            --title "Velocity Python Bundle" `
+            --notes "Self-contained Windows Python + packages for CSM machines. Built from requirements.txt. Downloaded by 'CSM Setup.bat'."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
