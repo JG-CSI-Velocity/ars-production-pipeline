@@ -823,6 +823,12 @@ async def start_run(
                    "--product", product]
             if local_copy_resolved:
                 cmd += ["--local-copy", local_copy_resolved]
+            # Hand the analysis step the exact ODD we already located, so it
+            # doesn't re-discover it with a separate finder that can drift out
+            # of sync (#231: app found it, analysis's stricter finder didn't).
+            # odd_file is guaranteed set here -- we returned above otherwise.
+            if odd_file:
+                cmd.append(str(odd_file))
 
             # Forward SLIDE_MODE and SLIDE_BUDGET so UI-set deck-size
             # controls reach the analysis subprocess. Without this, the
