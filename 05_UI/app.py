@@ -65,6 +65,25 @@ COMPLETED_ANALYSIS = ANALYSIS_BASE / "01_Completed_Analysis"
 # In-memory run tracking
 runs = {}
 
+# Short-TTL cache for the dropdown directory scans (#229). Picking a CSM /
+# month / client re-walks the network share each time; over SMB that's slow.
+# Cache results for a minute so flipping around the dropdowns is instant.
+# Pass refresh=true (the UI's Refresh button) to force a fresh scan.
+_SCAN_CACHE: dict = {}
+_SCAN_TTL_SECONDS = 60.0
+
+
+def _scan_cached(key: str, producer, refresh: bool = False):
+    """Return a cached scan result, or run ``producer()`` and cache it."""
+    now = time.time()
+    if not refresh:
+        hit = _SCAN_CACHE.get(key)
+        if hit is not None and (now - hit[0]) < _SCAN_TTL_SECONDS:
+            return hit[1]
+    value = producer()
+    _SCAN_CACHE[key] = (now, value)
+    return value
+
 
 # ─── HELPERS ──────────────────────────────────────────────────────────
 
@@ -355,83 +374,8 @@ def _clients_from_folder(base: Path, csm: str, month: str) -> set[str]:
     return {d.name for d in csm_dir.iterdir() if d.is_dir()}
 
 
-@app.post("/api/stage")
-async def stage_formatted_odd(
-    src_path: str,
-    csm: str,
-    month: str,
-    client_id: str,
-):
-    """Manually stage pre-formatted ODD files (#124).
-
-    For CSMs whose raw dump folder isn't accessible (Dan, Aaron, etc.),
-    the operator can paste a path to already-extracted ODD .xlsx files
-    and copy them into the canonical READY_FOR_ANALYSIS layout in one
-    click. Skips the 7-step formatting pipeline.
-
-    src_path: file or folder containing one or more .xlsx ODD files.
-    Returns: {copied: [...], skipped: [...], dest: "<destination dir>"}.
-    """
-    src = Path(os.path.expandvars(os.path.expanduser(src_path.strip())))
-    if not src.exists():
-        raise HTTPException(status_code=400, detail=f"Source path does not exist: {src}")
-
-    if not csm or not month or not client_id:
-        raise HTTPException(status_code=400, detail="csm, month, and client_id are all required")
-
-    # Build the destination using the canonical layout. Reuse fuzzy CSM matching
-    # so 'James' picks up the 'JamesG' folder if it already exists.
-    csm_dir = READY_FOR_ANALYSIS / csm
-    if not csm_dir.exists() and READY_FOR_ANALYSIS.exists():
-        for d in READY_FOR_ANALYSIS.iterdir():
-            if d.is_dir() and d.name.lower().startswith(csm.lower()):
-                csm_dir = d
-                break
-    dest_dir = csm_dir / month / client_id
-
-    try:
-        dest_dir.mkdir(parents=True, exist_ok=True)
-    except (PermissionError, OSError) as exc:
-        raise HTTPException(status_code=400, detail=f"Could not create destination {dest_dir}: {exc}")
-
-    # Gather source files. A single .xlsx file or a folder containing them.
-    sources: list[Path] = []
-    if src.is_file():
-        if src.suffix.lower() == ".xlsx":
-            sources = [src]
-        else:
-            raise HTTPException(status_code=400, detail=f"Source file must be .xlsx, got {src.suffix}")
-    else:  # directory
-        sources = sorted(src.glob("*.xlsx"))
-        if not sources:
-            raise HTTPException(status_code=400, detail=f"No .xlsx files found in {src}")
-
-    import shutil
-    copied: list[str] = []
-    skipped: list[str] = []
-    for fp in sources:
-        target = dest_dir / fp.name
-        if target.exists():
-            skipped.append(fp.name)
-            continue
-        try:
-            shutil.copy2(fp, target)
-            copied.append(fp.name)
-        except (PermissionError, OSError) as exc:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to copy {fp.name} to {target}: {exc}",
-            )
-
-    return {
-        "copied": copied,
-        "skipped": skipped,
-        "dest": str(dest_dir),
-    }
-
-
 @app.get("/api/clients")
-async def get_clients(csm: str = "", month: str = ""):
+async def get_clients(csm: str = "", month: str = "", refresh: bool = False):
     """Return client list from config.
 
     When csm and month are both provided, filter to clients that show up
@@ -445,6 +389,12 @@ async def get_clients(csm: str = "", month: str = ""):
 
     With no csm/month, returns the full config (used by Results-tab dropdown).
     """
+    cache_key = f"clients|{csm}|{month}"
+    if not refresh:
+        _hit = _SCAN_CACHE.get(cache_key)
+        if _hit is not None and (time.time() - _hit[0]) < _SCAN_TTL_SECONDS:
+            return _hit[1]
+
     config = load_clients_config()
 
     allowed_ids = None
@@ -485,6 +435,7 @@ async def get_clients(csm: str = "", month: str = ""):
                 "config": {},
             })
 
+    _SCAN_CACHE[cache_key] = (time.time(), clients)
     return clients
 
 
@@ -529,13 +480,19 @@ async def module_counts():
 
 
 @app.get("/api/months")
-async def get_months(csm: str = "", source: str = "all"):
+async def get_months(csm: str = "", source: str = "all", refresh: bool = False):
     """Return available months by scanning actual directories.
 
     source=raw: scan CSM source folders (raw data dumps -- for formatting step)
     source=formatted: scan 02-Data-Ready for Analysis (already formatted -- for analysis step)
     source=all: combine both
     """
+    cache_key = f"months|{csm}|{source}"
+    if not refresh:
+        _hit = _SCAN_CACHE.get(cache_key)
+        if _hit is not None and (time.time() - _hit[0]) < _SCAN_TTL_SECONDS:
+            return _hit[1]
+
     months = set()
 
     # Scan formatted output directory
@@ -561,7 +518,9 @@ async def get_months(csm: str = "", source: str = "all"):
 
     # Cap to most recent 6 months
     sorted_months = sorted(months, reverse=True)
-    return sorted_months[:6] or [datetime.now().strftime("%Y.%m")]
+    result = sorted_months[:6] or [datetime.now().strftime("%Y.%m")]
+    _SCAN_CACHE[cache_key] = (time.time(), result)
+    return result
 
 
 @app.get("/api/files/{csm}/{month}/{client_id}")
@@ -736,6 +695,7 @@ async def start_run(
     client_id: str,
     product: str = "ars",
     local_copy_path: str = "",
+    source_path: str = "",
 ):
     """Start a full pipeline run: format (if needed) + analysis + PPTX.
 
@@ -767,6 +727,14 @@ async def start_run(
             raise HTTPException(status_code=400, detail=f"Local copy path is not a directory: {candidate}")
         local_copy_resolved = str(candidate)
 
+    # Validate an explicit source path up front so we fail fast, not 20 min in (#229).
+    source_resolved = ""
+    if source_path.strip():
+        sp = Path(os.path.expandvars(os.path.expanduser(source_path.strip())))
+        if not sp.exists():
+            raise HTTPException(status_code=400, detail=f"Source path does not exist: {sp}")
+        source_resolved = str(sp)
+
     runs[run_id] = {
         "status": "running",
         "client_id": client_id,
@@ -782,15 +750,24 @@ async def start_run(
     def _run():
         try:
             odd_file = find_formatted_odd(csm, month, client_id)
-            if not odd_file and formatting_run.exists():
+            # With an explicit source path (#229) we always (re)format from that
+            # file; otherwise we only format when no formatted ODD exists yet.
+            need_format = bool(source_resolved) or not odd_file
+            if need_format and formatting_run.exists():
                 runs[run_id]["current_step"] = "Step 1: Formatting ODD file..."
                 runs[run_id]["log"].append("=" * 60)
                 runs[run_id]["log"].append("  STEP 1: Formatting ODD file")
+                if source_resolved:
+                    runs[run_id]["log"].append(f"  Source: {source_resolved}")
                 runs[run_id]["log"].append("=" * 60)
 
+                fmt_cmd = [sys.executable, "-u", str(formatting_run),
+                           "--month", month, "--csm", csm, "--client", client_id]
+                if source_resolved:
+                    fmt_cmd += ["--source-file", source_resolved, "--force"]
+
                 fmt_proc = subprocess.Popen(
-                    [sys.executable, "-u", str(formatting_run),
-                     "--month", month, "--csm", csm, "--client", client_id],
+                    fmt_cmd,
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, encoding="utf-8", errors="replace",
                     bufsize=1,

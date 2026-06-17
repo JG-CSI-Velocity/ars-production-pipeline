@@ -517,41 +517,8 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         <button class="btn btn-dark" onclick="runFormat(true)">Force Re-Format (overwrite existing)</button>
     </div>
 
-    <!-- Manual data-drop (#124): for CSMs without shared dump folder access -->
-    <details class="stage-card" style="margin-top:24px;">
-        <summary style="cursor:pointer;font-weight:700;font-size:15px;padding:14px 18px;background:var(--card);border:2px solid var(--border);border-radius:8px;list-style:none;">
-            Don't have access to a CSM's raw dump folder? <span style="color:var(--accent);">Drop pre-formatted ODD files here &rsaquo;</span>
-        </summary>
-        <div class="card" style="margin-top:8px;border-radius:8px;">
-            <div class="card-header">
-                <div>
-                    <div class="card-title">Stage pre-formatted ODD files</div>
-                    <div class="card-meta">Skips the 7-step formatter. Use when someone hands you an already-extracted ODD <code>.xlsx</code> for a CSM whose raw dump folder you can't see (Dan, Aaron, etc.).</div>
-                </div>
-            </div>
-            <div class="config-row" style="margin-bottom:16px;">
-                <div class="config-field"><div class="label">Source path</div>
-                    <input type="text" id="stageSrcPath" class="sel" placeholder="e.g. C:\Users\you\Downloads\1745_ODDD or a single .xlsx file" />
-                </div>
-            </div>
-            <div class="config-row" style="margin-bottom:16px;">
-                <div class="config-field"><div class="label">CSM</div>
-                    <select class="sel" id="stageCsmSel"><option value="">Loading...</option></select>
-                </div>
-                <div class="config-field"><div class="label">Period</div>
-                    <input type="text" id="stageMonth" class="sel" placeholder="2026.05" />
-                </div>
-                <div class="config-field"><div class="label">Client ID</div>
-                    <input type="text" id="stageClientId" class="sel" placeholder="1745" />
-                </div>
-            </div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">
-                Source path can be a folder (we copy every <code>.xlsx</code> matching ODD naming) or a single file. The destination is <code>02-Data-Ready for Analysis\&lt;CSM&gt;\&lt;period&gt;\&lt;client&gt;\</code> and is created automatically. Once staged, the file shows up in the Generate tab's client list.
-            </div>
-            <button class="btn" id="stageBtn" onclick="runStage()">Stage files</button>
-            <div id="stageResult" style="margin-top:14px;display:none;"></div>
-        </div>
-    </details>
+    <!-- Manual data-drop moved to the Generate tab (#229): paste a file/folder
+         path there and one click formats + analyzes + builds the deck. -->
 
     <div class="prog-section card" id="fProg" style="margin-top:24px;">
         <!-- Wave 4 follow-up: stage checklist + completion card parity
@@ -624,6 +591,19 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                     <option value="">Loading...</option>
                 </select>
             </div>
+        </div>
+
+        <!-- Source-path override (#229): for CSMs whose dump folder isn't auto-detected.
+             Paste a file/folder path; client + period auto-fill from the filename, and
+             one Generate click formats + analyzes + builds the deck. -->
+        <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px;">
+            <div class="label" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Source file / folder path <span style="font-weight:400;color:var(--muted);">— optional, only if this client isn't in the list above</span></span>
+                <button type="button" onclick="forceRefreshGen()" title="Re-scan the share for new clients/periods" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;">&#8635; Refresh lists</button>
+            </div>
+            <input type="text" id="gSourcePath" class="sel" oninput="parseSourcePath()"
+                   placeholder="e.g. \\padmis105\Velocity_Company\ARS\00_Formatting\Unprocessed ODDs\1815-2026-06-FedChoice FCU-ODD ...csv" />
+            <div id="gSourceParsed" style="font-size:12px;color:var(--muted);margin-top:6px;display:none;"></div>
         </div>
     </div>
 
@@ -1215,13 +1195,18 @@ async function refreshGenClients() {
                 sel.value = prev;
             }
         }
+        // #229: a re-scan wipes a from-file client option -- re-inject it.
+        if ((document.getElementById('gSourcePath')?.value || '').trim()) {
+            parseSourcePath();
+            return;
+        }
         updateGenClientFromAPI();
     } catch(e) {}
 }
 
 async function loadCSMs() {
     // Populate BOTH Format and Generate CSM dropdowns from API
-    const selectors = ['gCsmSel', 'fCsmSel', 'stageCsmSel'];
+    const selectors = ['gCsmSel', 'fCsmSel'];
     try {
         const resp = await fetch('/api/csms');
         if (!resp.ok) throw '';
@@ -1758,15 +1743,84 @@ async function _startCompanionRun(csm, month, clientId, prod) {
     }
 }
 
+// #229: ensure a value is selectable in a dropdown, injecting an option when
+// the client/period isn't discoverable on the share (the whole point of the
+// source-path flow).
+function _setOrInjectOption(selectId, value, label) {
+    const sel = document.getElementById(selectId);
+    if (!sel || !value) return;
+    let opt = [...sel.options].find(o => o.value === value);
+    if (!opt) {
+        opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label || value;
+        opt.dataset.config = '{}';
+        opt.dataset.name = label || value;
+        opt.dataset.fromfile = '1';
+        sel.appendChild(opt);
+    }
+    sel.value = value;
+}
+
+// #229: parse client id + period out of a dropped ODD path and pre-fill the
+// dropdowns. CSM can't be parsed from the filename -- operator picks that.
+function parseSourcePath() {
+    const raw = (document.getElementById('gSourcePath').value || '').trim();
+    const info = document.getElementById('gSourceParsed');
+    if (!raw) { if (info) info.style.display = 'none'; return; }
+
+    const name = raw.split(/[\\/]/).pop() || raw;          // last path segment
+    const clientMatch = name.match(/^(\d{3,})/);            // leading digits
+    const monthMatch = name.match(/(20\d{2})[._-](0[1-9]|1[0-2])/);  // YYYY-MM
+
+    const clientId = clientMatch ? clientMatch[1] : '';
+    const month = monthMatch ? `${monthMatch[1]}.${monthMatch[2]}` : '';
+
+    if (month) _setOrInjectOption('gMonthSel', month, month);
+    if (clientId) _setOrInjectOption('gClientSel', clientId, `${clientId} — (from file)`);
+    if (clientId && typeof updateGenClientFromAPI === 'function') updateGenClientFromAPI();
+
+    if (info) {
+        const csm = document.getElementById('gCsmSel')?.value || '';
+        const parts = [
+            clientId ? `client <b>${clientId}</b>` : 'client <b>?</b> — type it above',
+            month ? `period <b>${month}</b>` : 'period <b>?</b> — pick it above',
+            csm ? `CSM <b>${csm}</b>` : 'CSM <b>?</b> — pick your name above',
+        ];
+        info.innerHTML = 'Parsed: ' + parts.join(' &middot; ')
+            + '. Click <b>Generate</b> to format + analyze + build the deck from this file.';
+        info.style.display = '';
+    }
+}
+
+// #229: bust the server-side scan cache and repopulate the dropdowns.
+function forceRefreshGen() {
+    const csm = document.getElementById('gCsmSel')?.value || '';
+    const month = document.getElementById('gMonthSel')?.value || '';
+    const clientsUrl = (csm && month)
+        ? `/api/clients?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&refresh=1`
+        : '/api/clients?refresh=1';
+    Promise.all([
+        fetch('/api/months?source=all&refresh=1').catch(() => {}),
+        fetch(clientsUrl).catch(() => {}),
+    ]).finally(() => {
+        if (typeof loadMonths === 'function') loadMonths();
+        refreshGenClients();
+    });
+}
+
 // Real pipeline run via API
 async function runGenReal() {
     const clientId = document.getElementById('gClientSel').value;
     const csm = document.getElementById('gCsmSel').value;
     const month = document.getElementById('gMonthSel').value;
+    const sourcePath = (document.getElementById('gSourcePath')?.value || '').trim();
     const clientLabel = document.querySelector('#gClientSel option:checked')?.textContent || `Client ${clientId}`;
 
     if (!csm || !month || !clientId) {
-        alert('Please select a CSM, period, and client first.');
+        alert(sourcePath
+            ? 'Pick your CSM name above. Client and period should auto-fill from the file path.'
+            : 'Please select a CSM, period, and client first.');
         return;
     }
 
@@ -1827,7 +1881,8 @@ async function runGenReal() {
 
     try {
         const runUrl = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
-            + (localCopyPath ? `&local_copy_path=${encodeURIComponent(localCopyPath)}` : '');
+            + (localCopyPath ? `&local_copy_path=${encodeURIComponent(localCopyPath)}` : '')
+            + (sourcePath ? `&source_path=${encodeURIComponent(sourcePath)}` : '');
         const resp = await fetch(runUrl, {method: 'POST'});
         if (!resp.ok) {
             const errText = await resp.text();
@@ -2511,58 +2566,8 @@ loadDashboardData();
     } catch (e) {}
 })();
 
-// Manual data-drop (#124): stage pre-formatted ODD files for CSMs without
-// shared dump access. Calls POST /api/stage which copies the source
-// .xlsx(es) into the canonical READY_FOR_ANALYSIS folder.
-async function runStage() {
-    const srcPath = (document.getElementById('stageSrcPath').value || '').trim();
-    const csm = document.getElementById('stageCsmSel').value;
-    const month = (document.getElementById('stageMonth').value || '').trim();
-    const clientId = (document.getElementById('stageClientId').value || '').trim();
-
-    const result = document.getElementById('stageResult');
-    result.style.display = 'block';
-
-    if (!srcPath || !csm || !month || !clientId) {
-        result.innerHTML = `<div style="color:#EB2A2E;font-size:14px;">Need all four: source path, CSM, period, and client ID.</div>`;
-        return;
-    }
-
-    const btn = document.getElementById('stageBtn');
-    btn.disabled = true;
-    btn.textContent = 'Staging...';
-    btn.style.opacity = '0.6';
-    result.innerHTML = `<div style="color:var(--muted);font-size:13px;">Copying files…</div>`;
-
-    try {
-        const url = `/api/stage?src_path=${encodeURIComponent(srcPath)}&csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}`;
-        const resp = await fetch(url, {method: 'POST'});
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) {
-            const msg = data.detail || resp.statusText;
-            result.innerHTML = `<div style="color:#EB2A2E;font-size:14px;">Error: ${msg}</div>`;
-            return;
-        }
-        const copied = data.copied || [];
-        const skipped = data.skipped || [];
-        const dest = data.dest || '';
-        let html = `<div style="color:#2A8B3E;font-weight:700;font-size:14px;margin-bottom:8px;">✓ Staged ${copied.length} file(s) to ${dest}</div>`;
-        if (copied.length) {
-            html += `<div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);">${copied.map(f => '+ ' + f).join('<br>')}</div>`;
-        }
-        if (skipped.length) {
-            html += `<div style="margin-top:8px;color:#B5651D;font-size:12px;">Skipped (no overwrite): ${skipped.join(', ')}</div>`;
-        }
-        html += `<div style="margin-top:8px;color:var(--muted);font-size:11px;">Client ${clientId} should now appear in the Generate tab's client list for ${csm} / ${month}.</div>`;
-        result.innerHTML = html;
-    } catch(e) {
-        result.innerHTML = `<div style="color:#EB2A2E;font-size:14px;">Could not reach the API: ${e.message}</div>`;
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Stage files';
-        btn.style.opacity = '';
-    }
-}
+// Manual data-drop replaced by the Generate tab's source-path field (#229):
+// paste a path there and one Generate click formats + analyzes + builds the deck.
 
 async function runFormat(force = false) {
     const csm = document.getElementById('fCsmSel').value;
