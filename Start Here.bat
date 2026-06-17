@@ -10,14 +10,23 @@ echo.
 echo   (Keep this window open while using the UI)
 echo.
 
-REM --- Find the Python bundle installed by "CSM Setup.bat" ---
+REM --- Choose a Python: prefer the bundle if it's installed, otherwise fall
+REM     back to a system Python already on this machine. Machines that have
+REM     run this for months have their own Python and no bundle -- that's fine. ---
+set "PYEXE="
 set "VELOCITY_PY=%LOCALAPPDATA%\Velocity\python\python.exe"
-if not exist "%VELOCITY_PY%" (
+if exist "%VELOCITY_PY%" (
+    set "PYEXE=%VELOCITY_PY%"
+) else (
+    where python >nul 2>nul && set "PYEXE=python"
+)
+
+if not defined PYEXE (
     color 0C
-    echo   This computer has not been set up yet.
+    echo   No Python found on this computer.
     echo.
-    echo   Please double-click "CSM Setup.bat" once and wait for "Done",
-    echo   then run "Start Here.bat" again.
+    echo   Either install Python, or double-click "CSM Setup.bat" once
+    echo   ^(wait for "Done"^), then run "Start Here.bat" again.
     echo.
     pause >nul
     exit /b 1
@@ -36,8 +45,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM --- Start the server in the background using the bundled Python ---
-start "" /b "%VELOCITY_PY%" app.py
+REM --- Start the server in the background using the chosen Python ---
+start "" /b "%PYEXE%" app.py
 
 echo   Waiting for server...
 :wait_loop
