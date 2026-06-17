@@ -629,13 +629,28 @@ async def start_format(
     month: str,
     client_id: str = "",
     force: bool = False,
+    source_path: str = "",
 ):
-    """Start a formatting run."""
+    """Start a formatting run.
+
+    With source_path (#229), format an explicit file/folder for a CSM whose raw
+    dump folder isn't reachable -- bypasses the ZIP auto-scan. Requires client_id.
+    """
     run_id = f"fmt_{client_id or 'all'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
     formatting_run = ARS_BASE / "00_Formatting" / "run.py"
     if not formatting_run.exists():
         raise HTTPException(status_code=500, detail=f"Formatting run.py not found at {formatting_run}")
+
+    # Validate an explicit source path up front so we fail fast (#229).
+    source_resolved = ""
+    if source_path.strip():
+        sp = Path(os.path.expandvars(os.path.expanduser(source_path.strip())))
+        if not sp.exists():
+            raise HTTPException(status_code=400, detail=f"Source path does not exist: {sp}")
+        if not client_id:
+            raise HTTPException(status_code=400, detail="A client ID is required when formatting from a source path.")
+        source_resolved = str(sp)
 
     runs[run_id] = {
         "status": "running",
@@ -655,6 +670,9 @@ async def start_format(
                    "--month", month, "--csm", csm, "--with-trans"]
             if client_id:
                 cmd.extend(["--client", client_id])
+            if source_resolved:
+                # --source-file mode formats this exact file (forces internally).
+                cmd.extend(["--source-file", source_resolved])
             if force:
                 cmd.append("--force")
 

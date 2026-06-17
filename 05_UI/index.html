@@ -487,6 +487,15 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                 <input class="sel" type="text" id="fClientId" placeholder="e.g. 1200 or leave blank for all">
             </div>
         </div>
+
+        <!-- Source-path override (#229): format a file directly for CSMs whose
+             dump folder isn't reachable (Dan, Aaron). Formats only -- no deck. -->
+        <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px;">
+            <div class="label">Source file / folder path <span style="font-weight:400;color:var(--muted);">— optional, for CSMs whose dump folder isn't reachable</span></div>
+            <input type="text" id="fSourcePath" class="sel" oninput="parseFormatSourcePath()"
+                   placeholder="e.g. \\padmis105\Velocity_Company\ARS\00_Formatting\Unprocessed ODDs\1815-2026-06-FedChoice FCU-ODD ...csv" />
+            <div id="fSourceParsed" style="font-size:12px;color:var(--muted);margin-top:6px;display:none;"></div>
+        </div>
     </div>
 
     <div class="card" style="margin-bottom: 24px;">
@@ -1793,6 +1802,34 @@ function parseSourcePath() {
     }
 }
 
+// #229: same parse for the Format tab (client there is a text input, not a select).
+function parseFormatSourcePath() {
+    const raw = (document.getElementById('fSourcePath').value || '').trim();
+    const info = document.getElementById('fSourceParsed');
+    if (!raw) { if (info) info.style.display = 'none'; return; }
+
+    const name = raw.split(/[\\/]/).pop() || raw;
+    const clientMatch = name.match(/^(\d{3,})/);
+    const monthMatch = name.match(/(20\d{2})[._-](0[1-9]|1[0-2])/);
+    const clientId = clientMatch ? clientMatch[1] : '';
+    const month = monthMatch ? `${monthMatch[1]}.${monthMatch[2]}` : '';
+
+    if (month) _setOrInjectOption('fMonthSel', month, month);
+    if (clientId) document.getElementById('fClientId').value = clientId;
+
+    if (info) {
+        const csm = document.getElementById('fCsmSel')?.value || '';
+        const parts = [
+            clientId ? `client <b>${clientId}</b>` : 'client <b>?</b>',
+            month ? `period <b>${month}</b>` : 'period <b>?</b> — pick it above',
+            csm ? `CSM <b>${csm}</b>` : 'CSM <b>?</b> — pick your name above',
+        ];
+        info.innerHTML = 'Parsed: ' + parts.join(' &middot; ')
+            + '. Click <b>Format ODD Files</b> to format this file (no deck).';
+        info.style.display = '';
+    }
+}
+
 // #229: bust the server-side scan cache and repopulate the dropdowns.
 function forceRefreshGen() {
     const csm = document.getElementById('gCsmSel')?.value || '';
@@ -2573,9 +2610,14 @@ async function runFormat(force = false) {
     const csm = document.getElementById('fCsmSel').value;
     const month = document.getElementById('fMonthSel').value;
     const clientId = document.getElementById('fClientId').value.trim();
+    const sourcePath = (document.getElementById('fSourcePath')?.value || '').trim();
 
     if (!csm || !month) {
         alert('Please select a CSM and period first.');
+        return;
+    }
+    if (sourcePath && !clientId) {
+        alert('Enter the client ID (it should auto-fill from the file path).');
         return;
     }
 
@@ -2609,7 +2651,8 @@ async function runFormat(force = false) {
     _markFormatStage('locate', 'start');
 
     try {
-        const url = `/api/format?csm=${csm}&month=${month}&client_id=${clientId}&force=${force}`;
+        const url = `/api/format?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}&force=${force}`
+            + (sourcePath ? `&source_path=${encodeURIComponent(sourcePath)}` : '');
         st.textContent = 'Connecting...';
         const resp = await fetch(url, {method: 'POST'});
         if (!resp.ok) {
