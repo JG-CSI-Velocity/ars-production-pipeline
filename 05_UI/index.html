@@ -951,10 +951,12 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px;">
         <div>
             <div class="page-title">Schedules</div>
-            <div class="page-sub">Set up recurring monthly report generation. Schedules run automatically on the specified day.</div>
+            <div class="page-sub">Recurring monthly report generation. A schedule fires on its day while a Velocity window is open.</div>
         </div>
         <button class="btn" onclick="showAddSchedule()">+ New Schedule</button>
     </div>
+
+    <div id="schedHeartbeat" style="margin-bottom:16px;font-size:13px;color:var(--muted);">Checking scheduler…</div>
 
     <!-- Add/Edit form (hidden by default) -->
     <div class="card" id="scheduleForm" style="display:none;margin-bottom:24px;">
@@ -966,14 +968,29 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             <div class="config-field"><div class="label">CSM</div>
                 <select class="sel" id="schedCsm"><option value="">Loading...</option></select>
             </div>
-            <div class="config-field"><div class="label">Client</div>
+            <div class="config-field"><div class="label">Scope</div>
+                <select class="sel" id="schedScope" onchange="_schedScopeChanged()">
+                    <option value="client">This client</option>
+                    <option value="csm">All of this CSM's clients</option>
+                </select>
+            </div>
+            <div class="config-field" id="schedClientField"><div class="label">Client</div>
                 <select class="sel" id="schedClient"><option value="">Loading...</option></select>
             </div>
+        </div>
+        <div class="config-row" style="margin-bottom:16px;">
             <div class="config-field"><div class="label">Product</div>
                 <select class="sel" id="schedProduct">
                     <option value="ars">ARS Full Suite</option>
                     <option value="txn">Transaction</option>
                     <option value="combined">Combined (ARS + TXN)</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Task</div>
+                <select class="sel" id="schedTask">
+                    <option value="both">Format + Generate</option>
+                    <option value="format">Format only</option>
+                    <option value="generate">Generate only</option>
                 </select>
             </div>
         </div>
@@ -1001,7 +1018,7 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     <!-- Schedules table -->
     <div class="card">
         <table class="recent-table">
-            <thead><tr><th>Client</th><th>CSM</th><th>Product</th><th>Day</th><th>Extras</th><th>Last Run</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Target</th><th>CSM</th><th>Product</th><th>Task</th><th>Day</th><th>Status</th><th>Last</th><th>Actions</th></tr></thead>
             <tbody id="schedulesBody">
                 <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">No schedules configured. Click "+ New Schedule" to add one.</td></tr>
             </tbody>
@@ -2992,6 +3009,8 @@ async function smartRunGen() {
 function showAddSchedule() {
     document.getElementById('scheduleForm').style.display = 'block';
     document.getElementById('schedFormTitle').textContent = 'New Schedule';
+    const scopeSel = document.getElementById('schedScope');
+    if (scopeSel) { scopeSel.value = 'client'; _schedScopeChanged(); }
     // Populate CSM dropdown
     fetch('/api/csms').then(r => r.json()).then(csms => {
         const sel = document.getElementById('schedCsm');
@@ -3008,16 +3027,24 @@ function hideAddSchedule() {
     document.getElementById('scheduleForm').style.display = 'none';
 }
 
+function _schedScopeChanged() {
+    const scope = document.getElementById('schedScope').value;
+    document.getElementById('schedClientField').style.display = scope === 'csm' ? 'none' : '';
+}
+
 async function saveSchedule() {
+    const scope = document.getElementById('schedScope').value;
     const sched = {
         csm: document.getElementById('schedCsm').value,
-        client_id: document.getElementById('schedClient').value,
+        scope: scope,
+        client_id: scope === 'client' ? document.getElementById('schedClient').value : '',
         product: document.getElementById('schedProduct').value,
+        task: document.getElementById('schedTask').value,
         day: parseInt(document.getElementById('schedDay').value),
         extras: document.getElementById('schedExtras').value,
     };
-    if (!sched.csm || !sched.client_id) {
-        alert('Please select a CSM and client.');
+    if (!sched.csm || (scope === 'client' && !sched.client_id)) {
+        alert(scope === 'client' ? 'Please select a CSM and client.' : 'Please select a CSM.');
         return;
     }
     try {
@@ -3056,6 +3083,21 @@ async function runScheduleNow(id) {
     } catch(e) {}
 }
 
+function _schedStatusBadge(s) {
+    const st = s.status || (s.enabled ? 'scheduled' : 'paused');
+    if (st === 'complete') return `<span class="badge badge-green">&#10003; ${s.target_month || 'done'}</span>`;
+    if (st === 'scheduled') return `<span class="badge badge-green">Scheduled</span>`;
+    if (st === 'error') return `<span class="badge" style="background:var(--red);color:#fff;">&#10007; error</span>`;
+    const labels = {running: '&#8987; running', partial: '&#9685; partial', 'waiting for data': '&#8987; waiting for data', waiting: '&#8987; waiting', paused: 'Paused'};
+    return `<span class="badge badge-accent">${labels[st] || st}</span>`;
+}
+
+const _schedBtn = 'border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;margin-right:4px;';
+
+async function toggleSchedule(id) {
+    try { await fetch(`/api/schedules/${id}/toggle`, {method: 'POST'}); loadSchedules(); } catch(e) {}
+}
+
 async function loadSchedules() {
     try {
         const resp = await fetch('/api/schedules');
@@ -3068,21 +3110,24 @@ async function loadSchedules() {
         }
         tbody.innerHTML = '';
         schedules.forEach(s => {
-            const statusBadge = s.enabled
-                ? '<span class="badge badge-green">Active</span>'
-                : '<span class="badge badge-accent">Paused</span>';
+            const target = s.scope === 'csm' ? '<em>All clients</em>' : `<strong>${s.client_id || ''}</strong>`;
+            const taskLabel = {both: 'Format + Generate', format: 'Format only', generate: 'Generate only'}[s.task || 'both'];
+            const d = s.day;
+            const dayOrd = d + (['th', 'st', 'nd', 'rd'][d % 10 > 3 ? 0 : (d % 100 - d % 10 != 10) * d % 10] || 'th');
+            const pauseLabel = s.enabled ? 'Pause' : 'Resume';
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${s.client_id}</strong></td>
+                <td>${target}</td>
                 <td>${s.csm}</td>
-                <td>${s.product.toUpperCase()}</td>
-                <td class="mono">${s.day}${['th','st','nd','rd'][s.day%10>3?0:(s.day%100-s.day%10!=10)*s.day%10] || 'th'}</td>
-                <td>${s.extras || 'none'}</td>
+                <td>${(s.product || 'ars').toUpperCase()}</td>
+                <td style="font-size:12px;">${taskLabel}</td>
+                <td class="mono">${dayOrd}</td>
+                <td>${_schedStatusBadge(s)}</td>
                 <td class="mono">${s.last_run || '--'}</td>
-                <td>${statusBadge}</td>
                 <td>
-                    <button onclick="runScheduleNow('${s.id}')" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;margin-right:4px;">Run Now</button>
-                    <button onclick="deleteSchedule('${s.id}')" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;">Delete</button>
+                    <button onclick="runScheduleNow('${s.id}')" style="background:var(--accent);color:#fff;${_schedBtn}">Run Now</button>
+                    <button onclick="toggleSchedule('${s.id}')" style="background:#6b7280;color:#fff;${_schedBtn}">${pauseLabel}</button>
+                    <button onclick="deleteSchedule('${s.id}')" style="background:var(--red);color:#fff;${_schedBtn}">Delete</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -3090,8 +3135,26 @@ async function loadSchedules() {
     } catch(e) {}
 }
 
-// Load schedules on page load
+async function _pollSchedHeartbeat() {
+    const el = document.getElementById('schedHeartbeat');
+    if (!el) return;
+    try {
+        const r = await fetch('/api/scheduler/status');
+        if (!r.ok) return;
+        const st = await r.json();
+        if (st.active) {
+            const t = st.last_tick_at ? new Date(st.last_tick_at).toLocaleTimeString() : '—';
+            el.innerHTML = `<span style="color:#2A8B3E;">&#9679;</span> Scheduler active &mdash; last checked ${t}. Keep the Velocity window open for schedules to run.`;
+        } else {
+            el.innerHTML = `<span style="color:var(--red);">&#9679;</span> Scheduler not running.`;
+        }
+    } catch(e) {}
+}
+
+// Load schedules + heartbeat on page load
 loadSchedules();
+_pollSchedHeartbeat();
+setInterval(_pollSchedHeartbeat, 30000);
 </script>
 </body>
 </html>

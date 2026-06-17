@@ -1399,25 +1399,375 @@ def _load_schedules() -> list[dict]:
 
 
 def _save_schedules(schedules: list[dict]):
+    """Atomic write -- schedules.json is definition-only. Concurrent readers
+    never see a torn/empty file because we write a temp then os.replace."""
     SCHEDULES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    SCHEDULES_FILE.write_text(json.dumps(schedules, indent=2), encoding="utf-8")
+    tmp = SCHEDULES_FILE.with_name(f".schedules.{uuid.uuid4().hex[:6]}.tmp")
+    tmp.write_text(json.dumps(schedules, indent=2), encoding="utf-8")
+    os.replace(tmp, SCHEDULES_FILE)
+
+
+# ─── Schedule execution engine ─────────────────────────────────────────
+# schedules.json (above) is DEFINITION-ONLY -- written only on user CRUD.
+# Volatile per-month run status lives in claim files (single writer = the
+# machine that won the claim); run records go to a shared ledger, one file per
+# run. Design: docs/superpowers/specs/2026-06-17-schedule-execution-design.md
+
+SCHEDULE_CLAIMS_DIR = ARS_BASE / "03_Config" / "schedule_claims"
+RUNS_LEDGER_DIR = LOGS_BASE / "runs"
+_SCHEDULER_TICK_SECONDS = 600        # ~10 minutes
+_CLAIM_STALE_SECONDS = 6 * 3600      # re-claim a wedged run after 6h
+_scheduler_state = {"active": False, "last_tick_at": None}
+
+
+def _machine_id() -> str:
+    import socket
+    return os.environ.get("COMPUTERNAME") or socket.gethostname() or "unknown"
+
+
+def current_report_month(today=None) -> str:
+    """Month a schedule targets when it fires: the current calendar month."""
+    return (today or datetime.now()).strftime("%Y.%m")
+
+
+def _claim_path(schedule_id: str, month: str) -> Path:
+    return SCHEDULE_CLAIMS_DIR / f"{schedule_id}.{month}.json"
+
+
+def read_claim(schedule_id: str, month: str) -> Optional[dict]:
+    p = _claim_path(schedule_id, month)
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _claim_is_stale(claim: dict) -> bool:
+    if claim.get("status") == "complete":
+        return False
+    ts = claim.get("updated_at") or claim.get("claimed_at")
+    if not ts:
+        return True
+    try:
+        return (datetime.now() - datetime.fromisoformat(ts)).total_seconds() > _CLAIM_STALE_SECONDS
+    except ValueError:
+        return True
+
+
+def try_claim(schedule_id: str, month: str) -> bool:
+    """Best-effort exclusive claim of (schedule, month). True if we own it.
+
+    Not a hard mutex on SMB -- pipeline runs are idempotent, so a rare double
+    claim just rebuilds the same deck. A stale claim is re-claimable.
+    """
+    SCHEDULE_CLAIMS_DIR.mkdir(parents=True, exist_ok=True)
+    p = _claim_path(schedule_id, month)
+    existing = read_claim(schedule_id, month)
+    if existing is not None and not _claim_is_stale(existing):
+        return existing.get("claimed_by") == _machine_id()  # already mine
+    payload = {
+        "schedule_id": schedule_id, "month": month,
+        "claimed_by": _machine_id(), "claimed_at": datetime.now().isoformat(),
+        "status": "running", "updated_at": datetime.now().isoformat(), "clients": {},
+    }
+    try:
+        if existing is None:
+            with open(p, "x", encoding="utf-8") as f:   # exclusive create
+                json.dump(payload, f, indent=2)
+        else:
+            p.write_text(json.dumps(payload, indent=2), encoding="utf-8")  # recover stale
+        return True
+    except (FileExistsError, OSError):
+        return False
+
+
+def update_claim(schedule_id: str, month: str, clients_update: dict = None, **fields):
+    """Single-writer status update (called only by the claim owner)."""
+    claim = read_claim(schedule_id, month) or {
+        "schedule_id": schedule_id, "month": month, "clients": {},
+    }
+    claim.update(fields)
+    if clients_update:
+        claim.setdefault("clients", {}).update(clients_update)
+    claim["updated_at"] = datetime.now().isoformat()
+    try:
+        _claim_path(schedule_id, month).write_text(json.dumps(claim, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def due_schedules(schedules: list[dict], today=None, claim_lookup=read_claim) -> list[dict]:
+    """Enabled schedules past their day and not already complete this month."""
+    d = today or datetime.now()
+    month = current_report_month(d)
+    out = []
+    for s in schedules:
+        if not s.get("enabled", True):
+            continue
+        try:
+            day = int(s.get("day", 1))
+        except (TypeError, ValueError):
+            day = 1
+        if d.day < day:
+            continue
+        claim = claim_lookup(s["id"], month)
+        if claim and claim.get("status") == "complete":
+            continue
+        out.append(s)
+    return out
+
+
+def clients_for_scope(schedule: dict, month: str) -> list[str]:
+    """Client ids a schedule targets this month: one, or all of a CSM's."""
+    if schedule.get("scope") == "csm":
+        csm = schedule.get("csm", "")
+        ids = _clients_from_raw_dumps(csm, month) | _clients_from_folder(READY_FOR_ANALYSIS, csm, month)
+        return sorted(ids)
+    cid = schedule.get("client_id")
+    return [cid] if cid else []
+
+
+def _input_ready(task: str, csm: str, month: str, client_id: str) -> bool:
+    """Is the input this task needs present (as seen from this machine)?"""
+    if task == "generate":
+        return bool(find_formatted_odd(csm, month, client_id))
+    return client_id in _clients_from_raw_dumps(csm, month)  # format / both -> raw dump
+
+
+def write_run_record(record: dict):
+    """Append one run to the shared ledger (one file per run, single writer)."""
+    try:
+        RUNS_LEDGER_DIR.mkdir(parents=True, exist_ok=True)
+        rid = record.get("run_id") or uuid.uuid4().hex
+        (RUNS_LEDGER_DIR / f"{rid}.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def read_run_history(limit: int = 50) -> list[dict]:
+    """Read the run ledger, newest first."""
+    if not RUNS_LEDGER_DIR.exists():
+        return []
+    files = sorted(RUNS_LEDGER_DIR.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
+    out = []
+    for f in files[:limit]:
+        try:
+            out.append(json.loads(f.read_text(encoding="utf-8")))
+        except (json.JSONDecodeError, OSError):
+            continue
+    return out
+
+
+# ─── Schedule run execution (shared by the engine and Run Now) ─────────
+
+def _stream_subprocess(cmd, cwd, run_id) -> int:
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, encoding="utf-8", errors="replace", bufsize=1, cwd=str(cwd),
+    )
+    for line in proc.stdout:
+        if run_id in runs:
+            runs[run_id]["log"].append(line.rstrip())
+            runs[run_id]["current_step"] = line.strip()
+            runs[run_id]["progress"] = min(95, len(runs[run_id]["log"]) * 2)
+    proc.wait()
+    return proc.returncode
+
+
+def _run_one(csm, month, client_id, product, task, extras, run_id) -> str:
+    """Run format and/or generate for one client (blocking). Returns status.
+
+    Carries the odd-path fix: when generating, pass the located ODD to analysis
+    so it doesn't re-discover with a finder that can drift.
+    """
+    formatting_run = ARS_BASE / "00_Formatting" / "run.py"
+    analysis_run = ARS_BASE / "01_Analysis" / "run.py"
+    started = datetime.now()
+    runs[run_id] = {
+        "status": "running", "client_id": client_id, "csm": csm, "month": month,
+        "product": product, "started": started.isoformat(), "progress": 0,
+        "current_step": f"Scheduled: {client_id}", "log": [], "source": "schedule",
+    }
+    status = "complete"
+    try:
+        if task in ("format", "both") and formatting_run.exists():
+            fmt_cmd = [sys.executable, "-u", str(formatting_run),
+                       "--month", month, "--csm", csm, "--client", client_id]
+            if extras == "trans":
+                fmt_cmd.append("--with-trans")
+            elif extras == "all":
+                fmt_cmd.append("--with-all")
+            if _stream_subprocess(fmt_cmd, formatting_run.parent, run_id) != 0:
+                status = "error"
+        if status != "error" and task in ("generate", "both") and analysis_run.exists():
+            cmd = [sys.executable, "-u", str(analysis_run),
+                   "--month", month, "--csm", csm, "--client", client_id, "--product", product]
+            odd = find_formatted_odd(csm, month, client_id)
+            if odd:
+                cmd.append(str(odd))
+            if _stream_subprocess(cmd, analysis_run.parent, run_id) != 0:
+                status = "error"
+    except Exception as e:
+        status = "error"
+        if run_id in runs:
+            runs[run_id]["log"].append(f"ERROR: {e}")
+    if run_id in runs:
+        runs[run_id]["status"] = status
+        runs[run_id]["progress"] = 100
+        runs[run_id]["finished"] = datetime.now().isoformat()
+    write_run_record({
+        "run_id": run_id, "csm": csm, "client_id": client_id, "month": month,
+        "product": product, "task": task, "status": status,
+        "started": started.isoformat(), "finished": datetime.now().isoformat(),
+        "source": "schedule",
+    })
+    return status
+
+
+def _overall_status(all_clients, clients_state) -> str:
+    total = len(all_clients)
+    if total == 0:
+        return "waiting for data"
+    n_complete = sum(1 for c in all_clients if clients_state.get(c, {}).get("status") == "complete")
+    n_error = sum(1 for c in all_clients if clients_state.get(c, {}).get("status") == "error")
+    n_waiting = sum(1 for c in all_clients if clients_state.get(c, {}).get("status") == "waiting for data")
+    if n_complete == total:
+        return "complete"
+    if n_complete + n_error == total:
+        return "error" if n_complete == 0 else "partial"
+    if n_waiting and n_complete + n_error + n_waiting == total:
+        return "waiting for data" if n_complete == 0 else "partial"
+    return "running"
+
+
+def _run_schedule_job(schedule: dict, month: str, force: bool = False):
+    """Run ready, not-yet-done clients for a CLAIMED schedule; update its claim.
+
+    Called only by the claim owner (engine) or Run Now (force re-runs all)."""
+    sid = schedule["id"]
+    task = schedule.get("task", "both")
+    product = schedule.get("product", "ars")
+    extras = schedule.get("extras", "none")
+    csm = schedule.get("csm", "")
+    all_clients = clients_for_scope(schedule, month)
+
+    claim = read_claim(sid, month) or {}
+    done = set() if force else {
+        c for c, v in (claim.get("clients") or {}).items() if v.get("status") == "complete"
+    }
+
+    for cid in [c for c in all_clients if c not in done]:
+        if not _input_ready(task, csm, month, cid):
+            update_claim(sid, month, clients_update={cid: {"status": "waiting for data"}})
+            continue
+        run_id = f"{cid}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
+        update_claim(sid, month, status="running",
+                     clients_update={cid: {"status": "running", "run_id": run_id}})
+        st = _run_one(csm, month, cid, product, task, extras, run_id)
+        update_claim(sid, month, clients_update={cid: {"status": st, "run_id": run_id}})
+
+    claim = read_claim(sid, month) or {}
+    update_claim(sid, month, status=_overall_status(all_clients, claim.get("clients") or {}))
+
+
+# ─── Scheduler engine thread ───────────────────────────────────────────
+
+def _scheduler_tick():
+    _scheduler_state["last_tick_at"] = datetime.now().isoformat()
+    try:
+        scheds = _load_schedules()
+    except Exception:
+        return
+    today = datetime.now()
+    month = current_report_month(today)
+    for sched in due_schedules(scheds, today):
+        try:
+            claim = read_claim(sched["id"], month)
+            mine = bool(claim and claim.get("claimed_by") == _machine_id() and not _claim_is_stale(claim))
+            if claim and not mine and not _claim_is_stale(claim):
+                continue  # another machine owns it this month
+            clients = clients_for_scope(sched, month)
+            ready = [c for c in clients
+                     if _input_ready(sched.get("task", "both"), sched.get("csm", ""), month, c)]
+            if not ready and not mine:
+                continue  # nothing ready yet; leave unclaimed (UI shows "waiting")
+            if not mine and not try_claim(sched["id"], month):
+                continue
+            _run_schedule_job(sched, month)
+        except Exception:
+            continue
+
+
+def _scheduler_loop():
+    _scheduler_state["active"] = True
+    time.sleep(5)  # let the server settle, then make a first pass
+    while True:
+        try:
+            _scheduler_tick()
+        except Exception:
+            pass
+        time.sleep(_SCHEDULER_TICK_SECONDS)
+
+
+@app.on_event("startup")
+def _start_scheduler():
+    threading.Thread(target=_scheduler_loop, daemon=True, name="schedule-engine").start()
+
+
+@app.get("/api/scheduler/status")
+async def scheduler_status():
+    return {"active": _scheduler_state["active"], "last_tick_at": _scheduler_state["last_tick_at"]}
 
 
 @app.get("/api/schedules")
 async def list_schedules():
-    return _load_schedules()
+    """Definitions merged with this month's claim status for display."""
+    schedules = _load_schedules()
+    today = datetime.now()
+    month = current_report_month(today)
+    for s in schedules:
+        claim = read_claim(s["id"], month)
+        s["target_month"] = month
+        if claim:
+            s["status"] = claim.get("status", "running")
+            s["clients_status"] = claim.get("clients", {})
+            s["last_run"] = (claim.get("updated_at", "") or "")[:16].replace("T", " ")
+        elif not s.get("enabled", True):
+            s["status"] = "paused"
+        else:
+            try:
+                day = int(s.get("day", 1))
+            except (TypeError, ValueError):
+                day = 1
+            s["status"] = "waiting" if today.day >= day else "scheduled"
+            s["last_run"] = s.get("last_run") or "--"
+    return schedules
 
 
 @app.post("/api/schedules")
 async def create_schedule(schedule: dict):
     schedules = _load_schedules()
     schedule["id"] = f"sched_{uuid.uuid4().hex[:8]}"
+    schedule.setdefault("scope", "client")   # "client" | "csm"
+    schedule.setdefault("task", "both")      # "format" | "generate" | "both"
     schedule["enabled"] = True
     schedule["created"] = datetime.now().isoformat()
-    schedule["last_run"] = None
     schedules.append(schedule)
     _save_schedules(schedules)
     return schedule
+
+
+@app.post("/api/schedules/{schedule_id}/toggle")
+async def toggle_schedule(schedule_id: str):
+    schedules = _load_schedules()
+    for s in schedules:
+        if s.get("id") == schedule_id:
+            s["enabled"] = not s.get("enabled", True)
+            _save_schedules(schedules)
+            return {"id": schedule_id, "enabled": s["enabled"]}
+    raise HTTPException(status_code=404, detail="Schedule not found")
 
 
 @app.delete("/api/schedules/{schedule_id}")
@@ -1430,94 +1780,23 @@ async def delete_schedule(schedule_id: str):
 
 @app.post("/api/schedules/{schedule_id}/run")
 async def run_schedule_now(schedule_id: str):
-    """Manually trigger a scheduled run."""
+    """Manually fire a schedule now -- same engine path, force re-run all clients."""
     schedules = _load_schedules()
     sched = next((s for s in schedules if s.get("id") == schedule_id), None)
     if not sched:
         raise HTTPException(status_code=404, detail="Schedule not found")
 
-    # Build the run parameters from the schedule
-    month = datetime.now().strftime("%Y.%m")
-    product = sched.get("product", "ars")
+    month = current_report_month()
 
-    # Trigger the run via the existing /api/run logic
-    run_id = f"{sched['client_id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
-
-    analysis_run = ARS_BASE / "01_Analysis" / "run.py"
-    formatting_run = ARS_BASE / "00_Formatting" / "run.py"
-
-    runs[run_id] = {
-        "status": "running",
-        "client_id": sched["client_id"],
-        "csm": sched["csm"],
-        "month": month,
-        "product": product,
-        "started": datetime.now().isoformat(),
-        "progress": 0,
-        "current_step": f"Scheduled run: {sched['client_id']}",
-        "log": [],
-    }
-
-    def _run():
+    def _bg():
         try:
-            # Format first
-            if formatting_run.exists():
-                fmt_cmd = [sys.executable, "-u", str(formatting_run),
-                           "--month", month, "--csm", sched["csm"],
-                           "--client", sched["client_id"]]
-                extras = sched.get("extras", "none")
-                if extras == "trans":
-                    fmt_cmd.append("--with-trans")
-                elif extras == "all":
-                    fmt_cmd.append("--with-all")
+            try_claim(schedule_id, month)   # own the claim so status displays
+            _run_schedule_job(sched, month, force=True)
+        except Exception:
+            pass
 
-                proc = subprocess.Popen(
-                    fmt_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, encoding="utf-8", errors="replace", bufsize=1,
-                    cwd=str(formatting_run.parent),
-                )
-                for line in proc.stdout:
-                    if run_id in runs:
-                        runs[run_id]["log"].append(line.rstrip())
-                proc.wait()
-
-            # Run analysis
-            cmd = [sys.executable, "-u", str(analysis_run),
-                   "--month", month, "--csm", sched["csm"],
-                   "--client", sched["client_id"], "--product", product]
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace", bufsize=1,
-                cwd=str(analysis_run.parent),
-            )
-            for line in proc.stdout:
-                if run_id in runs:
-                    runs[run_id]["log"].append(line.rstrip())
-                    runs[run_id]["current_step"] = line.strip()
-                    runs[run_id]["progress"] = min(95, len(runs[run_id]["log"]) * 2)
-            proc.wait()
-
-            if run_id in runs:
-                runs[run_id]["status"] = "complete" if proc.returncode == 0 else "error"
-                runs[run_id]["progress"] = 100 if proc.returncode == 0 else runs[run_id]["progress"]
-                runs[run_id]["finished"] = datetime.now().isoformat()
-
-            # Update schedule last_run
-            schedules = _load_schedules()
-            for s in schedules:
-                if s["id"] == schedule_id:
-                    s["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    break
-            _save_schedules(schedules)
-
-        except Exception as e:
-            if run_id in runs:
-                runs[run_id]["status"] = "error"
-                runs[run_id]["log"].append(f"ERROR: {e}")
-
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
-    return {"run_id": run_id}
+    threading.Thread(target=_bg, daemon=True).start()
+    return {"started": True, "schedule_id": schedule_id, "month": month}
 
 
 if __name__ == "__main__":
