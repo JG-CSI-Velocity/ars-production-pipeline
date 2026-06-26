@@ -37,7 +37,7 @@ sys.path.insert(0, str(_config_dir))
 import pandas as pd
 from month_resolver import resolve_source_month_dir
 from settings import load_settings
-from shared.format_odd import format_odd
+from shared.format_odd import check_odd_formatted, format_odd
 
 
 # Log files we've already failed to write to. A locked or permission-denied
@@ -220,6 +220,123 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
     return success_count, error_count
 
 
+# ─── SINGLE-FILE / FOLDER STAGING (issue #229) ─────────────────────────
+
+# Column signals that indicate a real raw ODD header (used to sanity-check
+# that we skipped the right number of preamble rows before formatting).
+_RAW_ODD_NAME_SIGNALS = ("Stat Code", "Account", "DOB", "Date Opened", "Status", "Product")
+_RAW_ODD_SUFFIX_SIGNALS = (" PIN $", " Sig $", " Mail", " Resp", "MTD")
+
+
+def _looks_like_raw_odd(df):
+    """Heuristic: do these columns look like a real raw ODD header?
+
+    Guards against a wrong ``skiprows`` eating real data -- if the header still
+    looks like metadata (all 'Unnamed', or none of the known ODD signals), we
+    refuse to format rather than emit a garbage workbook.
+    """
+    cols = [str(c) for c in df.columns]
+    if not cols or all(c.startswith("Unnamed") for c in cols):
+        return False
+    if any(sig in cols for sig in _RAW_ODD_NAME_SIGNALS):
+        return True
+    if any(c.endswith(_RAW_ODD_SUFFIX_SIGNALS) for c in cols):
+        return True
+    return False
+
+
+def process_source_file(source_path, csm_name, month, client_id, output_directory, log_file=None, force=False):
+    """Format an explicitly-provided ODD file (or folder of them) into the
+    canonical output layout, bypassing the ZIP auto-scan.
+
+    Used by the UI "Generate from a path" flow (issue #229) for CSMs whose raw
+    dump folder isn't auto-discoverable. Reuses the exact same formatting the
+    ZIP path uses: skip 4 preamble rows -> drop the index column -> the 7-step
+    ``format_odd`` -> write .xlsx. Already-formatted files are placed as-is so
+    they're never double-formatted.
+
+    Returns (success_count, error_count).
+    """
+    src = Path(source_path)
+    if not src.exists():
+        log_message(f"  Source path not found: {src}", log_file)
+        return 0, 1
+
+    if src.is_file():
+        files = [src]
+    else:
+        files = sorted(
+            p for p in src.iterdir()
+            if p.is_file() and p.suffix.lower() in (".csv", ".xlsx") and "odd" in p.name.lower()
+        )
+        if not files:
+            log_message(f"  No .csv/.xlsx ODD files found in folder: {src}", log_file)
+            return 0, 1
+
+    client_output_dir = os.path.join(output_directory, client_id)
+    os.makedirs(client_output_dir, exist_ok=True)
+
+    success_count = 0
+    error_count = 0
+    for fp in files:
+        try:
+            output_path = os.path.join(client_output_dir, fp.stem + ".xlsx")
+
+            if not force and os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
+                log_message(f"    Skipping {fp.name} -- already present ({os.path.getsize(output_path) / 1024 / 1024:.1f} MB)", log_file)
+                continue
+
+            # Already formatted? Place it without re-running format_odd.
+            try:
+                already_formatted = check_odd_formatted(str(fp)).is_formatted
+            except Exception:
+                already_formatted = False
+
+            if already_formatted:
+                if fp.suffix.lower() == ".xlsx":
+                    shutil.copy2(fp, output_path)
+                else:
+                    pd.read_csv(fp, low_memory=False).to_excel(output_path, index=False, engine="xlsxwriter")
+                log_message(f"    Placed (already formatted): {fp.name} -> {client_output_dir}", log_file)
+                success_count += 1
+                continue
+
+            # Raw file -- read with the same preamble skip the ZIP path uses.
+            if fp.suffix.lower() == ".xlsx":
+                df = pd.read_excel(fp)
+            else:
+                df = pd.read_csv(fp, skiprows=4, low_memory=False)
+
+            if df.empty:
+                log_message(f"    Skipping empty: {fp.name}", log_file)
+                continue
+
+            if not _looks_like_raw_odd(df):
+                log_message(
+                    f"    ERROR: {fp.name} does not look like a raw ODD after skipping header rows "
+                    f"(columns: {list(df.columns)[:6]}). Refusing to format.",
+                    log_file,
+                )
+                error_count += 1
+                continue
+
+            # Drop first column if it's an index column (same rule as the ZIP path).
+            if str(df.columns[0]).startswith("Unnamed") or df.iloc[:, 0].dtype == "int64":
+                df = df.drop(columns=[df.columns[0]])
+
+            log_message(f"    Formatting (from path): {fp.name} ({len(df):,} rows, {len(df.columns)} cols)", log_file)
+            df = format_odd(df)
+            df.to_excel(output_path, index=False, engine="xlsxwriter")
+            log_message(f"    Done: {fp.stem}.xlsx ({os.path.getsize(output_path) / 1024 / 1024:.1f} MB) -> {client_output_dir}", log_file)
+            success_count += 1
+
+        except Exception as e:
+            log_message(f"    ERROR formatting {fp.name}: {e}", log_file)
+            error_count += 1
+
+    return success_count, error_count
+
+
 # ─── EXTRA FILE GATHERING ──────────────────────────────────────────────
 
 def gather_trans_files(src_directory, txn_output_base, csm_name, client_filter=None, log_file=None, clients_config=None):
@@ -397,6 +514,9 @@ def main():
                         help="Process only this CSM (default: all)")
     parser.add_argument("--client", type=str, default=None,
                         help="Process only this client ID (default: all)")
+    parser.add_argument("--source-file", type=str, default=None,
+                        help="Format this exact ODD file/folder for --csm/--month/--client, "
+                             "bypassing the ZIP auto-scan (UI 'Generate from a path' flow)")
     parser.add_argument("--force", action="store_true",
                         help="Re-process even if output already exists")
     parser.add_argument("--config", type=str, default=None,
@@ -469,6 +589,30 @@ def main():
         log_file = None
         print(f"  WARNING: cannot create log directory, continuing with "
               f"console output only ({exc.strerror or exc}): {log_dir}")
+
+    # Issue #229: explicit single file/folder -> format into the canonical
+    # output, bypassing the per-CSM ZIP auto-scan. Requires csm + client.
+    if args.source_file:
+        if not (args.csm and args.client):
+            print("ERROR: --source-file requires --csm and --client (and --month).")
+            sys.exit(2)
+        output = output_base / args.csm / month
+        log_message("", log_file)
+        log_message(f"  Source-file mode: {args.source_file}", log_file)
+        log_message(f"    CSM:    {args.csm}", log_file)
+        log_message(f"    Client: {args.client}", log_file)
+        log_message(f"    Output: {output}", log_file)
+        s, e = process_source_file(args.source_file, args.csm, month, args.client, str(output), log_file, force=True)
+        print()
+        print("=" * 70)
+        log_message("  STEP 1 COMPLETE (source-file)", log_file)
+        log_message(f"    Formatted: {s} file(s)", log_file)
+        if e:
+            log_message(f"    Errors:    {e}", log_file)
+        log_message(f"    Output:    {output}", log_file)
+        print("=" * 70)
+        print()
+        return
 
     log_message(f"  Config loaded:", log_file)
     log_message(f"    Staging:     {staging_base}", log_file)

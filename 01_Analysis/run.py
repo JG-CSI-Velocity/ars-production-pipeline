@@ -150,6 +150,21 @@ def _find_odd_file(csm, month, client_id):
             if matches:
                 return matches[0]
 
+    # Last resort: any .xlsx for this client anywhere under the CSM/month
+    # folder, however it's named or nested. Keeps this finder in step with the
+    # UI's (which had a leniency fix this one missed) so a real formatted file
+    # is never reported missing (#231).
+    for csm_dir in csm_dirs:
+        month_dir = csm_dir / month
+        if not month_dir.is_dir():
+            continue
+        cands = sorted(
+            f for f in month_dir.rglob("*.xlsx")
+            if f.is_file() and client_id in f.name and not f.name.startswith("~$")
+        )
+        if cands:
+            return cands[0]
+
     return None
 
 
