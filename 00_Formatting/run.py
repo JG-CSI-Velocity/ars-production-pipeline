@@ -40,11 +40,24 @@ from settings import load_settings
 from shared.format_odd import format_odd
 
 
+# Log files we've already failed to write to. A locked or permission-denied
+# log must degrade to console-only with a single warning, never abort the
+# formatting run (issue #232).
+_disabled_log_files = set()
+
+
 def log_message(message, log_file=None):
     print(message)
-    if log_file:
+    if not log_file or log_file in _disabled_log_files:
+        return
+    try:
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(message + "\n")
+    except OSError as exc:
+        _disabled_log_files.add(log_file)
+        reason = exc.strerror or exc
+        print(f"  WARNING: cannot write log file, continuing with console "
+              f"output only ({reason}): {log_file}")
 
 
 def load_ars_config():
@@ -442,13 +455,20 @@ def main():
     # Output: 02-Data-Ready for Analysis (formatted files go here)
     output_base = settings.paths.watch_root
 
-    # Log file -- saved per CSM if filtering, otherwise at month level
+    # Log file -- saved per CSM if filtering, otherwise at month level. An
+    # unwritable destination must not abort the run; fall back to console-only
+    # logging (issue #232).
     if args.csm:
         log_dir = output_base / args.csm / month
     else:
         log_dir = output_base / month
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = str(log_dir / "formatting_log.txt")
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = str(log_dir / "formatting_log.txt")
+    except OSError as exc:
+        log_file = None
+        print(f"  WARNING: cannot create log directory, continuing with "
+              f"console output only ({exc.strerror or exc}): {log_dir}")
 
     log_message(f"  Config loaded:", log_file)
     log_message(f"    Staging:     {staging_base}", log_file)
