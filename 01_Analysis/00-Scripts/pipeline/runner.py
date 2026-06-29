@@ -111,7 +111,12 @@ def run_pipeline(
             )
 
             if step.critical:
-                logger.error(
+                # opt(exception=exc) appends the full traceback so the log shows
+                # WHERE the step broke, not just the exception message. Without
+                # this the runner swallows the traceback and the .log only ever
+                # records a one-liner -- impossible to locate the failing line
+                # from the operator's log alone (#232).
+                logger.opt(exception=exc).error(
                     "Step '{name}' FAILED (critical) after {t:.1f}s: {err}",
                     name=step.name,
                     t=elapsed,

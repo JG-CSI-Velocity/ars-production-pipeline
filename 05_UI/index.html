@@ -1923,10 +1923,18 @@ async function runGenReal() {
         const resp = await fetch(runUrl, {method: 'POST'});
         if (!resp.ok) {
             const errText = await resp.text();
+            // FastAPI returns {"detail": "..."} -- surface the message, not the JSON.
+            let msg = resp.statusText;
+            try { const j = JSON.parse(errText); msg = j.detail || errText; } catch (e) { msg = errText || resp.statusText; }
             clearInterval(clockTimer);
             ctx.error = true;
             _renderCompletion(ctx);
-            log.appendChild(Object.assign(document.createElement('div'), {style: 'color:#EB2A2E', textContent: 'ERROR: ' + (errText || resp.statusText)}));
+            log.appendChild(Object.assign(document.createElement('div'), {style: 'color:#EB2A2E', textContent: 'ERROR: ' + msg}));
+            // Re-enable the button so the operator can retry once the active run ends (#232).
+            runBtn.disabled = false;
+            runBtn.textContent = 'Format + Analyze + Build PPTX';
+            runBtn.style.opacity = '';
+            runBtn.style.cursor = '';
             return;
         }
         const {run_id} = await resp.json();
