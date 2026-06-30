@@ -35,6 +35,7 @@ from ars_analysis.charts.style import (
     NEGATIVE,
     PCT_FORMATTER,
     PERSONAL,
+    PRIMARY,
     TEAL,
     TICK_SIZE,
 )
@@ -158,7 +159,7 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
             va="top",
             fontsize=14,
             fontweight="bold",
-            color="#1A1A1A",
+            color=PRIMARY,
             bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": TEAL},
         )
         fig.tight_layout()
@@ -358,7 +359,7 @@ def _by_product(ctx: PipelineContext) -> list[AnalysisResult]:
             va="top",
             fontsize=14,
             fontweight="bold",
-            color="#1A1A1A",
+            color=PRIMARY,
             bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": TEAL},
         )
         fig.tight_layout()
@@ -481,7 +482,7 @@ def _personal_vs_business(ctx: PipelineContext) -> list[AnalysisResult]:
             va="top",
             fontsize=14,
             fontweight="bold",
-            color="#1A1A1A",
+            color=PRIMARY,
             bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": TEAL},
         )
         fig.tight_layout()
@@ -696,7 +697,7 @@ def _by_balance(ctx: PipelineContext) -> list[AnalysisResult]:
             va="top",
             fontsize=14,
             fontweight="bold",
-            color="#1A1A1A",
+            color=PRIMARY,
             bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": TEAL},
         )
         fig.tight_layout()

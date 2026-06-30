@@ -16,7 +16,7 @@ from loguru import logger
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import NEGATIVE, POSITIVE, TEAL
+from ars_analysis.charts.style import NEGATIVE, POSITIVE, PRIMARY, TEAL
 from ars_analysis.pipeline.context import PipelineContext
 
 MIN_BRANCHES = 3
@@ -147,11 +147,11 @@ def _draw_scorecard(ax, branch_df: pd.DataFrame) -> str:
 
     # Header row
     for ci, (x, hdr) in enumerate(zip(col_x, headers)):
-        ax.text(x, y_start, hdr, fontsize=14, fontweight="bold", color="#1A1A1A", va="center")
+        ax.text(x, y_start, hdr, fontsize=14, fontweight="bold", color=PRIMARY, va="center")
     ax.plot(
         [0.01, 0.99],
         [y_start - row_height / 2, y_start - row_height / 2],
-        color="#1A1A1A",
+        color=PRIMARY,
         linewidth=1.5,
     )
 
@@ -228,7 +228,7 @@ def _draw_scorecard(ax, branch_df: pd.DataFrame) -> str:
             )
 
     ax.set_title(
-        "Branch Performance Scorecard", fontsize=20, fontweight="bold", pad=20, color="#1A1A1A"
+        "Branch Performance Scorecard", fontsize=20, fontweight="bold", pad=20, color=PRIMARY
     )
 
     best = branch_df.iloc[0]
