@@ -253,10 +253,13 @@ def test_repo_specs_load_without_error():
     for section, specs in by_section.items():
         assert len(specs) >= 1, f"{section}.yml should declare at least one slide"
 
-    valid_labels = {"Eligible", "Eligible Personal", "Eligible Business", "Open"}
+    # Validate against the single source of truth for the law (audit.LAW_LABELS),
+    # not a hardcoded copy -- which had drifted stale (it omitted the owner-ratified
+    # "Eligible Personal w/Debit" Reg E base and the "L12M Exposure" attrition base).
+    from ars_analysis.pipeline.steps.audit import LAW_LABELS
     for section, specs in by_section.items():
         for spec in specs.values():
-            assert spec.denominator_label in valid_labels, (
+            assert spec.denominator_label in LAW_LABELS, (
                 f"{section}/{spec.slide_id}: denominator_label "
-                f"'{spec.denominator_label}' not in 4-layer law"
+                f"'{spec.denominator_label}' not in 4-layer law ({sorted(LAW_LABELS)})"
             )

@@ -224,18 +224,15 @@ def write_rates_audit(ctx: PipelineContext) -> tuple[Path | None, int]:
         logger.warning("rates_audit write failed: {err}", err=exc)
         return None, violations
 
-    # Surface violations on the manifest
+    # Surface violations on the manifest as a run-level flag (scorecard renders it).
     _mf = getattr(ctx, "manifest", None)
-    if _mf is not None and violations > 0:
+    if _mf is not None and hasattr(_mf, "flag") and violations > 0:
         try:
-            from ars_analysis.pipeline.manifest import AnomalyFlag, FlagLevel
-            # Attach to the first section as a run-wide flag; scorecard surfaces it.
-            target = _mf.sections[0] if _mf.sections else None
-            if target is not None:
-                target.anomaly_flags.append(AnomalyFlag(
-                    level=FlagLevel.WARN,
-                    message=f"Denominator law: {violations} violation(s) (see rates_audit.csv)",
-                ))
+            from ars_analysis.pipeline.manifest import FlagLevel
+            _mf.flag(
+                FlagLevel.WARN,
+                f"Denominator law: {violations} violation(s) (see rates_audit.csv)",
+            )
         except Exception as exc:
             logger.warning("manifest flag for rates_audit failed: {err}", err=exc)
 

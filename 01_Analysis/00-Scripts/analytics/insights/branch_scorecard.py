@@ -48,16 +48,14 @@ def _build_branch_data(ctx: PipelineContext) -> pd.DataFrame | None:
             "(denominator may not match detail slides)"
         )
         _mf = getattr(ctx, "manifest", None)
-        if _mf is not None:
+        if _mf is not None and hasattr(_mf, "flag"):
             try:
-                from ars_analysis.pipeline.manifest import AnomalyFlag, FlagLevel
-                for _sec in _mf.sections:
-                    if _sec.name == "insights":
-                        _sec.anomaly_flags.append(AnomalyFlag(
-                            level=FlagLevel.WARN,
-                            message="branch_scorecard fallback to raw ctx.data",
-                        ))
-                        break
+                from ars_analysis.pipeline.manifest import FlagLevel
+                _mf.flag(
+                    FlagLevel.WARN,
+                    "branch_scorecard fell back to raw ctx.data (eligible_data missing); "
+                    "branch rates may not match the detail slides",
+                )
             except Exception:
                 pass
     if data is None:
@@ -75,6 +73,23 @@ def _build_branch_data(ctx: PipelineContext) -> pd.DataFrame | None:
     # Detect debit column (canonical)
     from ars_analysis.shared.debit import detect_debit_col, debit_mask
     debit_col = detect_debit_col(data)
+
+    # Reg E column + opt-in codes, resolved ONCE the same way the detail Reg E
+    # slides do: the column is the chronologically-latest "Reg E Code ..." (not
+    # the alphabetically-last), and the opt-in codes come from client config --
+    # not a hardcoded ["Y","Yes",...] set that never matched clients coded with
+    # full strings like "Opt In ATM/POS OD Limit". Keeps the scorecard's Reg E
+    # rate consistent with A8.x.
+    from ars_analysis.analytics.rege._helpers import (
+        detect_reg_e_column,
+        normalize_reg_e_codes,
+    )
+    reg_e_col = detect_reg_e_column(data)
+    reg_e_opt_list = list(getattr(ctx.client, "reg_e_opt_in", None) or [])
+    if reg_e_col is not None and reg_e_col in data.columns:
+        data = data.copy()
+        data[reg_e_col] = data[reg_e_col].astype(str).str.strip()
+        normalize_reg_e_codes(data, reg_e_col)
 
     # Compute per-branch metrics from raw data
     branches = data[branch_col].dropna().unique()
@@ -100,12 +115,10 @@ def _build_branch_data(ctx: PipelineContext) -> pd.DataFrame | None:
             n_closed = len(branch_data[branch_data["Stat Code"] == "C"])
             attrition = n_closed / n_total
 
-        # Reg E (if available)
+        # Reg E (if available): chronological column + client opt-in codes.
         rege_rate = 0.0
-        rege_cols = [c for c in data.columns if "Reg E" in c and "Code" in c]
-        if rege_cols:
-            latest_rege = rege_cols[-1]
-            opted_in = branch_data[latest_rege].isin(["Y", "Yes", "Opted-In", "OI", True, 1])
+        if reg_e_col and reg_e_opt_list:
+            opted_in = branch_data[reg_e_col].isin(reg_e_opt_list)
             rege_rate = opted_in.sum() / n_total
 
         rows.append(

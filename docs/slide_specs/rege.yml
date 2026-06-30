@@ -1,26 +1,29 @@
 # Reg E section slide specs.
-# Per the 4-layer denominator law (project_denominator_framework.md), Reg E
-# is personal-only by regulation. Base = Eligible Personal. NEVER further
-# narrow to "Eligible Personal ∩ has_debit" (that was the bug fixed earlier
-# in rege/_helpers.py).
+# Per the 4-layer denominator law (project_denominator_framework.md) AND the
+# owner decision of 2026-06-11: Reg E is consumer-only by regulation and the
+# opt-in governs ATM / one-time DEBIT overdraft, so the base is Eligible
+# Personal WITH a debit card -- "Eligible Personal w/Debit". This supersedes the
+# earlier "Eligible Personal" reading; rege/_helpers.reg_e_base() and the
+# rates-audit default (audit.py DEFAULT_BY_PREFIX) both carry the w/Debit base,
+# and these specs must label it the same way so rates_audit.csv stays honest.
 
 REGE-MAIN-1:
   layout: TWO_CONTENT
   components: [A8.1, A8.2]
-  action_title: "Reg E opt-in of {opt_in_rate:.0%} among Eligible Personal accounts; {trend_word} {trend_pp:+.0f}pp L12M"
+  action_title: "Reg E opt-in of {opt_in_rate:.0%} among Personal debit holders; {trend_word} {trend_pp:+.0f}pp L12M"
   inputs:
     opt_in_rate: ctx.results.reg_e_1.insights.opt_in_rate
     overall_total: ctx.results.reg_e_1.insights.total_accounts
     l12m_rate: ctx.results.reg_e_2.insights.l12m_opt_in
     trend_pp: (l12m_rate - opt_in_rate) * 100 if l12m_rate and opt_in_rate else 0
     trend_word: "'accelerating' if (trend_pp or 0) > 0 else ('flat' if abs(trend_pp or 0) < 1 else 'softening')"
-  denominator_label: Eligible Personal
+  denominator_label: Eligible Personal w/Debit
   callout:
     hero: "{opt_in_rate:.0%}"
-    sub: "Reg E opt-in rate among Eligible Personal"
-    tertiary: "{overall_total:,} accounts in the eligible base"
+    sub: "Reg E opt-in among Personal debit holders"
+    tertiary: "{overall_total:,} eligible personal accounts with a debit card"
   footer:
-    source: "Source: {client_name} ODD, {month} | Eligible Personal only"
+    source: "Source: {client_name} ODD, {month} | Eligible Personal w/ debit card"
 
 REGE-MAIN-2:
   layout: TWO_CONTENT
@@ -31,10 +34,10 @@ REGE-MAIN-2:
     peak_rate: ctx.results.reg_e_4.insights.peak_rate
     valley_month: ctx.results.reg_e_4.insights.valley_month
     valley_rate: ctx.results.reg_e_4.insights.valley_rate
-  denominator_label: Eligible Personal
+  denominator_label: Eligible Personal w/Debit
   callout:
     hero: "{peak_rate:.0%}"
     sub: "highest single-month opt-in"
     tertiary: "Monthly trend isolates campaign + onboarding-flow impact"
   footer:
-    source: "Source: {client_name} ODD, {month} | Eligible Personal only"
+    source: "Source: {client_name} ODD, {month} | Eligible Personal w/ debit card"
