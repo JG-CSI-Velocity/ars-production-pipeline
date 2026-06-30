@@ -115,6 +115,37 @@ def test_numeric_headers_coerced_to_str(tmp_path):
     assert [c for c in ctx.data.columns if "Reg E" in c and "Code" in c] == ["Jan26 Reg E Code"]
 
 
+def test_monthly_spend_swipes_derived_from_pin_sig(tmp_path):
+    """When the ODD lacks 'Mmm## Spend'/'Swipes', derive them from PIN $/Sig $
+    so the monthly spend/swipe slides aren't empty (#232)."""
+    L.odd_cache_clear()
+    path = _write_xlsx(
+        tmp_path / "rawpinsig.xlsx",
+        REQUIRED + ["Apr25 PIN $", "Apr25 Sig $", "Apr25 PIN #", "Apr25 Sig #"],
+        [["100", "DDA", "2022-01-01", "50.0", 10.0, 5.0, 3, 2]],
+    )
+    ctx = _ctx()
+    L.step_load_file(ctx, path)
+    assert "Apr25 Spend" in ctx.data.columns
+    assert "Apr25 Swipes" in ctx.data.columns
+    assert float(ctx.data["Apr25 Spend"].iloc[0]) == 15.0   # 10 + 5
+    assert float(ctx.data["Apr25 Swipes"].iloc[0]) == 5.0    # 3 + 2
+
+
+def test_existing_spend_swipes_not_overwritten(tmp_path):
+    """If the ODD already has the derived columns (a properly-formatted client),
+    leave them untouched."""
+    L.odd_cache_clear()
+    path = _write_xlsx(
+        tmp_path / "hasspend.xlsx",
+        REQUIRED + ["Apr25 PIN $", "Apr25 Sig $", "Apr25 Spend", "Apr25 Swipes"],
+        [["100", "DDA", "2022-01-01", "50.0", 10.0, 5.0, 99.0, 99]],
+    )
+    ctx = _ctx()
+    L.step_load_file(ctx, path)
+    assert float(ctx.data["Apr25 Spend"].iloc[0]) == 99.0
+
+
 def test_required_columns_match_whitespace_and_case(tmp_path):
     """Headers drift: ' Stat Code', 'prod code', 'AVG BAL' must still match."""
     L.odd_cache_clear()

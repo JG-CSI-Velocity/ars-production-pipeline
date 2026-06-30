@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import warnings
 from pathlib import Path
 
@@ -49,6 +50,7 @@ def step_load(ctx: PipelineContext) -> None:
             logger.debug("Pre-parsed date column: {col}", col=col)
 
     _normalize_columns(df, file_path)
+    df = _derive_monthly_metrics(df)
     df = _filter_by_start_date(df, ctx)
 
     ctx.data = df
@@ -73,6 +75,7 @@ def step_load_file(ctx: PipelineContext, file_path: Path) -> None:
             df[col] = pd.to_datetime(df[col], errors="coerce", format="mixed")
 
     _normalize_columns(df, file_path)
+    df = _derive_monthly_metrics(df)
     df = _filter_by_start_date(df, ctx)
 
     ctx.data = df
@@ -172,6 +175,65 @@ def _normalize_columns(df: pd.DataFrame, file_path: Path) -> None:
             f"ODD file missing required columns: {', '.join(sorted(missing))}",
             detail={"file": str(file_path), "missing": sorted(missing)},
         )
+
+
+_SPEND_RE = re.compile(r"^[A-Z][a-z]{2}\d{2} Spend$")
+_SWIPE_RE = re.compile(r"^[A-Z][a-z]{2}\d{2} Swipes$")
+
+
+def _derive_monthly_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    """Derive per-month 'Mmm## Spend' / 'Mmm## Swipes' from raw PIN/Sig columns
+    when the ODD lacks them.
+
+    These columns are normally created by 00_Formatting's format_odd (step 4:
+    'Mmm## PIN $' + 'Mmm## Sig $' -> 'Mmm## Spend'; '# ' -> 'Swipes'). A vendor
+    file placed without running format_odd reaches analysis without them, so the
+    mailer/value modules find no Spend/Swipes and the monthly spend/swipe slides
+    come out empty (#232). Recompute them here as a safety net. No-op when they
+    already exist (the 24 properly-formatted clients) or when there are no PIN/Sig
+    columns to derive from.
+    """
+    cols = list(df.columns)
+    have_spend = any(_SPEND_RE.match(str(c)) for c in cols)
+    have_swipe = any(_SWIPE_RE.match(str(c)) for c in cols)
+    if have_spend and have_swipe:
+        return df
+
+    new: dict[str, pd.Series] = {}
+    if not have_spend:
+        for col in [c for c in cols if str(c).endswith(" PIN $")]:
+            prefix = str(col)[: -len(" PIN $")]
+            sig = f"{prefix} Sig $"
+            if sig in df.columns:
+                new[f"{prefix} Spend"] = (
+                    pd.to_numeric(df[col], errors="coerce").fillna(0)
+                    + pd.to_numeric(df[sig], errors="coerce").fillna(0)
+                )
+    if not have_swipe:
+        for col in [c for c in cols if str(c).endswith(" PIN #")]:
+            prefix = str(col)[: -len(" PIN #")]
+            sig = f"{prefix} Sig #"
+            if sig in df.columns:
+                new[f"{prefix} Swipes"] = (
+                    pd.to_numeric(df[col], errors="coerce").fillna(0)
+                    + pd.to_numeric(df[sig], errors="coerce").fillna(0)
+                )
+
+    if new:
+        df = pd.concat([df, pd.DataFrame(new, index=df.index)], axis=1)
+        logger.warning(
+            "Derived {n} monthly Spend/Swipes column(s) from PIN $/Sig $ -- the ODD "
+            "lacked them (not run through format_odd's combine step)",
+            n=len(new),
+        )
+    elif not have_spend and not have_swipe:
+        n_pin = sum(1 for c in cols if str(c).endswith((" PIN $", " PIN #")))
+        logger.warning(
+            "No monthly Spend/Swipes columns, and no PIN $/Sig $ pairs to derive "
+            "them from ({n} PIN columns) -- monthly spend/swipe slides will be empty",
+            n=n_pin,
+        )
+    return df
 
 
 def _detect_header_row(probe: pd.DataFrame, max_scan: int = 15) -> int:
