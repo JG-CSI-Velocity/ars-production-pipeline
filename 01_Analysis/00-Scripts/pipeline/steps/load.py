@@ -137,9 +137,14 @@ def _normalize_columns(df: pd.DataFrame, file_path: Path) -> None:
             logger.info("Column renamed: '{old}' -> '{new}'", old=old, new=new)
 
     if missing:
+        # Coerce to str before sorting: a vendor/placed-as-is ODD can carry
+        # numeric column headers (e.g. a month labeled 202406). sorted() on a
+        # mix of str + int raises "'<' not supported between 'str' and 'int'",
+        # which crashed this *diagnostic* line and masked the real, actionable
+        # "missing required columns" error below (#232).
         logger.warning(
             "Available columns: {cols}",
-            cols=", ".join(sorted(df.columns[:20])),
+            cols=", ".join(sorted(str(c) for c in df.columns[:20])),
         )
         raise DataError(
             f"ODD file missing required columns: {', '.join(sorted(missing))}",

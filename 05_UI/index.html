@@ -1923,10 +1923,18 @@ async function runGenReal() {
         const resp = await fetch(runUrl, {method: 'POST'});
         if (!resp.ok) {
             const errText = await resp.text();
+            // FastAPI returns {"detail": "..."} -- surface the message, not the JSON.
+            let msg = resp.statusText;
+            try { const j = JSON.parse(errText); msg = j.detail || errText; } catch (e) { msg = errText || resp.statusText; }
             clearInterval(clockTimer);
             ctx.error = true;
             _renderCompletion(ctx);
-            log.appendChild(Object.assign(document.createElement('div'), {style: 'color:#EB2A2E', textContent: 'ERROR: ' + (errText || resp.statusText)}));
+            log.appendChild(Object.assign(document.createElement('div'), {style: 'color:#EB2A2E', textContent: 'ERROR: ' + msg}));
+            // Re-enable the button so the operator can retry once the active run ends (#232).
+            runBtn.disabled = false;
+            runBtn.textContent = 'Format + Analyze + Build PPTX';
+            runBtn.style.opacity = '';
+            runBtn.style.cursor = '';
             return;
         }
         const {run_id} = await resp.json();
@@ -2621,6 +2629,15 @@ async function runFormat(force = false) {
         return;
     }
 
+    // Re-entry guard: a second click would start a second elapsed-clock timer
+    // on the same #fElapsed element (with a different baseline) -> the clock
+    // visibly flickers/glitches, and fires a duplicate run (#232).
+    if (window._formatInFlight) {
+        alert('A formatting run is already in progress on this page. Wait for it to finish.');
+        return;
+    }
+    window._formatInFlight = true;
+
     const prog = document.getElementById('fProg');
     prog.classList.add('visible');
     const log = document.getElementById('fProgLog');
@@ -2657,10 +2674,16 @@ async function runFormat(force = false) {
         const resp = await fetch(url, {method: 'POST'});
         if (!resp.ok) {
             const errText = await resp.text();
+            // FastAPI returns {"detail": "..."} -- surface the message, not the JSON.
+            let msg = resp.statusText;
+            try { const j = JSON.parse(errText); msg = j.detail || errText; } catch (e) { msg = errText || resp.statusText; }
+            // Clear the clock timer + release the guard, or it keeps ticking after the error (#232).
+            clearInterval(fmtTick);
+            window._formatInFlight = false;
             st.textContent = 'Failed to start';
             const errLine = document.createElement('div');
             errLine.style.color = '#EB2A2E';
-            errLine.textContent = 'ERROR: ' + (errText || resp.statusText);
+            errLine.textContent = 'ERROR: ' + msg;
             log.appendChild(errLine);
             return;
         }
@@ -2697,6 +2720,7 @@ async function runFormat(force = false) {
                 if (run.status === 'complete' || run.status === 'error') {
                     clearInterval(pollInterval);
                     clearInterval(fmtTick);
+                    window._formatInFlight = false;
                     bar.style.width = '100%';
                     if (run.status === 'complete') {
                         st.textContent = 'Formatting Complete';
@@ -2750,6 +2774,8 @@ async function runFormat(force = false) {
         }, 1000);
 
     } catch(e) {
+        clearInterval(fmtTick);
+        window._formatInFlight = false;
         st.textContent = 'Could not connect to API';
         const errLine = document.createElement('div');
         errLine.style.color = '#EB2A2E';

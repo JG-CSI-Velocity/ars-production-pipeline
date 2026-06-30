@@ -65,6 +65,63 @@ COMPLETED_ANALYSIS = ANALYSIS_BASE / "01_Completed_Analysis"
 # In-memory run tracking
 runs = {}
 
+# A run still marked "running" after this many seconds is treated as dead (the
+# server never saw its subprocess finish -- a hard crash or hang) so a stuck
+# entry can't permanently block new runs for that client.
+STALE_RUN_SECONDS = 2 * 60 * 60  # 2 hours -- well beyond the slowest real deck
+
+
+def _seconds_since(iso_ts: str) -> float:
+    """Seconds since an ISO timestamp; +inf if missing/unparseable."""
+    if not iso_ts:
+        return float("inf")
+    try:
+        return (datetime.now() - datetime.fromisoformat(iso_ts)).total_seconds()
+    except (ValueError, TypeError):
+        return float("inf")
+
+
+def _active_run(csm: str, month: str, client_id: str, product: str):
+    """Return (run_id, run) for an in-progress run on the same target, else None.
+
+    Guards against a second run firing for the same client while the first is
+    still going. Concurrent runs collide on the one output folder and
+    run_manifest.json (Windows os.replace -> WinError 5) and garble each other's
+    logs (#232). A different product (the ars+txn companion run) or a different
+    client/period is not a collision and is allowed through.
+    """
+    target = (csm, month, client_id, product)
+    for run_id, run in runs.items():
+        if run.get("status") != "running":
+            continue
+        if (run.get("csm"), run.get("month"), run.get("client_id"), run.get("product")) != target:
+            continue
+        if _seconds_since(run.get("started", "")) > STALE_RUN_SECONDS:
+            continue  # presumed dead -- don't let it block forever
+        return run_id, run
+    return None
+
+
+def _reject_if_run_active(csm: str, month: str, client_id: str, product: str) -> None:
+    """Raise 409 if a matching run is already in progress (#232)."""
+    existing = _active_run(csm, month, client_id, product)
+    if not existing:
+        return
+    _, run = existing
+    mins = int(_seconds_since(run.get("started", "")) // 60)
+    label = {"ars": "ARS", "txn": "TXN", "combined": "ARS + TXN", "formatting": "Formatting"}.get(
+        product, product.upper()
+    )
+    raise HTTPException(
+        status_code=409,
+        detail=(
+            f"A {label} run for client {client_id} ({csm} / {month}) is already in "
+            f"progress (started {mins} min ago). Wait for it to finish, or watch it on "
+            f"the History tab, before starting another for the same client."
+        ),
+    )
+
+
 # Short-TTL cache for the dropdown directory scans (#229). Picking a CSM /
 # month / client re-walks the network share each time; over SMB that's slow.
 # Cache results for a minute so flipping around the dropdowns is instant.
@@ -652,6 +709,9 @@ async def start_format(
             raise HTTPException(status_code=400, detail="A client ID is required when formatting from a source path.")
         source_resolved = str(sp)
 
+    # Refuse a duplicate formatting run for the same target while one is going (#232).
+    _reject_if_run_active(csm, month, client_id or "all", "formatting")
+
     runs[run_id] = {
         "status": "running",
         "client_id": client_id or "all",
@@ -752,6 +812,9 @@ async def start_run(
         if not sp.exists():
             raise HTTPException(status_code=400, detail=f"Source path does not exist: {sp}")
         source_resolved = str(sp)
+
+    # Refuse a duplicate run for the same client while one is still going (#232).
+    _reject_if_run_active(csm, month, client_id, product)
 
     runs[run_id] = {
         "status": "running",
