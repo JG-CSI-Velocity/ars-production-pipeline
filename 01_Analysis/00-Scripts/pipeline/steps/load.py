@@ -199,7 +199,17 @@ def _detect_header_row(probe: pd.DataFrame, max_scan: int = 15) -> int:
 
 
 def _read_tabular(path: Path, reader) -> pd.DataFrame:
-    """Read excel/csv, auto-skipping a title/preamble row above the header."""
+    """Read excel/csv, auto-skipping a title/preamble row above the header.
+
+    Column labels are coerced to str: an ODD can carry numeric header cells
+    (e.g. a month labeled 202406, or a stray number in 1800's banner rows), and
+    analytics modules iterate df.columns with string ops -- `c.endswith(...)`,
+    `"Reg E" in c`, regex -- which raise on an int label and kill the whole
+    module (#232: mailer.*, insights.branch_scorecard/dormant/effectiveness).
+    A non-string header is never a real ODD field, so stringifying is safe and
+    lets those modules simply skip it. Existing string labels are unchanged --
+    we deliberately do NOT strip, so exact names like ' Acct Number' survive.
+    """
     probe = reader(path, header=None, nrows=15)
     hdr = _detect_header_row(probe)
     if hdr > 0:
@@ -207,7 +217,9 @@ def _read_tabular(path: Path, reader) -> pd.DataFrame:
             "Header row detected on row {n} -- skipping {n} title/preamble row(s) above it",
             n=hdr,
         )
-    return reader(path, header=hdr)
+    df = reader(path, header=hdr)
+    df.columns = [str(c) for c in df.columns]
+    return df
 
 
 def _read_file(path: Path) -> pd.DataFrame:
