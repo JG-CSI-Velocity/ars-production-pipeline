@@ -98,6 +98,23 @@ def test_header_row_zero_is_not_second_guessed(tmp_path):
     assert len(ctx.data) == 1
 
 
+def test_numeric_headers_coerced_to_str(tmp_path):
+    """Numeric column headers must load as str so module column-name string ops
+    (c.endswith(...), 'Reg E' in c, regex) don't crash (#232: mailer.*, insights.*)."""
+    L.odd_cache_clear()
+    path = _write_xlsx(
+        tmp_path / "numhdr.xlsx",
+        REQUIRED + [202406, "Jan26 Reg E Code", "Jan26 Spend"],
+        [["100", "DDA", "2022-01-01", "50.0", 7, "Y", 12.5]],
+    )
+    ctx = _ctx()
+    L.step_load_file(ctx, path)
+    assert all(isinstance(c, str) for c in ctx.data.columns)
+    # The exact ops that killed insights.dormant / branch_scorecard must not raise.
+    assert [c for c in ctx.data.columns if c.endswith(" Spend")] == ["Jan26 Spend"]
+    assert [c for c in ctx.data.columns if "Reg E" in c and "Code" in c] == ["Jan26 Reg E Code"]
+
+
 def test_required_columns_match_whitespace_and_case(tmp_path):
     """Headers drift: ' Stat Code', 'prod code', 'AVG BAL' must still match."""
     L.odd_cache_clear()
