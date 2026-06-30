@@ -281,7 +281,19 @@ def run_ars(ctx: SharedContext) -> dict[str, SharedResult]:
     if ctx.progress_callback:
         ctx.progress_callback("Starting ARS v2 pipeline...")
 
-    run_pipeline(ars_ctx, steps)
+    step_results = run_pipeline(ars_ctx, steps)
+
+    # A critical step failure (e.g. load_data) aborts the pipeline early and
+    # leaves all_slides empty. Surface it as a raised exception so run.py exits
+    # non-zero, instead of printing "0 slides generated" and exiting 0 -- which
+    # painted the UI green "complete" on a dead run and trained the retry
+    # stampede (#232).
+    critical_failures = [r for r in step_results if not r.success and getattr(r, "critical", True)]
+    if critical_failures:
+        fr = critical_failures[0]
+        if fr.exception is not None:
+            raise fr.exception
+        raise RuntimeError(f"Critical step '{fr.name}' failed: {fr.error}")
 
     if ctx.progress_callback:
         ctx.progress_callback(f"ARS complete: {len(ars_ctx.all_slides)} slides generated")

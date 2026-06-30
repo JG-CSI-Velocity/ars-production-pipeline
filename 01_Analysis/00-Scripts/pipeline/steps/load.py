@@ -112,29 +112,51 @@ def _filter_by_start_date(df: pd.DataFrame, ctx: PipelineContext) -> pd.DataFram
     return df
 
 
+def _required_name_set() -> set[str]:
+    """All accepted required-column names (canonical + aliases), normalized
+    (stripped + casefolded) for tolerant matching."""
+    out: set[str] = set()
+    for names in REQUIRED_COLUMNS:
+        for n in names:
+            out.add(str(n).strip().casefold())
+    return out
+
+
 def _normalize_columns(df: pd.DataFrame, file_path: Path) -> None:
-    """Rename known aliases to canonical names and validate required columns."""
-    renames: dict[str, str] = {}
+    """Rename known aliases to canonical names and validate required columns.
+
+    Matching tolerates leading/trailing whitespace and case, because real ODD
+    headers drift (the canonical field spec even lists ' Acct Number' with a
+    leading space). Without this a ' Stat Code' or 'stat code' header would read
+    as a missing required column (#232).
+    """
+    # normalized label -> the actual column object present in df
+    lookup: dict[str, object] = {}
+    for c in df.columns:
+        lookup.setdefault(str(c).strip().casefold(), c)
+
+    renames: dict[object, str] = {}
     missing: list[str] = []
 
     for names in REQUIRED_COLUMNS:
         canonical = names[0]
         if canonical in df.columns:
             continue
-        # Check aliases
-        found = False
-        for alias in names[1:]:
-            if alias in df.columns:
-                renames[alias] = canonical
-                found = True
+        actual = None
+        for cand in names:  # canonical first, then aliases
+            hit = lookup.get(str(cand).strip().casefold())
+            if hit is not None:
+                actual = hit
                 break
-        if not found:
+        if actual is None:
             missing.append(canonical)
+        elif actual != canonical:
+            renames[actual] = canonical
 
     if renames:
         df.rename(columns=renames, inplace=True)
         for old, new in renames.items():
-            logger.info("Column renamed: '{old}' -> '{new}'", old=old, new=new)
+            logger.info("Column matched: '{old}' -> '{new}'", old=old, new=new)
 
     if missing:
         # Coerce to str before sorting: a vendor/placed-as-is ODD can carry
@@ -150,6 +172,42 @@ def _normalize_columns(df: pd.DataFrame, file_path: Path) -> None:
             f"ODD file missing required columns: {', '.join(sorted(missing))}",
             detail={"file": str(file_path), "missing": sorted(missing)},
         )
+
+
+def _detect_header_row(probe: pd.DataFrame, max_scan: int = 15) -> int:
+    """Return the row index that holds the real column headers.
+
+    Some ODDs -- notably vendor files placed as-is -- carry a title/banner row
+    above the headers (e.g. row 1 is 'First American Bank - OD Data Dump' and the
+    real headers are on row 2). Reading with header=0 then makes every required
+    column look missing and turns a stray numeric title cell into an int header
+    (#232). Scan the first rows and pick the one containing the most required
+    column names; fall back to row 0 so normal files are untouched.
+    """
+    wanted = _required_name_set()
+    best_row, best_hits = 0, 0
+    for i in range(min(max_scan, len(probe))):
+        hits = sum(
+            1 for v in probe.iloc[i].tolist()
+            if v is not None and str(v).strip().casefold() in wanted
+        )
+        if hits > best_hits:
+            best_hits, best_row = hits, i
+    # Require >=2 matches to override row 0, so a normal header-on-row-0 file
+    # (best_hits found at row 0) is never second-guessed.
+    return best_row if best_hits >= 2 else 0
+
+
+def _read_tabular(path: Path, reader) -> pd.DataFrame:
+    """Read excel/csv, auto-skipping a title/preamble row above the header."""
+    probe = reader(path, header=None, nrows=15)
+    hdr = _detect_header_row(probe)
+    if hdr > 0:
+        logger.warning(
+            "Header row detected on row {n} -- skipping {n} title/preamble row(s) above it",
+            n=hdr,
+        )
+    return reader(path, header=hdr)
 
 
 def _read_file(path: Path) -> pd.DataFrame:
@@ -193,7 +251,7 @@ def _read_file(path: Path) -> pd.DataFrame:
                     logger.info(
                         "Cache hit: reusing local copy of {name}", name=path.name
                     )
-                    return pd.read_excel(cached)
+                    return _read_tabular(cached, pd.read_excel)
                 with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                     tmp_path = Path(tmp.name)
                 logger.info("Copying {name} to local temp for faster read...", name=path.name)
@@ -201,13 +259,13 @@ def _read_file(path: Path) -> pd.DataFrame:
                 logger.info("Copy done ({mb:.1f} MB). Reading...", mb=file_size / 1024 / 1024)
                 _odd_cache_put(path, tmp_path)
                 # Do NOT unlink: cache reuses the file across runs in the same session.
-                return pd.read_excel(tmp_path)
+                return _read_tabular(tmp_path, pd.read_excel)
         except ValueError as exc:
             raise DataError(
                 f"Cannot read Excel file: {exc}",
                 detail={"file": str(path)},
             ) from exc
-    return pd.read_csv(path)
+    return _read_tabular(path, pd.read_csv)
 
 
 # ---------------------------------------------------------------------------

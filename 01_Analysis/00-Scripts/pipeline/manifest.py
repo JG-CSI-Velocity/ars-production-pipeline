@@ -203,7 +203,19 @@ class RunManifest:
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     f.write(payload)
-                os.replace(tmp_path, self.path)
+                # os.replace can transiently fail with [WinError 5] Access is
+                # denied on the SMB share when an antivirus/indexer (or a
+                # concurrent run) briefly holds the target. Retry a few times
+                # before giving up, so the manifest doesn't freeze at "running"
+                # over a momentary lock (#232).
+                for _attempt in range(5):
+                    try:
+                        os.replace(tmp_path, self.path)
+                        break
+                    except PermissionError:
+                        if _attempt == 4:
+                            raise
+                        time.sleep(0.2)
             except Exception:
                 # On failure, clean up the temp file but leave the existing manifest alone
                 try:

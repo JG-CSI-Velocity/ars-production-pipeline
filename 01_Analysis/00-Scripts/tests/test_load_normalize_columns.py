@@ -63,3 +63,50 @@ def test_numeric_headers_alone_load_fine(tmp_path):
     L.step_load_file(ctx, path)
     assert len(ctx.data) == 1
     assert len(ctx.data.columns) == 6
+
+
+def test_title_banner_row_is_skipped(tmp_path):
+    """A title/banner row above the headers must be skipped (#232, the 1800 case).
+
+    1800's ODD opened with 'First American Bank - OD Data Dump' on row 1, so
+    header=0 read the title and all four required columns looked missing.
+    """
+    L.odd_cache_clear()
+    path = _write_xlsx(
+        tmp_path / "title.xlsx",
+        [1, "First American Bank - OD Data Dump", None, None, None],  # title row
+        [
+            REQUIRED + ["Branch"],                       # real header row
+            ["100", "DDA", "2022-01-01", "50.0", "Main"],
+            ["101", "SAV", "2023-05-05", "75.0", "West"],
+        ],
+    )
+    ctx = _ctx()
+    L.step_load_file(ctx, path)
+    assert len(ctx.data) == 2
+    assert list(ctx.data.columns[:4]) == REQUIRED
+
+
+def test_header_row_zero_is_not_second_guessed(tmp_path):
+    """A normal header-on-row-0 file must not be shifted."""
+    L.odd_cache_clear()
+    path = _write_xlsx(
+        tmp_path / "row0.xlsx", REQUIRED, [["100", "DDA", "2022-01-01", "50.0"]]
+    )
+    ctx = _ctx()
+    L.step_load_file(ctx, path)
+    assert len(ctx.data) == 1
+
+
+def test_required_columns_match_whitespace_and_case(tmp_path):
+    """Headers drift: ' Stat Code', 'prod code', 'AVG BAL' must still match."""
+    L.odd_cache_clear()
+    path = _write_xlsx(
+        tmp_path / "drift.xlsx",
+        [" Stat Code", "prod code", "Date Opened ", "AVG BAL"],
+        [["100", "DDA", "2022-01-01", "50.0"]],
+    )
+    ctx = _ctx()
+    L.step_load_file(ctx, path)  # must not raise
+    for canonical in REQUIRED:
+        assert canonical in ctx.data.columns
