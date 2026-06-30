@@ -1,16 +1,20 @@
 /* ============================================================
    html_review — consulting-deliverable design system
-   Typography: Fraunces (editorial serif, display) + Inter (UI/body).
-   Palette CSI brand; applied with restraint.
+   Typography: Montserrat (CSI brand face) for display + UI/body.
+   Palette: CSI brand (navy #00274C + orange accent), applied with restraint.
+
+   These :root values are the static fallback. At render time builder.py
+   injects a second :root sourced from 03_Config/brand_tokens.json (the same
+   tokens the deck uses) so this surface and the PPTX never drift apart.
    ============================================================ */
 
 :root {
-  --navy:     #0F2A4A;
-  --navy-ink: #07162C;
-  --teal:     #0D9488;
+  --navy:     #00274C;
+  --navy-ink: #001A33;
+  --teal:     #0D9488;   /* editorial secondary accent (review tool only) */
   --teal-ink: #0B7A70;
   --coral:    #E7433C;
-  --amber:    #F39C12;
+  --amber:    #F8971D;
 
   --ink:        #0B1524;
   --ink-muted:  #4A5568;
@@ -22,8 +26,9 @@
   --paper-2: #FBFAF6;
   --surface: #FFFFFF;
 
-  --serif: "Fraunces", "Iowan Old Style", "Palatino", "Hoefler Text", Georgia, serif;
-  --sans:  "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --serif: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --sans:  "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono:  "Space Mono", "SFMono-Regular", Menlo, monospace;
 
   --gutter:   64px;
   --content:  960px;

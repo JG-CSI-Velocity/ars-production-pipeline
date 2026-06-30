@@ -2252,6 +2252,63 @@ def _build_mailer_performance_deck(
 # =============================================================================
 
 
+def _run_deck_qa(output_path: Path, ctx: "PipelineContext", notify=None) -> dict | None:
+    """Gate a freshly-saved deck through the static QA checks (deck_qa).
+
+    Writes a human-readable ``<stem>_quality_report.txt`` next to the deck (the
+    output WORKFLOW_MAP has always documented but nothing actually wrote) and,
+    when CRITICAL/MAJOR findings exist, escalates them to a manifest anomaly
+    flag + a parseable stdout line so the UI completion card can surface them.
+
+    The QA module ships in tests but was never invoked on a real build -- which
+    is exactly how deck 1759 shipped with leaked ``{overall_rate:.1f}%`` tokens.
+    Failures here never break the build: a deck that exists beats no deck.
+    """
+    try:
+        from ars_analysis.output import deck_qa
+    except ImportError:
+        return None
+    try:
+        report = deck_qa.audit_deck(output_path)
+    except Exception as exc:  # never let QA crash a completed build
+        logger.warning("Deck QA skipped ({err})", err=exc)
+        return None
+
+    report_path = output_path.with_name(f"{output_path.stem}_quality_report.txt")
+    try:
+        lines = [
+            f"Deck QA -- {report['file']}  ({report['slides']} slides)",
+            f"  CRITICAL {report['counts']['CRITICAL']}   "
+            f"MAJOR {report['counts']['MAJOR']}   MINOR {report['counts']['MINOR']}   "
+            f"-> {'PASS' if report['passed'] else 'FAIL'}",
+            "",
+        ]
+        for f in report["findings"]:
+            loc = f"slide {f['slide']}" if f["slide"] else "deck"
+            lines.append(f"  [{f['severity']:8}] {f['code']:14} {loc}: {f['message']}")
+        report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        ctx.export_log.append(str(report_path))
+    except OSError as exc:
+        logger.warning("Deck QA report write failed: {err}", err=exc)
+
+    crit = report["counts"]["CRITICAL"]
+    major = report["counts"]["MAJOR"]
+    # Parseable line for the UI run-log poller (mirrors the SLIDE MANIFEST line).
+    print(f"  DECK QA: {crit} critical, {major} major "
+          f"-> {'PASS' if report['passed'] else 'FAIL'} ({report_path.name})")
+    if not report["passed"]:
+        manifest = getattr(ctx, "manifest", None)
+        if manifest is not None and hasattr(manifest, "flag"):
+            from ars_analysis.pipeline.manifest import FlagLevel
+            level = FlagLevel.ERROR if crit else FlagLevel.WARN
+            manifest.flag(level, f"deck QA: {crit} critical, {major} major in {output_path.name}")
+        logger.warning("Deck QA FAIL: {c} critical, {m} major ({name})",
+                       c=crit, m=major, name=output_path.name)
+        if notify:
+            notify(f"Deck QA: {crit} critical / {major} major issues -- see {report_path.name}")
+    return report
+
+
 def build_deck(ctx: PipelineContext) -> Path | None:
     """Build a PowerPoint deck from analysis results.
 
@@ -2557,6 +2614,9 @@ def build_deck(ctx: PipelineContext) -> Path | None:
             path=output_path.name,
             n=len(final_slides),
         )
+        # Gate the finished deck through static QA (leaked tokens, empty bodies,
+        # slide-count explosions, text overflow) and write the quality report.
+        _run_deck_qa(output_path, ctx, _notify)
         if _notify:
             _notify(f"Deck saved: {output_path.name} ({len(final_slides)} slides)")
 

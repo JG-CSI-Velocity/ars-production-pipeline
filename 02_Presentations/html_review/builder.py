@@ -166,6 +166,45 @@ def _load_text(rel_path: str) -> str:
     return (_THIS / rel_path).read_text()
 
 
+# Canonical CSI values mirrored from shared/brand.py. Used as the fallback when
+# 03_Config/brand_tokens.json is absent so the review is always on-brand.
+_BRAND_FALLBACK = {
+    "navy": "#00274C", "accent": "#F15D22", "accent_dark": "#d14e1a",
+    "gold": "#F8971D", "positive": "#2A8B3E", "negative": "#EB2A2E",
+    "title": "Montserrat", "mono": "Space Mono",
+}
+
+
+def _brand_root_css() -> str:
+    """Build a `:root` override block from 03_Config/brand_tokens.json.
+
+    The HTML review and the PPTX once declared independent palettes/fonts (a
+    #0F2A4A navy + Fraunces/Inter vs the deck's #00274C + Montserrat). Sourcing
+    these vars from the same brand tokens keeps the two surfaces in lockstep.
+    Injected after styles.css so it wins over the static defaults; never raises.
+    """
+    c = dict(_BRAND_FALLBACK)
+    tokens_path = _PARENT.parent / "03_Config" / "brand_tokens.json"
+    try:
+        data = json.loads(tokens_path.read_text(encoding="utf-8"))
+        c.update(data.get("colors", {}))
+        c.update(data.get("fonts", {}))
+    except (OSError, ValueError):
+        pass  # fall back to canonical constants
+    sans = (f'"{c.get("title", "Montserrat")}", -apple-system, BlinkMacSystemFont, '
+            '"Segoe UI", Helvetica, Arial, sans-serif')
+    mono = f'"{c.get("mono", "Space Mono")}", "SFMono-Regular", Menlo, monospace'
+    return (
+        ":root{"
+        f"--navy:{c['navy']};--navy-ink:{c['navy']};"
+        f"--accent:{c['accent']};--accent-dark:{c.get('accent_dark', '#d14e1a')};"
+        f"--positive:{c.get('positive', '#2A8B3E')};--negative:{c.get('negative', '#EB2A2E')};"
+        f"--amber:{c.get('gold', '#F8971D')};"
+        f"--serif:{sans};--sans:{sans};--mono:{mono};"
+        "}"
+    )
+
+
 def build_html(
     results: list[AnalysisResultLike],
     client: ClientMeta,
@@ -189,6 +228,7 @@ def build_html(
         client=client,
         sections=sections,
         styles_css=_load_text("static/styles.css"),
+        brand_root_css=_brand_root_css(),
         print_css=_load_text("templates/print.css"),
         app_js=_load_text("static/app.js"),
         print_js=_load_text("static/print.js"),

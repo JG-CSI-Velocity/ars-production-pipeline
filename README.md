@@ -385,4 +385,4 @@ Covers the run manifest, error-capture and scorecard utilities, the slide-manife
 - pyarrow (Parquet cache for TXN)
 - loguru (logging)
 - pytest (test suite)
-- CSI brand: orange `#F15D22`, navy `#1A1A1A`, Montserrat font, Space Mono for numerics
+- CSI brand: navy `#00274C`, orange `#F15D22`, Montserrat font, Space Mono for numerics

@@ -80,3 +80,35 @@ SIZES: dict[str, int] = {
     "axis":          11,
     "footnote":      9,
 }
+
+
+def as_tokens() -> dict:
+    """Return the brand as a plain, JSON-serializable token dict.
+
+    This is the neutral hand-off other surfaces consume (the HTML review's
+    CSS :root, future design tools) so they don't each re-declare colors and
+    fonts -- which is how five divergent navies appeared in the first place.
+    """
+    return {"colors": dict(BRAND), "fonts": dict(FONTS), "sizes": dict(SIZES)}
+
+
+def export_tokens(path: "str | None" = None) -> "Path":
+    """Write the brand tokens to ``03_Config/brand_tokens.json`` and return the path.
+
+    Run as a module to regenerate: ``python -m ars_analysis.shared.brand``.
+    """
+    import json
+    from pathlib import Path
+
+    if path is None:
+        # shared/ -> 00-Scripts -> 01_Analysis -> repo root
+        repo_root = Path(__file__).resolve().parents[3]
+        path = repo_root / "03_Config" / "brand_tokens.json"
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(as_tokens(), indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+if __name__ == "__main__":  # pragma: no cover - regeneration helper
+    print(f"wrote {export_tokens()}")

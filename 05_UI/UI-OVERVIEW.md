@@ -12,7 +12,7 @@ A developer-facing map of every screen, what each component does, where it lives
 | `--border` | `#d6d6d6` | Card borders, dividers |
 | `--text` | `#222` | Body text |
 | `--muted` | `#9F9EA2` | Labels, secondary text |
-| `--dark` | `#1A1A1A` | Header bar, dark CTAs |
+| `--dark` | `#00274C` | Header bar, dark CTAs (canonical CSI navy, per `shared/brand.py`) |
 | `--accent` | `#F15D22` | Primary action / brand orange |
 | `--accent-light` | `#fef0e8` | Soft accent fills |
 | `--accent-dark` | `#d14e1a` | Hover state on accent |
