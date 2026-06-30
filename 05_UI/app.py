@@ -1093,6 +1093,15 @@ async def run_quality(csm: str, month: str, client_id: str):
             data = _json.loads(mf.read_text(encoding="utf-8"))
             out["manifest_status"] = data.get("status", "unknown")
             flags: list = []
+            # Run-level flags (deck QA, "0 closed accounts", denominator-law
+            # violations) live at the manifest top level; section-scoped flags
+            # live under each section. Surface both.
+            for f_ in data.get("anomaly_flags", []):
+                flags.append({
+                    "section": "Run",
+                    "level": f_.get("level", "info"),
+                    "message": f_.get("message", ""),
+                })
             for sec in data.get("sections", []):
                 for f_ in sec.get("anomaly_flags", []):
                     flags.append({
