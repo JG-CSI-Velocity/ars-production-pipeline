@@ -34,6 +34,7 @@ class StepResult:
     elapsed_seconds: float
     error: str = ""
     exception: Exception | None = None
+    critical: bool = True
 
 
 def run_pipeline(
@@ -89,7 +90,7 @@ def run_pipeline(
         try:
             step.execute(ctx)
             elapsed = time.perf_counter() - t0
-            results.append(StepResult(name=step.name, success=True, elapsed_seconds=elapsed))
+            results.append(StepResult(name=step.name, success=True, elapsed_seconds=elapsed, critical=step.critical))
             if _notify:
                 _notify(f"Step {step.name} done ({elapsed:.0f}s)")
             logger.info(
@@ -107,6 +108,7 @@ def run_pipeline(
                     elapsed_seconds=elapsed,
                     error=error_msg,
                     exception=exc,
+                    critical=step.critical,
                 )
             )
 

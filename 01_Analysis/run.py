@@ -205,7 +205,7 @@ def main():
             _csm_base = Path("/Volumes/M/ARS/00_Formatting/02-Data-Ready for Analysis")
         args.csm = _resolve_csm_name(args.csm, _csm_base)
 
-    # Start logging to file: 04_Logs/CSM/month/clientID_YYYYMMDD_HHMMSS.log
+    # Start logging to file: 04_Logs/CSM/month/clientID_YYYYMMDD_HHMMSS_PID.log
     _log_csm = args.csm or "unknown"
     _log_month = args.month or datetime.now().strftime("%Y.%m")
     _log_client = args.client or "all"
@@ -214,7 +214,10 @@ def main():
         _log_dir = Path(r"M:\ARS\04_Logs") / _log_csm / _log_month
     else:
         _log_dir = Path("/Volumes/M/ARS/04_Logs") / _log_csm / _log_month
-    _log_path = _log_dir / f"{_log_client}_{_log_timestamp}.log"
+    # Append the PID: two runs of the same client starting in the same second
+    # would otherwise open and interleave the SAME log file (the garbled logs in
+    # #232). Client stays the leading token so History parsing is unaffected.
+    _log_path = _log_dir / f"{_log_client}_{_log_timestamp}_{os.getpid()}.log"
     try:
         _tee = TeeLogger(_log_path)
         sys.stdout = _tee

@@ -56,3 +56,8 @@ _archive/
 
 # Persistent cross-run chart cache (mailer summaries/combos)
 .chart_cache/
+
+# Runtime UI state -- written by the running server, not source (#232)
+03_Config/schedules.json
+# Stray local copy of the M: tree accidentally created on dev machines (#232)
+00_Formatting/M:\ARS/
