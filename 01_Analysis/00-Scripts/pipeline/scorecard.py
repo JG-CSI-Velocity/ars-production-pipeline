@@ -20,6 +20,10 @@ def _verdict(rm: RunManifest) -> str:
             for f in sec.anomaly_flags
             if f.level in (FlagLevel.WARN, FlagLevel.ERROR)
         )
+        flagged += sum(
+            1 for f in rm.anomaly_flags
+            if f.level in (FlagLevel.WARN, FlagLevel.ERROR)
+        )
         if flagged:
             return "Ship with caution — anomaly flags present"
         return "Ship"
@@ -56,6 +60,8 @@ def _failure_block(sec, script) -> str:
 
 def _anomaly_lines(rm: RunManifest) -> list[str]:
     lines: list[str] = []
+    for flag in rm.anomaly_flags:
+        lines.append(f"- **Run** ({flag.level.value}): {flag.message}")
     for sec in rm.sections:
         for flag in sec.anomaly_flags:
             lines.append(f"- **{sec.name}** ({flag.level.value}): {flag.message}")
