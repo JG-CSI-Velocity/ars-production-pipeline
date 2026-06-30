@@ -1510,6 +1510,11 @@ async def run_schedule_now(schedule_id: str):
     analysis_run = ARS_BASE / "01_Analysis" / "run.py"
     formatting_run = ARS_BASE / "00_Formatting" / "run.py"
 
+    # Same concurrency guard the manual Generate path uses -- the schedule
+    # trigger previously bypassed it entirely and could stack a run on top of
+    # an in-progress one for the same client (#232).
+    _reject_if_run_active(sched["csm"], month, sched["client_id"], product)
+
     runs[run_id] = {
         "status": "running",
         "client_id": sched["client_id"],
