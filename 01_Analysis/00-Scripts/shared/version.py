@@ -37,7 +37,12 @@ def get_code_version() -> dict:
     """
     sha = _git("rev-parse", "--short", "HEAD")
     branch = _git("rev-parse", "--abbrev-ref", "HEAD")
-    dirty = bool(_git("status", "--porcelain"))
+    # --untracked-files=no: skip enumerating untracked/ignored files. On a
+    # network checkout (M:\ARS) the working tree holds tens of thousands of
+    # ignored client-data files (formatted ODDs, completed analyses, decks);
+    # stat-ing all of them over SMB is what made this call slow. The dirty flag
+    # only needs modified *tracked* files, which -uno still reports.
+    dirty = bool(_git("status", "--porcelain", "--untracked-files=no"))
     if not sha:
         return {"sha": "", "branch": "", "dirty": False, "label": "unknown"}
     label = f"{sha}{'*' if dirty else ''} ({branch})" if branch else sha

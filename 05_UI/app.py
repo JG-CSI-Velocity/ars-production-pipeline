@@ -1639,7 +1639,6 @@ if __name__ == "__main__":
     print(f"  CSMs:        {get_csm_list() or '[none configured]'}")
     print(f"  index.html:  {Path(__file__).parent / 'index.html'} {'[OK]' if (Path(__file__).parent / 'index.html').exists() else '[NOT FOUND]'}")
     print(f"  SLIDE_MODE:  {slide_mode}  (env SLIDE_MODE=deep|standard|minimal)")
-    print(f"  Code:        {get_code_version().get('label', 'unknown')}")
     print(f"  URL:         http://localhost:{port}")
     print(f"  PID:         {_os.getpid()}")
     print("=" * 60)
@@ -1648,5 +1647,15 @@ if __name__ == "__main__":
     if not ARS_BASE.exists():
         print(f"  WARNING: {ARS_BASE} not found. Is the M: drive mapped?")
         print()
+
+    # Resolve the git code-version stamp OFF the startup path. It shells out to
+    # git (incl. `git status`), which on a network checkout can take seconds --
+    # and the launcher polls the port, so any blocking here is felt as a slow
+    # launch. Compute it in a daemon thread; it prints when ready and warms the
+    # lru_cache that /api/version (the UI footer) reads. The port binds now.
+    def _print_code_version():
+        print(f"  Code:        {get_code_version().get('label', 'unknown')}")
+
+    threading.Thread(target=_print_code_version, daemon=True).start()
 
     uvicorn.run(app, host="0.0.0.0", port=port)
