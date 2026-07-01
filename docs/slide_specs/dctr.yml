@@ -1,7 +1,7 @@
 # DCTR section slide specs.
 # Source of truth for action titles, callouts, and footer band of every
-# DCTR slide on the main deck. See docs/slide_specs/dctr.md for the
-# full design narrative (panel layouts, color rules, etc).
+# DCTR slide on the main deck. See SLIDE_DESIGN.md for the design narrative
+# (panel layouts, color rules, etc).
 #
 # Schema: 01_Analysis/00-Scripts/output/slide_spec.py
 # Wire-in: output/deck_builder.py reads via output/slide_spec.get_spec("dctr", slide_id).

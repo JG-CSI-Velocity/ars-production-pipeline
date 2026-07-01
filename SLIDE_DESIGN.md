@@ -243,14 +243,15 @@ No charts, no logos, no ornamentation.
 
 ## 11. Per-section application
 
-Per-slide specs live in `docs/slide_specs/` (one markdown file per section). Each spec references:
+Per-slide specs live in `docs/slide_specs/` (one YAML file per section, loaded by
+`output/slide_spec.py`). Each spec references:
 - The source `AnalysisResult.slide_id`(s)
 - The Group ID from `SLIDE_MANIFEST.xlsx`
 - The action title template (with placeholders for client-specific data)
 - The callout template
 - Any chart enhancements required vs what the analytics module currently produces
 
-See `docs/slide_specs/dctr.md` for the first example.
+See `docs/slide_specs/dctr.yml` for the first example, or `docs/slide_specs/_TEMPLATE.yml`.
 
 ---
 
