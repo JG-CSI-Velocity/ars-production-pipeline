@@ -266,6 +266,25 @@ def prepare_attrition_data(
     open_accts = data[data["Date Closed"].isna()].copy()
     closed_accts = data[data["Date Closed"].notna()].copy()
 
+    # #239 observability: when the whole book shows zero closed accounts, every
+    # attrition slide (A9.2-A9.13, A11.1, S2, A20) fails with "No closed
+    # accounts" -- 15 look-alike failures from ONE cause. Surface it once,
+    # loudly, so the operator sees the cause, not 15 symptoms. The numbers are
+    # unchanged; this only adds a warning + a run-level anomaly flag.
+    n_total = len(data)
+    if n_total > 0 and closed_accts.empty:
+        msg = (
+            f"Attrition: 0 of {n_total:,} accounts have a parsed Date Closed, so the "
+            f"entire attrition section (15 slides) was skipped. The ODD extract may be "
+            f"open-accounts-only, or Date Closed values may be in a format the loader "
+            f"could not parse -- check the raw Date Closed column for this client."
+        )
+        logger.warning(msg)
+        manifest = getattr(ctx, "manifest", None)
+        if manifest is not None and hasattr(manifest, "flag"):
+            from ars_analysis.pipeline.manifest import FlagLevel
+            manifest.flag(FlagLevel.WARN, msg)
+
     # Closed-detection sanity check. Attrition defines closed purely as
     # "Date Closed parsed", so an account with an open-looking Stat Code but
     # a Date Closed is CLOSED here while ctx.subsets.open_accounts may call

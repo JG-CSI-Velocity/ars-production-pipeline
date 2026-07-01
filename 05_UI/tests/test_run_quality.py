@@ -44,6 +44,12 @@ def test_run_quality_surfaces_scorecard_and_violations(app_module, completed_run
         f["section"] == "dctr" and "fallback" in f["message"]
         for f in body["anomaly_flags"]
     )
+    # Run-level flags (deck QA, "0 closed accounts", denom law) surface too,
+    # tagged section="Run".
+    assert any(
+        f["section"] == "Run" and "0 of 1,521" in f["message"]
+        for f in body["anomaly_flags"]
+    )
     assert body["manifest_status"] == "ok"
 
 

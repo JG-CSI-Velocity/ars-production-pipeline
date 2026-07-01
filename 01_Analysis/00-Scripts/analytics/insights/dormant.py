@@ -15,7 +15,7 @@ from loguru import logger
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import NEGATIVE, SILVER, TEAL
+from ars_analysis.charts.style import NEGATIVE, PRIMARY, SILVER, TEAL
 from ars_analysis.pipeline.context import PipelineContext
 
 AVG_ANNUAL_IC = 216.0  # PULSE benchmark per active card
@@ -141,7 +141,7 @@ def _draw_dormant_summary(ax, dormant_df: pd.DataFrame, total_eligible: int) -> 
         ax.text(x, y - 0.06, sub, fontsize=11, color="#999", ha="center", va="top")
 
     ax.set_title(
-        "Dormant Opportunity Summary", fontsize=20, fontweight="bold", pad=20, color="#1A1A1A"
+        "Dormant Opportunity Summary", fontsize=20, fontweight="bold", pad=20, color=PRIMARY
     )
 
     return f"{n_dormant:,} high-balance accounts without debit = ${opportunity:,.0f}/yr opportunity"

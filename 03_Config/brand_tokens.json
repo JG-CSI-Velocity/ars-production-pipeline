@@ -1,0 +1,33 @@
+{
+  "colors": {
+    "navy": "#00274C",
+    "navy_soft": "#1B4569",
+    "accent": "#F15D22",
+    "accent_light": "#fef0e8",
+    "accent_dark": "#d14e1a",
+    "gold": "#F8971D",
+    "positive": "#2A8B3E",
+    "negative": "#EB2A2E",
+    "warning": "#F8971D",
+    "neutral": "#8B95A2",
+    "muted": "#B0B0B0",
+    "light_gray": "#F8F8F8",
+    "bg": "#FFFFFF",
+    "text": "#222222",
+    "text_muted": "#777777"
+  },
+  "fonts": {
+    "title": "Montserrat",
+    "body": "Montserrat",
+    "mono": "Space Mono"
+  },
+  "sizes": {
+    "action_title": 24,
+    "subtitle": 16,
+    "body": 12,
+    "callout_hero": 44,
+    "callout_label": 14,
+    "axis": 11,
+    "footnote": 9
+  }
+}

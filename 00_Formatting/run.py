@@ -46,6 +46,27 @@ from shared.format_odd import check_odd_formatted, format_odd
 _disabled_log_files = set()
 
 
+def _read_raw_odd_csv(csv_path, display_name=None):
+    """Read a raw ODD CSV, stripping the standard 4-row ODD preamble.
+
+    Every unformatted ODD carries that 4-row banner, so ``skiprows=4`` is the
+    fixed contract -- it is intentionally NOT auto-detected here. When pandas
+    finds nothing after the skip it raises ``EmptyDataError``; that means the
+    *source file* is empty or truncated, not that the code is wrong. Re-raise it
+    as a clear, operator-facing message instead of the bare pandas string
+    "No columns to parse from file" (issue #240, client 1200).
+    """
+    name = display_name or os.path.basename(str(csv_path))
+    try:
+        return pd.read_csv(csv_path, skiprows=4, low_memory=False)
+    except pd.errors.EmptyDataError as exc:
+        raise ValueError(
+            f"{name} has no data rows -- the file is empty or contains only the "
+            f"4-row ODD banner. Re-export or re-download this client's ODD; the "
+            f"formatting step is fine, the source file has no records."
+        ) from exc
+
+
 def log_message(message, log_file=None):
     print(message)
     if not log_file or log_file in _disabled_log_files:
@@ -186,7 +207,7 @@ def process_csm(csm_name, src_directory, staging_directory, output_directory, lo
                     log_message(f"    Existing output is invalid ({_existing_size} bytes) -- re-formatting", log_file)
                     os.remove(output_path)
 
-            df = pd.read_csv(csv_path, skiprows=4, low_memory=False)
+            df = _read_raw_odd_csv(csv_path, csv_file)
 
             if df.empty:
                 log_message(f"    Skipping empty: {csv_file}", log_file)
@@ -305,7 +326,7 @@ def process_source_file(source_path, csm_name, month, client_id, output_director
             if fp.suffix.lower() == ".xlsx":
                 df = pd.read_excel(fp)
             else:
-                df = pd.read_csv(fp, skiprows=4, low_memory=False)
+                df = _read_raw_odd_csv(fp, fp.name)
 
             if df.empty:
                 log_message(f"    Skipping empty: {fp.name}", log_file)

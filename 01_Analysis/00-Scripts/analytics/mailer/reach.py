@@ -23,7 +23,7 @@ from ars_analysis.analytics.mailer._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import POSITIVE, SILVER, TEAL
+from ars_analysis.charts.style import POSITIVE, PRIMARY, SILVER, TEAL
 from ars_analysis.pipeline.context import PipelineContext
 
 NON_RESP_COLOR = "#404040"
@@ -224,7 +224,7 @@ def _draw_penetration_kpi(
         va="top",
         fontsize=24,
         fontweight="bold",
-        color="#1A1A1A",
+        color=PRIMARY,
     )
 
     # Main KPI: penetration rate

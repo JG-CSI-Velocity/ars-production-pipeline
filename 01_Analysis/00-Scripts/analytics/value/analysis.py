@@ -13,7 +13,12 @@ from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.rege._helpers import detect_reg_e_column
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
+from ars_analysis.charts.style import PRIMARY
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.debit import (
+    DEBIT_YES_VALUES,
+    detect_debit_col as _canonical_detect_debit_col,
+)
 
 # -- Column discovery --------------------------------------------------------
 
@@ -35,19 +40,26 @@ def _find_col(df: pd.DataFrame, keyword: str, period_hint: str = "12") -> str | 
 
 
 def _detect_debit_col(df: pd.DataFrame, ctx_indicator: str = "") -> str | None:
-    """Auto-detect the debit card column name."""
+    """Auto-detect the debit card column name.
+
+    Honors the client-configured indicator override, then delegates candidate
+    detection to the canonical `shared.debit.detect_debit_col` so the alias list
+    stays in one place.
+    """
     if ctx_indicator and ctx_indicator in df.columns:
         return ctx_indicator
-    for candidate in ("Debit?", "Debit", "DC Indicator", "DC_Indicator"):
-        if candidate in df.columns:
-            return candidate
-    return None
+    return _canonical_detect_debit_col(df)
 
 
 def _is_debit_yes(series: pd.Series) -> pd.Series:
-    """Return boolean mask for 'has debit card' regardless of coding convention."""
+    """Boolean mask for 'has debit card', using the canonical value set.
+
+    Reads `shared.debit.DEBIT_YES_VALUES` so `True`/`1` count here exactly as
+    they do in DCTR/mailer -- previously this set omitted them, undercounting
+    debit holders in the Value section for clients coded with booleans/ints.
+    """
     upper = series.astype(str).str.strip().str.upper()
-    return upper.isin(("YES", "Y", "D", "DC", "DEBIT"))
+    return upper.isin(DEBIT_YES_VALUES)
 
 
 # -- Comparison table chart --------------------------------------------------
@@ -163,7 +175,7 @@ def _draw_value_slide(
     rate_label = impact.get("rate_label", "DCTR")
 
     ax_right.text(
-        5, 9.2, "Potential Impact", fontsize=24, fontweight="bold", color="#1A1A1A", ha="center"
+        5, 9.2, "Potential Impact", fontsize=24, fontweight="bold", color=PRIMARY, ha="center"
     )
 
     y = 8.0

@@ -135,6 +135,10 @@ class RunManifest:
     elapsed_s: float = 0.0
     status: RunStatus = RunStatus.RUNNING
     sections: list[SectionRecord] = field(default_factory=list)
+    # Run-level anomalies not tied to a single section's script execution
+    # (deck QA findings, "0 closed accounts", etc.). Section-scoped flags still
+    # live on SectionRecord.anomaly_flags.
+    anomaly_flags: list[AnomalyFlag] = field(default_factory=list)
 
     def __post_init__(self):
         self._start_monotonic: float = 0.0
@@ -161,6 +165,16 @@ class RunManifest:
             self.elapsed_s = round(time.monotonic() - self._start_monotonic, 1)
         self.flush()
 
+    def flag(self, level: FlagLevel, message: str) -> None:
+        """Record a run-level anomaly and flush. Mirrors SectionRecorder.flag.
+
+        Use for conditions that aren't owned by one section's script run --
+        e.g. the deck-QA gate, or "0 closed accounts so the whole attrition
+        section was skipped." Surfaced in run_scorecard.md and run_manifest.json.
+        """
+        self.anomaly_flags.append(AnomalyFlag(level=level, message=message))
+        self.flush()
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
@@ -176,6 +190,7 @@ class RunManifest:
             "elapsed_s": self.elapsed_s,
             "status": self.status.value,
             "totals": self._totals(),
+            "anomaly_flags": [f.to_dict() for f in self.anomaly_flags],
             "sections": [s.to_dict() for s in self.sections],
         }
 

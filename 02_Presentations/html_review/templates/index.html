@@ -5,8 +5,10 @@
 <title>{{ client.display_name }} — {{ client.month_display }} Review</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>{{ styles_css | safe }}</style>
+{# Brand tokens (shared/brand.py -> 03_Config/brand_tokens.json) win over the static :root above #}
+<style>{{ brand_root_css | safe }}</style>
 <style>{{ print_css | safe }}</style>
 </head>
 <body data-client="{{ client.id }}" data-month="{{ client.month }}">

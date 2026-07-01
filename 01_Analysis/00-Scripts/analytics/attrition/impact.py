@@ -36,6 +36,7 @@ from ars_analysis.charts.style import (
     NEGATIVE,
     NEUTRAL,
     POSITIVE,
+    PRIMARY,
     TEAL,
     TICK_SIZE,
     TTM,
@@ -417,7 +418,7 @@ def _revenue_impact(ctx: PipelineContext) -> list[AnalysisResult]:
             va="top",
             fontsize=14,
             fontweight="bold",
-            color="#1A1A1A",
+            color=PRIMARY,
             bbox={"boxstyle": "round,pad=0.4", "facecolor": "#FDE8E8", "edgecolor": NEGATIVE},
         )
         fig.tight_layout()

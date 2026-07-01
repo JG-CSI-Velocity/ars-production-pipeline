@@ -114,11 +114,11 @@ For KPI/cover slides, the callout box becomes the central element and the chart 
 
 | Element | Font | Size | Weight | Color |
 |---|---|---|---|---|
-| Action title | Arial | 24pt | Bold | `#1A1A1A` (navy) |
-| Sub-title (panel header) | Arial | 16pt | Semibold | `#1A1A1A` |
+| Action title | Arial | 24pt | Bold | `#00274C` (navy) |
+| Sub-title (panel header) | Arial | 16pt | Semibold | `#00274C` |
 | Body text | Arial | 12pt | Regular | `#333333` |
 | Callout number | Arial | 32-44pt | Bold | accent color |
-| Callout text | Arial | 14pt | Semibold | `#1A1A1A` |
+| Callout text | Arial | 14pt | Semibold | `#00274C` |
 | Chart axis / tick labels | Arial | 11-12pt | Regular | `#555555` |
 | Chart data labels | Arial | 11pt | Bold | series color or `#333333` |
 | Footnote / source | Arial | 9pt | Italic | `#777777` |
@@ -132,7 +132,7 @@ For KPI/cover slides, the callout box becomes the central element and the chart 
 
 | Role | Hex | Usage |
 |---|---|---|
-| **Primary** (navy) | `#1A1A1A` | Titles, primary bars, axis lines |
+| **Primary** (navy) | `#00274C` | Titles, primary bars, axis lines |
 | **Accent teal** | `#17A2B8` | Focus series, "our" data, L12M line |
 | **Secondary teal** | `#6FB3C0` | Secondary series (when needed alongside primary teal) |
 | **Positive** | `#28A745` | Favorable outcomes, opportunity |

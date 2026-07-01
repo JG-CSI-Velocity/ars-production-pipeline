@@ -23,7 +23,7 @@ from ars_analysis.analytics.dctr._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import SILVER, TEAL
+from ars_analysis.charts.style import PRIMARY, SILVER, TEAL
 from ars_analysis.pipeline.context import PipelineContext
 
 
@@ -233,7 +233,7 @@ class DCTROverlays(AnalysisModule):
                             va="top",
                             fontsize=14,
                             fontweight="bold",
-                            color="#1A1A1A",
+                            color=PRIMARY,
                             bbox={
                                 "boxstyle": "round,pad=0.4",
                                 "facecolor": "#E8F4FD",

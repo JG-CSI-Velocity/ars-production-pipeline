@@ -86,6 +86,10 @@ def completed_run(app_module, tmp_path):
     )
     (run_dir / "run_manifest.json").write_text(json.dumps({
         "status": "ok",
+        # Run-level flags (deck QA, "0 closed accounts", denominator law) live here.
+        "anomaly_flags": [
+            {"level": "warn", "message": "Attrition: 0 of 1,521 accounts have a parsed Date Closed"}
+        ],
         "sections": [
             {
                 "name": "dctr",

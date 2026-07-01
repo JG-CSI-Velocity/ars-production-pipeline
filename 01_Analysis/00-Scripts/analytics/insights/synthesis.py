@@ -39,6 +39,7 @@ from ars_analysis.charts.style import (
     DATA_LABEL_SIZE,
     NEGATIVE,
     POSITIVE,
+    PRIMARY,
     TEAL,
     TICK_SIZE,
 )
@@ -103,7 +104,7 @@ def _revenue_gap(ctx: PipelineContext) -> list[AnalysisResult]:
                 f"Realistic ({CAPTURE_RATE:.0%})",
             ]
             values = [debit_gap, rege_gap, total_gap, realistic]
-            colors = [NEGATIVE, NEGATIVE, "#1A1A1A", POSITIVE]
+            colors = [NEGATIVE, NEGATIVE, PRIMARY, POSITIVE]
 
             bars = ax.barh(
                 categories[::-1],

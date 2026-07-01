@@ -26,6 +26,7 @@ from ars_analysis.analytics.mailer._helpers import (
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.charts.style import PRIMARY
 
 # Chart colors
 COLOR_OUTER = "#3498DB"  # blue - eligible w/ card
@@ -183,7 +184,7 @@ def _market_reach(ctx: PipelineContext) -> list[AnalysisResult]:
                 va="center",
                 fontsize=24,
                 fontweight="bold",
-                color="#1A1A1A",
+                color=PRIMARY,
             )
             ax.text(
                 kpi_x,
@@ -315,7 +316,7 @@ def _spend_share(ctx: PipelineContext) -> list[AnalysisResult]:
         labels = ["All Open Accounts", "Eligible Accounts", "Responders"]
         values = [spend_all_open, spend_eligible, spend_responders]
         acct_counts = [n_open, n_eligible, n_resp]
-        bar_colors = [COLOR_OUTER, "#1A1A1A", COLOR_INNER]
+        bar_colors = [COLOR_OUTER, PRIMARY, COLOR_INNER]
 
         y_pos = [2, 1, 0]
         bars = ax1.barh(y_pos, values, color=bar_colors, height=0.6, alpha=0.85)
@@ -357,7 +358,7 @@ def _spend_share(ctx: PipelineContext) -> list[AnalysisResult]:
         ax2.set_xlim(0, 1)
         ax2.set_ylim(-0.5, 3)
         kpi_items = [
-            ("Eligible Share of Open Spend", f"{elig_pct:.1f}%", "#1A1A1A", 2.4),
+            ("Eligible Share of Open Spend", f"{elig_pct:.1f}%", PRIMARY, 2.4),
             ("Responder Share of Eligible Spend", f"{resp_pct_elig:.1f}%", COLOR_INNER, 1.4),
             ("Responder Share of All Open Spend", f"{resp_pct_open:.1f}%", COLOR_INNER, 0.4),
         ]
@@ -567,7 +568,7 @@ def _revenue_attribution(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontsize=14,
                 color="#555",
             )
-            color = "#1A1A1A" if "Incremental" not in label else COLOR_RESP
+            color = PRIMARY if "Incremental" not in label else COLOR_RESP
             ax2.text(
                 0.1,
                 y - 0.05,
@@ -778,7 +779,7 @@ def _pre_post_delta(ctx: PipelineContext) -> list[AnalysisResult]:
             va="top",
             fontsize=14,
             fontweight="bold",
-            color="#1A1A1A",
+            color=PRIMARY,
             bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": "#3498DB"},
         )
 
