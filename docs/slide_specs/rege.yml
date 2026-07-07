@@ -12,11 +12,20 @@ REGE-MAIN-1:
   components: [A8.1, A8.2]
   action_title: "Reg E opt-in of {opt_in_rate:.0%} among Personal debit holders; {trend_word} {trend_pp:+.0f}pp L12M"
   inputs:
-    opt_in_rate: ctx.results.reg_e_1.insights.opt_in_rate
-    overall_total: ctx.results.reg_e_1.insights.total_accounts
-    l12m_rate: ctx.results.reg_e_2.insights.l12m_opt_in
-    trend_pp: (l12m_rate - opt_in_rate) * 100 if l12m_rate and opt_in_rate else 0
-    trend_word: "'accelerating' if (trend_pp or 0) > 0 else ('flat' if abs(trend_pp or 0) < 1 else 'softening')"
+    # reg_e_1 is stored flat by rege/status.py (opt_in_rate, l12m_rate, total_base);
+    # there is no `.insights.` sub-object and no reg_e_2.l12m_opt_in. Point at the
+    # real keys so this callout renders the actual rate instead of a silent blank.
+    opt_in_rate: ctx.results.reg_e_1.opt_in_rate
+    overall_total: ctx.results.reg_e_1.total_base
+    l12m_rate: ctx.results.reg_e_1.l12m_rate
+    # Guard on None, not truthiness: a real 0.0 opt-in rate (nobody opted in this
+    # period) is data, not "missing" -- treating it as falsy would hide a genuine
+    # collapse (e.g. render "flat +0pp" instead of the true "-45pp").
+    trend_pp: (l12m_rate - opt_in_rate) * 100 if l12m_rate is not None and opt_in_rate is not None else 0
+    # Symmetric dead-band tied to the displayed rounded pp: >=+1pp accelerating,
+    # <=-1pp softening, else flat -- so the word never contradicts the number
+    # (avoids "accelerating +0pp").
+    trend_word: "'accelerating' if round(trend_pp or 0) >= 1 else ('softening' if round(trend_pp or 0) <= -1 else 'flat')"
   denominator_label: Eligible Personal w/Debit
   callout:
     hero: "{opt_in_rate:.0%}"
