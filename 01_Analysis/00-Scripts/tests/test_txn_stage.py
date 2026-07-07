@@ -45,6 +45,24 @@ def test_stage_txn_files_copies_loose_file(tmp_path):
     assert _has_txn_file(dest)
 
 
+def test_stage_skips_odd_data_dump(tmp_path):
+    # A CSM source folder holding the real txn file AND an ODD data dump.
+    source = tmp_path / "OD Data Dumps" / "2026.06"
+    source.mkdir(parents=True)
+    (source / "1776_30825_[2026.06.01][11.00.31]_monthlytran.txt").write_text("row\n")
+    # The #247 ODD export, plus an adversarial name with BOTH 'odd' and 'tran'.
+    (source / "1776-2026-07-CoastHills CU-ODD (Jul23 forward) (070226_101912)_V2_1_1.csv").write_text("x\n")
+    (source / "1776_ODD_transactions_dump.csv").write_text("x\n")
+    txn_base = tmp_path / "TXN Files"
+
+    staged, errors = txn_staging.stage_txn_files(
+        "JamesG", "1776", "2026.06", str(tmp_path / "OD Data Dumps"), str(txn_base))
+    assert errors == 0
+    dest = txn_base / "JamesG" / "1776"
+    names = {p.name for p in dest.iterdir()}
+    assert names == {"1776_30825_[2026.06.01][11.00.31]_monthlytran.txt"}  # only the real txn file
+
+
 def test_stage_is_idempotent(tmp_path):
     source = tmp_path / "OD Data Dumps" / "2026.06"
     source.mkdir(parents=True)

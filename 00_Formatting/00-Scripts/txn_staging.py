@@ -50,7 +50,13 @@ def gather_trans_files(src_directory, txn_output_base, csm_name,
         if os.path.isdir(os.path.join(src_directory, f)):
             continue
         f_lower = f.lower()
-        is_txn = (
+        # 'odd' excluded FIRST -- an ODD export is a data dump, not a transaction
+        # file. Mirrors gather_trans_from_zips (which skips 'odd' entries) and the
+        # analysis-side discovery. Without this, a data dump named with both
+        # 'odd' and 'tran' (e.g. "1776_ODD_transactions.csv") would be staged and
+        # then ingested as a 1-column "transaction" file, corrupting combined_df
+        # (issue #247).
+        is_txn = 'odd' not in f_lower and (
             ('tran' in f_lower and f_lower.endswith(('.txt', '.csv')))
             or f_lower.endswith('_transaction')
         )
