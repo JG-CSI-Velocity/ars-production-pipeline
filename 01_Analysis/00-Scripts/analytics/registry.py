@@ -40,6 +40,10 @@ MODULE_ORDER: list[str] = [
     "insights.effectiveness",
     "insights.branch_scorecard",
     "insights.dormant",
+    # -- Structured TXN modules (migrated from the exec product/ cells). --
+    # Dormant on normal ARS runs: validate() gates on ctx.txn, which only
+    # step_txn_load populates, so step_analyze skips it unless TXN data is loaded.
+    "transaction.product",
 ]
 
 
