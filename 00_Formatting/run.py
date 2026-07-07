@@ -439,6 +439,102 @@ def gather_trans_files(src_directory, txn_output_base, csm_name, client_filter=N
     return success, errors
 
 
+def gather_trans_from_zips(src_directory, txn_output_base, csm_name, client_filter=None, log_file=None, clients_config=None):
+    """Extract transaction files bundled INSIDE the ODD zips into TXN Files.
+
+    CSM data-dump zips (e.g. 1200_ODDD.zip) now carry both the ODD entry and a
+    transaction entry. process_csm() extracts only ODD entries, so this pulls
+    the transaction entry out and routes it to TXN Files/{CSM}/{client_id}/ --
+    the same destination and detection/dedup contract as gather_trans_files().
+    The large ODD member is never decompressed here (only its metadata is read).
+    """
+    if not os.path.exists(src_directory):
+        return 0, 0
+
+    # Same ODD-zip discovery as process_csm (never modifies the CSM source)
+    zip_files = [f for f in os.listdir(src_directory) if f.endswith('.zip')
+                 and 'odd' in f.lower()
+                 and (client_filter is None or f.startswith(client_filter))]
+
+    success = 0
+    skipped = 0
+    errors = 0
+    for item in zip_files:
+        item_path = os.path.join(src_directory, item)
+        if not zipfile.is_zipfile(item_path):
+            continue
+
+        # Fallback client ID from the zip name (e.g. 1200 from 1200_ODDD.zip)
+        zip_client = re.match(r'^(\d+)', item)
+        zip_cid = zip_client.group(1) if zip_client else None
+
+        try:
+            with zipfile.ZipFile(item_path, 'r') as zip_ref:
+                for entry in zip_ref.namelist():
+                    if entry.startswith('__MACOSX') or entry.endswith('/'):
+                        continue
+                    base = os.path.basename(entry)
+                    f_lower = base.lower()
+
+                    # ODD wins -- already extracted/formatted by process_csm.
+                    # Also resolves an entry matching both 'odd' and 'tran'.
+                    if 'odd' in f_lower:
+                        continue
+
+                    # Same detection as gather_trans_files
+                    is_txn = (
+                        ('tran' in f_lower and f_lower.endswith(('.txt', '.csv')))
+                        or f_lower.endswith('_transaction')
+                    )
+                    if not is_txn:
+                        continue
+
+                    # Client ID: entry's leading digits, else the zip's client ID
+                    entry_match = re.match(r'^(\d+)', base)
+                    cid = entry_match.group(1) if entry_match else zip_cid
+                    if not cid:
+                        log_message(f"    Trans SKIPPED (no client ID in entry or zip name): {item}!{base}", log_file)
+                        continue
+
+                    # Skip excluded clients
+                    if clients_config and clients_config.get(cid, {}).get("exclude", False):
+                        continue
+                    if client_filter is not None and cid != client_filter:
+                        continue
+
+                    try:
+                        src_size = zip_ref.getinfo(entry).file_size
+
+                        # Destination: TXN Files/{CSM}/{client_id}/
+                        dest_dir = os.path.join(txn_output_base, csm_name, cid)
+                        os.makedirs(dest_dir, exist_ok=True)
+                        dest_path = os.path.join(dest_dir, base)
+
+                        # Skip if same file already exists (same name + same size)
+                        if os.path.exists(dest_path):
+                            if os.path.getsize(dest_path) == src_size:
+                                skipped += 1
+                                continue
+                            # Different size = updated file, overwrite
+                            log_message(f"    Trans (zip): {base} -- size changed, re-copying", log_file)
+
+                        with open(dest_path, 'wb') as out_f:
+                            out_f.write(zip_ref.read(entry))
+                        log_message(f"    Trans (zip): {item}!{base} -> {dest_dir}", log_file)
+                        success += 1
+                    except Exception as e:
+                        log_message(f"    Trans (zip) ERROR: {item}!{base}: {e}", log_file)
+                        errors += 1
+        except Exception as e:
+            log_message(f"    Trans (zip) ERROR opening {item}: {e}", log_file)
+            errors += 1
+
+    if skipped:
+        log_message(f"    Trans (zip): {skipped} file(s) already up to date", log_file)
+
+    return success, errors
+
+
 def gather_deferred_files(client_ids, deferred_base, output_directory, log_file=None):
     """Copy deferred revenue files for each client.
 
@@ -701,6 +797,11 @@ def main():
             csm_root = Path(csm_source)
             if csm_root.exists() and csm_root != src:
                 t_ok, t_err = gather_trans_files(str(csm_root), txn_base, csm_name, args.client, log_file, clients_config)
+                t_ok_total += t_ok
+                t_err_total += t_err
+            # Also pull TXN entries bundled inside the ODD zips (zips now carry both)
+            if src.exists():
+                t_ok, t_err = gather_trans_from_zips(str(src), txn_base, csm_name, args.client, log_file, clients_config)
                 t_ok_total += t_ok
                 t_err_total += t_err
             log_message(f"    Trans: {t_ok_total} copied, {t_err_total} errors", log_file)
