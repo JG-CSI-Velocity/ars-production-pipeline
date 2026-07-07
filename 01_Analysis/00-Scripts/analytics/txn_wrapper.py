@@ -759,6 +759,16 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
         TXNSectionWrapper.run(ctx, shared_namespace=namespace).
     """
     t0 = time.time()
+
+    # Auto-stage TXN files if the destination folder is empty (e.g. this run
+    # skipped formatting, so formatting's --with-trans staging never ran). Runs
+    # before txn_setup discovery; a no-op fast path when files are already
+    # present. Raises a clear, actionable error if it can't stage -- replacing
+    # the old silent "no transaction files found" stall. Covers all TXN entry
+    # paths (run_txn, run_combined, step_txn_load / diff harness).
+    from ars_analysis.pipeline.steps.txn_stage import ensure_txn_staged
+    ensure_txn_staged(ctx)
+
     namespace = _build_namespace(ctx)
 
     setup_dir = Path(__file__).parent / "txn_setup"
