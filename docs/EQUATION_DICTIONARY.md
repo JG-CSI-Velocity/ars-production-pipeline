@@ -1493,16 +1493,16 @@ Cataloguing was used to test the consolidation hypotheses. **Most suspected dupl
 
 ## Appendix B — Accuracy discrepancies flagged during cataloguing
 
-Each was found by reading source against spec. **Verify before acting** — some may be intentional. The spec/results-key mismatches produce *silent* wrong output (zeros / blank headlines on real client decks), so they are the highest-value fixes.
+Each was found by reading source against spec. The **Status** column reflects a follow-up review pass — most of these are deliberately left for the owner (see the resolution summary). The spec/results-key mismatches produce *silent* wrong output (zeros / blank headlines on real client decks).
 
-| # | Where | Discrepancy | Slide impact |
-|---|---|---|---|
-| B1 | `docs/slide_specs/rege.yml` | References result keys `reg_e_2.insights.l12m_opt_in`, `reg_e_4.insights.peak_*` that the `rege/` code never writes (it writes `{yearly,decade}` / `{comparison,historical,l12m}`). Accessors fall back to **zeros**. | Reg E insight callouts render 0 |
-| B2 | `competition` + `txn_exports.py` | Slides `TXN-competition-13/24` declare exported insight vars (`top_competitor`, `wallet_gap_dollars`, …) the underlying scripts never bind. | Headlines/callouts fall back to **blank** |
-| B3 | `executive` + `txn_exports.py` | `executive_1` / `executive_5` declare `ctx.results` variables absent from the actual scripts. | Executive scorecard callouts blank |
-| B4 | `competition` | Spec stamps `denominator_label: Eligible`, but every penetration rate divides by `combined_df.primary_account_num.nunique()` (all TXN accounts ≈ **Open** layer) with no eligible filter. | Penetration rates labeled "Eligible" are actually Open-layer |
-| B5 | `financial_services` | Same as B4 — `total_members` denominator is all accounts, labeled Eligible. | FI leakage rates mislabeled |
-| B6 | `rege_overdraft` | Divides by ALL accounts in `rewards_df` (no eligibility/debit filter) — outside the 4-layer LAW entirely. | TXN Reg E rates not comparable to ARS `rege/` |
-| B7 | `attrition` | Code stamps the base `"L12M Exposure"` while `attrition.yml` frames it as `"Eligible"` — label inconsistency across the deck. | Attrition denominator label inconsistent |
+| # | Where | Discrepancy | Slide impact | Status |
+|---|---|---|---|---|
+| B1 | `docs/slide_specs/rege.yml` | REGE-MAIN-1 pointed at `reg_e_1.insights.opt_in_rate` / `.insights.total_accounts` / `reg_e_2.insights.l12m_opt_in`; `rege/status.py` writes `reg_e_1` **flat** (`opt_in_rate`, `l12m_rate`, `total_base`). REGE-MAIN-2 references `reg_e_4.insights.peak_*`/`valley_*`, which **no module produces**. | Reg E hero (MAIN-1) + monthly-trend callout (MAIN-2) render blank | **MAIN-1 FIXED** — re-pointed to the flat keys + falsy-zero and trend-word fixes, with regression tests. MAIN-2 peak/valley: **open** — needs a module-side monthly peak/valley computation in `rege/branches.py`. |
+| B2 | `competition` + `txn_exports.py` | `TXN-competition-13/24` declare insight vars (`top_competitor`, `wallet_gap_dollars`, …) the scripts never bind. | Headlines fall back to **blank** | **Not a wiring bug.** `txn_exports.py` is an intentional TODO registry (misses are silent by design). Fixing = implementing the analytics inside the exec-namespace scripts (owner/roadmap), not verifiable without live TXN data. Suggested follow-up: surface unbound declared exports as a run-quality flag — but scoped to avoid false positives on no-data clients. |
+| B3 | `executive` + `txn_exports.py` | `executive_1` / `executive_5` declare `ctx.results` vars absent from the scripts. | Executive scorecard callouts blank | Same as B2 — intentional TODO registry; needs analytics implementation, not a re-point. |
+| B4 | `competition` | Spec stamps `denominator_label: Eligible`, but every penetration rate divides by `combined_df.primary_account_num.nunique()` (all TXN accounts ≈ **Open** layer). | Rates labeled "Eligible" are Open-layer | **Owner decision** — relabel vs re-filter changes reported numbers; must not change blind (denominator LAW). |
+| B5 | `financial_services` | Same as B4 — `total_members` is all accounts, labeled Eligible. | FI leakage rates mislabeled | Owner decision (as B4). |
+| B6 | `rege_overdraft` | Divides by ALL accounts in `rewards_df` (no eligibility/debit filter) — outside the 4-layer LAW. | TXN Reg E not comparable to ARS `rege/` | Owner decision. |
+| B7 | `attrition` | Code stamps `"L12M Exposure"` while `attrition.yml` says `"Eligible"`. | Attrition denominator label inconsistent | Owner decision (label authority). |
 
-**Fix priority:** B1–B3 (silent zeros/blanks — pure spec/results wiring, safe and unit-testable) → B4–B7 (denominator labeling — requires a decision on whether to relabel or re-filter, higher blast radius).
+**Resolution summary.** B1 (REGE-MAIN-1) is fixed and tested on this branch. The rest are deliberately deferred to the owner: B1/MAIN-2, B2 and B3 need **new analytics** (the export registry is silent-by-design), and B4–B7 change **reported denominators**, which requires owner sign-off under the denominator LAW rather than a blind edit.
