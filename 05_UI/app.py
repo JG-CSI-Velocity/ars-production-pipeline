@@ -970,6 +970,65 @@ async def stream_run(run_id: str):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
+@app.post("/api/diff/product")
+async def diff_product(csm: str, month: str, client_id: str):
+    """Run the product migration equivalence diff (exec cells vs new module).
+
+    Runs analytics/diff_product.py on the selected client's real data: it loads
+    the TXN data once, runs both the old exec product/ cells and the new
+    transaction.product module, and compares their numeric outputs. Returns the
+    PASS/FAIL report so the operator can validate the migration before the old
+    cells are retired. Synchronous (single-section, short vs a full run).
+    """
+    import tempfile
+
+    diff_script = ANALYSIS_BASE / "00-Scripts" / "analytics" / "diff_product.py"
+    if not diff_script.exists():
+        raise HTTPException(status_code=500, detail=f"diff_product.py not found at {diff_script}")
+
+    odd_file = find_formatted_odd(csm, month, client_id)
+    if not odd_file:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No formatted ODD found for {csm}/{month}/{client_id}. Run analysis first.",
+        )
+
+    out_dir = Path(tempfile.mkdtemp(prefix="product_diff_"))
+    report_path = out_dir / "product_diff_report.json"
+    cmd = [
+        sys.executable, "-u", str(diff_script),
+        "--csm", csm, "--month", month, "--client", client_id,
+        "--odd", str(odd_file), "--output-dir", str(out_dir),
+        "--json", str(report_path),
+    ]
+
+    _env = os.environ.copy()
+    _env["PYTHONUNBUFFERED"] = "1"
+    try:
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            env=_env, timeout=2400,  # 40 min ceiling: txn_setup loads all TXN files
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Diff timed out (TXN load exceeded 40 min)")
+
+    log_tail = (proc.stdout or "")[-8000:]
+    report = None
+    if report_path.exists():
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            report = None
+
+    return {
+        "ok": bool(report and report.get("ok")),
+        "ran": proc.returncode is not None,
+        "returncode": proc.returncode,
+        "report": report,
+        "log": log_tail,
+    }
+
+
 def _resolve_csm_dir(base_path: Path, csm: str) -> Path:
     """Fuzzy match CSM folder name."""
     direct = base_path / csm

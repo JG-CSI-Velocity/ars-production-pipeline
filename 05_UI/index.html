@@ -798,7 +798,24 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             <button class="btn btn-dark" onclick="openDeckShapeEditor()" style="font-size:12px;padding:8px 16px;">Curate Deck</button>
             <button class="btn btn-dark" onclick="openHtmlPreview()"
                 style="font-size:12px;padding:8px 16px;">Preview as HTML</button>
+            <button class="btn btn-dark" id="validateProductBtn" onclick="validateProductMigration()"
+                title="Run the exec product cells and the new module on this client's real data and compare the numbers"
+                style="font-size:12px;padding:8px 16px;">Validate product migration</button>
         </div>
+    </div>
+
+    <!-- Product migration equivalence-diff result. Green = old exec cells and
+         the new transaction.product module produced identical numbers. -->
+    <div id="productDiffPanel" style="display:none;margin-bottom:24px;border:2px solid var(--border);
+        border-radius:12px;background:var(--card);padding:18px 22px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+            <div style="font-weight:700;font-size:16px;color:var(--dark);">Product Migration Diff</div>
+            <div id="productDiffStatus" style="font-weight:700;font-size:14px;">--</div>
+        </div>
+        <div id="productDiffBody" style="font-size:13px;color:var(--muted);"></div>
+        <pre id="productDiffLog" style="display:none;margin-top:10px;max-height:220px;overflow:auto;
+            background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;
+            font-size:11px;white-space:pre-wrap;"></pre>
     </div>
 
     <!-- Curate Deck panel. With a client selected, shows every slide from the
@@ -2826,6 +2843,83 @@ const demoSlides = [
 let currentSlides = [];
 let currentSlideIdx = 0;
 let currentResultSection = 'all';
+
+async function validateProductMigration() {
+    const rSel = document.getElementById('rClientSel');
+    const opt = rSel?.selectedOptions[0];
+    const clientId = rSel?.value;
+    const csm = opt?.dataset?.csm || '';
+    const month = opt?.dataset?.month || '';
+    if (!clientId || !csm || !month) {
+        alert('Select a client (with a completed run) first.');
+        return;
+    }
+
+    const panel = document.getElementById('productDiffPanel');
+    const statusEl = document.getElementById('productDiffStatus');
+    const bodyEl = document.getElementById('productDiffBody');
+    const logEl = document.getElementById('productDiffLog');
+    const btn = document.getElementById('validateProductBtn');
+
+    panel.style.display = 'block';
+    logEl.style.display = 'none';
+    statusEl.textContent = 'running…';
+    statusEl.style.color = 'var(--muted)';
+    bodyEl.textContent = 'Loading TXN data and running both paths — this can take several minutes.';
+    if (btn) { btn.disabled = true; btn.textContent = 'Validating…'; }
+
+    try {
+        const qs = new URLSearchParams({ csm, month, client_id: clientId });
+        const resp = await fetch('/api/diff/product?' + qs.toString(), { method: 'POST' });
+        const data = await resp.json().catch(() => null);
+
+        if (!resp.ok || !data) {
+            statusEl.textContent = 'ERROR';
+            statusEl.style.color = 'var(--red)';
+            bodyEl.textContent = (data && data.detail) ? data.detail : ('Request failed: ' + resp.status);
+            return;
+        }
+
+        const rep = data.report;
+        if (data.ok) {
+            statusEl.textContent = 'PASS — numbers identical';
+            statusEl.style.color = 'var(--green)';
+        } else {
+            statusEl.textContent = 'FAIL — numbers differ';
+            statusEl.style.color = 'var(--red)';
+        }
+
+        if (rep && rep.tables) {
+            const rows = rep.tables.map(t => {
+                const mark = t.ok ? '✓' : '✗';
+                let detail = '';
+                if (!t.ok) {
+                    if (t.note) detail = ' — ' + t.note;
+                    else if (t.mismatches && t.mismatches.length) {
+                        detail = ' — ' + t.mismatches.map(m => `${m.col} (${m.n_bad || '?'} rows)`).join(', ');
+                    }
+                }
+                return `${mark} ${t.table}: ${t.rows != null ? t.rows + ' rows' : ''}${detail}`;
+            });
+            const sc = rep.scalars && rep.scalars.total_accts_prod;
+            if (sc) rows.push(`${sc.ok ? '✓' : '✗'} total_accts_prod: old=${sc.old} new=${sc.new}`);
+            bodyEl.innerHTML = rows.map(r => `<div>${r}</div>`).join('');
+        } else {
+            bodyEl.textContent = 'No structured report was produced — see the log.';
+        }
+
+        if (data.log) {
+            logEl.textContent = data.log;
+            logEl.style.display = 'block';
+        }
+    } catch (e) {
+        statusEl.textContent = 'ERROR';
+        statusEl.style.color = 'var(--red)';
+        bodyEl.textContent = 'Request failed: ' + e.message;
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Validate product migration'; }
+    }
+}
 
 function loadResults() {
     const sel = document.getElementById('rClientSel');

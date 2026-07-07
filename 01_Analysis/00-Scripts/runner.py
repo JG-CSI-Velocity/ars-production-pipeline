@@ -350,17 +350,13 @@ def _convert_results(ars_ctx: Any) -> dict[str, SharedResult]:
     return results
 
 
-def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
-    """Run TXN analysis via TXN section wrappers.
+def _build_txn_context(ctx: SharedContext):
+    """Build an ARS PipelineContext for the TXN path from a shared context.
 
-    Discovers all TXN section folders, runs txn_setup ONCE to build
-    combined_df (millions of rows), then executes each section's scripts
-    against the shared namespace. No redundant data loading.
+    Loads client config, resolves the PPTX template + branch mapping, and loads
+    ODD data if present. Extracted from run_txn so the equivalence-diff harness
+    (analytics/diff_product.py) can build the identical context run_txn uses.
     """
-    from ars_analysis.analytics.txn_wrapper import (
-        discover_txn_sections,
-        prepare_shared_namespace,
-    )
     from ars_analysis.pipeline.context import (
         ClientInfo,
         OutputPaths,
@@ -413,6 +409,23 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
     if oddd_path and Path(oddd_path).exists():
         from ars_analysis.pipeline.steps.load import step_load_file
         step_load_file(ars_ctx, Path(oddd_path))
+
+    return ars_ctx
+
+
+def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
+    """Run TXN analysis via TXN section wrappers.
+
+    Discovers all TXN section folders, runs txn_setup ONCE to build
+    combined_df (millions of rows), then executes each section's scripts
+    against the shared namespace. No redundant data loading.
+    """
+    from ars_analysis.analytics.txn_wrapper import (
+        discover_txn_sections,
+        prepare_shared_namespace,
+    )
+
+    ars_ctx = _build_txn_context(ctx)
 
     if ctx.progress_callback:
         ctx.progress_callback("Starting TXN analysis...")

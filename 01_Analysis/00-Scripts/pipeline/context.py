@@ -74,6 +74,30 @@ class DataSubsets:
 
 
 @dataclass
+class TxnData:
+    """Transaction-level frames for structured TXN modules.
+
+    The parallel of ``DataSubsets`` for the TXN side: where ARS modules read
+    account-level ODD views from ``ctx.subsets``, a migrated TXN module reads
+    transaction frames from ``ctx.txn`` instead of the mutable exec namespace.
+
+    Populated by ``pipeline.steps.txn_load.step_txn_load`` (which reuses
+    ``txn_wrapper.prepare_shared_namespace`` + ``_inject_eligible_filter``):
+        combined            eligible-filtered transaction rows (== combined_df)
+        rewards             eligible-filtered rewards rows       (== rewards_df)
+        combined_all        pre-filter combined_df (escape hatch)
+        rewards_all         pre-filter rewards_df  (escape hatch)
+        eligible_accounts   canonical eligible account IDs
+    """
+
+    combined: pd.DataFrame | None = None
+    rewards: pd.DataFrame | None = None
+    combined_all: pd.DataFrame | None = None
+    rewards_all: pd.DataFrame | None = None
+    eligible_accounts: set[str] = field(default_factory=set)
+
+
+@dataclass
 class PipelineContext:
     """Typed container replacing the raw ctx dict.
 
@@ -90,6 +114,10 @@ class PipelineContext:
     data: pd.DataFrame | None = None
     data_original: pd.DataFrame | None = None
     subsets: DataSubsets = field(default_factory=DataSubsets)
+    # Transaction frames for structured TXN modules (parallel to `subsets`).
+    # None until pipeline.steps.txn_load.step_txn_load populates it; a TXN
+    # module's validate() gates on this being present.
+    txn: TxnData | None = None
     results: dict[str, list] = field(default_factory=dict)  # module_id -> [AnalysisResult]
     all_slides: list = field(default_factory=list)
     export_log: list[str] = field(default_factory=list)
