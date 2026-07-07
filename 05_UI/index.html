@@ -89,6 +89,8 @@ header {
 .btn:hover { background: var(--accent-dark); }
 .btn-dark { background: var(--dark); }
 .btn-dark:hover { background: #444; }
+.btn-danger { background: var(--red); }
+.btn-danger:hover { background: #c81f22; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
@@ -524,6 +526,7 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     <div style="display:flex;gap:12px;">
         <button class="btn" onclick="runFormat()">Format ODD Files</button>
         <button class="btn btn-dark" onclick="runFormat(true)">Force Re-Format (overwrite existing)</button>
+        <button class="btn btn-danger" onclick="stopAll()" title="Emergency: immediately kill every running formatting and generate job" style="margin-left:auto;">&#9632; STOP ALL</button>
     </div>
 
     <!-- Manual data-drop moved to the Generate tab (#229): paste a file/folder
@@ -652,7 +655,10 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                 <div class="run-what" id="gRunWhat">Select a client and product</div>
                 <div class="run-meta" id="gRunMeta">--</div>
             </div>
-            <button class="btn" id="genRunBtn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
+            <div style="display:flex;gap:10px;align-items:center;">
+                <button class="btn" id="genRunBtn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
+                <button class="btn btn-danger" onclick="stopAll()" title="Emergency: immediately kill every running formatting and generate job">&#9632; STOP ALL</button>
+            </div>
         </div>
 
         <!-- Local copy option -->
@@ -1739,6 +1745,9 @@ async function _startCompanionRun(csm, month, clientId, prod) {
                     clearInterval(timer);
                     state.innerHTML = '<span style="color:var(--green);font-weight:700;">complete</span> — deck + outputs in Downloads below';
                     loadDownloads(csm, month, clientId);
+                } else if (run.status === 'stopped') {
+                    clearInterval(timer);
+                    state.innerHTML = '<span style="color:var(--dark);font-weight:700;">stopped</span> — emergency stop';
                 } else if (run.status === 'error' || run.status === 'failed') {
                     clearInterval(timer);
                     state.innerHTML = '<span style="color:var(--red);font-weight:700;">FAILED</span> — see History tab / logs';
@@ -2036,7 +2045,7 @@ async function runGenReal() {
                     log.scrollTop = log.scrollHeight;
                 }
 
-                if (run.status === 'complete' || run.status === 'error') {
+                if (run.status === 'complete' || run.status === 'error' || run.status === 'stopped') {
                     clearInterval(pollInterval);
                     clearInterval(clockTimer);
                     // Mark any still-pending stages done if complete
@@ -2614,6 +2623,31 @@ loadDashboardData();
 // Manual data-drop replaced by the Generate tab's source-path field (#229):
 // paste a path there and one Generate click formats + analyzes + builds the deck.
 
+// Emergency stop: kill every in-progress formatting/generate job right now.
+// The per-run poll loops (which watch for a terminal status) then wind the UI
+// down on their own -- clearing timers, re-enabling buttons -- when they see
+// the run flip to "stopped".
+async function stopAll() {
+    if (!confirm('EMERGENCY STOP\n\nThis immediately kills every running formatting and generate job. Files already written are kept, but the current run will be left incomplete.\n\nStop everything now?')) {
+        return;
+    }
+    try {
+        const resp = await fetch('/api/stop_all', {method: 'POST'});
+        if (!resp.ok) {
+            alert('Stop request failed: ' + (resp.statusText || resp.status));
+            return;
+        }
+        const data = await resp.json();
+        if (data.stopped > 0) {
+            alert(`Stopped ${data.stopped} running job${data.stopped === 1 ? '' : 's'}.`);
+        } else {
+            alert('Nothing was running.');
+        }
+    } catch (e) {
+        alert('Could not reach the server to stop jobs: ' + e.message);
+    }
+}
+
 async function runFormat(force = false) {
     const csm = document.getElementById('fCsmSel').value;
     const month = document.getElementById('fMonthSel').value;
@@ -2716,8 +2750,8 @@ async function runFormat(force = false) {
                 bar.style.width = run.progress + '%';
                 st.textContent = run.current_step || 'Running...';
 
-                // Done?
-                if (run.status === 'complete' || run.status === 'error') {
+                // Done? ("stopped" = operator hit the emergency STOP ALL)
+                if (run.status === 'complete' || run.status === 'error' || run.status === 'stopped') {
                     clearInterval(pollInterval);
                     clearInterval(fmtTick);
                     window._formatInFlight = false;
@@ -2763,6 +2797,9 @@ async function runFormat(force = false) {
                             window.scrollTo({top: 0, behavior: 'smooth'});
                         };
                         actions.appendChild(again);
+                    } else if (run.status === 'stopped') {
+                        st.textContent = 'Stopped by operator';
+                        bar.style.background = 'var(--dark)';
                     } else {
                         st.textContent = 'Error -- check log below';
                         bar.style.background = '#EB2A2E';

@@ -14,6 +14,7 @@ import asyncio
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import threading
@@ -64,6 +65,90 @@ COMPLETED_ANALYSIS = ANALYSIS_BASE / "01_Completed_Analysis"
 
 # In-memory run tracking
 runs = {}
+
+# Live subprocess handle for each run, so the emergency STOP ALL can kill it.
+# Kept OUT of `runs` because that dict is JSON-serialized back to the UI and a
+# Popen object isn't serializable. Keyed by run_id; holds the currently-active
+# child (a run formats then analyses, so the handle is overwritten as it moves
+# from step to step).
+run_procs: dict = {}
+
+
+def _register_proc(run_id: str, proc) -> None:
+    """Track the currently-active child process for a run (for STOP ALL)."""
+    run_procs[run_id] = proc
+
+
+def _popen_tree_kwargs() -> dict:
+    """Popen kwargs that isolate the child so its whole tree can be killed.
+
+    The analysis step can fan out ProcessPoolExecutor worker processes; killing
+    only the top ``run.py`` would orphan them. On POSIX we give the child its own
+    session so ``os.killpg`` targets that group (and never the server's). On
+    Windows the tree is reaped by ``taskkill /T`` (no special flag needed).
+    """
+    if os.name == "posix":
+        return {"start_new_session": True}
+    return {}
+
+
+def _terminate_proc(proc) -> bool:
+    """Kill a child process AND its descendants. Returns True if a live process
+    was signalled; a no-op if ``proc`` is None or already exited."""
+    if proc is None or proc.poll() is not None:
+        return False
+    pid = proc.pid
+    try:
+        if os.name == "nt":
+            # /T kills the whole tree (analysis pool workers included), /F forces.
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                capture_output=True,
+            )
+        else:
+            # Capture the group up front -- once the leader dies os.getpgid raises.
+            pgid = os.getpgid(pid)
+            os.killpg(pgid, signal.SIGTERM)
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                pass
+            # Sweep the whole group: pool workers can outlive the parent, and a
+            # child that ignored SIGTERM still dies here.
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+    except (ProcessLookupError, PermissionError, OSError):
+        # Fall back to terminating just the top process.
+        try:
+            proc.kill()
+        except OSError:
+            pass
+    try:
+        proc.wait(timeout=5)
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+    return True
+
+
+def _mark_terminal(run_id: str, status: str, progress: int | None = None) -> None:
+    """Set a run's final status -- but only if it's still ``running``.
+
+    A STOP ALL flips the status to ``stopped`` and kills the subprocess; the
+    worker thread then unblocks from its now-dead ``proc.wait()`` and would
+    otherwise overwrite that with ``error``. Guarding on the current status
+    keeps the operator's ``stopped`` verdict from being clobbered.
+    """
+    run = runs.get(run_id)
+    run_procs.pop(run_id, None)
+    if not run or run.get("status") != "running":
+        return
+    run["status"] = status
+    if progress is not None:
+        run["progress"] = progress
+    run["finished"] = datetime.now().isoformat()
+
 
 # A run still marked "running" after this many seconds is treated as dead (the
 # server never saw its subprocess finish -- a hard crash or hang) so a stuck
@@ -742,7 +827,9 @@ async def start_format(
                 text=True, encoding="utf-8", errors="replace",
                 bufsize=1,
                 cwd=str(formatting_run.parent),
+                **_popen_tree_kwargs(),
             )
+            _register_proc(run_id, proc)
             for line in proc.stdout:
                 line = line.rstrip()
                 if run_id in runs:
@@ -752,14 +839,12 @@ async def start_format(
                     runs[run_id]["progress"] = min(95, log_len * 3)
 
             proc.wait()
-            if run_id in runs:
-                runs[run_id]["status"] = "complete" if proc.returncode == 0 else "error"
-                runs[run_id]["progress"] = 100 if proc.returncode == 0 else runs[run_id]["progress"]
-                runs[run_id]["finished"] = datetime.now().isoformat()
+            _mark_terminal(run_id, "complete" if proc.returncode == 0 else "error",
+                           progress=100 if proc.returncode == 0 else None)
         except Exception as e:
             if run_id in runs:
-                runs[run_id]["status"] = "error"
                 runs[run_id]["log"].append(f"ERROR: {e}")
+            _mark_terminal(run_id, "error")
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
@@ -853,7 +938,9 @@ async def start_run(
                     text=True, encoding="utf-8", errors="replace",
                     bufsize=1,
                     cwd=str(formatting_run.parent),
+                    **_popen_tree_kwargs(),
                 )
+                _register_proc(run_id, fmt_proc)
                 for line in fmt_proc.stdout:
                     line = line.rstrip()
                     if run_id in runs:
@@ -870,9 +957,11 @@ async def start_run(
                 runs[run_id]["log"].append("")
 
             if not odd_file:
-                runs[run_id]["status"] = "error"
-                runs[run_id]["log"].append("ERROR: No formatted ODD file found after formatting.")
-                runs[run_id]["log"].append(f"Check: {READY_FOR_ANALYSIS / csm / month / client_id}")
+                # Suppress the error verdict/log if the operator already stopped it.
+                if runs.get(run_id, {}).get("status") == "running":
+                    runs[run_id]["log"].append("ERROR: No formatted ODD file found after formatting.")
+                    runs[run_id]["log"].append(f"Check: {READY_FOR_ANALYSIS / csm / month / client_id}")
+                    _mark_terminal(run_id, "error")
                 return
 
             product_label = {"ars": "ARS", "txn": "TXN", "combined": "ARS + TXN"}.get(product, "ARS")
@@ -906,7 +995,9 @@ async def start_run(
                 bufsize=1,
                 cwd=str(analysis_run.parent),
                 env=_run_env,
+                **_popen_tree_kwargs(),
             )
+            _register_proc(run_id, proc)
             runs[run_id]["last_output_at"] = datetime.now().isoformat()
             for line in proc.stdout:
                 line = line.rstrip()
@@ -918,14 +1009,12 @@ async def start_run(
                     runs[run_id]["progress"] = min(95, log_len * 2)
 
             proc.wait()
-            if run_id in runs:
-                runs[run_id]["status"] = "complete" if proc.returncode == 0 else "error"
-                runs[run_id]["progress"] = 100 if proc.returncode == 0 else runs[run_id]["progress"]
-                runs[run_id]["finished"] = datetime.now().isoformat()
+            _mark_terminal(run_id, "complete" if proc.returncode == 0 else "error",
+                           progress=100 if proc.returncode == 0 else None)
         except Exception as e:
             if run_id in runs:
-                runs[run_id]["status"] = "error"
                 runs[run_id]["log"].append(f"ERROR: {e}")
+            _mark_terminal(run_id, "error")
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
@@ -961,13 +1050,40 @@ async def stream_run(run_id: str):
 
             yield f"data: {json.dumps({'type': 'progress', 'value': run['progress'], 'step': run['current_step']})}\n\n"
 
-            if run["status"] in ("complete", "error"):
+            if run["status"] in ("complete", "error", "stopped"):
                 yield f"data: {json.dumps({'type': 'done', 'status': run['status']})}\n\n"
                 break
 
             await asyncio.sleep(0.5)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/api/stop_all")
+async def stop_all():
+    """Emergency stop: kill every in-progress formatting/analysis run and its
+    whole child-process tree, right now.
+
+    Safe to hit at any time -- a no-op if nothing is running. Files already
+    written to disk are kept; only the in-flight work is aborted. Each stopped
+    run is flipped to the terminal ``stopped`` status so the UI's poll loop
+    ends and the buttons re-enable.
+    """
+    stopped = []
+    for run_id, run in list(runs.items()):
+        if run.get("status") != "running":
+            continue
+        _terminate_proc(run_procs.get(run_id))
+        run_procs.pop(run_id, None)
+        run["status"] = "stopped"
+        run["current_step"] = "Stopped by operator"
+        run["finished"] = datetime.now().isoformat()
+        run["log"].append("")
+        run["log"].append("=" * 60)
+        run["log"].append("  STOPPED BY OPERATOR (emergency STOP ALL)")
+        run["log"].append("=" * 60)
+        stopped.append(run_id)
+    return {"stopped": len(stopped), "run_ids": stopped}
 
 
 def _resolve_csm_dir(base_path: Path, csm: str) -> Path:
@@ -1553,7 +1669,9 @@ async def run_schedule_now(schedule_id: str):
                     fmt_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, encoding="utf-8", errors="replace", bufsize=1,
                     cwd=str(formatting_run.parent),
+                    **_popen_tree_kwargs(),
                 )
+                _register_proc(run_id, proc)
                 for line in proc.stdout:
                     if run_id in runs:
                         runs[run_id]["log"].append(line.rstrip())
@@ -1567,7 +1685,9 @@ async def run_schedule_now(schedule_id: str):
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace", bufsize=1,
                 cwd=str(analysis_run.parent),
+                **_popen_tree_kwargs(),
             )
+            _register_proc(run_id, proc)
             for line in proc.stdout:
                 if run_id in runs:
                     runs[run_id]["log"].append(line.rstrip())
@@ -1575,10 +1695,8 @@ async def run_schedule_now(schedule_id: str):
                     runs[run_id]["progress"] = min(95, len(runs[run_id]["log"]) * 2)
             proc.wait()
 
-            if run_id in runs:
-                runs[run_id]["status"] = "complete" if proc.returncode == 0 else "error"
-                runs[run_id]["progress"] = 100 if proc.returncode == 0 else runs[run_id]["progress"]
-                runs[run_id]["finished"] = datetime.now().isoformat()
+            _mark_terminal(run_id, "complete" if proc.returncode == 0 else "error",
+                           progress=100 if proc.returncode == 0 else None)
 
             # Update schedule last_run
             schedules = _load_schedules()
@@ -1590,8 +1708,8 @@ async def run_schedule_now(schedule_id: str):
 
         except Exception as e:
             if run_id in runs:
-                runs[run_id]["status"] = "error"
                 runs[run_id]["log"].append(f"ERROR: {e}")
+            _mark_terminal(run_id, "error")
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
