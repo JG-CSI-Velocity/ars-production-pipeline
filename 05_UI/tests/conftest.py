@@ -62,6 +62,12 @@ def app_module(tmp_path, monkeypatch):
     app.COMPLETED_ANALYSIS = analysis / "01_Completed_Analysis"
     app.CONFIG_PATH = config / "clients_config.json"
     app.ARS_CONFIG_PATH = config / "ars_config.json"
+    # Scheduler state files are import-time globals too -- point them at the
+    # fixture tree so tests never touch the real 03_Config.
+    if hasattr(app, "SCHEDULES_FILE"):
+        app.SCHEDULES_FILE = config / "schedules.json"
+    if hasattr(app, "AUTORUN_FILE"):
+        app.AUTORUN_FILE = config / "autorun.json"
 
     yield app
 

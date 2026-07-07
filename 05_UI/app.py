@@ -359,9 +359,18 @@ def get_recent_runs():
                 parts = log_file.stem.split("_")
                 client_id = parts[0] if parts else "?"
 
-                # Parse log for duration, slide count, status
+                # Derive a real run date from the log filename stem
+                # (<client>_YYYYMMDD_HHMMSS). Falls back to the YYYY.MM folder
+                # when the stem doesn't carry a timestamp.
+                date = month_dir.name
+                dm = re.search(r"_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})", log_file.stem)
+                if dm:
+                    date = f"{dm.group(1)}-{dm.group(2)}-{dm.group(3)} {dm.group(4)}:{dm.group(5)}"
+
+                # Parse log for duration, slide count, product, status
                 duration = "--"
                 slides = "--"
+                product = "ARS"
                 status = "complete"
                 client_name = ""
                 try:
@@ -377,6 +386,11 @@ def get_recent_runs():
                     m2 = re.search(r"(\d+)\s+slides?\s+generated", text)
                     if m2:
                         slides = m2.group(1)
+                    # Product from the "STEP 2: Running <ARS|TXN|ARS + TXN> Analysis"
+                    # banner _launch_pipeline_run writes.
+                    mp = re.search(r"Running\s+(ARS \+ TXN|ARS|TXN)\s+Analysis", text)
+                    if mp:
+                        product = mp.group(1)
                     # Check for errors
                     if "ERROR" in text and "0 failed" not in text:
                         status = "warning"
@@ -386,12 +400,14 @@ def get_recent_runs():
                 recent.append({
                     "csm": csm_dir.name,
                     "month": month_dir.name,
+                    "date": date,
                     "client_id": client_id,
                     "client_name": client_name,
                     "timestamp": log_file.stem,
                     "file": str(log_file),
                     "duration": duration,
                     "slides": slides,
+                    "product": product,
                     "status": status,
                 })
                 if len(recent) >= 20:
@@ -851,56 +867,40 @@ async def start_format(
     return {"run_id": run_id}
 
 
-@app.post("/api/run")
-async def start_run(
+def _launch_pipeline_run(
     csm: str,
     month: str,
     client_id: str,
     product: str = "ars",
-    local_copy_path: str = "",
+    *,
+    extras: str = "none",
     source_path: str = "",
-):
-    """Start a full pipeline run: format (if needed) + analysis + PPTX.
+    local_copy_path: str = "",
+    current_step: str = "Starting...",
+) -> str:
+    """Launch a format-then-analyze pipeline run in a daemon thread.
 
-    Optional local_copy_path: when provided, the final PPTX deck is also
-    copied to this folder on the operator's machine so they don't have to
-    download a large file from the shared M: drive. Validated to be a
-    writable directory before the (long) run starts.
+    The single code path shared by the manual Generate button (/api/run) and the
+    scheduler (`_run_due_schedules`). Registers the run in ``runs`` and returns
+    its run_id. Raises HTTPException(409) via ``_reject_if_run_active`` when a
+    matching run is already going -- HTTP callers surface that as-is; the
+    scheduler catches it and skips that client.
+
+    ``source_path`` / ``local_copy_path`` are trusted as given; the HTTP endpoint
+    pre-validates them so it can fail fast with a 400 before the (long) run
+    starts. ``extras`` ("none" | "trans" | "all") adds formatting flags for the
+    scheduled path.
     """
-    run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
-
-    formatting_run = ARS_BASE / "00_Formatting" / "run.py"
-    analysis_run = ARS_BASE / "01_Analysis" / "run.py"
+    formatting_run = FORMATTING_BASE / "run.py"
+    analysis_run = ANALYSIS_BASE / "run.py"
 
     if not analysis_run.exists():
         raise HTTPException(status_code=500, detail=f"Analysis run.py not found at {analysis_run}")
 
-    # Validate local_copy_path up front so we fail fast, not after 20 min.
-    local_copy_resolved = ""
-    if local_copy_path.strip():
-        candidate = Path(os.path.expandvars(os.path.expanduser(local_copy_path.strip())))
-        try:
-            candidate.mkdir(parents=True, exist_ok=True)
-        except (PermissionError, OSError) as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Local copy path is not writable: {candidate} ({exc})",
-            )
-        if not candidate.is_dir():
-            raise HTTPException(status_code=400, detail=f"Local copy path is not a directory: {candidate}")
-        local_copy_resolved = str(candidate)
-
-    # Validate an explicit source path up front so we fail fast, not 20 min in (#229).
-    source_resolved = ""
-    if source_path.strip():
-        sp = Path(os.path.expandvars(os.path.expanduser(source_path.strip())))
-        if not sp.exists():
-            raise HTTPException(status_code=400, detail=f"Source path does not exist: {sp}")
-        source_resolved = str(sp)
-
     # Refuse a duplicate run for the same client while one is still going (#232).
     _reject_if_run_active(csm, month, client_id, product)
 
+    run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
     runs[run_id] = {
         "status": "running",
         "client_id": client_id,
@@ -909,7 +909,7 @@ async def start_run(
         "product": product,
         "started": datetime.now().isoformat(),
         "progress": 0,
-        "current_step": "Starting...",
+        "current_step": current_step,
         "log": [],
     }
 
@@ -918,19 +918,23 @@ async def start_run(
             odd_file = find_formatted_odd(csm, month, client_id)
             # With an explicit source path (#229) we always (re)format from that
             # file; otherwise we only format when no formatted ODD exists yet.
-            need_format = bool(source_resolved) or not odd_file
+            need_format = bool(source_path) or not odd_file
             if need_format and formatting_run.exists():
                 runs[run_id]["current_step"] = "Step 1: Formatting ODD file..."
                 runs[run_id]["log"].append("=" * 60)
                 runs[run_id]["log"].append("  STEP 1: Formatting ODD file")
-                if source_resolved:
-                    runs[run_id]["log"].append(f"  Source: {source_resolved}")
+                if source_path:
+                    runs[run_id]["log"].append(f"  Source: {source_path}")
                 runs[run_id]["log"].append("=" * 60)
 
                 fmt_cmd = [sys.executable, "-u", str(formatting_run),
                            "--month", month, "--csm", csm, "--client", client_id]
-                if source_resolved:
-                    fmt_cmd += ["--source-file", source_resolved, "--force"]
+                if source_path:
+                    fmt_cmd += ["--source-file", source_path, "--force"]
+                if extras == "trans":
+                    fmt_cmd.append("--with-trans")
+                elif extras == "all":
+                    fmt_cmd.append("--with-all")
 
                 fmt_proc = subprocess.Popen(
                     fmt_cmd,
@@ -973,8 +977,8 @@ async def start_run(
             cmd = [sys.executable, "-u", str(analysis_run),
                    "--month", month, "--csm", csm, "--client", client_id,
                    "--product", product]
-            if local_copy_resolved:
-                cmd += ["--local-copy", local_copy_resolved]
+            if local_copy_path:
+                cmd += ["--local-copy", local_copy_path]
             # Hand the analysis step the exact ODD we already located, so it
             # doesn't re-discover it with a separate finder that can drift out
             # of sync (#231: app found it, analysis's stricter finder didn't).
@@ -1018,7 +1022,53 @@ async def start_run(
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
+    return run_id
 
+
+@app.post("/api/run")
+async def start_run(
+    csm: str,
+    month: str,
+    client_id: str,
+    product: str = "ars",
+    local_copy_path: str = "",
+    source_path: str = "",
+):
+    """Start a full pipeline run: format (if needed) + analysis + PPTX.
+
+    Optional local_copy_path: when provided, the final PPTX deck is also
+    copied to this folder on the operator's machine so they don't have to
+    download a large file from the shared M: drive. Validated to be a
+    writable directory before the (long) run starts.
+    """
+    # Validate local_copy_path up front so we fail fast, not after 20 min.
+    local_copy_resolved = ""
+    if local_copy_path.strip():
+        candidate = Path(os.path.expandvars(os.path.expanduser(local_copy_path.strip())))
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Local copy path is not writable: {candidate} ({exc})",
+            )
+        if not candidate.is_dir():
+            raise HTTPException(status_code=400, detail=f"Local copy path is not a directory: {candidate}")
+        local_copy_resolved = str(candidate)
+
+    # Validate an explicit source path up front so we fail fast, not 20 min in (#229).
+    source_resolved = ""
+    if source_path.strip():
+        sp = Path(os.path.expandvars(os.path.expanduser(source_path.strip())))
+        if not sp.exists():
+            raise HTTPException(status_code=400, detail=f"Source path does not exist: {sp}")
+        source_resolved = str(sp)
+
+    run_id = _launch_pipeline_run(
+        csm, month, client_id, product,
+        source_path=source_resolved,
+        local_copy_path=local_copy_resolved,
+    )
     return {"run_id": run_id}
 
 
@@ -1592,6 +1642,151 @@ def _save_schedules(schedules: list[dict]):
     SCHEDULES_FILE.write_text(json.dumps(schedules, indent=2), encoding="utf-8")
 
 
+def _schedule_is_due(sched: dict, day: int) -> bool:
+    """True if ``day`` falls inside the schedule's run window. Back-compat: an
+    older single-``day`` schedule is treated as a 1-day window."""
+    start = int(sched.get("start_day", sched.get("day", 1)))
+    end = int(sched.get("end_day", sched.get("day", start)))
+    if end < start:
+        start, end = end, start
+    return start <= day <= end
+
+
+def _client_completed_this_month(csm: str, month: str, client_id: str) -> bool:
+    """True if this client already has completed-analysis output for the month.
+
+    The idempotency guard behind the day-window model: running across the
+    5th-8th only picks up clients whose data has newly landed and who haven't
+    been produced yet this month.
+    """
+    d = _resolve_csm_dir(COMPLETED_ANALYSIS, csm) / month / client_id
+    try:
+        return d.is_dir() and any(d.iterdir())
+    except OSError:
+        return False
+
+
+def _resolve_schedule_clients(sched: dict, month: str) -> list[tuple[str, str]]:
+    """Expand a schedule into concrete (csm, client_id) targets for ``month``.
+
+    - ``client`` scope: the single configured client.
+    - ``csm`` scope: every *ready* client for that CSM (raw dump present or
+      already formatted).
+    - ``all`` scope: every ready client across all configured CSMs.
+    """
+    scope = sched.get("scope", "client")
+    if scope == "client":
+        cid = sched.get("client_id")
+        return [(sched.get("csm", ""), cid)] if cid else []
+
+    csms = [sched.get("csm", "")] if scope == "csm" else get_csm_list()
+    targets: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for csm in csms:
+        if not csm:
+            continue
+        ready = _clients_from_raw_dumps(csm, month) | _clients_from_folder(READY_FOR_ANALYSIS, csm, month)
+        for cid in sorted(ready):
+            key = (csm, cid)
+            if key not in seen:
+                seen.add(key)
+                targets.append(key)
+    return targets
+
+
+def _wait_for_run(run_id: str, poll: float = 2.0) -> None:
+    """Block until a run reaches a terminal state (used by the sequential,
+    headless scheduler path so heavy analysis runs don't all fire at once)."""
+    waited = 0.0
+    while runs.get(run_id, {}).get("status") == "running":
+        time.sleep(poll)
+        waited += poll
+        if waited > STALE_RUN_SECONDS:
+            break
+
+
+def _stamp_schedule_last_run(schedule_id: Optional[str], month: str) -> None:
+    if not schedule_id:
+        return
+    schedules = _load_schedules()
+    changed = False
+    for s in schedules:
+        if s.get("id") == schedule_id:
+            s["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            s["last_run_month"] = month
+            changed = True
+            break
+    if changed:
+        _save_schedules(schedules)
+
+
+def _execute_schedule(sched: dict, month: str, *, dry_run: bool = False,
+                      wait: bool = False) -> list[dict]:
+    """Fan a schedule out to its ready clients and launch each via the shared
+    ``_launch_pipeline_run``. Skips clients already completed this month or with
+    a run already in progress. Returns one record per resolved client.
+
+    ``wait`` runs the launched clients sequentially (poll each to terminal
+    before the next) -- the headless/catch-up path uses this so a "run all"
+    doesn't spawn dozens of concurrent analysis subprocesses.
+    """
+    results: list[dict] = []
+    for csm, client_id in _resolve_schedule_clients(sched, month):
+        if _client_completed_this_month(csm, month, client_id):
+            results.append({"csm": csm, "client_id": client_id, "status": "skipped-complete"})
+            continue
+        if dry_run:
+            results.append({"csm": csm, "client_id": client_id, "status": "would-run"})
+            continue
+        try:
+            run_id = _launch_pipeline_run(
+                csm, month, client_id, sched.get("product", "ars"),
+                extras=sched.get("extras", "none"),
+                current_step=f"Scheduled run: {client_id}",
+            )
+            results.append({"csm": csm, "client_id": client_id, "status": "launched", "run_id": run_id})
+            if wait:
+                _wait_for_run(run_id)
+        except HTTPException as exc:
+            # 409 -> a run for this client is already active; skip quietly.
+            results.append({
+                "csm": csm, "client_id": client_id,
+                "status": "skipped-active" if exc.status_code == 409 else "error",
+                "detail": str(exc.detail),
+            })
+        except Exception as exc:  # noqa: BLE001 -- never let one client abort the batch
+            results.append({"csm": csm, "client_id": client_id, "status": "error", "detail": str(exc)})
+
+    if not dry_run and any(r["status"] == "launched" for r in results):
+        _stamp_schedule_last_run(sched.get("id"), month)
+    return results
+
+
+def _run_due_schedules(today: Optional[datetime] = None, *, dry_run: bool = False,
+                       wait: bool = False) -> list[dict]:
+    """Run every enabled schedule whose day-window includes ``today``.
+
+    The single entry point for both the headless Windows Task Scheduler runner
+    (``schedule_runner.py``) and the in-process catch-up on UI startup. Idempotent
+    within a month: already-completed clients are skipped, so re-running each day
+    of the window naturally processes only newly-arrived data.
+    """
+    today = today or datetime.now()
+    month = today.strftime("%Y.%m")
+    day = today.day
+    all_results: list[dict] = []
+    for sched in _load_schedules():
+        if not sched.get("enabled", True):
+            continue
+        if not _schedule_is_due(sched, day):
+            continue
+        res = _execute_schedule(sched, month, dry_run=dry_run, wait=wait)
+        for r in res:
+            r["schedule_id"] = sched.get("id")
+        all_results.extend(res)
+    return all_results
+
+
 @app.get("/api/schedules")
 async def list_schedules():
     return _load_schedules()
@@ -1599,14 +1794,52 @@ async def list_schedules():
 
 @app.post("/api/schedules")
 async def create_schedule(schedule: dict):
+    """Create a schedule. Supports single-client, per-CSM, and all-CSM scopes,
+    and a start_day..end_day run window (single day when equal)."""
+    scope = schedule.get("scope", "client")
+    start_day = int(schedule.get("start_day", schedule.get("day", 5)) or 5)
+    end_day = int(schedule.get("end_day", start_day) or start_day)
+    if end_day < start_day:
+        start_day, end_day = end_day, start_day
+
+    clean = {
+        "id": f"sched_{uuid.uuid4().hex[:8]}",
+        "enabled": True,
+        "scope": scope,
+        "csm": schedule.get("csm", ""),
+        "client_id": schedule.get("client_id", "") if scope == "client" else "",
+        "product": schedule.get("product", "ars"),
+        "extras": schedule.get("extras", "none"),
+        "start_day": start_day,
+        "end_day": end_day,
+        "created": datetime.now().isoformat(),
+        "last_run": None,
+        "last_run_month": None,
+    }
+    if scope == "client" and not clean["client_id"]:
+        raise HTTPException(status_code=400, detail="A client is required for a single-client schedule.")
+    if scope in ("client", "csm") and not clean["csm"]:
+        raise HTTPException(status_code=400, detail="A CSM is required for this schedule scope.")
+
     schedules = _load_schedules()
-    schedule["id"] = f"sched_{uuid.uuid4().hex[:8]}"
-    schedule["enabled"] = True
-    schedule["created"] = datetime.now().isoformat()
-    schedule["last_run"] = None
-    schedules.append(schedule)
+    schedules.append(clean)
     _save_schedules(schedules)
-    return schedule
+    return clean
+
+
+@app.patch("/api/schedules/{schedule_id}")
+async def update_schedule(schedule_id: str, patch: dict):
+    """Partial update -- used mainly to pause/resume (``enabled``)."""
+    schedules = _load_schedules()
+    sched = next((s for s in schedules if s.get("id") == schedule_id), None)
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    for key in ("enabled", "product", "extras", "scope", "csm", "client_id",
+                "start_day", "end_day"):
+        if key in patch:
+            sched[key] = patch[key]
+    _save_schedules(schedules)
+    return sched
 
 
 @app.delete("/api/schedules/{schedule_id}")
@@ -1619,101 +1852,116 @@ async def delete_schedule(schedule_id: str):
 
 @app.post("/api/schedules/{schedule_id}/run")
 async def run_schedule_now(schedule_id: str):
-    """Manually trigger a scheduled run."""
-    schedules = _load_schedules()
-    sched = next((s for s in schedules if s.get("id") == schedule_id), None)
+    """Manually trigger a schedule now (ignores the day window). Fans out to all
+    ready clients for the schedule's scope, skipping any already completed this
+    month or with a run already in progress. Non-blocking."""
+    sched = next((s for s in _load_schedules() if s.get("id") == schedule_id), None)
     if not sched:
         raise HTTPException(status_code=404, detail="Schedule not found")
-
-    # Build the run parameters from the schedule
     month = datetime.now().strftime("%Y.%m")
-    product = sched.get("product", "ars")
+    results = _execute_schedule(sched, month)
+    launched = [r for r in results if r["status"] == "launched"]
+    return {"launched": len(launched), "results": results}
 
-    # Trigger the run via the existing /api/run logic
-    run_id = f"{sched['client_id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
-    analysis_run = ARS_BASE / "01_Analysis" / "run.py"
-    formatting_run = ARS_BASE / "00_Formatting" / "run.py"
+# ─── AUTOMATIC RUNS (Windows Task Scheduler) ────────────────────────
 
-    # Same concurrency guard the manual Generate path uses -- the schedule
-    # trigger previously bypassed it entirely and could stack a run on top of
-    # an in-progress one for the same client (#232).
-    _reject_if_run_active(sched["csm"], month, sched["client_id"], product)
+AUTORUN_TASK_NAME = "VelocityAutoRun"
+AUTORUN_FILE = ARS_BASE / "03_Config" / "autorun.json"
+SCHEDULE_RUNNER = Path(__file__).resolve().parent / "schedule_runner.py"
 
-    runs[run_id] = {
-        "status": "running",
-        "client_id": sched["client_id"],
-        "csm": sched["csm"],
-        "month": month,
-        "product": product,
-        "started": datetime.now().isoformat(),
-        "progress": 0,
-        "current_step": f"Scheduled run: {sched['client_id']}",
-        "log": [],
+
+def _pad_time(hhmm: str) -> str:
+    """Normalise 'H:MM' / 'HH:MM' to zero-padded 24-hour 'HH:MM' for schtasks."""
+    h, _, m = hhmm.partition(":")
+    return f"{int(h):02d}:{int(m):02d}"
+
+
+def _autorun_task_registered() -> bool:
+    """True if the VelocityAutoRun Windows task exists."""
+    if os.name != "nt":
+        return False
+    try:
+        proc = subprocess.run(
+            ["schtasks", "/query", "/tn", AUTORUN_TASK_NAME],
+            capture_output=True, text=True,
+        )
+    except (FileNotFoundError, OSError):
+        return False
+    return proc.returncode == 0
+
+
+@app.get("/api/schedules/autorun")
+async def get_autorun():
+    """Report whether unattended daily firing is enabled and at what time.
+
+    Windows-only: the Task Scheduler entry fires the headless
+    ``schedule_runner.py`` even when the UI server is closed.
+    """
+    stored = {}
+    if AUTORUN_FILE.exists():
+        try:
+            stored = json.loads(AUTORUN_FILE.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            stored = {}
+    registered = _autorun_task_registered()
+    return {
+        "supported": os.name == "nt",
+        "registered": registered,
+        "enabled": bool(stored.get("enabled")) and registered,
+        "time": stored.get("time", ""),
     }
 
-    def _run():
+
+@app.post("/api/schedules/autorun")
+async def enable_autorun(cfg: dict):
+    """Register (or update) the daily Windows task that fires due schedules."""
+    at = _pad_time(str(cfg.get("time", "06:00")).strip() or "06:00") \
+        if re.match(r"^\d{1,2}:\d{2}$", str(cfg.get("time", "06:00")).strip()) else None
+    if at is None:
+        raise HTTPException(status_code=400, detail="Time must be HH:MM (24-hour).")
+    if os.name != "nt":
+        raise HTTPException(
+            status_code=400,
+            detail="Automatic runs register a Windows Scheduled Task and can only be "
+                   "enabled on the Windows pipeline machine.",
+        )
+    if not SCHEDULE_RUNNER.exists():
+        raise HTTPException(status_code=500, detail=f"Runner not found: {SCHEDULE_RUNNER}")
+
+    # pythonw.exe runs the task with no console window popping up each morning.
+    pyw = Path(sys.executable).with_name("pythonw.exe")
+    py = str(pyw if pyw.exists() else sys.executable)
+    tr = f'"{py}" "{SCHEDULE_RUNNER}"'
+    proc = subprocess.run(
+        ["schtasks", "/create", "/tn", AUTORUN_TASK_NAME, "/sc", "DAILY",
+         "/st", at, "/tr", tr, "/f"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        raise HTTPException(
+            status_code=500,
+            detail=f"schtasks failed: {proc.stderr.strip() or proc.stdout.strip()}",
+        )
+    AUTORUN_FILE.parent.mkdir(parents=True, exist_ok=True)
+    AUTORUN_FILE.write_text(json.dumps({"enabled": True, "time": at}, indent=2), encoding="utf-8")
+    return {"supported": True, "registered": True, "enabled": True, "time": at}
+
+
+@app.delete("/api/schedules/autorun")
+async def disable_autorun():
+    """Remove the daily Windows task."""
+    if os.name == "nt":
+        subprocess.run(
+            ["schtasks", "/delete", "/tn", AUTORUN_TASK_NAME, "/f"],
+            capture_output=True, text=True,
+        )
+    if AUTORUN_FILE.exists():
         try:
-            # Format first
-            if formatting_run.exists():
-                fmt_cmd = [sys.executable, "-u", str(formatting_run),
-                           "--month", month, "--csm", sched["csm"],
-                           "--client", sched["client_id"]]
-                extras = sched.get("extras", "none")
-                if extras == "trans":
-                    fmt_cmd.append("--with-trans")
-                elif extras == "all":
-                    fmt_cmd.append("--with-all")
-
-                proc = subprocess.Popen(
-                    fmt_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, encoding="utf-8", errors="replace", bufsize=1,
-                    cwd=str(formatting_run.parent),
-                    **_popen_tree_kwargs(),
-                )
-                _register_proc(run_id, proc)
-                for line in proc.stdout:
-                    if run_id in runs:
-                        runs[run_id]["log"].append(line.rstrip())
-                proc.wait()
-
-            # Run analysis
-            cmd = [sys.executable, "-u", str(analysis_run),
-                   "--month", month, "--csm", sched["csm"],
-                   "--client", sched["client_id"], "--product", product]
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace", bufsize=1,
-                cwd=str(analysis_run.parent),
-                **_popen_tree_kwargs(),
-            )
-            _register_proc(run_id, proc)
-            for line in proc.stdout:
-                if run_id in runs:
-                    runs[run_id]["log"].append(line.rstrip())
-                    runs[run_id]["current_step"] = line.strip()
-                    runs[run_id]["progress"] = min(95, len(runs[run_id]["log"]) * 2)
-            proc.wait()
-
-            _mark_terminal(run_id, "complete" if proc.returncode == 0 else "error",
-                           progress=100 if proc.returncode == 0 else None)
-
-            # Update schedule last_run
-            schedules = _load_schedules()
-            for s in schedules:
-                if s["id"] == schedule_id:
-                    s["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    break
-            _save_schedules(schedules)
-
-        except Exception as e:
-            if run_id in runs:
-                runs[run_id]["log"].append(f"ERROR: {e}")
-            _mark_terminal(run_id, "error")
-
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
-    return {"run_id": run_id}
+            AUTORUN_FILE.unlink()
+        except OSError:
+            pass
+    return {"supported": os.name == "nt", "registered": False, "enabled": False, "time": ""}
 
 
 if __name__ == "__main__":
@@ -1775,5 +2023,21 @@ if __name__ == "__main__":
         print(f"  Code:        {get_code_version().get('label', 'unknown')}")
 
     threading.Thread(target=_print_code_version, daemon=True).start()
+
+    # Catch-up safety net for the scheduler. If the machine was off (or the
+    # Windows task never got registered) when a schedule's day-window came up,
+    # firing it here means "someone opened the UI during/after the window" still
+    # gets the run out. Sequential (wait=True) so a "run all" doesn't storm the
+    # box; no-op outside any window; already-completed clients are skipped.
+    def _startup_catch_up():
+        try:
+            results = _run_due_schedules(wait=True)
+            launched = [r for r in results if r.get("status") == "launched"]
+            if launched:
+                print(f"  Autorun catch-up: launched {len(launched)} scheduled run(s).")
+        except Exception as exc:  # noqa: BLE001 -- never let catch-up crash startup
+            print(f"  Autorun catch-up skipped: {exc}")
+
+    threading.Thread(target=_startup_catch_up, daemon=True).start()
 
     uvicorn.run(app, host="0.0.0.0", port=port)

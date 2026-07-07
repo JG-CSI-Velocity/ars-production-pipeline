@@ -179,25 +179,31 @@ Slide gallery for browsing completed analysis output without opening PowerPoint.
 ---
 
 ## 5. History (`#page-history`)
-All runs across all CSMs in a sortable table.
+All runs across all CSMs in a filterable table, sourced from `04_Logs`.
 
 | Component | ID | Function | API |
 |---|---|---|---|
-| Filters | (top of page) | CSM / month / product / status filters | (frontend) |
-| Runs table | `.recent-table` (history variant) | One row per run | `/api/recent?limit=N` |
+| Filters | `#histCsm` / `#histMonth` / `#histProduct` / `#histStatus` | Client-side filter of the fetched rows; `onchange` → `renderHistory()` | (frontend) |
+| Runs table | `#historyBody` | One row per run: Client, Product, Modules (`--`, not yet parsed), CSM, Date (real run timestamp), Duration, Slides, Status | `/api/recent` |
+
+Data flows through `loadHistory()` → stores rows in `_historyRuns` → `renderHistory()` applies filters. Refreshed on tab entry (`showPage('history')`) and after a run completes. `get_recent_runs()` (`app.py`) parses `product` from the `STEP 2: Running <…> Analysis` banner and `date` from the log filename stem.
 
 ---
 
 ## 6. Schedules (`#page-schedules`)
-Set up recurring monthly auto-runs.
+Recurring monthly auto-runs with a day **window** and per-scope fan-out.
 
 | Component | ID | Function | API |
 |---|---|---|---|
-| CSM selector | `#schedCsm` | Picks CSM for scheduled run | `/api/csms` |
-| Client selector | `#schedClient` | Picks client to schedule | `/api/clients` |
-| Day-of-month | `#schedDay` | Day each month to auto-run | (frontend) |
-| Extras | inline checkboxes | Optional add-ons (e.g. include TXN) | (frontend) |
-| Schedule table | `.recent-table` (schedules variant) | Active recurring schedules | `/api/schedules` |
+| Automatic-runs card | `#autorunStatus` / `#autorunTime` | Enable/disable unattended daily firing (Windows Task Scheduler) + time | `GET/POST/DELETE /api/schedules/autorun` |
+| Scope selector | `#schedScope` | `client` / `csm` (all ready clients for a CSM) / `all` (all ready clients, all CSMs). `onchange` → `onSchedScopeChange()` | (frontend) |
+| CSM selector | `#schedCsm` | Picks CSM; `onchange` → `refreshSchedClients()` filters the client list | `/api/csms` |
+| Client selector | `#schedClient` | Client for `client` scope, filtered by CSM | `/api/clients?csm=` |
+| Run window | `#schedStartDay` / `#schedEndDay` | Fires any day in `[start, end]`; skips clients already completed this month | (frontend) |
+| Extras | `#schedExtras` | Optional formatting add-ons (`trans` / `all`) | (frontend) |
+| Schedule table | `#schedulesBody` | Active schedules with Run Now / Pause·Resume / Delete | `/api/schedules` |
+
+**Firing model:** `_run_due_schedules(today)` (`app.py`) runs every enabled schedule whose window includes today, resolves clients via `_resolve_schedule_clients`, and launches each through the shared `_launch_pipeline_run`, skipping already-completed clients (idempotent across the window). It is driven by two paths: the headless `schedule_runner.py` (invoked by the Windows Task Scheduler entry `VelocityAutoRun`) so it fires even when the UI is closed, **and** a catch-up thread on UI startup as a safety net. Pause/resume is `PATCH /api/schedules/{id}`.
 
 ---
 
@@ -214,8 +220,16 @@ All endpoints are FastAPI, JSON over HTTP. The frontend polls long-running endpo
 
 ### Runs
 - `POST /api/format` — Kick off formatting; returns `{run_id}`
-- `POST /api/run?csm=&month=&client_id=&product=` — Kick off analysis; returns `{run_id}`
+- `POST /api/run?csm=&month=&client_id=&product=` — Kick off analysis; returns `{run_id}`. Both this and the scheduler go through one shared `_launch_pipeline_run()` in `app.py`.
 - `GET /api/run/{run_id}` — Poll: returns `{status, progress, current_step, log: [...]}`. Status: `running` / `complete` / `error`
+
+### Schedules
+- `GET /api/schedules` — List schedules
+- `POST /api/schedules` — Create (`scope`, `csm`, `client_id`, `product`, `start_day`, `end_day`, `extras`)
+- `PATCH /api/schedules/{id}` — Partial update (mainly `enabled` for pause/resume)
+- `DELETE /api/schedules/{id}` — Remove
+- `POST /api/schedules/{id}/run` — Run now (ignores window); fans out, returns `{launched, results}`
+- `GET/POST/DELETE /api/schedules/autorun` — Windows Task Scheduler registration for unattended daily firing (Windows-only; POST body `{time: "HH:MM"}`)
 
 ### Outputs
 - `GET /api/outputs/{csm}/{month}/{client_id}` — List of produced files (PPTX, XLSX, etc.)
@@ -246,6 +260,7 @@ All endpoints are FastAPI, JSON over HTTP. The frontend polls long-running endpo
 ## Files
 
 - `05_UI/app.py` — FastAPI backend
-- `05_UI/index.html` — Single-page UI (HTML + CSS + JS, ~2100 lines)
+- `05_UI/index.html` — Single-page UI (HTML + CSS + JS)
+- `05_UI/schedule_runner.py` — Headless entrypoint the Windows Task Scheduler invokes to fire due schedules when the UI is closed (`--dry-run` to preview)
 - `05_UI/UI-OVERVIEW.md` — This file
 - `Start Here.bat` — Operator launcher (Windows; starts `app.py`, waits for port, opens browser)
