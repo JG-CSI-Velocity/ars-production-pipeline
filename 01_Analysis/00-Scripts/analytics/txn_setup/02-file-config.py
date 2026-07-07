@@ -120,17 +120,30 @@ def parse_file_date(filepath: Path) -> datetime | None:
 
 
 def _is_txn_file(p: Path) -> bool:
-    """A TXN file is .txt/.csv, or extensionless ending in `_transaction`.
+    """True if `p` is a transaction file (not an ODD export or other stray).
 
-    The latter covers Dan's `1745_29335_[YYYY.MM.DD][HH.MM.SS]_transaction`
-    files, which have no extension (Path.suffix picks up the trailing
-    `.26]_transaction` from the bracketed timestamp, not a real suffix).
+    Mirrors the staging detection contract (gather_trans_files /
+    gather_trans_from_zips in txn_staging.py): a TXN file's name contains
+    'tran' (trans / transaction / monthlytran), or is an extensionless name
+    ending in `_transaction` -- Dan's
+    `1745_29335_[YYYY.MM.DD][HH.MM.SS]_transaction` files, where Path.suffix
+    picks up the trailing `.26]_transaction` from the bracketed timestamp, not
+    a real suffix.
+
+    Crucially it EXCLUDES ODD exports. Previously ANY .txt/.csv in the folder
+    was treated as a transaction file, so an ODD .csv that landed here was
+    ingested as a 1-column "transaction" file, corrupting combined_df and
+    failing downstream analytics (issue #247 -- a 1776 ODD csv:
+    `1776-...-CoastHills CU-ODD (Jul23 forward)..._V2_1_1.csv`).
     """
     if not p.is_file():
         return False
-    if p.suffix.lower() in ('.txt', '.csv'):
+    name = p.name.lower()
+    if 'odd' in name:
+        return False
+    if name.endswith('_transaction'):
         return True
-    return p.name.lower().endswith('_transaction')
+    return 'tran' in name and p.suffix.lower() in ('.txt', '.csv')
 
 
 def gather_all_txn_files(client_root: Path) -> list[Path]:

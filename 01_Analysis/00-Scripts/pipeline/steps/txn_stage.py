@@ -43,13 +43,18 @@ def _ars_base() -> Path:
 def _is_txn_file(p: Path) -> bool:
     """A TXN file is .txt/.csv, or extensionless ending in `_transaction`.
 
-    Matches txn_setup/02-file-config.py::_is_txn_file exactly.
+    Matches txn_setup/02-file-config.py::_is_txn_file exactly: a TXN file's name
+    contains 'tran' or ends '_transaction', and never contains 'odd' (an ODD
+    export in this folder is not a transaction file -- issue #247).
     """
     if not p.is_file():
         return False
-    if p.suffix.lower() in (".txt", ".csv"):
+    name = p.name.lower()
+    if "odd" in name:
+        return False
+    if name.endswith("_transaction"):
         return True
-    return p.name.lower().endswith("_transaction")
+    return "tran" in name and p.suffix.lower() in (".txt", ".csv")
 
 
 def _has_txn_file(client_dir: Path) -> bool:

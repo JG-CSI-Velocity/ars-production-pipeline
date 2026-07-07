@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from ars_analysis.pipeline.steps import txn_stage
-from ars_analysis.pipeline.steps.txn_stage import _has_txn_file, _match_csm_source
+from ars_analysis.pipeline.steps.txn_stage import _has_txn_file, _is_txn_file, _match_csm_source
 
 # Load the standalone formatting staging module the same way the step does.
 _FMT_SCRIPTS = Path(__file__).resolve().parents[3] / "00_Formatting" / "00-Scripts"
@@ -57,6 +57,28 @@ def test_stage_is_idempotent(tmp_path):
         "JamesG", "1234", "2026.06", str(tmp_path / "OD Data Dumps"), str(txn_base))
     assert first == 1        # copied on the first pass
     assert second == 0       # skipped (same name+size) on the second
+
+
+def test_is_txn_file_excludes_odd_and_strays(tmp_path):
+    # Real transaction files -> accepted.
+    for good in (
+        "1776_30825_[2026.06.01][11.00.31]_monthlytran.txt",
+        "coasthills-trans-02282026.txt",
+        "1441_debit card transaction monthly.csv",
+        "1745_29335_[2026.06.01][07.15.33]_transaction",  # extensionless
+    ):
+        (tmp_path / good).write_text("x\n")
+        assert _is_txn_file(tmp_path / good), good
+
+    # An ODD export dropped in the TXN folder -> rejected (issue #247).
+    odd = tmp_path / "1776-2026-07-CoastHills CU-ODD (Jul23 forward) (070226_101912)_V2_1_1.csv"
+    odd.write_text("x\n")
+    assert not _is_txn_file(odd)
+
+    # A stray non-transaction csv (no 'tran') -> rejected.
+    stray = tmp_path / "1776_summary.csv"
+    stray.write_text("x\n")
+    assert not _is_txn_file(stray)
 
 
 def test_match_csm_source_fuzzy():
