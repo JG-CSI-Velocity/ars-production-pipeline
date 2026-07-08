@@ -19,8 +19,19 @@ def test_general_is_the_shared_hub():
                   if "general" in g["depends_on_sections"]]
     assert len(dependents) >= 10
     names = {n for g in graph.values() for n in g["cross_section_names"]}
-    assert "GEN_COLORS" in names
+    # Pure theme (GEN_COLORS) is now promoted to shared setup -> no longer a
+    # cross-section dep; the data-derived producers (demo_df) remain.
+    assert "GEN_COLORS" not in names
     assert "demo_df" in names
+
+
+def test_theme_names_are_promoted_out_of_the_graph():
+    theme = section_deps.theme_names()
+    assert {"GEN_COLORS", "gen_clean_axes", "gen_fmt_dollar"} <= theme
+    graph = section_deps.dependency_graph()
+    for g in graph.values():
+        assert "GEN_COLORS" not in g["cross_section_names"]
+        assert "gen_clean_axes" not in g["cross_section_names"]
 
 
 def test_leaked_locals_are_filtered():

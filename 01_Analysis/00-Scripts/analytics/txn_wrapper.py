@@ -757,6 +757,22 @@ def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> 
             )
 
 
+def _load_shared_theme(namespace: dict[str, Any]) -> None:
+    """Exec the pure theme/formatter script into the shared namespace so every
+    section inherits GEN_COLORS, gen_* helpers, and the palette/order constants
+    without depending on the `general` section running first. Guarded: on any
+    failure sections fall back to `general` (which defines the same theme)."""
+    theme = Path(__file__).parent / "general" / "01_general_theme.py"
+    if not theme.exists():
+        return
+    try:
+        exec(compile(theme.read_text(encoding="utf-8"), str(theme), "exec"), namespace)
+        logger.info("Shared theme loaded into setup namespace")
+    except Exception as exc:  # noqa: BLE001 -- theme is best-effort here
+        logger.warning("Shared theme load failed ({e}); sections rely on the "
+                       "general section for theme instead.", e=exc)
+
+
 def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     """Build namespace and run txn_setup ONCE for all sections.
 
@@ -776,6 +792,13 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     """
     t0 = time.time()
     namespace = _build_namespace(ctx)
+
+    # Promote the shared theme/formatters into setup so every section has them
+    # without running the `general` section first -- this is what makes
+    # theme-only sections self-contained (runnable standalone). The theme script
+    # is pure (no data deps) and idempotent: `general` re-runs it as its first
+    # cell producing identical values, so the full-run deck is unchanged.
+    _load_shared_theme(namespace)
 
     setup_dir = Path(__file__).parent / "txn_setup"
     if not setup_dir.exists():

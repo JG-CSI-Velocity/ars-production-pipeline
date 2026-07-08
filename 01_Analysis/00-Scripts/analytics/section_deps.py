@@ -36,6 +36,29 @@ BASE_NAMES: set[str] = {
 
 _BUILTINS = set(dir(builtins)) | {"__file__", "__name__", "__builtins__"}
 
+# Cache: the graph is deterministic per process (pure static analysis).
+_GRAPH_CACHE: dict | None = None
+_THEME_NAMES_CACHE: set[str] | None = None
+
+
+def theme_names() -> set[str]:
+    """Names produced by the pure theme script (general/01_general_theme.py),
+    now promoted into shared setup (txn_wrapper._load_shared_theme). Consuming
+    one is NOT a cross-section dependency -- it's provided before any section."""
+    global _THEME_NAMES_CACHE
+    if _THEME_NAMES_CACHE is not None:
+        return _THEME_NAMES_CACHE
+    theme = _ANALYTICS / "general" / "01_general_theme.py"
+    names: set[str] = set()
+    if theme.exists():
+        try:
+            produced, _ = _names(ast.parse(theme.read_text(encoding="utf-8"), str(theme)))
+            names = produced
+        except SyntaxError:
+            names = set()
+    _THEME_NAMES_CACHE = names
+    return names
+
 
 def _script_files(section_dir: Path) -> list[Path]:
     return sorted(p for p in section_dir.glob("*.py") if not p.name.startswith("_"))
@@ -65,6 +88,10 @@ def _names(tree: ast.AST) -> tuple[set[str], set[str]]:
 
 def dependency_graph() -> dict:
     """{section: {depends_on_sections, cross_section_names, unresolved_names}}."""
+    global _GRAPH_CACHE
+    if _GRAPH_CACHE is not None:
+        return _GRAPH_CACHE
+    _base = BASE_NAMES | _BUILTINS | theme_names()
     per_section: dict[str, dict[str, set[str]]] = {}
     for section_dir in sorted(_ANALYTICS.iterdir()):
         if not section_dir.is_dir() or section_dir.name.startswith((".", "_")):
@@ -82,7 +109,7 @@ def dependency_graph() -> dict:
             p, c = _names(tree)
             produced |= p
             consumed |= c
-        external = consumed - produced - BASE_NAMES - _BUILTINS
+        external = consumed - produced - _base
         external = {n for n in external
                     if n != "_" and not (len(n) == 1 and n.islower())}
         per_section[section_dir.name] = {"produces": produced, "external": external}
@@ -107,6 +134,7 @@ def dependency_graph() -> dict:
             "cross_section_names": satisfied,
             "unresolved_names": unresolved,
         }
+    _GRAPH_CACHE = graph
     return graph
 
 
