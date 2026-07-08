@@ -1,0 +1,212 @@
+[
+  {
+    "section_id": "ars.overview",
+    "product": "ars",
+    "display_name": "Overview",
+    "slide_code": "",
+    "module_count": 3
+  },
+  {
+    "section_id": "ars.dctr",
+    "product": "ars",
+    "display_name": "Dctr",
+    "slide_code": "",
+    "module_count": 5
+  },
+  {
+    "section_id": "ars.rege",
+    "product": "ars",
+    "display_name": "Rege",
+    "slide_code": "",
+    "module_count": 3
+  },
+  {
+    "section_id": "ars.attrition",
+    "product": "ars",
+    "display_name": "Attrition",
+    "slide_code": "",
+    "module_count": 4
+  },
+  {
+    "section_id": "ars.value",
+    "product": "ars",
+    "display_name": "Value",
+    "slide_code": "",
+    "module_count": 1
+  },
+  {
+    "section_id": "ars.mailer",
+    "product": "ars",
+    "display_name": "Mailer",
+    "slide_code": "",
+    "module_count": 5
+  },
+  {
+    "section_id": "ars.insights",
+    "product": "ars",
+    "display_name": "Insights",
+    "slide_code": "",
+    "module_count": 5
+  },
+  {
+    "section_id": "txn.general",
+    "product": "txn",
+    "display_name": "Portfolio Overview",
+    "slide_code": "GEN",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.merchant",
+    "product": "txn",
+    "display_name": "Merchant Analysis",
+    "slide_code": "MERCH",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.mcc_code",
+    "product": "txn",
+    "display_name": "MCC Categories",
+    "slide_code": "MCC",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.business_accts",
+    "product": "txn",
+    "display_name": "Business Accounts",
+    "slide_code": "BUS",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.personal_accts",
+    "product": "txn",
+    "display_name": "Personal Accounts",
+    "slide_code": "PERS",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.competition",
+    "product": "txn",
+    "display_name": "Competition",
+    "slide_code": "COMP",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.financial_services",
+    "product": "txn",
+    "display_name": "Financial Services",
+    "slide_code": "FIN",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.ics_acquisition",
+    "product": "txn",
+    "display_name": "ICS Acquisition",
+    "slide_code": "ICSA",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.ICS_cohort",
+    "product": "txn",
+    "display_name": "ICS Cohort",
+    "slide_code": "ICSC",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.campaign",
+    "product": "txn",
+    "display_name": "Campaign Analysis",
+    "slide_code": "CAMP",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.branch_txn",
+    "product": "txn",
+    "display_name": "Branch Performance",
+    "slide_code": "BR",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.transaction_type",
+    "product": "txn",
+    "display_name": "Transaction Type",
+    "slide_code": "TT",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.product",
+    "product": "txn",
+    "display_name": "Product Analysis",
+    "slide_code": "PROD",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.attrition_txn",
+    "product": "txn",
+    "display_name": "Attrition (Velocity)",
+    "slide_code": "ATR",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.balance",
+    "product": "txn",
+    "display_name": "Balance Analysis",
+    "slide_code": "BAL",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.interchange",
+    "product": "txn",
+    "display_name": "Interchange Revenue",
+    "slide_code": "IC",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.rege_overdraft",
+    "product": "txn",
+    "display_name": "Reg E / Overdraft",
+    "slide_code": "REGE",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.payroll",
+    "product": "txn",
+    "display_name": "Payroll & Direct Deposit",
+    "slide_code": "PAY",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.relationship",
+    "product": "txn",
+    "display_name": "Relationship Depth",
+    "slide_code": "REL",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.segment_evolution",
+    "product": "txn",
+    "display_name": "Segment Evolution",
+    "slide_code": "SEG",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.retention",
+    "product": "txn",
+    "display_name": "Retention Analysis",
+    "slide_code": "RET",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.engagement",
+    "product": "txn",
+    "display_name": "Engagement Migration",
+    "slide_code": "ENG",
+    "module_count": null
+  },
+  {
+    "section_id": "txn.executive",
+    "product": "txn",
+    "display_name": "Executive Scorecard",
+    "slide_code": "EXEC",
+    "module_count": null
+  }
+]

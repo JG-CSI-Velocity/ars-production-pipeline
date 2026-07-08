@@ -582,41 +582,33 @@ async def get_products():
 _SECTIONS_CACHE: dict = {}
 
 
-def _list_sections() -> list[dict]:
-    """The unified section registry (for the module picker). Runs the analysis
-    lister as a subprocess so the web server doesn't import the heavy analytics
-    stack.
+SECTIONS_JSON = ANALYSIS_BASE / "00-Scripts" / "tools" / "sections.json"
 
-    Only a SUCCESSFUL (non-empty) result is cached -- a transient subprocess
-    failure must not pin the picker to an empty list for the process lifetime
-    (that was the "dropdown shows nothing" bug). On failure we log the reason
-    and return [] so the next call (the UI's Retry) can recover.
+
+def _list_sections() -> list[dict]:
+    """The unified section registry (for the module picker).
+
+    Reads a STATIC precomputed file (tools/sections.json) -- no subprocess and
+    no analytics import, so the endpoint is instant and can never hang (the
+    subprocess version stalled importing matplotlib/pandas on the work machine,
+    leaving the picker stuck on "Loading modules…"). The file is committed and
+    regenerated with `python 01_Analysis/00-Scripts/tools/list_sections.py
+    --write`; a test asserts it matches the live registry.
+
+    Only a non-empty result is cached, so a missing/broken file recovers on the
+    UI's Retry after it's regenerated.
     """
     cached = _SECTIONS_CACHE.get("data")
     if cached:
         return cached
-    lister = ANALYSIS_BASE / "00-Scripts" / "tools" / "list_sections.py"
-    if not lister.exists():
-        print(f"  /api/modules: lister not found at {lister}")
-        return []
     try:
-        proc = subprocess.run(
-            [sys.executable, str(lister)],
-            capture_output=True, text=True, timeout=60,
-        )
-    except (subprocess.SubprocessError, OSError) as exc:
-        print(f"  /api/modules: lister failed to run: {exc}")
-        return []
-    if proc.returncode != 0:
-        print(f"  /api/modules: lister exited {proc.returncode}: {proc.stderr.strip()[:300]}")
-        return []
-    try:
-        data = json.loads(proc.stdout)
-    except ValueError as exc:
-        print(f"  /api/modules: lister output not JSON: {exc}")
+        data = json.loads(SECTIONS_JSON.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        print(f"  /api/modules: cannot read {SECTIONS_JSON}: {exc} "
+              f"(regenerate with: python 01_Analysis/00-Scripts/tools/list_sections.py --write)")
         return []
     if data:
-        _SECTIONS_CACHE["data"] = data  # cache only on success
+        _SECTIONS_CACHE["data"] = data
     return data
 
 
