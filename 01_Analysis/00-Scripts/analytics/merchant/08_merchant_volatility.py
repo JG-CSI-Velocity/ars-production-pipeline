@@ -3,6 +3,14 @@
 # ===========================================================================
 # Dual panel: top 10 most consistent + top 10 most volatile (by CV). (14,7).
 
+# Drop non-finite CV before plotting. A merchant with ~0 mean spend yields
+# CV = std/mean = inf; an inf x-coordinate makes savefig(bbox_inches='tight')
+# compute an overflowed figure width, and matplotlib's RendererAgg constructor
+# throws (the merchant_08 crash on the 1776 run: width ~2.98e16). This is
+# belt-and-braces with the 500% cap in 01_merchant_data, which doesn't catch inf.
+if len(consistency_df) > 0 and 'cv' in consistency_df.columns:
+    consistency_df = consistency_df[np.isfinite(consistency_df['cv'])].copy()
+
 if len(consistency_df) > 0:
     most_consistent = consistency_df.nsmallest(10, 'cv').copy()
     most_volatile = consistency_df.nlargest(10, 'cv').copy()
@@ -23,6 +31,9 @@ if len(consistency_df) > 0:
         fontsize=11, fontweight='bold',
     )
     ax1.set_xlabel("CV %  (lower = more stable)", fontsize=13, fontweight='bold', labelpad=8)
+    # Explicit x-limit (like ax2) so autoscale can never stretch the tight
+    # bbox to an overflowed width even if an extreme CV slips through.
+    ax1.set_xlim(0, max(1.0, float(con_plot['cv'].max()) * 1.15))
     gen_clean_axes(ax1, keep_left=True, keep_bottom=True)
     ax1.xaxis.grid(True, color=GEN_COLORS['grid'], linewidth=0.5, alpha=0.7)
     ax1.set_axisbelow(True)
