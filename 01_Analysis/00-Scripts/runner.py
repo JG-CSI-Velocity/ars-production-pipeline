@@ -232,6 +232,11 @@ def run_ars(ctx: SharedContext) -> dict[str, SharedResult]:
         paths=paths,
         progress_callback=ctx.progress_callback,
     )
+    # Stamp the product so the deck filename + Excel/report/audit suffixes are
+    # correct. Hardcoded per-runner (not copied from the shared ctx.product):
+    # in a combined run this function builds the ARS half, and its deck must be
+    # '_ars_deck' so the TXN half's '_txn_deck' doesn't overwrite it (#product).
+    ars_ctx.product = "ars"
 
     # 3b. Resolve PPTX template (M: drive > config > embedded fallback)
     _tpl = ccfg.get("TemplatePath")
@@ -395,6 +400,10 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
         paths=paths,
         progress_callback=ctx.progress_callback,
     )
+    # Stamp the product so the deck is named '{client}_{month}_txn_deck.pptx'
+    # and the TXN Excel/run-report/rates-audit get their '_txn' suffix instead
+    # of overwriting the ARS artifacts in the same client folder (#product).
+    ars_ctx.product = "txn"
 
     # Resolve template
     _tpl = ccfg.get("TemplatePath")

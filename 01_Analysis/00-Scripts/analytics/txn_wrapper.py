@@ -520,6 +520,21 @@ def _build_namespace(ctx: PipelineContext) -> dict[str, Any]:
             else:
                 print(a)
 
+    # display_formatted(df, title) -- another notebook helper many TXN cells
+    # call to show a styled table. It was NEVER ported to the pipeline runtime,
+    # so unguarded calls (all of ICS_cohort) raised NameError and aborted the
+    # whole script -- taking down any chart the cell also produced (#241 ICS
+    # section gutted to 5 slides). Safe shim: print the frame so its content
+    # still lands in the log, and return None so execution continues and the
+    # cell's chart renders.
+    def _display_formatted(data=None, title="", *args, **kwargs):
+        if title:
+            print(str(title))
+        if hasattr(data, 'to_string'):
+            print(data.to_string())
+        elif data is not None:
+            print(data)
+
     from collections import OrderedDict
     from matplotlib.colors import LinearSegmentedColormap
     from matplotlib.gridspec import GridSpec
@@ -558,6 +573,7 @@ def _build_namespace(ctx: PipelineContext) -> dict[str, Any]:
         "warnings": warnings,
         # Jupyter compatibility
         "display": _display,
+        "display_formatted": _display_formatted,
         # Pipeline context values
         "CLIENT_ID": ctx.client.client_id,
         "CLIENT_NAME": ctx.client.client_name,

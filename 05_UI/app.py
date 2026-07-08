@@ -401,6 +401,11 @@ def get_recent_runs():
 
 # ─── PRODUCT / MODULE REGISTRY ────────────────────────────────────────
 
+# Products the analysis backend can actually run today (01_Analysis/run.py
+# --product choices). "dep" (Deposits) is advertised in the UI but has no
+# backend yet, so it is intentionally excluded -- start_run rejects it.
+SUPPORTED_PRODUCTS = {"ars", "txn", "combined"}
+
 PRODUCTS = {
     "ars": {
         "name": "ARS Full Suite",
@@ -444,6 +449,9 @@ PRODUCTS = {
         "name": "Deposits Analysis",
         "count": 15,
         "time": "10-20 min",
+        # No analysis backend yet -- surfaced so the UI can show it as
+        # "coming soon" and disable selection (start_run rejects it).
+        "available": False,
         "groups": [
             {"name": "Baseline", "count": 4, "desc": "Portfolio deposit metrics, tiers, segmentation.",
              "modules": ["Baseline", "Tiers", "Segmentation", "Cross-check"]},
@@ -867,6 +875,18 @@ async def start_run(
     download a large file from the shared M: drive. Validated to be a
     writable directory before the (long) run starts.
     """
+    # Fail fast on an unsupported product (e.g. the Deposits 'dep' card, which
+    # has no analysis backend). Without this the run launches and only dies
+    # ~20 min in when 01_Analysis/run.py's argparse rejects --product dep.
+    if product not in SUPPORTED_PRODUCTS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Product '{product}' is not available yet. "
+                f"Choose one of: {', '.join(sorted(SUPPORTED_PRODUCTS))}."
+            ),
+        )
+
     run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
     formatting_run = ARS_BASE / "00_Formatting" / "run.py"
