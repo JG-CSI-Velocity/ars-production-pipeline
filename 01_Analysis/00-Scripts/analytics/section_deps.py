@@ -110,6 +110,19 @@ def dependency_graph() -> dict:
     return graph
 
 
+def required_names(folder: str) -> list[str]:
+    """Cross-section names ``folder`` reads but doesn't produce (its data
+    contract with upstream sections)."""
+    return sorted(dependency_graph().get(folder, {}).get("cross_section_names", {}))
+
+
+def missing_section_deps(folder: str, namespace: dict) -> list[str]:
+    """Required cross-section names that are NOT present in ``namespace`` after
+    the upstreams ran. A non-empty result means the section would silently emit
+    an incomplete deck -- the runner turns this into a hard error instead."""
+    return [n for n in required_names(folder) if n not in namespace]
+
+
 def _txn_order() -> dict[str, int]:
     from ars_analysis.analytics.txn_wrapper import TXN_SECTIONS
     return {name: meta.get("order", 500) for name, meta in TXN_SECTIONS.items()}

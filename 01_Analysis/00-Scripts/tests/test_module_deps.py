@@ -30,6 +30,21 @@ def test_leaked_locals_are_filtered():
         assert "e" not in g["unresolved_names"]
 
 
+def test_missing_section_deps_flags_absent_names():
+    """business_accts requires merch_agg (from merchant) and general theme
+    names; an empty namespace is missing them -> hard error material."""
+    missing = section_deps.missing_section_deps("business_accts", {})
+    assert "merch_agg" in missing
+    # A namespace that supplies everything the section needs -> nothing missing.
+    full = dict.fromkeys(section_deps.required_names("business_accts"), 1)
+    assert section_deps.missing_section_deps("business_accts", full) == []
+
+
+def test_leaf_has_no_required_names():
+    assert section_deps.required_names("ICS_cohort") == []
+    assert section_deps.missing_section_deps("ICS_cohort", {}) == []
+
+
 def test_upstreams_use_primary_producer():
     """merchant produces merch_agg (sole producer) -> business_accts must run
     merchant; theme names collapse to `general`, not the many defensive

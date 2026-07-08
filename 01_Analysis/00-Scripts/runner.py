@@ -648,9 +648,27 @@ def run_module(ctx: SharedContext, section_id: str) -> dict[str, SharedResult]:
         # the first-ever build isn't lost when the process exits (the daemon
         # writer would race the exit).
         os.environ["TXN_CACHE_SYNC"] = "1"
+        from ars_analysis.analytics.section_deps import missing_section_deps
+
         shared_namespace = prepare_shared_namespace(ars_ctx)
         run_order = upstream_sections(section.folder) + [section.folder]
         for folder in run_order:
+            # Before the TARGET runs, verify its cross-section data contract is
+            # satisfied. Silent `if var in globals()` skips would otherwise let
+            # a missing upstream produce an incomplete deck with no error -- the
+            # exact failure the closed loop must make loud. Guard on combined_df
+            # so the check only runs against a real (not a test-stub) namespace.
+            if (folder == section.folder
+                    and shared_namespace.get("combined_df") is not None):
+                missing = missing_section_deps(folder, shared_namespace)
+                if missing:
+                    raise RuntimeError(
+                        f"Section '{folder}' is missing required upstream data "
+                        f"{missing}. Its declared upstream producers "
+                        f"({', '.join(upstream_sections(folder)) or 'none'}) did "
+                        f"not populate the shared namespace -- refusing to build "
+                        f"an incomplete deck."
+                    )
             wrapper = TXNSectionWrapper(folder, _ANALYTICS / folder)
             errors = wrapper.validate(ars_ctx)
             if errors:

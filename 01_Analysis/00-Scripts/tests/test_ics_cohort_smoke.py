@@ -160,9 +160,19 @@ def _display(*_a, **_k):
     return None
 
 
-def _display_formatted(*_a, **_k):
-    """display_formatted() shim used by several cells -- no-op."""
-    return None
+def _production_display_formatted(eligible_codes, odd_df):
+    """Pull the REAL display_formatted the pipeline injects, instead of a local
+    stub -- proves the production shim (not just a test crutch) keeps the
+    unguarded ICS_cohort calls from raising NameError (#241 Phase 0 fix)."""
+    from types import SimpleNamespace as _NS
+
+    from ars_analysis.analytics.txn_wrapper import _build_namespace as _prod_ns
+    ctx = _NS(
+        client=_NS(client_id="TEST", client_name="Test", month="2026-03",
+                   assigned_csm="test", eligible_stat_codes=list(eligible_codes)),
+        data=odd_df,
+    )
+    return _prod_ns(ctx)["display_formatted"]
 
 
 def _build_namespace(odd_df, eligible_codes):
@@ -200,9 +210,10 @@ def _build_namespace(odd_df, eligible_codes):
         "os": os,
         "sys": sys,
         "warnings": warnings,
-        # Jupyter compatibility shims
+        # Jupyter compatibility shims. display_formatted comes from PRODUCTION
+        # (not a local stub) so this smoke proves the real pipeline provides it.
         "display": _display,
-        "display_formatted": _display_formatted,
+        "display_formatted": _production_display_formatted(eligible_codes, odd_df),
         # Theme vars normally injected by the general section
         "GEN_COLORS": dict(GEN_COLORS),
         "GEN_TITLE_Y": 1.02,
