@@ -15,6 +15,23 @@ easy to troubleshoot and change.
 - **CLI:** `python 01_Analysis/run.py --section txn.merchant --month 2026.06 --csm JamesG --client 1776`
 - **UI:** Generate tab → "run just one module" dropdown → Generate.
 
+## Status
+
+**Done & unit-tested (this branch):** Phase 0 bug fixes; the whole Phase 1 closed
+loop (registry, dependency graph, `run_module`, `build_scoped_deck`, `--section`,
+UI picker, cache correctness); the **uniform `Module` contract over all 30
+sections** (`analytics/module.py`, validated in CI); **shared-theme promotion**
+(theme/formatters now provided by setup — upstream chains collapsed, e.g.
+campaign 13→1); **hard-fail** on missing section deps; the **ICS-Cohort leaf
+pilot**; and the `module_counts` drift retirement.
+
+**Remaining — data-gated or a decision (do on the M: box):** promoting the
+data-derived producers (`demo_df`, `acct_txn_counts`, `swipe_lookup`) so more
+sections become leaves; stable declared slide ids + manifest/spec migration;
+per-module smoke fixtures; the `cross_cohort` and Deposits build-or-delete calls;
+retiring the deck-internal legacy. Each needs a real client run to confirm the
+full-deck-unchanged invariant, which can't be checked without client data.
+
 ## The pieces (all built, all tested here)
 
 | Concern | Where | Notes |
