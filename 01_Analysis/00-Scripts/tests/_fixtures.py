@@ -36,6 +36,7 @@ def synthetic_combined() -> pd.DataFrame:
                 rows.append({
                     "merchant_consolidated": mer,
                     "year_month": mo,
+                    "month_key": mo,
                     "transaction_date": f"{mo}-15",
                     "primary_account_num": acct,
                     "account_number": acct,

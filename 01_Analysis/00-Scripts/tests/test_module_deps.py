@@ -13,25 +13,21 @@ def test_ics_cohort_is_a_leaf():
     assert section_deps.upstream_sections("ICS_cohort") == []
 
 
-def test_general_is_the_shared_hub():
+def test_promotion_collapsed_general_deps():
+    """After promoting general's theme AND data producers into shared setup,
+    the shared names (GEN_COLORS, demo_df, acct_txn_counts, swipe_lookup) are no
+    longer cross-section deps, so general has few remaining dependents."""
     graph = section_deps.dependency_graph()
-    dependents = [s for s, g in graph.items()
-                  if "general" in g["depends_on_sections"]]
-    assert len(dependents) >= 10
     names = {n for g in graph.values() for n in g["cross_section_names"]}
-    # Pure theme (GEN_COLORS) is now promoted to shared setup -> no longer a
-    # cross-section dep; the data-derived producers (demo_df) remain.
-    assert "GEN_COLORS" not in names
-    assert "demo_df" in names
+    for shared in ("GEN_COLORS", "gen_clean_axes", "demo_df",
+                   "acct_txn_counts", "swipe_lookup"):
+        assert shared not in names, f"{shared} should be promoted out of the graph"
 
 
-def test_theme_names_are_promoted_out_of_the_graph():
-    theme = section_deps.theme_names()
-    assert {"GEN_COLORS", "gen_clean_axes", "gen_fmt_dollar"} <= theme
-    graph = section_deps.dependency_graph()
-    for g in graph.values():
-        assert "GEN_COLORS" not in g["cross_section_names"]
-        assert "gen_clean_axes" not in g["cross_section_names"]
+def test_promoted_names_include_theme_and_producers():
+    promoted = section_deps.theme_names()
+    assert {"GEN_COLORS", "gen_clean_axes", "gen_fmt_dollar"} <= promoted  # theme
+    assert {"demo_df", "acct_txn_counts", "swipe_lookup"} <= promoted      # producers
 
 
 def test_leaked_locals_are_filtered():
@@ -58,10 +54,8 @@ def test_leaf_has_no_required_names():
 
 def test_upstreams_use_primary_producer():
     """merchant produces merch_agg (sole producer) -> business_accts must run
-    merchant; theme names collapse to `general`, not the many defensive
-    re-assigners, so the upstream set stays tight."""
+    merchant. general is NOT needed anymore: its theme + demo_df/acct_txn_counts
+    are promoted to shared setup, so the upstream set is just the real data
+    producer."""
     up = section_deps.upstream_sections("business_accts")
-    assert "merchant" in up
-    assert "general" in up
-    # `general` runs before `merchant` (execution order 100 < 110).
-    assert up.index("general") < up.index("merchant")
+    assert up == ["merchant"]

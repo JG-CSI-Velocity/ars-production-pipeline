@@ -41,21 +41,34 @@ _GRAPH_CACHE: dict | None = None
 _THEME_NAMES_CACHE: set[str] | None = None
 
 
+# general scripts promoted into shared setup: the pure theme (01) plus the
+# data-producer cells (demo_df / acct_txn_counts / swipe_lookup). Consuming a
+# name any of these produce is NOT a cross-section dependency -- setup provides
+# it before any section runs (see txn_wrapper._load_shared_theme /
+# _load_shared_producers). Keep this list in sync with those two functions.
+_PROMOTED_GENERAL_SCRIPTS = (
+    "01_general_theme.py",
+    "11_demographic_data.py",
+    "17_engagement_data.py",
+    "29_swipe_category_data.py",
+)
+
+
 def theme_names() -> set[str]:
-    """Names produced by the pure theme script (general/01_general_theme.py),
-    now promoted into shared setup (txn_wrapper._load_shared_theme). Consuming
-    one is NOT a cross-section dependency -- it's provided before any section."""
+    """Names provided by the promoted general scripts (theme + data producers)."""
     global _THEME_NAMES_CACHE
     if _THEME_NAMES_CACHE is not None:
         return _THEME_NAMES_CACHE
-    theme = _ANALYTICS / "general" / "01_general_theme.py"
     names: set[str] = set()
-    if theme.exists():
+    for script in _PROMOTED_GENERAL_SCRIPTS:
+        p = _ANALYTICS / "general" / script
+        if not p.exists():
+            continue
         try:
-            produced, _ = _names(ast.parse(theme.read_text(encoding="utf-8"), str(theme)))
-            names = produced
+            produced, _ = _names(ast.parse(p.read_text(encoding="utf-8"), str(p)))
+            names |= produced
         except SyntaxError:
-            names = set()
+            continue
     _THEME_NAMES_CACHE = names
     return names
 

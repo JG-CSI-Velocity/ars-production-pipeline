@@ -74,11 +74,9 @@ def test_coupled_runs_upstreams_first_but_scopes_to_target(tmp_path, monkeypatch
     ctx = _ctx(tmp_path)
     runner.run_module(ctx, "txn.business_accts")
 
-    # general -> merchant -> business_accts, target last.
-    assert _FakeWrapper.calls[-1] == "business_accts"
-    assert "general" in _FakeWrapper.calls and "merchant" in _FakeWrapper.calls
-    assert _FakeWrapper.calls.index("general") < _FakeWrapper.calls.index("merchant")
-    # Only the TARGET section's slides go into the deck, not the upstreams'.
+    # merchant (produces merch_agg) runs before business_accts, target last.
+    assert _FakeWrapper.calls == ["merchant", "business_accts"]
+    # Only the TARGET section's slides go into the deck, not the upstream's.
     assert [s.slide_id for s in ctx.all_slides] == ["TXN-X-business_accts"]
     assert deck_calls == ["txn.business_accts"]
 

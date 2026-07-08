@@ -792,6 +792,33 @@ def _load_shared_theme(namespace: dict[str, Any]) -> None:
                        "general section for theme instead.", e=exc)
 
 
+# general DATA-producer scripts promoted into shared setup (must be data-only,
+# i.e. no plt.show/savefig -- verified). Run in order after combined_df exists.
+_SHARED_PRODUCER_SCRIPTS = (
+    "11_demographic_data.py",   # demo_df
+    "17_engagement_data.py",    # acct_txn_counts
+    "29_swipe_category_data.py",  # swipe_lookup
+)
+
+
+def _load_shared_producers(namespace: dict[str, Any]) -> None:
+    """Exec general's data-producer cells into the shared namespace so every
+    section inherits demo_df / acct_txn_counts / swipe_lookup without running
+    the whole `general` section. Each is guarded: a failure just means sections
+    needing that frame fall back to running `general` upstream."""
+    general = Path(__file__).parent / "general"
+    for name in _SHARED_PRODUCER_SCRIPTS:
+        script = general / name
+        if not script.exists():
+            continue
+        try:
+            exec(compile(script.read_text(encoding="utf-8"), str(script), "exec"), namespace)
+        except Exception as exc:  # noqa: BLE001 -- best-effort promotion
+            logger.warning("Shared producer {n} failed ({e}); sections needing "
+                           "its frame fall back to the general section.",
+                           n=name, e=exc)
+
+
 def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     """Build namespace and run txn_setup ONCE for all sections.
 
@@ -846,6 +873,12 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
 
     # Apply 4-denominator framework to TXN data (Audit 2026-04-27 Entry 1)
     _inject_eligible_filter(namespace, ctx)
+
+    # Promote general's shared DATA producers (demo_df, acct_txn_counts,
+    # swipe_lookup) into setup now that combined_df exists, so sections that
+    # only needed those frames are self-contained. Data-only + idempotent:
+    # `general` re-runs the same cells, so the full-run deck is unchanged.
+    _load_shared_producers(namespace)
 
     elapsed = time.time() - t0
     row_count = 0

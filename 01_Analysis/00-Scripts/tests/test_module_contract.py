@@ -28,7 +28,9 @@ def test_leaf_and_aggregator_classification():
     assert by_id["txn.ICS_cohort"].requires_modules() == []
     # executive aggregates many upstream sections.
     assert by_id["txn.executive"].is_aggregator
-    assert "txn.general" in by_id["txn.business_accts"].requires_modules()
+    # business_accts still needs merchant (merch_agg); general's shared frames
+    # are promoted to setup so it's no longer an upstream.
+    assert by_id["txn.business_accts"].requires_modules() == ["txn.merchant"]
 
 
 def test_run_delegates_to_run_module(monkeypatch):

@@ -19,10 +19,9 @@ from _fixtures import namespace_with_theme, synthetic_combined, synthetic_reward
 # Sections whose 01 script needs more than the shared fixture provides. Closing
 # these is the remaining mechanical fixture work (add the column / upstream frame).
 _KNOWN_GAPS = {
-    "ICS_cohort": "covered end-to-end by test_ics_cohort_smoke (needs 00_config first)",
     "interchange": "needs a multi-month PIN/SIG rewards shape",
-    "rege_overdraft": "needs a Reg-E monthly frame (month_key)",
     "payroll": "needs payroll-typed transaction columns",
+    "rege_overdraft": "needs a Reg-E monthly frame with its own month_key",
 }
 
 _FOLDERS = [s.folder for s in txn_sections()]
@@ -34,9 +33,11 @@ def test_section_data_script_smoke(folder):
         pytest.xfail(_KNOWN_GAPS[folder])
 
     from _fixtures import ANALYTICS
-    scripts = sorted((ANALYTICS / folder).glob("01_*.py"))
+    # Run the section's config (00_*) then its data script (01_*), so
+    # config-driven sections (e.g. ICS_cohort's odd_df->data bridge) work.
+    scripts = sorted((ANALYTICS / folder).glob("0[01]_*.py"))
     if not scripts:
-        pytest.skip("no 01 data script")
+        pytest.skip("no 00/01 data script")
 
     ns = namespace_with_theme()
     combined = synthetic_combined()
@@ -45,16 +46,18 @@ def test_section_data_script_smoke(folder):
     ns["combined_df_all"] = combined
     ns["rewards_df"] = rewards
     ns["odd_df"] = rewards
+    ns["data"] = rewards
     # business/personal split frames (normally from txn_setup).
     ns["business_df"] = combined.copy()
     ns["personal_df"] = combined.copy()
 
     with contextlib.redirect_stdout(io.StringIO()):
-        exec(compile(scripts[0].read_text(encoding="utf-8"),  # noqa: S102
-                     str(scripts[0]), "exec"), ns)
+        for scr in scripts:
+            exec(compile(scr.read_text(encoding="utf-8"),  # noqa: S102
+                         str(scr), "exec"), ns)
 
 
 def test_smoke_covers_most_sections():
     """Guardrail: the shared fixture must keep the majority of sections runnable
     so a fixture regression is caught."""
-    assert len(_FOLDERS) - len(_KNOWN_GAPS) >= 19
+    assert len(_FOLDERS) - len(_KNOWN_GAPS) >= 20

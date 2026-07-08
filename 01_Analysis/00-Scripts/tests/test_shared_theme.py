@@ -24,3 +24,23 @@ def test_load_shared_theme_populates_namespace():
     assert callable(ns.get("gen_fmt_dollar"))
     # A representative palette/order constant is present too.
     assert "AGE_ORDER" in ns
+
+
+def test_load_shared_producers_builds_frames():
+    """The promoted data producers run over a combined_df and populate the
+    shared frames (2 of 3 need only combined_df; demo_df needs the ODD-merged
+    frame a real run provides, so it's allowed to no-op here)."""
+    from _fixtures import namespace_with_theme, synthetic_combined, synthetic_rewards
+    from ars_analysis.analytics import txn_wrapper as tw
+
+    ns = namespace_with_theme()
+    ns["combined_df"] = synthetic_combined()
+    ns["combined_df_all"] = ns["combined_df"]
+    ns["rewards_df"] = synthetic_rewards()
+    ns["odd_df"] = ns["rewards_df"]
+
+    tw._load_shared_producers(ns)  # guarded -- never raises
+
+    # acct_txn_counts (engagement) and swipe_lookup run on combined_df alone.
+    assert "acct_txn_counts" in ns
+    assert "swipe_lookup" in ns
