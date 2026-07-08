@@ -685,6 +685,19 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         </div>
     </div>
 
+    <!-- Single-module (closed-loop) run: scope the run + deck to one section -->
+    <div class="config-row" style="margin:16px 0;align-items:flex-end;">
+        <div class="config-field" style="max-width:420px;">
+            <div class="label">Or run just one module (troubleshooting)</div>
+            <select class="sel" id="gModuleSel">
+                <option value="">— Whole product (all modules) —</option>
+            </select>
+        </div>
+        <div class="config-field" style="color:var(--muted);font-size:12px;max-width:360px;">
+            Runs formatting-if-needed, that section's analysis, and a deck of just its slides.
+        </div>
+    </div>
+
     <!-- Module details (expandable) -->
     <div class="modules-panel">
         <div class="modules-head">
@@ -1166,6 +1179,26 @@ async function loadClients() {
     } catch(e) {
         console.log('API not available, using defaults');
     }
+}
+
+// Populate the single-module (closed-loop) picker from the unified registry.
+async function loadModulePicker() {
+    const sel = document.getElementById('gModuleSel');
+    if (!sel) return;
+    try {
+        const mods = await fetch('/api/modules').then(r => r.json());
+        if (!Array.isArray(mods) || !mods.length) return;
+        const byProduct = {ars: [], txn: []};
+        mods.forEach(m => (byProduct[m.product] || (byProduct[m.product] = [])).push(m));
+        let html = '<option value="">— Whole product (all modules) —</option>';
+        for (const [prod, list] of Object.entries(byProduct)) {
+            if (!list.length) continue;
+            html += `<optgroup label="${prod.toUpperCase()}">`;
+            list.forEach(m => { html += `<option value="${m.section_id}">${m.display_name}</option>`; });
+            html += '</optgroup>';
+        }
+        sel.innerHTML = html;
+    } catch(e) { /* leave the default single option */ }
 }
 
 // Monotonic request id: the clients fetch scans network folders and can
@@ -1926,7 +1959,11 @@ async function runGenReal() {
     }
 
     try {
+        // Optional single-module (closed-loop) run: when a module is picked,
+        // --section scopes the analysis + deck to that one section.
+        const moduleSel = (document.getElementById('gModuleSel') || {}).value || '';
         const runUrl = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
+            + (moduleSel ? `&module=${encodeURIComponent(moduleSel)}` : '')
             + (localCopyPath ? `&local_copy_path=${encodeURIComponent(localCopyPath)}` : '')
             + (sourcePath ? `&source_path=${encodeURIComponent(sourcePath)}` : '');
         const resp = await fetch(runUrl, {method: 'POST'});
@@ -3085,6 +3122,7 @@ document.getElementById('rSlideContainer')?.addEventListener('dblclick', openLig
     refreshGenClients();
 })();
 loadRecent();
+loadModulePicker();
 
 // Override the generate button to use real API
 async function smartRunGen() {

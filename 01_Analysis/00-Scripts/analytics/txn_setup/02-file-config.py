@@ -199,6 +199,13 @@ files_to_load = recent_files + unparsed_files
 # 14+ TXN files off the M: network share; subsequent runs load the cached
 # .parquet in seconds. Every branch of this decision prints a status line so
 # users can tell at a glance why a given run is slow.
+# Force a rebuild when TXN_FORCE_REBUILD is set. The cache is keyed only on
+# client + file mtimes, so after a CODE change to how combined_df is built
+# (05-combine-data / 09-oddd-account-type) it still reads "fresh" and silently
+# serves stale data. run_module sets this on the single-module path so
+# iterating on a fix always reloads; operators can set it by hand too.
+_force_rebuild = bool(os.environ.get("TXN_FORCE_REBUILD"))
+
 print()
 print("-" * 60)
 print("PARQUET CACHE STATUS")
@@ -207,6 +214,9 @@ if not PARQUET_CACHE.exists():
     print(f"  Status: NO CACHE (will be built during this run)")
     print(f"  Location: {PARQUET_CACHE}")
     print(f"  Note: first run for this client is slow; subsequent runs are fast.")
+elif _force_rebuild:
+    print(f"  Status: FORCE-REBUILD (TXN_FORCE_REBUILD set -- ignoring cache)")
+    print(f"  Cache:  {PARQUET_CACHE.name} (will be overwritten)")
 elif not files_to_load:
     # Cache exists but no raw files -- rely on cache
     USE_PARQUET_CACHE = PARQUET_CACHE

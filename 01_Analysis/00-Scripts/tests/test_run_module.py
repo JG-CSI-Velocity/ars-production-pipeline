@@ -83,6 +83,15 @@ def test_coupled_runs_upstreams_first_but_scopes_to_target(tmp_path, monkeypatch
     assert deck_calls == ["txn.business_accts"]
 
 
+def test_txn_run_sets_cache_sync(tmp_path, monkeypatch):
+    """Single-module TXN runs write the parquet cache synchronously so a short
+    run doesn't lose the first-ever build."""
+    monkeypatch.delenv("TXN_CACHE_SYNC", raising=False)
+    _patch_txn(monkeypatch, [])
+    runner.run_module(_ctx(tmp_path), "txn.ICS_cohort")
+    assert __import__("os").environ.get("TXN_CACHE_SYNC") == "1"
+
+
 def test_ars_section_runs_overview_plus_selected(tmp_path, monkeypatch):
     import ars_analysis.analytics.registry as reg
     import ars_analysis.output.deck_builder as db

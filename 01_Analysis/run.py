@@ -195,6 +195,10 @@ def main():
                         help="Run ONE analytics section end-to-end (closed loop) and build a "
                              "scoped deck for just its slides. Section id like 'txn.merchant' "
                              "or 'ars.dctr' (see analytics/section_registry.py). Overrides --product.")
+    parser.add_argument("--rebuild-cache", action="store_true",
+                        help="Ignore the TXN parquet cache and rebuild combined_df from the raw "
+                             "files. Use after changing data-loading code so a stale cache "
+                             "isn't served.")
     parser.add_argument("--local-copy", type=str, default=None,
                         help="Optional folder path. After the deck is written to M:, also copy "
                              "it here so the operator gets a fast local copy without downloading "
@@ -418,6 +422,10 @@ def main():
     # Run the pipeline based on --product / --section flag
     product = args.product
     ctx.product = product  # so deck_builder names the PPTX correctly (was misdetecting as 'ars')
+
+    if args.rebuild_cache:
+        # Read by txn_setup/02-file-config.py to force a MISS (rebuild combined_df).
+        os.environ["TXN_FORCE_REBUILD"] = "1"
 
     if args.section:
         # Closed-loop single-section run: build only what this section needs and

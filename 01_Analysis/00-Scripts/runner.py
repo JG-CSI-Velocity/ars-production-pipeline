@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -643,6 +644,10 @@ def run_module(ctx: SharedContext, section_id: str) -> dict[str, SharedResult]:
             prepare_shared_namespace,
         )
 
+        # A single-module run is short; write the parquet cache synchronously so
+        # the first-ever build isn't lost when the process exits (the daemon
+        # writer would race the exit).
+        os.environ["TXN_CACHE_SYNC"] = "1"
         shared_namespace = prepare_shared_namespace(ars_ctx)
         run_order = upstream_sections(section.folder) + [section.folder]
         for folder in run_order:

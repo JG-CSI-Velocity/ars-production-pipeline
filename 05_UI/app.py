@@ -594,6 +594,37 @@ async def get_products():
     return PRODUCTS
 
 
+_SECTIONS_CACHE: dict = {}
+
+
+def _list_sections() -> list[dict]:
+    """The unified section registry (for the module picker). Runs the analysis
+    lister as a subprocess so the web server doesn't import the heavy analytics
+    stack; cached for the process lifetime."""
+    if _SECTIONS_CACHE.get("data") is not None:
+        return _SECTIONS_CACHE["data"]
+    lister = ANALYSIS_BASE / "00-Scripts" / "tools" / "list_sections.py"
+    data: list[dict] = []
+    if lister.exists():
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(lister)],
+                capture_output=True, text=True, timeout=60,
+            )
+            if proc.returncode == 0:
+                data = json.loads(proc.stdout)
+        except (subprocess.SubprocessError, ValueError, OSError):
+            data = []
+    _SECTIONS_CACHE["data"] = data
+    return data
+
+
+@app.get("/api/modules")
+async def get_modules():
+    """List selectable analytics sections for the 'run one module' picker."""
+    return _list_sections()
+
+
 @app.get("/api/module_counts")
 async def module_counts():
     """Live module/section/script counts from the files actually on disk.
@@ -865,20 +896,30 @@ async def start_run(
     month: str,
     client_id: str,
     product: str = "ars",
+    module: str = "",
     local_copy_path: str = "",
     source_path: str = "",
 ):
     """Start a full pipeline run: format (if needed) + analysis + PPTX.
+
+    ``module`` (a section id like "txn.merchant"), when set, runs the closed-loop
+    single-section path instead of the whole product -- format-if-needed, just
+    that section's analysis, and a scoped one-section deck.
 
     Optional local_copy_path: when provided, the final PPTX deck is also
     copied to this folder on the operator's machine so they don't have to
     download a large file from the shared M: drive. Validated to be a
     writable directory before the (long) run starts.
     """
-    # Fail fast on an unsupported product (e.g. the Deposits 'dep' card, which
-    # has no analysis backend). Without this the run launches and only dies
-    # ~20 min in when 01_Analysis/run.py's argparse rejects --product dep.
-    if product not in SUPPORTED_PRODUCTS:
+    if module:
+        # Fail fast on an unknown module rather than ~20 min in when run.py's
+        # section registry rejects it.
+        if module not in {m["section_id"] for m in _list_sections()}:
+            raise HTTPException(status_code=400, detail=f"Unknown module: {module!r}")
+    elif product not in SUPPORTED_PRODUCTS:
+        # Fail fast on an unsupported product (e.g. the Deposits 'dep' card,
+        # which has no analysis backend). Without this the run launches and
+        # only dies ~20 min in when run.py's argparse rejects --product dep.
         raise HTTPException(
             status_code=400,
             detail=(
@@ -993,6 +1034,9 @@ async def start_run(
             cmd = [sys.executable, "-u", str(analysis_run),
                    "--month", month, "--csm", csm, "--client", client_id,
                    "--product", product]
+            if module:
+                # Closed-loop single-section run; --section overrides --product.
+                cmd += ["--section", module]
             if local_copy_resolved:
                 cmd += ["--local-copy", local_copy_resolved]
             # Hand the analysis step the exact ODD we already located, so it
