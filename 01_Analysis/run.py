@@ -462,7 +462,11 @@ def main():
         gc.collect()  # release any file handles held by python-pptx/matplotlib
 
         try:
-            pptx_files = [f for f in output_dir.iterdir() if f.suffix == '.pptx']
+            # rglob (not iterdir) so per-module decks written under
+            # modules/<id>/ by a --section run are delivered too, not just the
+            # top-level full-run deck. The dest below preserves the relative
+            # path so a module deck lands in 02_Presentations/.../modules/<id>/.
+            pptx_files = [f for f in output_dir.rglob('*.pptx')]
         except OSError as _e:
             # Network mount (M:) can drop during long runs -- WinError 53 / 67.
             # Analysis already completed, so warn and skip the PPTX move.
@@ -472,7 +476,15 @@ def main():
             print(f"    The M: drive may have disconnected. Check the folder manually once it reconnects.")
             pptx_files = []
         for pf in pptx_files:
-            dest = pptx_dir / pf.name
+            # Preserve the path relative to output_dir so module decks keep
+            # their modules/<id>/ subfolder in 02_Presentations; a top-level
+            # full-run deck just maps to pptx_dir/<name>.
+            try:
+                _rel = pf.relative_to(output_dir)
+            except ValueError:
+                _rel = Path(pf.name)
+            dest = pptx_dir / _rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
             final_pptx = None  # path of the deck after server-side delivery
             moved = False
             for _attempt in range(3):
