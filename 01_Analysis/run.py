@@ -191,6 +191,10 @@ def main():
     parser.add_argument("--product", type=str, default="ars",
                         choices=["ars", "txn", "combined"],
                         help="Analysis product: ars (default), txn (transaction only), combined (both)")
+    parser.add_argument("--section", type=str, default=None,
+                        help="Run ONE analytics section end-to-end (closed loop) and build a "
+                             "scoped deck for just its slides. Section id like 'txn.merchant' "
+                             "or 'ars.dctr' (see analytics/section_registry.py). Overrides --product.")
     parser.add_argument("--local-copy", type=str, default=None,
                         help="Optional folder path. After the deck is written to M:, also copy "
                              "it here so the operator gets a fast local copy without downloading "
@@ -411,11 +415,21 @@ def main():
 
     ctx.progress_callback = on_progress
 
-    # Run the pipeline based on --product flag
+    # Run the pipeline based on --product / --section flag
     product = args.product
     ctx.product = product  # so deck_builder names the PPTX correctly (was misdetecting as 'ars')
 
-    if product == "txn":
+    if args.section:
+        # Closed-loop single-section run: build only what this section needs and
+        # emit a scoped one-section deck (analytics/section_registry.py ids).
+        from runner import run_module
+        ctx.product = args.section.split(".", 1)[0] if "." in args.section else product
+        print(f"  Running single module: {args.section}")
+        print()
+
+        def runner_fn(c, _sid=args.section):
+            return run_module(c, _sid)
+    elif product == "txn":
         from runner import run_txn
         print("  Starting TXN pipeline...")
         print()

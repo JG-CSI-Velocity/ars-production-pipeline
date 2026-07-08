@@ -1,0 +1,113 @@
+"""run_module orchestration: it must build only the context a section needs,
+run a TXN section's resolved upstreams (then the section) or an ARS section's
+selected modules, and emit a scoped deck. Heavy analysis/deck calls are
+monkeypatched -- this verifies the wiring, not the analytics."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+
+import runner
+from shared.context import PipelineContext as SharedContext
+
+
+@dataclass
+class _FakeResult:
+    slide_id: str
+    title: str = "x"
+
+
+def _ctx(tmp_path):
+    return SharedContext(
+        client_id="1776", client_name="CoastHills CU", csm="JamesG",
+        analysis_date=date(2026, 6, 1), output_dir=tmp_path,
+    )
+
+
+class _FakeWrapper:
+    calls: list[str] = []
+
+    def __init__(self, name, path):
+        self.section_name = name
+        self.module_id = f"txn.{name}"
+        self.failures = []
+
+    def validate(self, ctx):
+        return []
+
+    def run(self, ctx, shared_namespace=None):
+        _FakeWrapper.calls.append(self.section_name)
+        return [_FakeResult(f"TXN-X-{self.section_name}")]
+
+
+def _patch_txn(monkeypatch, deck_calls):
+    import ars_analysis.analytics.txn_wrapper as tw
+    import ars_analysis.output.deck_builder as db
+
+    _FakeWrapper.calls = []
+    monkeypatch.setattr(runner, "_load_client_config", lambda cfg: cfg)
+    monkeypatch.setattr(runner, "_resolve_template_path", lambda: None)
+    monkeypatch.setattr(tw, "prepare_shared_namespace", lambda ctx: {})
+    monkeypatch.setattr(tw, "TXNSectionWrapper", _FakeWrapper)
+    monkeypatch.setattr(db, "build_scoped_deck",
+                        lambda ctx, section: deck_calls.append(section.section_id))
+
+
+def test_leaf_runs_only_itself(tmp_path, monkeypatch):
+    deck_calls: list[str] = []
+    _patch_txn(monkeypatch, deck_calls)
+
+    ctx = _ctx(tmp_path)
+    runner.run_module(ctx, "txn.ICS_cohort")
+
+    # ICS_cohort is a leaf -> no upstreams, only itself runs.
+    assert _FakeWrapper.calls == ["ICS_cohort"]
+    assert deck_calls == ["txn.ICS_cohort"]
+    assert [s.slide_id for s in ctx.all_slides] == ["TXN-X-ICS_cohort"]
+
+
+def test_coupled_runs_upstreams_first_but_scopes_to_target(tmp_path, monkeypatch):
+    deck_calls: list[str] = []
+    _patch_txn(monkeypatch, deck_calls)
+
+    ctx = _ctx(tmp_path)
+    runner.run_module(ctx, "txn.business_accts")
+
+    # general -> merchant -> business_accts, target last.
+    assert _FakeWrapper.calls[-1] == "business_accts"
+    assert "general" in _FakeWrapper.calls and "merchant" in _FakeWrapper.calls
+    assert _FakeWrapper.calls.index("general") < _FakeWrapper.calls.index("merchant")
+    # Only the TARGET section's slides go into the deck, not the upstreams'.
+    assert [s.slide_id for s in ctx.all_slides] == ["TXN-X-business_accts"]
+    assert deck_calls == ["txn.business_accts"]
+
+
+def test_ars_section_runs_overview_plus_selected(tmp_path, monkeypatch):
+    import ars_analysis.analytics.registry as reg
+    import ars_analysis.output.deck_builder as db
+    import ars_analysis.pipeline.steps.analyze as an
+    import ars_analysis.pipeline.steps.subsets as sub
+
+    selected: list[list[str]] = []
+    deck_calls: list[str] = []
+    monkeypatch.setattr(runner, "_load_client_config", lambda cfg: cfg)
+    monkeypatch.setattr(runner, "_resolve_template_path", lambda: None)
+    monkeypatch.setattr(reg, "load_all_modules", lambda: None)
+    monkeypatch.setattr(sub, "step_subsets", lambda ctx: None)
+
+    def _fake_selected(ctx, module_ids):
+        selected.append(list(module_ids))
+        ctx.all_slides.append(_FakeResult("DCTR-1"))
+
+    monkeypatch.setattr(an, "step_analyze_selected", _fake_selected)
+    monkeypatch.setattr(db, "build_scoped_deck",
+                        lambda ctx, section: deck_calls.append(section.section_id))
+
+    ctx = _ctx(tmp_path)
+    runner.run_module(ctx, "ars.dctr")
+
+    ids = selected[0]
+    assert any(m.startswith("overview.") for m in ids)   # foundational, always run
+    assert any(m.startswith("dctr.") for m in ids)       # the selected section
+    assert deck_calls == ["ars.dctr"]
