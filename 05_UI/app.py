@@ -633,15 +633,14 @@ async def module_counts():
     silently went stale as analytics cells were added or deleted -- which
     made real pipeline changes look like they hadn't landed."""
     analytics = Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts" / "analytics"
-    # Section dirs are stable; cells inside them are what churns.
-    txn_sections = [
-        "general", "merchant", "mcc_code", "business_accts", "personal_accts",
-        "competition", "financial_services", "ics_acquisition", "campaign",
-        "branch_txn", "transaction_type", "product", "attrition_txn", "balance",
-        "interchange", "rege_overdraft", "payroll", "relationship",
-        "segment_evolution", "retention", "engagement", "executive",
-    ]
-    ars_dirs = ["overview", "dctr", "rege", "attrition", "value", "mailer", "insights", "ics"]
+    # Derive the section list from the unified registry (single source of truth)
+    # rather than a hardcoded list that silently drifted -- it had omitted
+    # ICS_cohort and invented a phantom 'ics' folder.
+    sections = _list_sections()
+    txn_sections = [s["section_id"].split(".", 1)[1]
+                    for s in sections if s.get("product") == "txn"]
+    ars_dirs = [s["section_id"].split(".", 1)[1]
+                for s in sections if s.get("product") == "ars"]
 
     def _modules(d: str) -> int:
         p = analytics / d
