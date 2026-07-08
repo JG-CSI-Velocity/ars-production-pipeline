@@ -681,7 +681,6 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
             <div class="p-card on" onclick="selectProd('ars')"><div class="p-name">ARS Full Suite</div><div class="p-count">22</div><div class="p-unit">modules</div><div class="p-time">~ 15-25 min</div></div>
             <div class="p-card" onclick="selectProd('txn')"><div class="p-name">Transaction</div><div class="p-count">35</div><div class="p-unit">sections</div><div class="p-time">~ 20-35 min</div></div>
             <div class="p-card" onclick="selectProd('combined')"><div class="p-name">Combined</div><div class="p-count">57</div><div class="p-unit">ARS + TXN</div><div class="p-time">~ 35-55 min</div></div>
-            <div class="p-card" onclick="alert('Deposits analysis is coming soon — it has no backend yet.')" title="Coming soon — no backend yet" style="opacity:.5;cursor:not-allowed;"><div class="p-name">Deposits</div><div class="p-count">15</div><div class="p-unit">modules</div><div class="p-time">Coming soon</div></div>
         </div>
     </div>
 
@@ -1066,12 +1065,6 @@ const prodData = {
         { name:'Risk', count:5, desc:'Attrition, balance, retention, early warning.', mods:['Attrition','Balance','PFI Score','Retention','Early Warning'] },
         { name:'Executive', count:3, desc:'Scorecard, priorities, action roadmap.', mods:['Scorecard','Priorities','Roadmap'] },
     ]},
-    dep: { name:'Deposits', count:15, time:'10-20 min', groups: [
-        { name:'Baseline', count:4, desc:'Portfolio deposit metrics, tiers, segmentation.', mods:['Baseline','Tiers','Segmentation','Cross-check'] },
-        { name:'Campaign Impact', count:5, desc:'Did the mailer affect deposits? DID, segments, lift.', mods:['Response','Cohort DID','Segments','By Offer','By Segment'] },
-        { name:'Evidence', count:4, desc:'Distribution, trajectory, growth proof, NU conversion.', mods:['Distribution','Trajectory','Growth Proof','NU Conversion'] },
-        { name:'Presentation', count:2, desc:'Executive summary and presentation visuals.', mods:['Summary','Visuals'] },
-    ]},
 };
 
 let curProd = 'ars';
@@ -1080,7 +1073,7 @@ let selMods = new Set();
 function selectProd(key) {
     curProd = key;
     document.querySelectorAll('.p-card').forEach((c,i) => {
-        c.classList.toggle('on', ['ars','txn','dep','custom'][i] === key);
+        c.classList.toggle('on', ['ars','txn','combined'][i] === key);
     });
     renderModules();
 }

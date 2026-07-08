@@ -445,24 +445,9 @@ PRODUCTS = {
              "modules": ["Scorecard", "Priorities", "Roadmap"]},
         ],
     },
-    "dep": {
-        "name": "Deposits Analysis",
-        "count": 15,
-        "time": "10-20 min",
-        # No analysis backend yet -- surfaced so the UI can show it as
-        # "coming soon" and disable selection (start_run rejects it).
-        "available": False,
-        "groups": [
-            {"name": "Baseline", "count": 4, "desc": "Portfolio deposit metrics, tiers, segmentation.",
-             "modules": ["Baseline", "Tiers", "Segmentation", "Cross-check"]},
-            {"name": "Campaign Impact", "count": 5, "desc": "Response, cohort DID, segment analysis, deposit lift.",
-             "modules": ["Response", "Cohort DID", "Segments", "By Offer", "By Segment"]},
-            {"name": "Evidence", "count": 4, "desc": "Distribution, trajectory, growth proof.",
-             "modules": ["Distribution", "Trajectory", "Growth Proof", "NU Conversion"]},
-            {"name": "Presentation", "count": 2, "desc": "Executive summary and visuals.",
-             "modules": ["Summary", "Visuals"]},
-        ],
-    },
+    # Deposits ('dep') removed in Phase 3: it had no analysis backend and no
+    # near-term path, so it isn't advertised. Re-add here (and build the
+    # analytics + a run_dep runner) if/when Deposits ships.
 }
 
 

@@ -10,12 +10,12 @@ from ars_analysis.analytics import section_registry as sr
 
 _NUMBERED = re.compile(r"^\d+_.*\.py$")
 
-# Numbered-script folders intentionally NOT selectable sections:
-#  - txn_setup uses dash-numbered scripts (shared data producer, run once)
-#  - cross_cohort is a known orphan (12 scripts, absent from TXN_SECTIONS) that
-#    Phase 3 must wire or delete. If a NEW numbered folder appears here, that's
-#    drift and this test should fail so it gets a home.
-_KNOWN_NON_SECTIONS = {"cross_cohort"}
+# Numbered-script folders intentionally NOT selectable sections. txn_setup uses
+# dash-numbered scripts (shared data producer, run once) so it isn't matched by
+# _NUMBERED anyway. cross_cohort (the former orphan) was deleted in Phase 3.
+# If a NEW underscore-numbered folder appears unregistered, that's drift and
+# this test fails so it gets a home.
+_KNOWN_NON_SECTIONS: set[str] = set()
 
 
 def test_every_registered_section_has_a_folder():

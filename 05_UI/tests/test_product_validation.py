@@ -36,8 +36,9 @@ def test_run_accepts_supported_product_past_validation(app_module):
     assert resp.status_code != 400
 
 
-def test_products_marks_dep_unavailable(app_module):
+def test_deposits_product_removed(app_module):
+    """Deposits was removed in Phase 3 (no backend) -- it must not be advertised."""
     client = TestClient(app_module.app)
     products = client.get("/api/products").json()
-    assert products["dep"].get("available") is False
-    assert products["ars"].get("available", True) is not False
+    assert "dep" not in products
+    assert set(products) <= {"ars", "txn", "combined"}
