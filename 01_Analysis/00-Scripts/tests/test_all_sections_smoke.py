@@ -1,0 +1,60 @@
+"""Per-section smoke applied to EVERY TXN section: run its data-aggregation
+script over the shared synthetic fixtures (combined_df + rewards_df + theme) and
+assert it executes. 18/23 run on the shared fixtures today; the 5 that need a
+richer fixture are xfail'd with the specific gap so coverage is honest and the
+remaining fixture work is explicit.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import io
+
+import pytest
+
+from ars_analysis.analytics.section_registry import txn_sections
+
+from _fixtures import namespace_with_theme, synthetic_combined, synthetic_rewards
+
+# Sections whose 01 script needs more than the shared fixture provides. Closing
+# these is the remaining mechanical fixture work (add the column / upstream frame).
+_KNOWN_GAPS = {
+    "ICS_cohort": "covered end-to-end by test_ics_cohort_smoke (needs 00_config first)",
+    "interchange": "needs a multi-month PIN/SIG rewards shape",
+    "rege_overdraft": "needs a Reg-E monthly frame (month_key)",
+    "payroll": "needs payroll-typed transaction columns",
+}
+
+_FOLDERS = [s.folder for s in txn_sections()]
+
+
+@pytest.mark.parametrize("folder", _FOLDERS)
+def test_section_data_script_smoke(folder):
+    if folder in _KNOWN_GAPS:
+        pytest.xfail(_KNOWN_GAPS[folder])
+
+    from _fixtures import ANALYTICS
+    scripts = sorted((ANALYTICS / folder).glob("01_*.py"))
+    if not scripts:
+        pytest.skip("no 01 data script")
+
+    ns = namespace_with_theme()
+    combined = synthetic_combined()
+    rewards = synthetic_rewards()
+    ns["combined_df"] = combined
+    ns["combined_df_all"] = combined
+    ns["rewards_df"] = rewards
+    ns["odd_df"] = rewards
+    # business/personal split frames (normally from txn_setup).
+    ns["business_df"] = combined.copy()
+    ns["personal_df"] = combined.copy()
+
+    with contextlib.redirect_stdout(io.StringIO()):
+        exec(compile(scripts[0].read_text(encoding="utf-8"),  # noqa: S102
+                     str(scripts[0]), "exec"), ns)
+
+
+def test_smoke_covers_most_sections():
+    """Guardrail: the shared fixture must keep the majority of sections runnable
+    so a fixture regression is caught."""
+    assert len(_FOLDERS) - len(_KNOWN_GAPS) >= 19

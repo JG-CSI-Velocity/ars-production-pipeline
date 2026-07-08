@@ -14,6 +14,11 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
+# Make the tests dir importable so smoke tests can share tests/_fixtures.py.
+_TESTS_DIR = Path(__file__).resolve().parent
+if str(_TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_TESTS_DIR))
+
 # Same alias trick run.py uses to expose 00-Scripts/<pkg>/ as ars_analysis.<pkg>
 if "ars_analysis" not in sys.modules:
     _ars_pkg = types.ModuleType("ars_analysis")
