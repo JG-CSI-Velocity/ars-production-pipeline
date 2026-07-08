@@ -28,8 +28,13 @@ easy to troubleshoot and change.
 - **Stable slide ids — now ON by default for all sections** (keyed to the producing script, not capture order). No repo `slide_spec` binds to the old positional `TXN-<code>-NN` scheme (the TXN specs use semantic ids from `txn_exports`), so decks are unaffected; the only external step is a **one-time regeneration of any client `SLIDE_MANIFEST.xlsx`** keyed on old ids (they otherwise fall back to keep-all, the safe default). A section can opt back with `STABLE_SLIDE_IDS = False`.
 - Phase 3 decisions **made**: `cross_cohort` deleted, Deposits removed; `module_counts` drift retired.
 
-**Remaining — a real-client baseline diff (data-only):**
-- **Baseline diff on the M: box:** the pipeline is confirmed to *build* a full deck end-to-end (synthetic). The only thing left is to run `--product txn`/`combined` on one real client and diff the deck against a pre-refactor baseline — unchanged *by construction* (promotions re-run the same cells; no repo artifact binds positional ids), so this is a confirmation, and to regenerate any client `SLIDE_MANIFEST.xlsx` keyed on old ids. This needs client data, which isn't in the repo.
+**Remaining — a real-client baseline diff (data-only), now one command:**
+- **Baseline diff on the M: box:** the pipeline is confirmed to *build* a full deck end-to-end (synthetic). The only thing left is to run `--product txn`/`combined` on one real client and diff the deck against a pre-refactor baseline — unchanged *by construction* (promotions re-run the same cells; no repo artifact binds positional ids). This is now a single command:
+  ```
+  python 01_Analysis/00-Scripts/tools/baseline_diff.py \
+      --client 1776 --month 2026.06 --csm JamesG --baseline <pre-refactor-ref>
+  ```
+  It builds the current deck, checks the baseline ref out into a throwaway git worktree, builds that deck over the same client data, and diffs slide count + per-slide text/images. Exit 0 = identical (refactor output-safe). The diff logic (`diff_decks`) is unit-tested; only the build step needs the client data, which isn't in the repo. Also regenerate any client `SLIDE_MANIFEST.xlsx` keyed on old ids.
 
 ## The pieces (all built, all tested here)
 
