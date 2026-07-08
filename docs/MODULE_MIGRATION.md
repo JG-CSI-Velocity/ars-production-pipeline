@@ -23,14 +23,13 @@ easy to troubleshoot and change.
 - **Uniform `Module` contract over all 30 sections** (`analytics/module.py`), validated in CI.
 - **Shared-setup promotion of theme AND data producers** (`demo_df`, `acct_txn_counts`, `swipe_lookup`) — the dependency graph collapsed to **11 leaf sections**; campaign/attrition_txn/balance/merchant/product are now self-contained.
 - **Hard-fail** on missing section deps (no more silent incomplete decks).
-- **Per-module execution smoke over synthetic fixtures for ~47/49 modules** — 22/23 TXN sections + 25/26 ARS modules run end-to-end; 2 documented xfails (`payroll` fixture shape, `insights.dormant` aggregator).
+- **Per-module execution smoke over synthetic fixtures for ALL 49 modules** — 23/23 TXN sections + 26/26 ARS modules run end-to-end, no xfails. (Closing the last two surfaced a real pandas-3.x bug in `payroll/01` — a float64 `payroll_source` column rejecting string processor names — now fixed; `insights.dormant` now runs the real `step_subsets` in the smoke like a full run.)
 - **End-to-end full-deck build confirmed** (`test_full_deck_integration.py`): all TXN sections run over synthetic fixtures and `build_deck` assembles a real `_txn_deck.pptx` — the pieces compose into a working deck, not just per-unit smokes.
 - **Stable slide ids — now ON by default for all sections** (keyed to the producing script, not capture order). No repo `slide_spec` binds to the old positional `TXN-<code>-NN` scheme (the TXN specs use semantic ids from `txn_exports`), so decks are unaffected; the only external step is a **one-time regeneration of any client `SLIDE_MANIFEST.xlsx`** keyed on old ids (they otherwise fall back to keep-all, the safe default). A section can opt back with `STABLE_SLIDE_IDS = False`.
 - Phase 3 decisions **made**: `cross_cohort` deleted, Deposits removed; `module_counts` drift retired.
 
-**Remaining — a real-client baseline diff (data-only) + 2 small fixtures:**
+**Remaining — a real-client baseline diff (data-only):**
 - **Baseline diff on the M: box:** the pipeline is confirmed to *build* a full deck end-to-end (synthetic). The only thing left is to run `--product txn`/`combined` on one real client and diff the deck against a pre-refactor baseline — unchanged *by construction* (promotions re-run the same cells; no repo artifact binds positional ids), so this is a confirmation, and to regenerate any client `SLIDE_MANIFEST.xlsx` keyed on old ids. This needs client data, which isn't in the repo.
-- The 2 smoke xfails (payroll numeric-merchant-id shape, insights.dormant upstream results) — small section-specific fixtures.
 
 ## The pieces (all built, all tested here)
 

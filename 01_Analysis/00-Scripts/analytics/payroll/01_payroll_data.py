@@ -110,8 +110,11 @@ if _total_detected > 0 and has_merchant:
     _det_merchants = combined_df.loc[combined_df['payroll_detected'], 'merchant_consolidated']
     _upper = _det_merchants.str.upper().fillna('')
 
-    # Vectorized processor matching
-    combined_df['payroll_source'] = np.nan
+    # Vectorized processor matching. Init as object (not np.nan/float64): pandas
+    # 3.x refuses to set a string into a float column ("Invalid value 'ADP' for
+    # dtype 'float64'"), which killed the whole section for any client with a
+    # named payroll processor.
+    combined_df['payroll_source'] = pd.Series(pd.NA, index=combined_df.index, dtype="object")
     for proc in PAYROLL_PROCESSORS:
         _match = _upper.str.contains(proc, na=False)
         combined_df.loc[_match[_match].index, 'payroll_source'] = proc
