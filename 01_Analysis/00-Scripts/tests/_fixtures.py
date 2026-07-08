@@ -73,6 +73,7 @@ def synthetic_rewards() -> pd.DataFrame:
             "branch": f"BR{i % 3}",
             "Branch": f"BR{i % 3}",
             "DC Indicator": i % 2,
+            "Debit?": i % 2,
             "pin_count": i, "pin_dollars": 10.0 * i,
             "sig_count": i + 1, "sig_dollars": 12.0 * i,
         })
