@@ -24,12 +24,11 @@ easy to troubleshoot and change.
 - **Shared-setup promotion of theme AND data producers** (`demo_df`, `acct_txn_counts`, `swipe_lookup`) — the dependency graph collapsed to **11 leaf sections**; campaign/attrition_txn/balance/merchant/product are now self-contained.
 - **Hard-fail** on missing section deps (no more silent incomplete decks).
 - **Per-module execution smoke over synthetic fixtures for ~47/49 modules** — 22/23 TXN sections + 25/26 ARS modules run end-to-end; 2 documented xfails (`payroll` fixture shape, `insights.dormant` aggregator).
-- **Opt-in stable slide ids** mechanism.
+- **Stable slide ids — now ON by default for all sections** (keyed to the producing script, not capture order). No repo `slide_spec` binds to the old positional `TXN-<code>-NN` scheme (the TXN specs use semantic ids from `txn_exports`), so decks are unaffected; the only external step is a **one-time regeneration of any client `SLIDE_MANIFEST.xlsx`** keyed on old ids (they otherwise fall back to keep-all, the safe default). A section can opt back with `STABLE_SLIDE_IDS = False`.
 - Phase 3 decisions **made**: `cross_cohort` deleted, Deposits removed; `module_counts` drift retired.
 
-**Remaining — genuinely gated on real client data:**
-- **Rolling `STABLE_SLIDE_IDS` on by default** requires migrating each section's `docs/slide_specs/*.yml` and any client `SLIDE_MANIFEST.xlsx` in lockstep, and confirming the deck's copy still binds — only observable with a real deck.
-- **Final full-deck-unchanged sign-off** for the theme/data-producer promotions (unchanged *by construction* — general re-runs the same cells — but confirm against a real `--product txn`/`combined` run).
+**Remaining — one real-deck confirmation + 2 small fixtures:**
+- **Final full-deck confirmation on the M: box:** run `--product txn` (and `combined`) once and confirm the deck matches a pre-refactor baseline (unchanged *by construction* — promotions re-run the same cells and no repo artifact binds positional ids — but worth one real run), and regenerate any client `SLIDE_MANIFEST.xlsx` keyed on old ids.
 - The 2 smoke xfails (payroll numeric-merchant-id shape, insights.dormant upstream results) — small section-specific fixtures.
 
 ## The pieces (all built, all tested here)

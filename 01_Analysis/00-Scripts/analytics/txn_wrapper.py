@@ -473,14 +473,17 @@ class TXNSectionWrapper(AnalysisModule):
                 if key not in shared_namespace:
                     shared_namespace[key] = val
 
-        # Convert captured charts to AnalysisResult objects. A section can opt
-        # into STABLE slide ids (set STABLE_SLIDE_IDS = True in its config) so
-        # ids are keyed to the producing script, not section-wide capture order
-        # -- then adding/removing one script no longer renumbers every slide
-        # after it (which silently desynced SLIDE_MANIFEST.xlsx / slide_specs
-        # between full and scoped runs). Default stays positional, so decks that
-        # haven't migrated are byte-identical.
-        _stable = bool(namespace.get("STABLE_SLIDE_IDS"))
+        # Slide ids are keyed to the producing script (STABLE), not section-wide
+        # capture order, so adding/removing one script no longer renumbers every
+        # slide after it (which silently desynced SLIDE_MANIFEST.xlsx /
+        # slide_specs between full and scoped runs). This is now the default for
+        # ALL sections; no repo slide_spec binds to the old positional
+        # TXN-<code>-NN scheme (the TXN specs use semantic ids from
+        # txn_exports), so decks are unaffected. Client SLIDE_MANIFEST.xlsx files
+        # keyed on old positional ids must be regenerated once (they otherwise
+        # keep-all, the safe default). A section can opt back to positional with
+        # STABLE_SLIDE_IDS = False in its config.
+        _stable = namespace.get("STABLE_SLIDE_IDS", True)
         results = []
         for i, chart_path in enumerate(charts):
             slide_id = (_stable_slide_id(self.section_code, self.section_name, chart_path)
