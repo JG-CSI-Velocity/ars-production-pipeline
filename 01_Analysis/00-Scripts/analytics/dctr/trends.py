@@ -133,7 +133,9 @@ class DCTRTrends(AnalysisModule):
                     ax.set_xticks(x_pos)
                     ax.set_xticklabels(cats, fontsize=13)
                     ax.tick_params(axis="y", labelsize=13)
-                    ax.set_ylim(0, max(vals) * 1.2 if vals else 100)
+                    # `... or 100`: guard the all-zero case too (empty -> 100
+                    # already; max()==0 would give a degenerate ylim(0,0)).
+                    ax.set_ylim(0, (max(vals) * 1.2 if vals else 100) or 100)
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
                     ax.spines["top"].set_visible(False)
                     ax.spines["right"].set_visible(False)
@@ -201,7 +203,7 @@ class DCTRTrends(AnalysisModule):
                     total_vol = d1["Total Accounts"].values
                     ax2.bar(x, total_vol, alpha=0.2, color="gray", edgecolor="none", width=0.8)
                     ax2.set_ylabel("Account Volume", fontsize=24, color="gray")
-                    max_vol = max(total_vol) if len(total_vol) > 0 else 100
+                    max_vol = (max(total_vol) if len(total_vol) > 0 else 100) or 100
                     ax2.set_ylim(0, max_vol * 1.3)
                     ax2.tick_params(axis="y", colors="gray", labelsize=24)
 
@@ -255,7 +257,7 @@ class DCTRTrends(AnalysisModule):
                     ax.set_title(
                         "Historical DCTR Trend by Decade", fontsize=24, fontweight="bold", pad=20
                     )
-                    ax.set_ylim(0, min(110, max(overall) * 1.15) if len(overall) > 0 else 100)
+                    ax.set_ylim(0, (min(110, max(overall) * 1.15) if len(overall) > 0 else 100) or 100)
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{int(x)}%"))
                     ax.tick_params(axis="y", labelsize=24)
                     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=18)
@@ -638,7 +640,7 @@ class DCTRTrends(AnalysisModule):
                     ax.set_ylabel("DCTR (%)", fontsize=16)
                     ax.set_title("DCTR Seasonality Analysis", fontsize=20, fontweight="bold")
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
-                    ax.set_ylim(0, max(vals) * 1.15 if len(vals) > 0 else 100)
+                    ax.set_ylim(0, (max(vals) * 1.15 if len(vals) > 0 else 100) or 100)
                     ax.spines["top"].set_visible(False)
                     ax.spines["right"].set_visible(False)
                     ax.set_axisbelow(True)
@@ -743,7 +745,7 @@ class DCTRTrends(AnalysisModule):
                         "DCTR by Account Age (Vintage Curve)", fontweight="bold", fontsize=18
                     )
                     dctr_vals = vintage_df["DCTR %"].values
-                    ax.set_ylim(0, max(dctr_vals) * 1.15 if len(dctr_vals) > 0 else 100)
+                    ax.set_ylim(0, (max(dctr_vals) * 1.15 if len(dctr_vals) > 0 else 100) or 100)
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
                     ax.grid(axis="y", alpha=0.3, linestyle="--")
                     ax.set_axisbelow(True)

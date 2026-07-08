@@ -472,7 +472,7 @@ class DCTRPenetration(AnalysisModule):
                         ax.set_title(
                             "Personal vs Business DCTR", fontsize=24, fontweight="bold", pad=20
                         )
-                        ax.set_ylim(0, max(vals) * 1.15)
+                        ax.set_ylim(0, (max(vals) * 1.15 if vals else 100) or 100)
                         ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
                         ax.tick_params(axis="both", labelsize=18)
                         ax.spines["top"].set_visible(False)

@@ -107,7 +107,7 @@ class DCTRBranches(AnalysisModule):
                     ax.set_axisbelow(True)
                 chart_path = save_to
             except Exception as exc:
-                logger.warning("A7.10c chart failed: {err}", err=exc)
+                logger.warning("DCTR-9 chart failed: {err}", err=exc)
 
         return [
             AnalysisResult(
