@@ -26,7 +26,8 @@ def synthetic_combined() -> pd.DataFrame:
     identity (merchant_consolidated, primary_account_num/account_number),
     time (year_month, transaction_date), money (amount), and category/branch
     (mcc_code, transaction_type, branch)."""
-    merchants = [f"MERCHANT {i}" for i in range(8)]
+    # Include a payroll-processor merchant so the payroll section has matches.
+    merchants = [f"MERCHANT {i}" for i in range(7)] + ["ADP PAYROLL"]
     months = [f"2026-{m:02d}" for m in range(1, 13)]
     rows = []
     for mi, mer in enumerate(merchants):
@@ -56,7 +57,7 @@ def synthetic_rewards() -> pd.DataFrame:
     rows = []
     for i in range(n):
         acct = f"A{i:03d}"
-        rows.append({
+        row = {
             "account_number": acct,
             "primary_account_num": acct,
             "Acct Number": acct,
@@ -76,7 +77,18 @@ def synthetic_rewards() -> pd.DataFrame:
             "Debit?": i % 2,
             "pin_count": i, "pin_dollars": 10.0 * i,
             "sig_count": i + 1, "sig_dollars": 12.0 * i,
-        })
+        }
+        # Wide monthly columns the interchange / rege sections discover by regex
+        # (e.g. "Jan26 PIN $", "Feb26 Reg E Code").
+        for mon in ("Jan26", "Feb26", "Mar26"):
+            row[f"{mon} PIN $"] = 5.0 * i
+            row[f"{mon} Sig $"] = 6.0 * i
+            row[f"{mon} PIN #"] = i
+            row[f"{mon} Sig #"] = i + 1
+            row[f"{mon} Reg E Code"] = ["Y", "N", ""][i % 3]
+            row[f"{mon} Reg E Desc"] = ["Opted In", "Opted Out", ""][i % 3]
+            row[f"{mon} OD Limit"] = 500.0
+        rows.append(row)
     return pd.DataFrame(rows)
 
 

@@ -19,9 +19,7 @@ from _fixtures import namespace_with_theme, synthetic_combined, synthetic_reward
 # Sections whose 01 script needs more than the shared fixture provides. Closing
 # these is the remaining mechanical fixture work (add the column / upstream frame).
 _KNOWN_GAPS = {
-    "interchange": "needs a multi-month PIN/SIG rewards shape",
-    "payroll": "needs payroll-typed transaction columns",
-    "rege_overdraft": "needs a Reg-E monthly frame with its own month_key",
+    "payroll": "needs a numeric merchant-id column shape (payroll processor rows)",
 }
 
 _FOLDERS = [s.folder for s in txn_sections()]
@@ -60,4 +58,4 @@ def test_section_data_script_smoke(folder):
 def test_smoke_covers_most_sections():
     """Guardrail: the shared fixture must keep the majority of sections runnable
     so a fixture regression is caught."""
-    assert len(_FOLDERS) - len(_KNOWN_GAPS) >= 20
+    assert len(_FOLDERS) - len(_KNOWN_GAPS) >= 22
