@@ -473,10 +473,18 @@ class TXNSectionWrapper(AnalysisModule):
                 if key not in shared_namespace:
                     shared_namespace[key] = val
 
-        # Convert captured charts to AnalysisResult objects
+        # Convert captured charts to AnalysisResult objects. A section can opt
+        # into STABLE slide ids (set STABLE_SLIDE_IDS = True in its config) so
+        # ids are keyed to the producing script, not section-wide capture order
+        # -- then adding/removing one script no longer renumbers every slide
+        # after it (which silently desynced SLIDE_MANIFEST.xlsx / slide_specs
+        # between full and scoped runs). Default stays positional, so decks that
+        # haven't migrated are byte-identical.
+        _stable = bool(namespace.get("STABLE_SLIDE_IDS"))
         results = []
         for i, chart_path in enumerate(charts):
-            slide_id = f"TXN-{self.section_code}-{i+1:02d}"
+            slide_id = (_stable_slide_id(self.section_code, self.section_name, chart_path)
+                        if _stable else f"TXN-{self.section_code}-{i+1:02d}")
             results.append(AnalysisResult(
                 slide_id=slide_id,
                 title=f"{self.display_name}: {chart_path.stem.replace('_', ' ')}",
@@ -755,6 +763,17 @@ def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> 
                 before=before, after=after,
                 pct=(after / before * 100) if before > 0 else 0,
             )
+
+
+def _stable_slide_id(section_code: str, section_name: str, chart_path) -> str:
+    """A slide id keyed to the producing script + figure index, derived from the
+    captured PNG name (``{section}_{script}_{NN}.png``), instead of section-wide
+    capture order. Stable across adding/removing sibling scripts."""
+    stem = chart_path.stem
+    prefix = f"{section_name}_"
+    if stem.startswith(prefix):
+        stem = stem[len(prefix):]
+    return f"TXN-{section_code}-{stem}"
 
 
 def _load_shared_theme(namespace: dict[str, Any]) -> None:
