@@ -1517,6 +1517,24 @@ OVERVIEW_MERGES = [
     ("A3", "A1b", "Program Eligibility & Product Mix"),
 ]
 
+# Per-section consolidation rules a scoped (per-module) deck reuses so it matches
+# the full report: (skip_ids, merges, appendix_ids). Keyed by section.folder.
+# build_scoped_deck runs _consolidate() with these so paired slides (e.g. the
+# DCTR funnel A7.7+A7.8) merge into one 2x1 and detail slides drop to an appendix,
+# instead of shipping as bare single slides. Sections not listed here (and every
+# TXN section -- already single slides) pass through unconsolidated. Mailer has its
+# own consolidator (_consolidate_mailer) and is handled separately.
+_SCOPED_CONSOLIDATION = {
+    "overview":  (OVERVIEW_SKIP_IDS, OVERVIEW_MERGES, set()),
+    "dctr":      (DCTR_SKIP_IDS, DCTR_MERGES, DCTR_APPENDIX_IDS),
+    "rege":      (set(), REGE_MERGES, REGE_APPENDIX_IDS),
+    "attrition": (set(), ATTRITION_MERGES, ATTRITION_APPENDIX_IDS),
+}
+
+# Value slides the full deck distributes into a section's main body (A11.1 -> DCTR,
+# A11.2 -> Reg E). A scoped deck for that section pulls the same one in.
+_SCOPED_VALUE_SLIDE = {"dctr": "A11.1", "rege": "A11.2"}
+
 
 def _consolidate(slides, merges, appendix_ids):
     """Merge paired slides and separate appendix slides.
@@ -2356,13 +2374,39 @@ def build_scoped_deck(ctx: PipelineContext, section) -> Path | None:
         return None
 
     _ctx_results = ctx.results if ctx else {}
-    body: list[SlideContent] = []
-    for item in picked:
-        sc = item if isinstance(item, SlideContent) else _result_to_slide(
-            item, ctx_results=_ctx_results)
-        if sc:
-            body.append(sc)
-    if not body:
+
+    # Consolidate exactly as build_deck does for this section, so the module deck
+    # matches the full report: merge paired slides (the DCTR funnel 2x1, etc.),
+    # attach the funnel narrative, and split detail slides into an appendix.
+    # Sections without a rule (and all TXN sections) pass through unchanged.
+    appendix_raw: list = []
+    if section.product == "ars" and section.folder == "mailer":
+        main_raw, appendix_raw = _consolidate_mailer(picked)
+    elif section.product == "ars" and section.folder in _SCOPED_CONSOLIDATION:
+        skip_ids, merges, appendix_ids = _SCOPED_CONSOLIDATION[section.folder]
+        kept = [r for r in picked if getattr(r, "slide_id", "") not in skip_ids]
+        main_raw, appendix_raw = _consolidate(kept, merges, appendix_ids)
+        if section.folder == "dctr":
+            _attach_funnel_narrative(main_raw, _ctx_results)
+        value_id = _SCOPED_VALUE_SLIDE.get(section.folder)
+        if value_id:
+            main_raw += [s for s in ctx.all_slides
+                         if getattr(s, "slide_id", "") == value_id]
+    else:
+        main_raw = picked
+
+    def _convert(items) -> list[SlideContent]:
+        out: list[SlideContent] = []
+        for item in items:
+            sc = item if isinstance(item, SlideContent) else _result_to_slide(
+                item, ctx_results=_ctx_results)
+            if sc:
+                out.append(sc)
+        return out
+
+    body = _convert(main_raw)
+    appendix = _convert(appendix_raw)
+    if not body and not appendix:
         logger.warning("Scoped deck: all slides for {sid} were dropped/empty",
                        sid=section.section_id)
         return None
@@ -2377,9 +2421,17 @@ def build_scoped_deck(ctx: PipelineContext, section) -> Path | None:
         slide_type="section", title=section.display_name, layout_index=LAYOUT_SECTION,
     )
     final_slides = [title, divider] + body
+    if appendix:
+        final_slides.append(SlideContent(
+            slide_type="section", title="Appendix", layout_index=LAYOUT_SECTION,
+        ))
+        final_slides.extend(appendix)
 
+    # Flat per-client modules folder: all module decks land directly in
+    # <pptx_dir>/modules/ (the filename already makes each unique) -- no extra
+    # per-module subfolder. run.py mirrors this relative path into 02_Presentations.
     safe_id = section.section_id.replace(".", "_")
-    out_dir = ctx.paths.pptx_dir / "modules" / safe_id
+    out_dir = ctx.paths.pptx_dir / "modules"
     out_dir.mkdir(parents=True, exist_ok=True)
     output_path = out_dir / f"{ctx.client.client_id}_{month}_{safe_id}_deck.pptx"
 
