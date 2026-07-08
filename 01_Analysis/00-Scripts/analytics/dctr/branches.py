@@ -13,6 +13,7 @@ from matplotlib.ticker import FuncFormatter
 
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.dctr._helpers import (
+    as_of_ts,
     branch_dctr,
     categorize_account_age,
     dctr,
@@ -132,7 +133,7 @@ class DCTRBranches(AnalysisModule):
         bm = getattr(ctx.settings, "branch_mapping", None) if ctx.settings else None
         dc = ed.copy()
         dc["Date Opened"] = pd.to_datetime(dc["Date Opened"], errors="coerce", format="mixed")
-        dc["Account Age Days"] = (pd.Timestamp.now() - dc["Date Opened"]).dt.days
+        dc["Account Age Days"] = (as_of_ts(ctx) - dc["Date Opened"]).dt.days
         dc["Branch"] = dc["Branch"].astype(str)
         if bm:
             str_bm = {str(k): v for k, v in bm.items()}

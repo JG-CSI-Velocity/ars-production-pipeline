@@ -83,6 +83,15 @@ def total_row(df: pd.DataFrame, label_col: str, label: str = "TOTAL") -> pd.Data
 # -- Categorization functions ------------------------------------------------
 
 
+def as_of_ts(ctx) -> pd.Timestamp:
+    """As-of timestamp for account-age math: the report end date, so ages (and
+    the age buckets built from them) are reproducible for a given reporting
+    period instead of drifting with the wall clock on re-runs. Falls back to
+    now() only when the pipeline has no end_date set."""
+    ed = getattr(ctx, "end_date", None)
+    return pd.Timestamp(ed) if ed is not None else pd.Timestamp.now()
+
+
 def categorize_account_age(days: float) -> str:
     if pd.isna(days):
         return "Unknown"
@@ -152,10 +161,11 @@ def simplify_account_age(age_range: str) -> str:
 def map_to_decade(year: float) -> str | None:
     if pd.isna(year):
         return None
-    recent = list(range(2020, 2027))
+    # Show the current decade (2020s) onward year-by-year; group older years by
+    # decade. Era-relative so it never hits a hardcoded cliff (was range(2020,2027)).
     if year < 1970:
         return "Before 1970"
-    if int(year) in recent:
+    if int(year) >= 2020:
         return str(int(year))
     return f"{(int(year) // 10) * 10}s"
 
@@ -260,7 +270,10 @@ def analyze_historical_dctr(
     decade = pd.DataFrame(drows)
 
     t_all, w_all, o_dctr = dctr(valid)
-    recent = valid[valid["Year"].isin([2023, 2024, 2025, 2026])]
+    # "Recent" = the last 4 years present in the data (was hardcoded 2023-2026,
+    # which silently stops updating). Data-relative, so it always tracks.
+    _max_year = int(valid["Year"].max())
+    recent = valid[valid["Year"] >= _max_year - 3]
     _, _, r_dctr = dctr(recent) if len(recent) else (0, 0, 0)
 
     return (

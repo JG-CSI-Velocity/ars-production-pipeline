@@ -15,6 +15,7 @@ from ars_analysis.analytics.dctr._helpers import (
     AGE_ORDER,
     BALANCE_ORDER,
     HOLDER_AGE_ORDER,
+    as_of_ts,
     by_dimension,
     categorize_account_age,
     categorize_balance,
@@ -63,7 +64,7 @@ class DCTROverlays(AnalysisModule):
 
         dc = ed.copy()
         dc["Date Opened"] = pd.to_datetime(dc["Date Opened"], errors="coerce", format="mixed")
-        dc["Account Age Days"] = (pd.Timestamp.now() - dc["Date Opened"]).dt.days
+        dc["Account Age Days"] = (as_of_ts(ctx) - dc["Date Opened"]).dt.days
         df, ins = by_dimension(
             dc, "Account Age Days", categorize_account_age, AGE_ORDER, "Account Age"
         )
@@ -360,7 +361,7 @@ class DCTROverlays(AnalysisModule):
 
         dc = ed.copy()
         dc["Date Opened"] = pd.to_datetime(dc["Date Opened"], errors="coerce", format="mixed")
-        dc["Account Age Days"] = (pd.Timestamp.now() - dc["Date Opened"]).dt.days
+        dc["Account Age Days"] = (as_of_ts(ctx) - dc["Date Opened"]).dt.days
         dc["Avg Bal"] = pd.to_numeric(dc["Avg Bal"], errors="coerce")
         valid = dc[dc["Account Age Days"].notna() & dc["Avg Bal"].notna()].copy()
 

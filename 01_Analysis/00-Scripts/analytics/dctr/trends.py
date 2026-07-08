@@ -12,6 +12,7 @@ from matplotlib.ticker import FuncFormatter
 
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.dctr._helpers import (
+    as_of_ts,
     dctr,
     filter_l12m,
     l12m_month_labels,
@@ -675,7 +676,7 @@ class DCTRTrends(AnalysisModule):
         if valid.empty:
             return []
 
-        valid["Account Age Days"] = (pd.Timestamp.now() - valid["Date Opened"]).dt.days
+        valid["Account Age Days"] = (as_of_ts(ctx) - valid["Date Opened"]).dt.days
         valid["Year"] = valid["Date Opened"].dt.year
 
         vintage_buckets = [
