@@ -585,22 +585,38 @@ _SECTIONS_CACHE: dict = {}
 def _list_sections() -> list[dict]:
     """The unified section registry (for the module picker). Runs the analysis
     lister as a subprocess so the web server doesn't import the heavy analytics
-    stack; cached for the process lifetime."""
-    if _SECTIONS_CACHE.get("data") is not None:
-        return _SECTIONS_CACHE["data"]
+    stack.
+
+    Only a SUCCESSFUL (non-empty) result is cached -- a transient subprocess
+    failure must not pin the picker to an empty list for the process lifetime
+    (that was the "dropdown shows nothing" bug). On failure we log the reason
+    and return [] so the next call (the UI's Retry) can recover.
+    """
+    cached = _SECTIONS_CACHE.get("data")
+    if cached:
+        return cached
     lister = ANALYSIS_BASE / "00-Scripts" / "tools" / "list_sections.py"
-    data: list[dict] = []
-    if lister.exists():
-        try:
-            proc = subprocess.run(
-                [sys.executable, str(lister)],
-                capture_output=True, text=True, timeout=60,
-            )
-            if proc.returncode == 0:
-                data = json.loads(proc.stdout)
-        except (subprocess.SubprocessError, ValueError, OSError):
-            data = []
-    _SECTIONS_CACHE["data"] = data
+    if not lister.exists():
+        print(f"  /api/modules: lister not found at {lister}")
+        return []
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(lister)],
+            capture_output=True, text=True, timeout=60,
+        )
+    except (subprocess.SubprocessError, OSError) as exc:
+        print(f"  /api/modules: lister failed to run: {exc}")
+        return []
+    if proc.returncode != 0:
+        print(f"  /api/modules: lister exited {proc.returncode}: {proc.stderr.strip()[:300]}")
+        return []
+    try:
+        data = json.loads(proc.stdout)
+    except ValueError as exc:
+        print(f"  /api/modules: lister output not JSON: {exc}")
+        return []
+    if data:
+        _SECTIONS_CACHE["data"] = data  # cache only on success
     return data
 
 

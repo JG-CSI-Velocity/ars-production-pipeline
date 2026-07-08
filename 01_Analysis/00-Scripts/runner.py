@@ -687,7 +687,11 @@ def run_module(ctx: SharedContext, section_id: str) -> dict[str, SharedResult]:
                                      f.script_name, f.error_type, f.error_msg[:120])
 
     if ars_ctx.all_slides:
-        build_scoped_deck(ars_ctx, section)
+        deck = build_scoped_deck(ars_ctx, section)
+        if deck:
+            # Parseable stdout line so the UI (which polls the run log) can show
+            # and link the finished per-module deck.
+            print(f"  MODULE DECK: {deck}")
     else:
         logger.warning("Module %s produced no slides -- no deck built", section_id)
 
