@@ -19,8 +19,9 @@ from ars_analysis.analytics.dctr._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import BUSINESS, HISTORICAL, NEUTRAL, PERSONAL, PRIMARY, TEAL, TTM
+from ars_analysis.charts.style import BUSINESS, HISTORICAL, NEGATIVE, NEUTRAL, PERSONAL, PRIMARY, TEAL, TTM
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -117,7 +118,7 @@ class DCTRTrends(AnalysisModule):
                         x_pos,
                         vals,
                         color=colors,
-                        edgecolor="black",
+                        edgecolor=BRAND["text"],
                         linewidth=2,
                         alpha=0.9,
                         width=0.6,
@@ -144,7 +145,7 @@ class DCTRTrends(AnalysisModule):
 
                     # Summary badge
                     sign = "+" if p_trend >= 0 else ""
-                    badge_color = TEAL if p_trend >= 0 else "#E74C3C"
+                    badge_color = TEAL if p_trend >= 0 else NEGATIVE
                     ax.text(
                         0.98,
                         0.95,
@@ -157,7 +158,7 @@ class DCTRTrends(AnalysisModule):
                         color=badge_color,
                         bbox={
                             "boxstyle": "round,pad=0.4",
-                            "facecolor": "#E8F4FD",
+                            "facecolor": BRAND["light_gray"],
                             "edgecolor": badge_color,
                         },
                     )
@@ -202,16 +203,16 @@ class DCTRTrends(AnalysisModule):
                 with chart_figure(figsize=(16, 8), save_path=save_to) as (fig, ax):
                     ax2 = ax.twinx()
                     total_vol = d1["Total Accounts"].values
-                    ax2.bar(x, total_vol, alpha=0.2, color="gray", edgecolor="none", width=0.8)
-                    ax2.set_ylabel("Account Volume", fontsize=24, color="gray")
+                    ax2.bar(x, total_vol, alpha=0.2, color=NEUTRAL, edgecolor="none", width=0.8)
+                    ax2.set_ylabel("Account Volume", fontsize=24, color=NEUTRAL)
                     max_vol = (max(total_vol) if len(total_vol) > 0 else 100) or 100
                     ax2.set_ylim(0, max_vol * 1.3)
-                    ax2.tick_params(axis="y", colors="gray", labelsize=24)
+                    ax2.tick_params(axis="y", colors=NEUTRAL, labelsize=24)
 
                     ax.plot(
                         x,
                         overall,
-                        color="black",
+                        color=BRAND["text"],
                         linewidth=3,
                         linestyle="--",
                         marker="o",
@@ -525,7 +526,7 @@ class DCTRTrends(AnalysisModule):
                             label="Personal",
                             color=PERSONAL,
                             alpha=0.9,
-                            edgecolor="black",
+                            edgecolor=BRAND["text"],
                             linewidth=2,
                         )
                         ax.bar(
@@ -535,7 +536,7 @@ class DCTRTrends(AnalysisModule):
                             label="Business",
                             color=BUSINESS,
                             alpha=0.9,
-                            edgecolor="black",
+                            edgecolor=BRAND["text"],
                             linewidth=2,
                         )
                     else:
@@ -546,7 +547,7 @@ class DCTRTrends(AnalysisModule):
                             label="Personal",
                             color=PERSONAL,
                             alpha=0.9,
-                            edgecolor="black",
+                            edgecolor=BRAND["text"],
                             linewidth=2,
                         )
 

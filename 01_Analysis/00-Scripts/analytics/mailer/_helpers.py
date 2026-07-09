@@ -10,8 +10,10 @@ import re
 import pandas as pd
 from loguru import logger
 
-from ars_analysis.analytics.base import AnalysisResult
+from ars_analysis.analytics.base import AnalysisResult, as_of_ts
+from ars_analysis.charts.style import NEGATIVE, POSITIVE
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 # ---------------------------------------------------------------------------
 # Segment constants
@@ -27,13 +29,13 @@ SWIPE_PATTERN = re.compile(r"^[A-Z][a-z]{2}\d{2} Swipes$")
 
 # Segment colors (shared across all mailer modules)
 SEGMENT_COLORS: dict[str, str] = {
-    "No-Mail": "#F5F5F5",
+    "No-Mail": BRAND["light_gray"],
     "Non-Responders": "#404040",
-    "NU 5+": "#E74C3C",
-    "NU": "#E74C3C",
+    "NU 5+": NEGATIVE,
+    "NU": NEGATIVE,
     "TH-10": "#3498DB",
-    "TH-15": "#2ECC71",
-    "TH-20": "#F39C12",
+    "TH-15": POSITIVE,
+    "TH-20": BRAND["gold"],
     "TH-25": "#9B59B6",
 }
 
@@ -70,10 +72,10 @@ SCORE_MAP: dict[str, int] = {
 SUCCESSFUL_TIERS = ["NU 5+", "TH-10", "TH-15", "TH-20", "TH-25"]
 
 MOVEMENT_COLORS: dict[str, str] = {
-    "First": "#2E7D32",
+    "First": POSITIVE,
     "Up": "#1976D2",
-    "Same": "#FBC02D",
-    "Down": "#C62828",
+    "Same": BRAND["gold"],
+    "Down": NEGATIVE,
 }
 
 # Member-age buckets (from DOB)
@@ -446,7 +448,7 @@ def compute_inside_numbers(
     # 1. Account age <2yr (existing)
     if do_full is not None:
         do = do_full.loc[responders.index]
-        age_years = (pd.Timestamp.now() - do).dt.days / 365.25
+        age_years = (as_of_ts(ctx) - do).dt.days / 365.25
         under_2 = int((age_years < 2).sum())
         pct = under_2 / n_resp * 100
         metrics.append((f"{pct:.0f}%", "of Responders were accounts opened fewer than 2 years ago"))

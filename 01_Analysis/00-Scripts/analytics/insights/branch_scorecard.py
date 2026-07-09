@@ -16,8 +16,9 @@ from loguru import logger
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import NEGATIVE, POSITIVE, PRIMARY, TEAL
+from ars_analysis.charts.style import NEGATIVE, NEUTRAL, POSITIVE, PRIMARY, TEAL
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 MIN_BRANCHES = 3
 
@@ -182,14 +183,14 @@ def _draw_scorecard(ax, branch_df: pd.DataFrame) -> str:
     # Color helper
     def _rate_color(val, metric):
         if metric == "attrition":
-            return POSITIVE if val < 0.10 else NEGATIVE if val > 0.20 else "#555"
-        return POSITIVE if val > 0.60 else NEGATIVE if val < 0.30 else "#555"
+            return POSITIVE if val < 0.10 else NEGATIVE if val > 0.20 else NEUTRAL
+        return POSITIVE if val > 0.60 else NEGATIVE if val < 0.30 else NEUTRAL
 
     # Data rows
     for ri, (_, row) in enumerate(branch_df.iterrows()):
         y = y_start - (ri + 1.5) * row_height
 
-        ax.text(col_x[0], y, row["branch"][:18], fontsize=12, va="center", color="#333")
+        ax.text(col_x[0], y, row["branch"][:18], fontsize=12, va="center", color=BRAND["text"])
         ax.text(
             col_x[1],
             y,
@@ -217,7 +218,7 @@ def _draw_scorecard(ax, branch_df: pd.DataFrame) -> str:
             fontweight="bold",
             color=_rate_color(row["attrition_rate"], "attrition"),
         )
-        ax.text(col_x[4], y, f"{row['n_accounts']:,}", fontsize=12, va="center", color="#555")
+        ax.text(col_x[4], y, f"{row['n_accounts']:,}", fontsize=12, va="center", color=BRAND["muted"])
         ax.text(
             col_x[5],
             y,
@@ -235,7 +236,7 @@ def _draw_scorecard(ax, branch_df: pd.DataFrame) -> str:
                     (0.01, y - row_height / 2),
                     0.98,
                     row_height,
-                    facecolor="#F0F4F8",
+                    facecolor=BRAND["light_gray"],
                     edgecolor="none",
                 )
             )

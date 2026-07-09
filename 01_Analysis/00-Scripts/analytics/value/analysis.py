@@ -12,9 +12,10 @@ from matplotlib.patches import Rectangle
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.rege._helpers import detect_reg_e_column
 from ars_analysis.analytics.registry import register
-from ars_analysis.charts.guards import chart_figure
+from ars_analysis.charts.guards import chart_figure, label_color_for
 from ars_analysis.charts.style import PRIMARY
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 from ars_analysis.shared.debit import (
     DEBIT_YES_VALUES,
     detect_debit_col as _canonical_detect_debit_col,
@@ -84,7 +85,7 @@ def _draw_value_slide(
     ax_left = fig.add_axes([0.02, 0.05, 0.48, 0.90])
     ax_left.set_xlim(0, 10)
     ax_left.set_ylim(0, 10)
-    ax_left.set_facecolor("#F8FAFC")
+    ax_left.set_facecolor(BRAND["light_gray"])
     ax_left.axis("off")
 
     # Column header backgrounds
@@ -116,7 +117,7 @@ def _draw_value_slide(
 
     n_rows = len(row_data)
     for i, (y_pos, label, with_val, without_val) in enumerate(row_data):
-        ax_left.text(2.5, y_pos, label, fontsize=16, color="#333333", va="center", ha="right")
+        ax_left.text(2.5, y_pos, label, fontsize=16, color=BRAND["text"], va="center", ha="right")
         is_last = i == n_rows - 1
         if is_last:
             c1 = c2 = HIGHLIGHT_COLOR
@@ -130,7 +131,7 @@ def _draw_value_slide(
             y_pos,
             with_val,
             fontsize=18,
-            color="white",
+            color=label_color_for(c1),
             ha="center",
             va="center",
             fontweight="500",
@@ -143,7 +144,7 @@ def _draw_value_slide(
             y_pos,
             without_val,
             fontsize=18,
-            color="white",
+            color=label_color_for(c2),
             ha="center",
             va="center",
             fontweight="500",
@@ -153,7 +154,7 @@ def _draw_value_slide(
             ax_left.plot(
                 [2.5, 8.5],
                 [y_pos - 0.75, y_pos - 0.75],
-                color="#CCCCCC",
+                color=BRAND["muted"],
                 linewidth=1,
                 linestyle="--",
             )
@@ -162,7 +163,7 @@ def _draw_value_slide(
     ax_right = fig.add_axes([0.52, 0.05, 0.46, 0.90])
     ax_right.set_xlim(0, 10)
     ax_right.set_ylim(0, 10)
-    ax_right.set_facecolor("#F8FAFC")
+    ax_right.set_facecolor(BRAND["light_gray"])
     ax_right.axis("off")
 
     awo = impact.get("awo", 0)
@@ -183,9 +184,9 @@ def _draw_value_slide(
         ("Accounts without feature", f"{awo:,}"),
         ("Revenue delta per account", f"${delta:.2f}"),
     ]:
-        ax_right.text(5, y, label, fontsize=14, color="#666666", ha="center")
+        ax_right.text(5, y, label, fontsize=14, color=BRAND["text_muted"], ha="center")
         y -= 0.5
-        ax_right.text(5, y, value, fontsize=24, fontweight="bold", color="#333333", ha="center")
+        ax_right.text(5, y, value, fontsize=24, fontweight="bold", color=BRAND["text"], ha="center")
         y -= 1.0
 
     ax_right.text(
@@ -194,7 +195,7 @@ def _draw_value_slide(
         "Estimated Revenue Opportunity",
         fontsize=18,
         fontweight="bold",
-        color="#005072",
+        color=PRIMARY,
         ha="center",
     )
     y -= 0.9
@@ -207,7 +208,7 @@ def _draw_value_slide(
     for label, value, is_key in scenarios:
         ax_right.text(5, y, label, fontsize=14, color="#666666", ha="center")
         y -= 0.5
-        color = "#005072" if is_key else "#333333"
+        color = PRIMARY if is_key else BRAND["text"]
         ax_right.text(5, y, value, fontsize=24, fontweight="bold", color=color, ha="center")
         y -= 0.8
 

@@ -81,7 +81,7 @@ class DCTRBranches(AnalysisModule):
                         dr["Branch"].astype(str),
                         dr["DCTR %"] * 100,
                         color=TEAL,
-                        edgecolor="black",
+                        edgecolor=BRAND["text"],
                         linewidth=1.5,
                         alpha=0.9,
                     )
@@ -352,7 +352,7 @@ class DCTRBranches(AnalysisModule):
                         FuncFormatter(lambda v, _p: f"{int(v):,}")
                     )
                     ax.tick_params(axis="y", labelsize=14)
-                    ax.set_ylim(0, vol_max * 1.20)
+                    ax.set_ylim(0, vol_max * 1.20 or 100)
                     ax.spines["top"].set_visible(False)
                     ax.spines["right"].set_visible(False)
                     ax.yaxis.grid(True, color=BRAND["light_gray"], linewidth=0.5, alpha=0.7)
@@ -459,7 +459,7 @@ class DCTRBranches(AnalysisModule):
                         x,
                         dr["DCTR %"] * 100,
                         color=TEAL,
-                        edgecolor="black",
+                        edgecolor=BRAND["text"],
                         linewidth=1.5,
                         alpha=0.9,
                     )
@@ -596,7 +596,7 @@ class DCTRBranches(AnalysisModule):
 
                     cbar = fig.colorbar(im, ax=ax, shrink=0.8)
                     cbar.set_label("DCTR %", fontsize=16, fontweight="bold")
-                    cbar.ax.axhline(y=avg_dctr, color="black", linewidth=2)
+                    cbar.ax.axhline(y=avg_dctr, color=BRAND["text"], linewidth=2)
                     ax.set_title(
                         "Monthly DCTR Heatmap by Branch (TTM)",
                         fontsize=22,

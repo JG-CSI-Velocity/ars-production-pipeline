@@ -40,22 +40,25 @@ from ars_analysis.charts.style import (
     BAR_EDGE,
     DATA_LABEL_SIZE,
     NEGATIVE,
+    NEUTRAL,
     POSITIVE,
+    PRIMARY,
     TEAL,
     TICK_SIZE,
 )
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 
 # ---------------------------------------------------------------------------
 # Color palette for the KPI tiles (matches general theme)
 # ---------------------------------------------------------------------------
 
-_DARK = "#1B2A4A"
-_MUTED = "#6C757D"
-_GROWTH = "#2EC4B6"   # teal -- growth signals
-_DECAY = "#E63946"    # red  -- decay signals
-_INFO = "#457B9D"     # steel blue -- neutral count
+_DARK = PRIMARY       # CSI navy -- primary dark anchor
+_MUTED = NEUTRAL      # neutral gray
+_GROWTH = POSITIVE    # growth signals
+_DECAY = NEGATIVE     # CSI red -- decay signals
+_INFO = TEAL          # navy-derived steel blue -- neutral count
 
 
 def _fmt_count(n: float | int) -> str:
@@ -306,7 +309,7 @@ def _l12m_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax2.spines["top"].set_visible(False)
-        ax.yaxis.grid(True, color="#E9ECEF", linewidth=0.5, alpha=0.7)
+        ax.yaxis.grid(True, color=BRAND["light_gray"], linewidth=0.5, alpha=0.7)
         ax.set_axisbelow(True)
 
         # Combined legend -- seated above the plot, top-right, so it never runs
@@ -499,7 +502,7 @@ def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
         # Header rule in DATA coords (between the header at y=0.6 and the first
         # row at y=1.5). It was previously drawn in axes coords, so it cut
         # straight through the first data row (#208 A3).
-        ax.plot([0.05, 0.95], [1.0, 1.0], color="#E9ECEF", linewidth=1.4)
+        ax.plot([0.05, 0.95], [1.0, 1.0], color=BRAND["light_gray"], linewidth=1.4)
 
         for i, row in df.iterrows():
             y = i + 1.5
@@ -515,7 +518,7 @@ def _l12m_monthly_cohort(ctx: PipelineContext) -> list[AnalysisResult]:
             ax.text(col_x[4], y, survival_txt, fontsize=14,
                     fontweight="bold", color=_DARK, ha="left", va="center")
             # Faint divider
-            ax.plot([0.05, 0.95], [y + 0.5, y + 0.5], color="#F1F3F5",
+            ax.plot([0.05, 0.95], [y + 0.5, y + 0.5], color=BRAND["light_gray"],
                     linewidth=0.5)
 
         # Totals row

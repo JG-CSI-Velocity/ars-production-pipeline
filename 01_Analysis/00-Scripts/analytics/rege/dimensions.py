@@ -10,7 +10,7 @@ import pandas as pd
 from loguru import logger
 from matplotlib.ticker import FuncFormatter
 
-from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
+from ars_analysis.analytics.base import AnalysisModule, AnalysisResult, as_of_ts
 from ars_analysis.analytics.dctr._helpers import debit_mask, filter_l12m
 from ars_analysis.analytics.rege._helpers import (
     ACCT_AGE_ORDER,
@@ -99,7 +99,7 @@ class RegEDimensions(AnalysisModule):
 
         df = base.copy()
         df["Date Opened"] = pd.to_datetime(df["Date Opened"], errors="coerce", format="mixed")
-        df["Age Days"] = (pd.Timestamp.now() - df["Date Opened"]).dt.days
+        df["Age Days"] = (as_of_ts(ctx) - df["Date Opened"]).dt.days
         df["Age Range"] = df["Age Days"].apply(categorize_account_age)
 
         rows = []

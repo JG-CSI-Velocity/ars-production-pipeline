@@ -37,6 +37,7 @@ from ars_analysis.charts.style import (
     TICK_SIZE,
 )
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 CAPTURE_RATE = 0.25  # Near-term realistic capture
 
@@ -89,7 +90,7 @@ def _opportunity_map(ctx: PipelineContext) -> list[AnalysisResult]:
             ("Debit Cards", TEAL),
             ("Reg E Opt-In", PRIMARY),
             ("Retention", POSITIVE),
-            ("Mailer Program", "#D4A574"),
+            ("Mailer Program", BRAND["gold"]),
         ]
         addressable_vals = [debit_max, rege_max, retention_max, mailer_max]
         realistic_vals = [debit_real, rege_real, retention_real, mailer_real]
@@ -245,14 +246,14 @@ def _what_if_dctr(ctx: PipelineContext) -> list[AnalysisResult]:
 
         for i, (label, before, after) in enumerate(rows):
             y = 7.2 - i * 1.2
-            ax_main.text(0.3, y, label, fontsize=14, color="#666", va="center")
+            ax_main.text(0.3, y, label, fontsize=14, color=BRAND["text_muted"], va="center")
             ax_main.text(
                 2.5,
                 y,
                 before,
                 fontsize=16,
                 fontweight="bold",
-                color="#666",
+                color=BRAND["text_muted"],
                 ha="center",
                 va="center",
             )
@@ -268,7 +269,7 @@ def _what_if_dctr(ctx: PipelineContext) -> list[AnalysisResult]:
             )
 
         # Total row
-        ax_main.plot([0.3, 9.7], [1.5, 1.5], color="#999", linewidth=1.5)
+        ax_main.plot([0.3, 9.7], [1.5, 1.5], color=BRAND["muted"], linewidth=1.5)
         ax_main.text(
             0.3,
             1.0,
@@ -407,7 +408,7 @@ def _executive_summary(ctx: PipelineContext) -> list[AnalysisResult]:
 
             ax_main.text(0.8, y + 0.3, f"{i + 1}.", fontsize=20, fontweight="bold", color=color)
             ax_main.text(1.5, y + 0.3, action, fontsize=16, fontweight="bold", color=color)
-            ax_main.text(1.5, y - 0.2, metric, fontsize=13, color="#666")
+            ax_main.text(1.5, y - 0.2, metric, fontsize=13, color=BRAND["text_muted"])
             ax_main.text(
                 9.2, y, payoff, fontsize=20, fontweight="bold", color=color, ha="right", va="center"
             )
@@ -418,9 +419,9 @@ def _executive_summary(ctx: PipelineContext) -> list[AnalysisResult]:
             6,
             1.2,
             boxstyle="round,pad=0.15",
-            facecolor="#D4A574",
+            facecolor=BRAND["gold"],
             alpha=0.15,
-            edgecolor="#D4A574",
+            edgecolor=BRAND["gold"],
             linewidth=3,
         )
         ax_main.add_patch(rect_total)

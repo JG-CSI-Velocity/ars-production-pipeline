@@ -22,11 +22,11 @@ from ars_analysis.analytics.mailer._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import NEGATIVE, POSITIVE, SILVER
+from ars_analysis.charts.style import NEGATIVE, NEUTRAL, POSITIVE, SILVER, TEAL
 from ars_analysis.pipeline.context import PipelineContext
 
-NON_RESP_COLOR = "#404040"
 from ars_analysis.shared.brand import BRAND as _BRAND
+NON_RESP_COLOR = NEUTRAL
 NAVY = _BRAND["navy"]
 
 
@@ -212,14 +212,14 @@ def _draw_trajectory(
             )
 
     # Vertical line at M0
-    ax.axvline(0, color="#888888", linestyle=":", linewidth=1.5, alpha=0.7)
+    ax.axvline(0, color=NEUTRAL, linestyle=":", linewidth=1.5, alpha=0.7)
     ax.text(
         0.02,
         0.97,
         "Response\nMonth",
         transform=ax.transAxes,
         fontsize=11,
-        color="#888888",
+        color=NEUTRAL,
         va="top",
     )
 
@@ -316,7 +316,7 @@ def _draw_direction_bars(
         fontsize=20,
         fontweight="bold",
     )
-    ax.axhline(0, color="black", linewidth=0.8)
+    ax.axhline(0, color=_BRAND["text"], linewidth=0.8)
     ax.legend(fontsize=14, loc="upper right", frameon=True)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -335,7 +335,7 @@ def _draw_direction_bars(
             va="bottom" if bv >= 0 else "top",
             fontsize=12,
             fontweight="bold",
-            color="#555",
+            color=_BRAND["text_muted"],
         )
         ax.text(
             xi + width / 2,
@@ -376,7 +376,7 @@ def _draw_cohort_size(
     ax.bar(offsets, r_vals, label="Responders", color=POSITIVE, alpha=0.8)
     ax.bar(offsets, n_vals, bottom=r_vals, label="Non-Responders", color=SILVER, alpha=0.8)
 
-    ax.axvline(0, color="#888888", linestyle=":", linewidth=1.5, alpha=0.7)
+    ax.axvline(0, color=NEUTRAL, linestyle=":", linewidth=1.5, alpha=0.7)
     ax.set_title("Cohort Size by Month Offset", fontsize=20, fontweight="bold")
     ax.set_xlabel("Months Relative to First Response", fontsize=14)
     ax.set_ylabel("Account Observations", fontsize=14)
@@ -435,11 +435,11 @@ def build_combo_lines(
         "TH-20": "#F4A261",
         "TH-25": "#E76F51",
     }
-    RESP_COLOR = "#2A9D8F"    # teal -- responder line
-    NONRESP_COLOR = "#E9C46A"  # amber -- non-responder line
+    RESP_COLOR = TEAL    # steel-blue -- responder line
+    NONRESP_COLOR = _BRAND["gold"]  # gold -- non-responder line
     DARK = _BRAND["navy"]
-    MUTED = "#6C757D"
-    GRID = "#E8E8E8"
+    MUTED = _BRAND["text_muted"]
+    GRID = _BRAND["light_gray"]
 
     data = ctx.data
     results: list[AnalysisResult] = []

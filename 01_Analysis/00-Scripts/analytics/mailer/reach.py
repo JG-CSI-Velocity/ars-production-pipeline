@@ -22,11 +22,12 @@ from ars_analysis.analytics.mailer._helpers import (
     parse_month,
 )
 from ars_analysis.analytics.registry import register
-from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import POSITIVE, PRIMARY, SILVER, TEAL
+from ars_analysis.charts.guards import chart_figure, label_color_for
+from ars_analysis.charts.style import NEUTRAL, POSITIVE, PRIMARY, SILVER, TEAL
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
-NON_RESP_COLOR = "#404040"
+NON_RESP_COLOR = NEUTRAL
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +246,7 @@ def _draw_penetration_kpi(
         ha="center",
         va="center",
         fontsize=16,
-        color="#555555",
+        color=BRAND["muted"],
     )
 
     # Sub-KPIs
@@ -259,7 +260,7 @@ def _draw_penetration_kpi(
         fontweight="bold",
         color=TEAL,
     )
-    ax.text(0.2, 0.18, "Unique Mailed", ha="center", va="center", fontsize=14, color="#555555")
+    ax.text(0.2, 0.18, "Unique Mailed", ha="center", va="center", fontsize=14, color=BRAND["muted"])
 
     ax.text(
         0.5,
@@ -271,7 +272,7 @@ def _draw_penetration_kpi(
         fontweight="bold",
         color=POSITIVE,
     )
-    ax.text(0.5, 0.18, "Unique Responded", ha="center", va="center", fontsize=14, color="#555555")
+    ax.text(0.5, 0.18, "Unique Responded", ha="center", va="center", fontsize=14, color=BRAND["muted"])
 
     ax.text(
         0.8,
@@ -283,7 +284,7 @@ def _draw_penetration_kpi(
         fontweight="bold",
         color=SILVER,
     )
-    ax.text(0.8, 0.18, "Total Eligible", ha="center", va="center", fontsize=14, color="#555555")
+    ax.text(0.8, 0.18, "Total Eligible", ha="center", va="center", fontsize=14, color=BRAND["muted"])
 
     # Response rate note
     ax.text(
@@ -330,7 +331,7 @@ def _draw_organic(
 
     total = organic_data["total_debit"]
     if total > 0:
-        for bar, val in zip(bars, values):
+        for bar, val, bar_color in zip(bars, values, colors):
             pct = val / total * 100
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
@@ -339,7 +340,7 @@ def _draw_organic(
                 ha="center",
                 va="center",
                 fontsize=14,
-                color="white",
+                color=label_color_for(bar_color),
                 fontweight="bold",
             )
 

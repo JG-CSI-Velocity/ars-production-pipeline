@@ -22,16 +22,18 @@ from ars_analysis.analytics.dctr._helpers import (
     l12m_monthly,
 )
 from ars_analysis.analytics.registry import register
-from ars_analysis.charts.guards import chart_figure
+from ars_analysis.charts.guards import chart_figure, label_color_for
 from ars_analysis.charts.style import (
     BUSINESS,
     ELIGIBLE,
     HISTORICAL,
+    NEUTRAL,
     PERSONAL,
     SILVER,
     TEAL,
 )
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -141,7 +143,7 @@ def _render_dctr_narrative(
                 y,
                 values,
                 color=colors,
-                edgecolor="black",
+                edgecolor=BRAND["text"],
                 linewidth=1.5,
                 height=0.6,
             )
@@ -163,14 +165,14 @@ def _render_dctr_narrative(
                     ha="center",
                     fontsize=16,
                     fontweight="bold",
-                    color="white",
+                    color=label_color_for(colors[i]),
                 )
 
             # pp change annotation between Historical and TTM
             from ars_analysis.charts.style import NEGATIVE, POSITIVE
 
             pp = comp * 100
-            arrow_color = POSITIVE if pp > 0 else NEGATIVE if pp < 0 else "#94A3B8"
+            arrow_color = POSITIVE if pp > 0 else NEGATIVE if pp < 0 else NEUTRAL
             marker = "+" if pp > 0 else ""
             mid_y = (0 + 1) / 2  # between TTM (y=0) and Historical (y=1)
             ax_bar.annotate(
@@ -183,7 +185,7 @@ def _render_dctr_narrative(
                 va="center",
                 bbox={
                     "boxstyle": "round,pad=0.3",
-                    "facecolor": "#F8FAFC",
+                    "facecolor": BRAND["light_gray"],
                     "edgecolor": arrow_color,
                 },
             )
@@ -206,7 +208,7 @@ def _render_dctr_narrative(
                 wrapped,
                 transform=ax_text.transAxes,
                 fontsize=13,
-                color="#334155",
+                color=BRAND["text"],
                 va="center",
                 ha="left",
                 linespacing=1.7,
@@ -444,12 +446,12 @@ class DCTRPenetration(AnalysisModule):
                             cats,
                             vals,
                             color=colors,
-                            edgecolor="black",
+                            edgecolor=BRAND["text"],
                             linewidth=2,
                             alpha=0.9,
                             width=0.5,
                         )
-                        for bar, v, c in zip(bars, vals, cts):
+                        for bar, v, c, bc in zip(bars, vals, cts, colors):
                             ax.text(
                                 bar.get_x() + bar.get_width() / 2,
                                 v + 1,
@@ -466,7 +468,7 @@ class DCTRPenetration(AnalysisModule):
                                     ha="center",
                                     fontsize=18,
                                     fontweight="bold",
-                                    color="white",
+                                    color=label_color_for(bc),
                                 )
                         ax.set_ylabel("DCTR (%)", fontsize=20, fontweight="bold")
                         ax.set_title(
@@ -485,7 +487,7 @@ class DCTRPenetration(AnalysisModule):
                             transform=ax.transAxes,
                             fontsize=18,
                             va="top",
-                            bbox={"boxstyle": "round,pad=0.3", "facecolor": "#eee", "alpha": 0.8},
+                            bbox={"boxstyle": "round,pad=0.3", "facecolor": BRAND["light_gray"], "alpha": 0.8},
                         )
 
                 cached_chart(save_to, cache_key, _draw)

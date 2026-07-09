@@ -24,7 +24,7 @@ from ars_analysis.analytics.attrition._helpers import (
     prepare_attrition_data,
     product_col,
 )
-from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
+from ars_analysis.analytics.base import AnalysisModule, AnalysisResult, as_of_ts
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
 from ars_analysis.charts.style import (
@@ -40,6 +40,7 @@ from ars_analysis.charts.style import (
     TICK_SIZE,
 )
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 # ---------------------------------------------------------------------------
 # A9.4 -- Attrition by Branch
@@ -160,7 +161,7 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
             fontsize=14,
             fontweight="bold",
             color=PRIMARY,
-            bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": TEAL},
+            bbox={"boxstyle": "round,pad=0.4", "facecolor": BRAND["light_gray"], "edgecolor": TEAL},
         )
         fig.tight_layout()
 
@@ -254,7 +255,7 @@ def _by_branch(ctx: PipelineContext) -> list[AnalysisResult]:
             ax.barh(
                 share_plot["Branch"].astype(str),
                 share_plot["First-Year Share"] * 100,
-                color="#FF9F1C",
+                color=BRAND["gold"],
                 edgecolor=BAR_EDGE,
                 alpha=BAR_ALPHA,
             )
@@ -360,7 +361,7 @@ def _by_product(ctx: PipelineContext) -> list[AnalysisResult]:
             fontsize=14,
             fontweight="bold",
             color=PRIMARY,
-            bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": TEAL},
+            bbox={"boxstyle": "round,pad=0.4", "facecolor": BRAND["light_gray"], "edgecolor": TEAL},
         )
         fig.tight_layout()
 
@@ -483,7 +484,7 @@ def _personal_vs_business(ctx: PipelineContext) -> list[AnalysisResult]:
             fontsize=14,
             fontweight="bold",
             color=PRIMARY,
-            bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": TEAL},
+            bbox={"boxstyle": "round,pad=0.4", "facecolor": BRAND["light_gray"], "edgecolor": TEAL},
         )
         fig.tight_layout()
 
@@ -524,7 +525,7 @@ def _by_tenure(ctx: PipelineContext) -> list[AnalysisResult]:
     # recently-opened accounts while its numerator held every short-lived
     # closure in history -- rates could exceed 100%). Exposure is anchored to
     # ctx.end_date (last complete month), not today, for reproducibility.
-    end_anchor = pd.Timestamp(ctx.end_date) if ctx.end_date else pd.Timestamp.now()
+    end_anchor = pd.Timestamp(ctx.end_date) if ctx.end_date else as_of_ts(ctx)
     do = pd.to_datetime(all_data["Date Opened"], errors="coerce")
     dc = pd.to_datetime(all_data["Date Closed"], errors="coerce")
     exposure_days = (dc.fillna(end_anchor) - do).dt.days
@@ -698,7 +699,7 @@ def _by_balance(ctx: PipelineContext) -> list[AnalysisResult]:
             fontsize=14,
             fontweight="bold",
             color=PRIMARY,
-            bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": TEAL},
+            bbox={"boxstyle": "round,pad=0.4", "facecolor": BRAND["light_gray"], "edgecolor": TEAL},
         )
         fig.tight_layout()
 

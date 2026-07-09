@@ -42,6 +42,7 @@ from ars_analysis.charts.style import (
     TTM,
 )
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 # ---------------------------------------------------------------------------
 # A9.9 -- Debit Card Retention Effect
@@ -114,7 +115,7 @@ def _debit_retention(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         # Headroom so the two-line bar labels clear the title (#208 slide 40).
-        ax.set_ylim(0, max(debit_df["Attrition Rate"]) * 100 * 1.32)
+        ax.set_ylim(0, (max(debit_df["Attrition Rate"]) * 100 * 1.32) or 100)
         ax.set_title(
             "Debit Card Impact on Account Retention (L12M)",
             fontsize=24,
@@ -126,7 +127,7 @@ def _debit_retention(ctx: PipelineContext) -> list[AnalysisResult]:
             0.99, -0.10,
             "Debit status as of file date; correlation, not causation",
             transform=ax.transAxes, ha="right", va="top",
-            fontsize=11, style="italic", color="#777777",
+            fontsize=11, style="italic", color=BRAND["text_muted"],
         )
         ax.yaxis.set_major_formatter(
             FuncFormatter(lambda x, p: f"{x:.0f}%"),
@@ -257,7 +258,7 @@ def _mailer_retention(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
             )
         # Headroom so the two-line bar labels clear the title (#208 slide 41).
-        ax.set_ylim(0, max(mail_df["Attrition Rate"]) * 100 * 1.32)
+        ax.set_ylim(0, (max(mail_df["Attrition Rate"]) * 100 * 1.32) or 100)
         ax.set_title(
             "Mailer Program Impact on Retention (L12M)",
             fontsize=24,

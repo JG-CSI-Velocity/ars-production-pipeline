@@ -104,7 +104,7 @@ else:
             rotation=30, ha='right', fontsize=12
         )
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(gen_fmt_pct))
-        ax.set_ylim(0, min(data['optin_pct'].max() + 20, 105))
+        ax.set_ylim(0, (min(data['optin_pct'].max() + 20, 105)) or 100)
         gen_clean_axes(ax)
         ax.set_title(title, fontsize=18, fontweight='bold', loc='left',
                      color=GEN_COLORS['dark_text'])
