@@ -1335,6 +1335,9 @@ async function runOneModule(sectionId, csm, month, clientId, onLog) {
     }
 }
 
+// Set by STOP ALL to abort the sequential module queue (see runSelectedModules).
+let _queueAborted = false;
+
 async function runSelectedModules() {
     const clientId = document.getElementById('gClientSel').value;
     const csm = document.getElementById('gCsmSel').value;
@@ -1376,8 +1379,12 @@ async function runSelectedModules() {
         modLog.scrollTop = modLog.scrollHeight;
     };
 
-    let done = 0, failed = 0;
+    _queueAborted = false;
+    let done = 0, failed = 0, stopped = 0;
     for (const id of mods) {
+        // STOP ALL sets _queueAborted -- abort the whole queue, not just the
+        // one running module (mark every remaining module Stopped and quit).
+        if (_queueAborted) { setRow(id, 'q-failed', 'Stopped'); stopped++; continue; }
         setRow(id, 'q-running', 'Running…');
         document.getElementById('gQueueMeta').textContent =
             `${done + failed}/${mods.length} finished — running ${label(id)}…`;
@@ -1389,7 +1396,9 @@ async function runSelectedModules() {
         let res;
         try { res = await runOneModule(id, csm, month, clientId, appendLog); }
         catch(e) { res = {status: 'error', detail: String(e)}; }
-        if (res.status === 'complete') {
+        if (_queueAborted) {
+            setRow(id, 'q-failed', 'Stopped'); stopped++;
+        } else if (res.status === 'complete') {
             done++;
             setRow(id, 'q-done', 'Done', res.deck ? res.deck.split(/[\\/]/).pop() : 'deck built');
         } else {
@@ -1399,7 +1408,7 @@ async function runSelectedModules() {
         }
     }
     document.getElementById('gQueueMeta').textContent =
-        `${done} done, ${failed} failed of ${mods.length}.`;
+        `${done} done, ${failed} failed${stopped ? `, ${stopped} stopped` : ''} of ${mods.length}.`;
     btn.disabled = false; btn.style.opacity = ''; updateChkCount();
 }
 
@@ -2868,6 +2877,9 @@ async function stopAll() {
     if (!confirm('EMERGENCY STOP\n\nThis immediately kills every running formatting and generate job. Files already written are kept, but the current run will be left incomplete.\n\nStop everything now?')) {
         return;
     }
+    // Abort the sequential module queue too, so it doesn't launch the next
+    // module after this kill (otherwise STOP ALL only stops the current one).
+    _queueAborted = true;
     try {
         const resp = await fetch('/api/stop_all', {method: 'POST'});
         if (!resp.ok) {
