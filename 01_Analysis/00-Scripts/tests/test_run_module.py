@@ -118,3 +118,62 @@ def test_ars_section_runs_overview_plus_selected(tmp_path, monkeypatch):
     assert any(m.startswith("overview.") for m in ids)   # foundational, always run
     assert any(m.startswith("dctr.") for m in ids)       # the selected section
     assert deck_calls == ["ars.dctr"]
+
+
+def test_run_modules_txn_aggregates_once_deck_per_section(tmp_path, monkeypatch):
+    """The batch path: prepare_shared_namespace (the ~25-min aggregation) runs
+    ONCE for many TXN sections, each folder runs once, and a deck is built per
+    selected section."""
+    import ars_analysis.analytics.txn_wrapper as tw
+    import ars_analysis.output.deck_builder as db
+
+    deck_calls: list[str] = []
+    setups = {"n": 0}
+    _FakeWrapper.calls = []
+    monkeypatch.setattr(runner, "_load_client_config", lambda cfg: cfg)
+    monkeypatch.setattr(runner, "_resolve_template_path", lambda: None)
+
+    def _fake_prepare(ctx):
+        setups["n"] += 1
+        return {}
+
+    monkeypatch.setattr(tw, "prepare_shared_namespace", _fake_prepare)
+    monkeypatch.setattr(tw, "TXNSectionWrapper", _FakeWrapper)
+    monkeypatch.setattr(db, "build_scoped_deck",
+                        lambda ctx, section: (deck_calls.append(section.section_id)
+                                              or object()))
+
+    ctx = _ctx(tmp_path)
+    runner.run_modules(ctx, ["txn.ICS_cohort", "txn.business_accts"])
+
+    assert setups["n"] == 1                       # aggregation happened ONCE
+    assert set(deck_calls) == {"txn.ICS_cohort", "txn.business_accts"}
+    # business_accts pulls merchant upstream; each folder runs at most once.
+    assert _FakeWrapper.calls.count("merchant") == 1
+    assert _FakeWrapper.calls.count("business_accts") == 1
+    assert _FakeWrapper.calls.count("ICS_cohort") == 1
+
+
+def test_run_modules_ars_sets_up_once_deck_per_section(tmp_path, monkeypatch):
+    """ARS batch: subsets + overview run once, then a deck per selected section."""
+    import ars_analysis.analytics.registry as reg
+    import ars_analysis.output.deck_builder as db
+    import ars_analysis.pipeline.steps.analyze as an
+    import ars_analysis.pipeline.steps.subsets as sub
+
+    subsets = {"n": 0}
+    deck_calls: list[str] = []
+    monkeypatch.setattr(runner, "_load_client_config", lambda cfg: cfg)
+    monkeypatch.setattr(runner, "_resolve_template_path", lambda: None)
+    monkeypatch.setattr(reg, "load_all_modules", lambda: None)
+    monkeypatch.setattr(sub, "step_subsets", lambda ctx: subsets.__setitem__("n", subsets["n"] + 1))
+    monkeypatch.setattr(an, "step_analyze_selected", lambda ctx, ids: None)
+    monkeypatch.setattr(db, "build_scoped_deck",
+                        lambda ctx, section: (deck_calls.append(section.section_id)
+                                              or object()))
+
+    ctx = _ctx(tmp_path)
+    runner.run_modules(ctx, ["ars.dctr", "ars.rege"])
+
+    assert subsets["n"] == 1                      # ARS setup happened ONCE
+    assert deck_calls == ["ars.dctr", "ars.rege"]

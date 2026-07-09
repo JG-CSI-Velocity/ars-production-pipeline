@@ -195,6 +195,13 @@ def main():
                         help="Run ONE analytics section end-to-end (closed loop) and build a "
                              "scoped deck for just its slides. Section id like 'txn.merchant' "
                              "or 'ars.dctr' (see analytics/section_registry.py). Overrides --product.")
+    parser.add_argument("--sections", type=str, default=None,
+                        help="Run SEVERAL sections in ONE pass -- aggregate the client's data "
+                             "ONCE, then build a scoped deck per section. Comma-separated ids, "
+                             "e.g. 'txn.merchant,txn.mcc_code,txn.competition'. Overrides --product.")
+    parser.add_argument("--all-modules", action="store_true",
+                        help="Run ALL sections for --product in one pass (aggregate once, a deck "
+                             "per section). The fast way to produce every module's deck.")
     parser.add_argument("--rebuild-cache", action="store_true",
                         help="Ignore the TXN parquet cache and rebuild combined_df from the raw "
                              "files. Use after changing data-loading code so a stale cache "
@@ -427,7 +434,27 @@ def main():
         # Read by txn_setup/02-file-config.py to force a MISS (rebuild combined_df).
         os.environ["TXN_FORCE_REBUILD"] = "1"
 
-    if args.section:
+    if args.sections or args.all_modules:
+        # Batch closed loop: aggregate the client's data ONCE, then build a
+        # scoped deck per section (turns N cold single-module runs into 1 setup).
+        from runner import run_modules
+        if args.all_modules:
+            from analytics.section_registry import all_sections
+            section_ids = [s.section_id for s in all_sections()
+                           if s.product == product]
+        else:
+            section_ids = [s.strip() for s in args.sections.split(",") if s.strip()]
+        if not section_ids:
+            print("  ERROR: no sections resolved for the batch run.")
+            return 1
+        ctx.product = section_ids[0].split(".", 1)[0] if "." in section_ids[0] else product
+        print(f"  Running {len(section_ids)} modules in one pass (aggregate once): "
+              f"{', '.join(section_ids)}")
+        print()
+
+        def runner_fn(c, _sids=section_ids):
+            return run_modules(c, _sids)
+    elif args.section:
         # Closed-loop single-section run: build only what this section needs and
         # emit a scoped one-section deck (analytics/section_registry.py ids).
         from runner import run_module

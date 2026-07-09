@@ -703,6 +703,153 @@ def run_module(ctx: SharedContext, section_id: str) -> dict[str, SharedResult]:
     return results
 
 
+def _build_module_ctx(ctx: SharedContext, product: str):
+    """Build the ARS-style PipelineContext + load the ODD once. Shared by the
+    single-module (run_module) and batch (run_modules) paths so the expensive
+    client setup is written in one place."""
+    from ars_analysis.pipeline.context import ClientInfo, OutputPaths
+    from ars_analysis.pipeline.context import PipelineContext as ARSContext
+    from ars_analysis.pipeline.steps.load import step_load_file
+
+    ccfg = _load_client_config({**(ctx.client_config or {}), "client_id": ctx.client_id})
+    month = ctx.analysis_date.strftime("%Y.%m") if ctx.analysis_date else ""
+    client_info = ClientInfo(
+        client_id=ctx.client_id,
+        client_name=ctx.client_name or ctx.client_id,
+        month=month,
+        assigned_csm=ctx.csm,
+        eligible_stat_codes=_ensure_list(ccfg.get("EligibleStatusCodes", [])),
+        eligible_prod_codes=_ensure_list(ccfg.get("EligibleProductCodes", [])),
+        eligible_mailable=_ensure_list(ccfg.get("EligibleMailCode", [])),
+        nsf_od_fee=_safe_float(ccfg.get("NSF_OD_Fee", 0)),
+        ic_rate=_safe_float(ccfg.get("ICRate", 0)),
+        dc_indicator=ccfg.get("DCIndicator", "DC Indicator"),
+        reg_e_opt_in=_ensure_list(ccfg.get("RegEOptInCode", [])),
+        reg_e_column=ccfg.get("RegEColumn", ""),
+        data_start_date=ccfg.get("DataStartDate"),
+    )
+    ars_ctx = ARSContext(
+        client=client_info,
+        paths=OutputPaths.from_dir(ctx.output_dir),
+        progress_callback=ctx.progress_callback,
+    )
+    ars_ctx.product = product
+    _tpl = ccfg.get("TemplatePath")
+    tpl_path = Path(_tpl) if _tpl and Path(_tpl).exists() else _resolve_template_path()
+    _branch_map = ccfg.get("BranchMapping") or ccfg.get("branch_mapping")
+    ars_ctx.settings = SimpleNamespace(
+        paths=SimpleNamespace(template_path=tpl_path) if tpl_path
+        else SimpleNamespace(template_path=None),
+        branch_mapping=_branch_map if isinstance(_branch_map, dict) else None,
+    )
+    oddd_path = ctx.input_files.get("oddd")
+    if oddd_path and Path(oddd_path).exists():
+        step_load_file(ars_ctx, Path(oddd_path))
+    return ars_ctx
+
+
+def run_modules(ctx: SharedContext, section_ids: list[str]) -> dict[str, SharedResult]:
+    """Aggregate the client's data ONCE, then build a scoped deck for EACH
+    requested section.
+
+    The single-module path (run_module) pays the full setup -- for TXN, the
+    ~25-min combined_df aggregation -- on every call, so N modules cost N setups.
+    This does the aggregation once (per product) and emits one scoped deck per
+    section, turning N setups into 1 + N fast deck builds. Powers
+    ``run.py --sections a,b,c`` / ``--all-modules`` and the UI 'Run selected/all'.
+    """
+    from ars_analysis.analytics.section_registry import _ANALYTICS, get_section
+    from ars_analysis.output.deck_builder import build_scoped_deck
+
+    sections = [get_section(s) for s in section_ids]
+    ars_secs = [s for s in sections if s.product == "ars"]
+    txn_secs = [s for s in sections if s.product == "txn"]
+    built: list[str] = []
+
+    def _notify(msg: str) -> None:
+        if ctx.progress_callback:
+            ctx.progress_callback(msg)
+
+    # ---- ARS: shared setup once, then a deck per ARS section ----
+    if ars_secs:
+        from ars_analysis.analytics.registry import load_all_modules
+        from ars_analysis.analytics.section_registry import get_section as _get
+        from ars_analysis.pipeline.steps.analyze import step_analyze_selected
+        from ars_analysis.pipeline.steps.subsets import step_subsets
+
+        ars_ctx = _build_module_ctx(ctx, "ars")
+        _notify("Aggregating ARS data (once for all selected modules)...")
+        load_all_modules()
+        step_subsets(ars_ctx)
+        ran: set[str] = set()
+        # overview.* is foundational -- run it once up front.
+        ov_ids = _get("ars.overview").module_ids
+        step_analyze_selected(ars_ctx, ov_ids)
+        ran.update(ov_ids)
+        for sec in ars_secs:
+            need = [m for m in sec.module_ids if m not in ran]
+            if need:
+                _notify(f"Running module: {sec.display_name}")
+                step_analyze_selected(ars_ctx, need)
+                ran.update(need)
+            deck = build_scoped_deck(ars_ctx, sec)
+            if deck:
+                print(f"  MODULE DECK: {deck}")
+                built.append(str(deck))
+        ctx.results.update(_convert_results(ars_ctx))
+
+    # ---- TXN: shared setup once, then a deck per TXN section ----
+    if txn_secs:
+        from ars_analysis.analytics.section_deps import (
+            missing_section_deps,
+            upstream_sections,
+        )
+        from ars_analysis.analytics.txn_wrapper import (
+            TXNSectionWrapper,
+            prepare_shared_namespace,
+        )
+
+        ars_ctx = _build_module_ctx(ctx, "txn")
+        os.environ["TXN_CACHE_SYNC"] = "1"
+        _notify("Aggregating TXN data (once for all selected modules)...")
+        shared_namespace = prepare_shared_namespace(ars_ctx)
+
+        # Run every needed folder (each selected section + its upstreams) exactly
+        # once, in dependency order, against the single shared namespace.
+        ran: set[str] = set()
+        for sec in txn_secs:
+            for folder in upstream_sections(sec.folder) + [sec.folder]:
+                if folder in ran:
+                    continue
+                wrapper = TXNSectionWrapper(folder, _ANALYTICS / folder)
+                if wrapper.validate(ars_ctx):
+                    ran.add(folder)
+                    continue
+                if folder == sec.folder:
+                    _notify(f"Running module: {sec.display_name}")
+                res = wrapper.run(ars_ctx, shared_namespace=shared_namespace)
+                ran.add(folder)
+                ars_ctx.results[wrapper.module_id] = res
+                ars_ctx.all_slides.extend(res)
+
+        # Build a scoped deck per selected section (hard-fail the contract first).
+        for sec in txn_secs:
+            if shared_namespace.get("combined_df") is not None:
+                missing = missing_section_deps(sec.folder, shared_namespace)
+                if missing:
+                    logger.error("Section '%s' missing upstream data %s -- skipping deck",
+                                 sec.folder, missing)
+                    continue
+            deck = build_scoped_deck(ars_ctx, sec)
+            if deck:
+                print(f"  MODULE DECK: {deck}")
+                built.append(str(deck))
+        ctx.results.update(_convert_results(ars_ctx))
+
+    print(f"  MODULES BUILT: {len(built)} deck(s)")
+    return ctx.results
+
+
 def run_combined(ctx: SharedContext) -> dict[str, SharedResult]:
     """Run both ARS and TXN analysis, producing a combined deck."""
     if ctx.progress_callback:
