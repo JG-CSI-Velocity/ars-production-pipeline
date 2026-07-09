@@ -13,6 +13,29 @@ from matplotlib.figure import Figure  # noqa: E402
 
 _ARS_STYLE = Path(__file__).resolve().parent / "ars.mplstyle"
 
+
+def label_color_for(bg: str, dark: str = "#222222", light: str = "#FFFFFF") -> str:
+    """Readable text color for a solid background, chosen by luminance.
+
+    Fixes the recurring low-contrast bug of white in-bar data labels drawn on
+    light-colored bars. Returns ``light`` on dark backgrounds and ``dark`` on
+    light ones, using the WCAG relative-luminance threshold (~0.55 on the simple
+    sRGB average works well for the CSI palette). Accepts ``#RGB`` or ``#RRGGBB``;
+    a non-hex/unknown value falls back to ``dark`` (safe on white slides).
+    """
+    s = (bg or "").strip().lstrip("#")
+    if len(s) == 3:
+        s = "".join(c * 2 for c in s)
+    if len(s) != 6:
+        return dark
+    try:
+        r, g, b = (int(s[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    except ValueError:
+        return dark
+    # Perceived luminance (Rec. 709 coefficients).
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return light if lum < 0.55 else dark
+
 # Pre-load style as dict so matplotlib doesn't struggle with Windows paths
 _STYLE_DICT = {}
 try:

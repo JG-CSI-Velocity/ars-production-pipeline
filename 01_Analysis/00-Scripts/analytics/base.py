@@ -22,6 +22,18 @@ SectionName = Literal[
 ]
 
 
+def as_of_ts(ctx: PipelineContext) -> pd.Timestamp:
+    """As-of timestamp for account-age / tenure math: the report end date, so ages
+    (and any age/tenure buckets built from them) are reproducible for a given
+    reporting period instead of drifting with the wall clock on re-runs. Falls
+    back to now() only when the pipeline has no end_date set.
+
+    Canonical home for every section -- replaces scattered pd.Timestamp.now().
+    """
+    ed = getattr(ctx, "end_date", None)
+    return pd.Timestamp(ed) if ed is not None else pd.Timestamp.now()
+
+
 @dataclass
 class AnalysisResult:
     """Standard output container for one analysis."""

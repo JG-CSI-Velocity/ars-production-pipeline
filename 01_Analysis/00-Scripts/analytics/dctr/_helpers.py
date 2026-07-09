@@ -83,13 +83,9 @@ def total_row(df: pd.DataFrame, label_col: str, label: str = "TOTAL") -> pd.Data
 # -- Categorization functions ------------------------------------------------
 
 
-def as_of_ts(ctx) -> pd.Timestamp:
-    """As-of timestamp for account-age math: the report end date, so ages (and
-    the age buckets built from them) are reproducible for a given reporting
-    period instead of drifting with the wall clock on re-runs. Falls back to
-    now() only when the pipeline has no end_date set."""
-    ed = getattr(ctx, "end_date", None)
-    return pd.Timestamp(ed) if ed is not None else pd.Timestamp.now()
+# Canonical as-of helper now lives in analytics.base; re-exported here so the
+# existing dctr imports (`from ..._helpers import as_of_ts`) keep working.
+from ars_analysis.analytics.base import as_of_ts  # noqa: E402,F401
 
 
 def categorize_account_age(days: float) -> str:
