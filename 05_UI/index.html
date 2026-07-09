@@ -758,6 +758,10 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                     <div class="card-meta" id="gQueueMeta"></div>
                 </div>
                 <div class="modules-body" id="gQueueBody"></div>
+                <!-- Live log of the currently-running module (restores the
+                     visible run log the single-module path used to show). -->
+                <div class="prog-log" id="gModLog"
+                     style="margin-top:10px;max-height:260px;overflow:auto;"></div>
             </div>
         </div>
     </div>
@@ -1309,17 +1313,22 @@ async function runOneModule(sectionId, csm, month, clientId, onLog) {
         return {status: 'error', detail: msg};
     }
     const {run_id} = await resp.json();
-    let deck = null;
+    let deck = null, lastSeen = 0;
     while (true) {
         await new Promise(r => setTimeout(r, 1500));
         let run;
         try { run = await fetch(`/api/run/${run_id}`).then(r => r.json()); }
         catch(e) { continue; }
-        for (const line of (run.log || [])) {
+        const lines = run.log || [];
+        // Only emit NEW lines -- run.log is the full log every poll, so
+        // iterating all of it each cycle would duplicate every line.
+        for (let i = lastSeen; i < lines.length; i++) {
+            const line = lines[i];
             if (onLog) onLog(line);
             const m = /MODULE DECK:\s*(.+)$/.exec(line);
             if (m) deck = m[1].trim();
         }
+        lastSeen = lines.length;
         if (run.status && run.status !== 'running') {
             return {status: run.status, deck, run_id};
         }
@@ -1356,13 +1365,29 @@ async function runSelectedModules() {
         if (deck !== undefined) row.querySelector('.q-deck').textContent = deck || '';
     };
 
+    // Live log of the currently-running module (auto-scrolls).
+    const modLog = document.getElementById('gModLog');
+    modLog.innerHTML = '';
+    const appendLog = (line) => {
+        const el = document.createElement('div');
+        el.className = 'done';
+        el.textContent = line;
+        modLog.appendChild(el);
+        modLog.scrollTop = modLog.scrollHeight;
+    };
+
     let done = 0, failed = 0;
     for (const id of mods) {
         setRow(id, 'q-running', 'Running…');
         document.getElementById('gQueueMeta').textContent =
             `${done + failed}/${mods.length} finished — running ${label(id)}…`;
+        const hdr = document.createElement('div');
+        hdr.className = 'done';
+        hdr.style.cssText = 'margin-top:8px;font-weight:700;opacity:0.85;';
+        hdr.textContent = `──── ${label(id)} ────`;
+        modLog.appendChild(hdr);
         let res;
-        try { res = await runOneModule(id, csm, month, clientId); }
+        try { res = await runOneModule(id, csm, month, clientId, appendLog); }
         catch(e) { res = {status: 'error', detail: String(e)}; }
         if (res.status === 'complete') {
             done++;
