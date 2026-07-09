@@ -1380,35 +1380,70 @@ async function runSelectedModules() {
     };
 
     _queueAborted = false;
-    let done = 0, failed = 0, stopped = 0;
-    for (const id of mods) {
-        // STOP ALL sets _queueAborted -- abort the whole queue, not just the
-        // one running module (mark every remaining module Stopped and quit).
-        if (_queueAborted) { setRow(id, 'q-failed', 'Stopped'); stopped++; continue; }
-        setRow(id, 'q-running', 'Running…');
+    mods.forEach(id => setRow(id, 'q-running', 'Running…'));
+    document.getElementById('gQueueMeta').textContent =
+        `Aggregating this client's data once, then building ${mods.length} deck(s)…`;
+
+    // ONE backend job: aggregate the client's data ONCE (the ~25-min TXN load),
+    // then build a scoped deck per section. Turns N cold runs into 1 setup.
+    const url = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}`
+        + `&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
+        + `&modules=${encodeURIComponent(mods.join(','))}`;
+    let run_id;
+    try {
+        const resp = await fetch(url, {method: 'POST'});
+        if (!resp.ok) {
+            let msg = resp.statusText; try { msg = (await resp.json()).detail || msg; } catch(e) {}
+            mods.forEach(id => setRow(id, 'q-failed', 'Failed', msg));
+            document.getElementById('gQueueMeta').textContent = 'Run failed to start: ' + msg;
+            btn.disabled = false; btn.style.opacity = ''; updateChkCount();
+            return;
+        }
+        run_id = (await resp.json()).run_id;
+    } catch(e) {
+        mods.forEach(id => setRow(id, 'q-failed', 'Failed'));
+        document.getElementById('gQueueMeta').textContent = 'Could not start run: ' + e.message;
+        btn.disabled = false; btn.style.opacity = ''; updateChkCount();
+        return;
+    }
+
+    // As each section's deck lands, the log prints "MODULE DECK: <path>"; the
+    // filename ends in _<safe_id>_deck.pptx, so map it back to its queue row.
+    const safeOf = id => id.replace(/\./g, '_');
+    const doneSet = new Set();
+    let lastSeen = 0;
+    while (true) {
+        await new Promise(r => setTimeout(r, 1500));
+        let run;
+        try { run = await fetch(`/api/run/${run_id}`).then(r => r.json()); }
+        catch(e) { continue; }
+        const lines = run.log || [];
+        for (let i = lastSeen; i < lines.length; i++) {
+            const line = lines[i];
+            appendLog(line);
+            const m = /MODULE DECK:\s*(.+)$/.exec(line);
+            if (m) {
+                const deckName = m[1].trim().split(/[\\/]/).pop();
+                const id = mods.find(x => deckName.includes(`_${safeOf(x)}_deck`));
+                if (id) { setRow(id, 'q-done', 'Done', deckName); doneSet.add(id); }
+            }
+        }
+        lastSeen = lines.length;
         document.getElementById('gQueueMeta').textContent =
-            `${done + failed}/${mods.length} finished — running ${label(id)}…`;
-        const hdr = document.createElement('div');
-        hdr.className = 'done';
-        hdr.style.cssText = 'margin-top:8px;font-weight:700;opacity:0.85;';
-        hdr.textContent = `──── ${label(id)} ────`;
-        modLog.appendChild(hdr);
-        let res;
-        try { res = await runOneModule(id, csm, month, clientId, appendLog); }
-        catch(e) { res = {status: 'error', detail: String(e)}; }
+            `${doneSet.size}/${mods.length} deck(s) built…`;
         if (_queueAborted) {
-            setRow(id, 'q-failed', 'Stopped'); stopped++;
-        } else if (res.status === 'complete') {
-            done++;
-            setRow(id, 'q-done', 'Done', res.deck ? res.deck.split(/[\\/]/).pop() : 'deck built');
-        } else {
-            failed++;
-            setRow(id, 'q-failed', res.status === 'error' ? 'Failed' : res.status,
-                   res.detail || '');
+            mods.forEach(id => { if (!doneSet.has(id)) setRow(id, 'q-failed', 'Stopped'); });
+            break;
+        }
+        if (run.status && run.status !== 'running') {
+            mods.forEach(id => { if (!doneSet.has(id)) setRow(id, 'q-failed',
+                run.status === 'complete' ? 'No deck' : 'Failed'); });
+            break;
         }
     }
+    const built = doneSet.size, missed = mods.length - built;
     document.getElementById('gQueueMeta').textContent =
-        `${done} done, ${failed} failed${stopped ? `, ${stopped} stopped` : ''} of ${mods.length}.`;
+        `${built} deck(s) built${missed ? `, ${missed} missing` : ''} of ${mods.length}.`;
     btn.disabled = false; btn.style.opacity = ''; updateChkCount();
 }
 

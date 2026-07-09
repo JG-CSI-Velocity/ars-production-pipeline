@@ -889,6 +889,7 @@ async def start_run(
     client_id: str,
     product: str = "ars",
     module: str = "",
+    modules: str = "",
     local_copy_path: str = "",
     source_path: str = "",
 ):
@@ -903,11 +904,14 @@ async def start_run(
     download a large file from the shared M: drive. Validated to be a
     writable directory before the (long) run starts.
     """
-    if module:
+    module_list = [m.strip() for m in modules.split(",") if m.strip()] if modules else []
+    if module or module_list:
         # Fail fast on an unknown module rather than ~20 min in when run.py's
         # section registry rejects it.
-        if module not in {m["section_id"] for m in _list_sections()}:
-            raise HTTPException(status_code=400, detail=f"Unknown module: {module!r}")
+        known = {m["section_id"] for m in _list_sections()}
+        for _m in ([module] if module else []) + module_list:
+            if _m not in known:
+                raise HTTPException(status_code=400, detail=f"Unknown module: {_m!r}")
     elif product not in SUPPORTED_PRODUCTS:
         # Fail fast on an unsupported product (e.g. the Deposits 'dep' card,
         # which has no analysis backend). Without this the run launches and
@@ -1026,7 +1030,11 @@ async def start_run(
             cmd = [sys.executable, "-u", str(analysis_run),
                    "--month", month, "--csm", csm, "--client", client_id,
                    "--product", product]
-            if module:
+            if module_list:
+                # Batch closed loop: aggregate ONCE, a scoped deck per section.
+                # --sections overrides --product (run.py).
+                cmd += ["--sections", ",".join(module_list)]
+            elif module:
                 # Closed-loop single-section run; --section overrides --product.
                 cmd += ["--section", module]
             if local_copy_resolved:

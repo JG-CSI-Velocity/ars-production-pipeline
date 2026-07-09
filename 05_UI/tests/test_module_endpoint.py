@@ -43,6 +43,28 @@ def test_run_accepts_known_module_past_validation(app_module, monkeypatch):
     assert resp.status_code != 400
 
 
+def test_run_rejects_unknown_module_in_batch(app_module, monkeypatch):
+    monkeypatch.setattr(app_module, "_list_sections", lambda: _FAKE_SECTIONS)
+    client = TestClient(app_module.app)
+    resp = client.post("/api/run", params={
+        "csm": "TestCSM", "month": "2026.06", "client_id": "1776",
+        "modules": "txn.merchant,txn.bogus",
+    })
+    assert resp.status_code == 400
+    assert "bogus" in resp.json()["detail"].lower()
+
+
+def test_run_accepts_known_modules_batch_past_validation(app_module, monkeypatch):
+    monkeypatch.setattr(app_module, "_list_sections", lambda: _FAKE_SECTIONS)
+    client = TestClient(app_module.app)
+    resp = client.post("/api/run", params={
+        "csm": "TestCSM", "month": "2026.06", "client_id": "1776",
+        "modules": "txn.merchant,ars.dctr",
+    })
+    # Both known -> passes the batch module gate (fails later on missing run.py).
+    assert resp.status_code != 400
+
+
 def test_list_sections_reads_static_json_and_recovers(app_module, monkeypatch, tmp_path):
     """The empty-picker fix: /api/modules reads a static sections.json (no
     subprocess, can't hang). A missing file returns [] and is NOT cached, so a
