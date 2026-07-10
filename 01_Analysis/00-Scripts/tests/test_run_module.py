@@ -61,9 +61,11 @@ def test_leaf_runs_only_itself(tmp_path, monkeypatch):
     ctx = _ctx(tmp_path)
     runner.run_module(ctx, "txn.ICS_cohort")
 
-    # ICS_cohort is a leaf -> no upstreams, only itself runs.
-    assert _FakeWrapper.calls == ["ICS_cohort"]
+    # ICS_cohort is a leaf -> no declared upstreams, but the 'general' baseline
+    # always runs first (builds shared combined_df columns), then the target.
+    assert _FakeWrapper.calls == ["general", "ICS_cohort"]
     assert deck_calls == ["txn.ICS_cohort"]
+    # Only the TARGET section's slides go into the deck, not the baseline's.
     assert [s.slide_id for s in ctx.all_slides] == ["TXN-X-ICS_cohort"]
 
 
@@ -74,8 +76,8 @@ def test_coupled_runs_upstreams_first_but_scopes_to_target(tmp_path, monkeypatch
     ctx = _ctx(tmp_path)
     runner.run_module(ctx, "txn.business_accts")
 
-    # merchant (produces merch_agg) runs before business_accts, target last.
-    assert _FakeWrapper.calls == ["merchant", "business_accts"]
+    # general baseline first, then merchant (produces merch_agg), then target.
+    assert _FakeWrapper.calls == ["general", "merchant", "business_accts"]
     # Only the TARGET section's slides go into the deck, not the upstream's.
     assert [s.slide_id for s in ctx.all_slides] == ["TXN-X-business_accts"]
     assert deck_calls == ["txn.business_accts"]

@@ -650,8 +650,11 @@ def run_module(ctx: SharedContext, section_id: str) -> dict[str, SharedResult]:
         os.environ["TXN_CACHE_SYNC"] = "1"
         from ars_analysis.analytics.section_deps import missing_section_deps
 
+        # Correct denominators (eligible filter) + run the 'general' baseline so
+        # shared combined_df columns (amount_bracket, ...) exist for the target.
+        _ensure_txn_eligible_subsets(ars_ctx)
         shared_namespace = prepare_shared_namespace(ars_ctx)
-        run_order = upstream_sections(section.folder) + [section.folder]
+        run_order = _txn_run_order(section.folder)
         for folder in run_order:
             # Before the TARGET runs, verify its cross-section data contract is
             # satisfied. Silent `if var in globals()` skips would otherwise let
@@ -748,6 +751,41 @@ def _build_module_ctx(ctx: SharedContext, product: str):
     return ars_ctx
 
 
+def _txn_run_order(folder: str) -> list[str]:
+    """Folders to run before + including a TXN target section.
+
+    TXN sections read shared columns off combined_df that the 'general' (Portfolio
+    Overview) section builds -- e.g. general/06_bracket_data adds 'amount_bracket',
+    which ics_acquisition / branch_txn / transaction_type spend-profile scripts
+    require. The static dep graph only tracks namespace variables, not combined_df
+    columns, so it misses these; running 'general' first (like ARS always runs
+    overview) guarantees the shared columns exist. Declared upstreams still run.
+    """
+    from ars_analysis.analytics.section_deps import upstream_sections
+
+    order: list[str] = []
+    if folder != "general":
+        order.append("general")
+    order.extend(upstream_sections(folder))
+    order.append(folder)
+    seen: set[str] = set()
+    return [f for f in order if not (f in seen or seen.add(f))]
+
+
+def _ensure_txn_eligible_subsets(ars_ctx) -> None:
+    """Populate ctx.subsets.eligible_data so the TXN eligible filter applies and
+    denominators are computed on the eligible base (matching the full report).
+    Without this the module/batch path silently uses the UNFILTERED combined_df
+    (the "Eligible filter NOT applied" warning). Best-effort: degrades to
+    unfiltered with a warning rather than killing the run."""
+    try:
+        from ars_analysis.pipeline.steps.subsets import step_subsets
+        step_subsets(ars_ctx)
+    except Exception as exc:  # noqa: BLE001 -- filter is best-effort
+        logger.warning("TXN eligible subsets unavailable (denominators will be "
+                       "unfiltered): %s: %s", type(exc).__name__, exc)
+
+
 def run_modules(ctx: SharedContext, section_ids: list[str]) -> dict[str, SharedResult]:
     """Aggregate the client's data ONCE, then build a scoped deck for EACH
     requested section.
@@ -812,13 +850,15 @@ def run_modules(ctx: SharedContext, section_ids: list[str]) -> dict[str, SharedR
         ars_ctx = _build_module_ctx(ctx, "txn")
         os.environ["TXN_CACHE_SYNC"] = "1"
         _notify("Aggregating TXN data (once for all selected modules)...")
+        _ensure_txn_eligible_subsets(ars_ctx)
         shared_namespace = prepare_shared_namespace(ars_ctx)
 
-        # Run every needed folder (each selected section + its upstreams) exactly
-        # once, in dependency order, against the single shared namespace.
+        # Run every needed folder (each selected section + the 'general' baseline
+        # + declared upstreams) exactly once, in dependency order, against the
+        # single shared namespace.
         ran: set[str] = set()
         for sec in txn_secs:
-            for folder in upstream_sections(sec.folder) + [sec.folder]:
+            for folder in _txn_run_order(sec.folder):
                 if folder in ran:
                     continue
                 wrapper = TXNSectionWrapper(folder, _ANALYTICS / folder)
