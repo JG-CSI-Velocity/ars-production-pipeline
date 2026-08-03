@@ -83,6 +83,11 @@ def total_row(df: pd.DataFrame, label_col: str, label: str = "TOTAL") -> pd.Data
 # -- Categorization functions ------------------------------------------------
 
 
+# Canonical as-of helper now lives in analytics.base; re-exported here so the
+# existing dctr imports (`from ..._helpers import as_of_ts`) keep working.
+from ars_analysis.analytics.base import as_of_ts  # noqa: E402,F401
+
+
 def categorize_account_age(days: float) -> str:
     if pd.isna(days):
         return "Unknown"
@@ -152,10 +157,11 @@ def simplify_account_age(age_range: str) -> str:
 def map_to_decade(year: float) -> str | None:
     if pd.isna(year):
         return None
-    recent = list(range(2020, 2027))
+    # Show the current decade (2020s) onward year-by-year; group older years by
+    # decade. Era-relative so it never hits a hardcoded cliff (was range(2020,2027)).
     if year < 1970:
         return "Before 1970"
-    if int(year) in recent:
+    if int(year) >= 2020:
         return str(int(year))
     return f"{(int(year) // 10) * 10}s"
 
@@ -260,7 +266,10 @@ def analyze_historical_dctr(
     decade = pd.DataFrame(drows)
 
     t_all, w_all, o_dctr = dctr(valid)
-    recent = valid[valid["Year"].isin([2023, 2024, 2025, 2026])]
+    # "Recent" = the last 4 years present in the data (was hardcoded 2023-2026,
+    # which silently stops updating). Data-relative, so it always tracks.
+    _max_year = int(valid["Year"].max())
+    recent = valid[valid["Year"] >= _max_year - 3]
     _, _, r_dctr = dctr(recent) if len(recent) else (0, 0, 0)
 
     return (

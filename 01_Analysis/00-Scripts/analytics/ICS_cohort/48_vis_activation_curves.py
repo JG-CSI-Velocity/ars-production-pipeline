@@ -17,15 +17,18 @@ import matplotlib.pyplot as plt
 import matplotlib.patheffects as _pe_48
 import numpy as np
 
+from ars_analysis.charts.style import PRIMARY, POSITIVE
+from ars_analysis.shared.brand import BRAND
+
 _required = ('ics_activation_by_cohort', 'nonics_activation_by_cohort')
 if not all(n in dir() for n in _required):
     print("   Need ics-34 to have run first (ics_activation_by_cohort + "
           "nonics_activation_by_cohort).  Run ics-34 then re-run this cell.")
 else:
     if 'GEN_COLORS' not in dir():
-        GEN_COLORS = {'info': '#2B6CB0', 'success': '#2F855A',
-                      'warning': '#C05621', 'dark_text': '#1A202C',
-                      'muted': '#718096'}
+        GEN_COLORS = {'info': PRIMARY, 'success': POSITIVE,
+                      'warning': BRAND["accent"], 'dark_text': BRAND["text"],
+                      'muted': BRAND["muted"]}
 
     # (display-name, months-after-open)  -- must match _MILESTONES from ics-34
     _MS = [('M1', 1), ('M3', 3), ('M6', 6), ('M9', 9), ('M12', 12), ('M24', 24)]
@@ -103,7 +106,7 @@ else:
 
     # Percentage axis formatter
     _ymax = max(np.nanmax(_ics_y), np.nanmax(_non_y))
-    ax.set_ylim(0, min(100, _ymax + 15))
+    ax.set_ylim(0, min(100, _ymax + 15) or 100)
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f'{v:.0f}%'))
 
     # Light gridlines

@@ -514,10 +514,21 @@ class TXNSectionWrapper(AnalysisModule):
                 if _memory_numbers:
                     _recorder.set_key_numbers(_memory_numbers)
 
-        # Convert captured charts to AnalysisResult objects
+        # Slide ids are keyed to the producing script (STABLE), not section-wide
+        # capture order, so adding/removing one script no longer renumbers every
+        # slide after it (which silently desynced SLIDE_MANIFEST.xlsx /
+        # slide_specs between full and scoped runs). This is now the default for
+        # ALL sections; no repo slide_spec binds to the old positional
+        # TXN-<code>-NN scheme (the TXN specs use semantic ids from
+        # txn_exports), so decks are unaffected. Client SLIDE_MANIFEST.xlsx files
+        # keyed on old positional ids must be regenerated once (they otherwise
+        # keep-all, the safe default). A section can opt back to positional with
+        # STABLE_SLIDE_IDS = False in its config.
+        _stable = namespace.get("STABLE_SLIDE_IDS", True)
         results = []
         for i, chart_path in enumerate(charts):
-            slide_id = f"TXN-{self.section_code}-{i+1:02d}"
+            slide_id = (_stable_slide_id(self.section_code, self.section_name, chart_path)
+                        if _stable else f"TXN-{self.section_code}-{i+1:02d}")
             results.append(AnalysisResult(
                 slide_id=slide_id,
                 title=f"{self.display_name}: {chart_path.stem.replace('_', ' ')}",
@@ -561,6 +572,21 @@ def _build_namespace(ctx: PipelineContext) -> dict[str, Any]:
             else:
                 print(a)
 
+    # display_formatted(df, title) -- another notebook helper many TXN cells
+    # call to show a styled table. It was NEVER ported to the pipeline runtime,
+    # so unguarded calls (all of ICS_cohort) raised NameError and aborted the
+    # whole script -- taking down any chart the cell also produced (#241 ICS
+    # section gutted to 5 slides). Safe shim: print the frame so its content
+    # still lands in the log, and return None so execution continues and the
+    # cell's chart renders.
+    def _display_formatted(data=None, title="", *args, **kwargs):
+        if title:
+            print(str(title))
+        if hasattr(data, 'to_string'):
+            print(data.to_string())
+        elif data is not None:
+            print(data)
+
     from collections import OrderedDict
     from matplotlib.colors import LinearSegmentedColormap
     from matplotlib.gridspec import GridSpec
@@ -599,6 +625,7 @@ def _build_namespace(ctx: PipelineContext) -> dict[str, Any]:
         "warnings": warnings,
         # Jupyter compatibility
         "display": _display,
+        "display_formatted": _display_formatted,
         # Pipeline context values
         "CLIENT_ID": ctx.client.client_id,
         "CLIENT_NAME": ctx.client.client_name,
@@ -782,6 +809,60 @@ def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> 
             )
 
 
+def _stable_slide_id(section_code: str, section_name: str, chart_path) -> str:
+    """A slide id keyed to the producing script + figure index, derived from the
+    captured PNG name (``{section}_{script}_{NN}.png``), instead of section-wide
+    capture order. Stable across adding/removing sibling scripts."""
+    stem = chart_path.stem
+    prefix = f"{section_name}_"
+    if stem.startswith(prefix):
+        stem = stem[len(prefix):]
+    return f"TXN-{section_code}-{stem}"
+
+
+def _load_shared_theme(namespace: dict[str, Any]) -> None:
+    """Exec the pure theme/formatter script into the shared namespace so every
+    section inherits GEN_COLORS, gen_* helpers, and the palette/order constants
+    without depending on the `general` section running first. Guarded: on any
+    failure sections fall back to `general` (which defines the same theme)."""
+    theme = Path(__file__).parent / "general" / "01_general_theme.py"
+    if not theme.exists():
+        return
+    try:
+        exec(compile(theme.read_text(encoding="utf-8"), str(theme), "exec"), namespace)
+        logger.info("Shared theme loaded into setup namespace")
+    except Exception as exc:  # noqa: BLE001 -- theme is best-effort here
+        logger.warning("Shared theme load failed ({e}); sections rely on the "
+                       "general section for theme instead.", e=exc)
+
+
+# general DATA-producer scripts promoted into shared setup (must be data-only,
+# i.e. no plt.show/savefig -- verified). Run in order after combined_df exists.
+_SHARED_PRODUCER_SCRIPTS = (
+    "11_demographic_data.py",   # demo_df
+    "17_engagement_data.py",    # acct_txn_counts
+    "29_swipe_category_data.py",  # swipe_lookup
+)
+
+
+def _load_shared_producers(namespace: dict[str, Any]) -> None:
+    """Exec general's data-producer cells into the shared namespace so every
+    section inherits demo_df / acct_txn_counts / swipe_lookup without running
+    the whole `general` section. Each is guarded: a failure just means sections
+    needing that frame fall back to running `general` upstream."""
+    general = Path(__file__).parent / "general"
+    for name in _SHARED_PRODUCER_SCRIPTS:
+        script = general / name
+        if not script.exists():
+            continue
+        try:
+            exec(compile(script.read_text(encoding="utf-8"), str(script), "exec"), namespace)
+        except Exception as exc:  # noqa: BLE001 -- best-effort promotion
+            logger.warning("Shared producer {n} failed ({e}); sections needing "
+                           "its frame fall back to the general section.",
+                           n=name, e=exc)
+
+
 def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     """Build namespace and run txn_setup ONCE for all sections.
 
@@ -801,6 +882,13 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
     """
     t0 = time.time()
     namespace = _build_namespace(ctx)
+
+    # Promote the shared theme/formatters into setup so every section has them
+    # without running the `general` section first -- this is what makes
+    # theme-only sections self-contained (runnable standalone). The theme script
+    # is pure (no data deps) and idempotent: `general` re-runs it as its first
+    # cell producing identical values, so the full-run deck is unchanged.
+    _load_shared_theme(namespace)
 
     setup_dir = Path(__file__).parent / "txn_setup"
     if not setup_dir.exists():
@@ -840,6 +928,12 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
 
     # Apply 4-denominator framework to TXN data (Audit 2026-04-27 Entry 1)
     _inject_eligible_filter(namespace, ctx)
+
+    # Promote general's shared DATA producers (demo_df, acct_txn_counts,
+    # swipe_lookup) into setup now that combined_df exists, so sections that
+    # only needed those frames are self-contained. Data-only + idempotent:
+    # `general` re-runs the same cells, so the full-run deck is unchanged.
+    _load_shared_producers(namespace)
 
     elapsed = time.time() - t0
     row_count = 0

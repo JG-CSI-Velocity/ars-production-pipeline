@@ -203,6 +203,25 @@ files_to_load = recent_files + unparsed_files
 # 14+ TXN files off the M: network share; subsequent runs load the cached
 # .parquet in seconds. Every branch of this decision prints a status line so
 # users can tell at a glance why a given run is slow.
+# Force a rebuild when TXN_FORCE_REBUILD is set. The cache is keyed only on
+# client + file mtimes, so after a CODE change to how combined_df is built
+# (05-combine-data / 09-oddd-account-type) it still reads "fresh" and silently
+# serves stale data. run_module sets this on the single-module path so
+# iterating on a fix always reloads; operators can set it by hand too.
+_force_rebuild = bool(os.environ.get("TXN_FORCE_REBUILD"))
+
+# Auto-invalidate caches built before this cutoff. The cache key is only
+# client+file-mtimes, so a CODE change to how combined_df is built does NOT
+# invalidate it -- an old-schema cache then crashes new code at setup ("failed
+# at the first module"). Any cache older than the cutoff is deleted and rebuilt
+# fresh, self-healing every client on its next run. Bump the date (or set
+# TXN_CACHE_MIN_DATE=YYYY-MM-DD) after a change that alters combined_df's schema.
+_cache_min_str = os.environ.get("TXN_CACHE_MIN_DATE", "2026-07-09")
+try:
+    _CACHE_MIN_DATE = datetime.strptime(_cache_min_str, "%Y-%m-%d")
+except ValueError:
+    _CACHE_MIN_DATE = datetime(2026, 7, 9)
+
 print()
 print("-" * 60)
 print("PARQUET CACHE STATUS")
@@ -211,6 +230,19 @@ if not PARQUET_CACHE.exists():
     print(f"  Status: NO CACHE (will be built during this run)")
     print(f"  Location: {PARQUET_CACHE}")
     print(f"  Note: first run for this client is slow; subsequent runs are fast.")
+elif PARQUET_CACHE.stat().st_mtime < _CACHE_MIN_DATE.timestamp():
+    # Pre-cutoff cache: built by older code, may not match the current schema.
+    _stale_dt = datetime.fromtimestamp(PARQUET_CACHE.stat().st_mtime)
+    print(f"  Status: STALE (built {_stale_dt:%Y-%m-%d} before cutoff "
+          f"{_CACHE_MIN_DATE:%Y-%m-%d} -- deleting and rebuilding)")
+    try:
+        PARQUET_CACHE.unlink()
+    except OSError as _e:
+        print(f"  WARNING: could not delete stale cache: {type(_e).__name__}: {_e}")
+    # USE_PARQUET_CACHE stays None -> rebuild from source this run.
+elif _force_rebuild:
+    print(f"  Status: FORCE-REBUILD (TXN_FORCE_REBUILD set -- ignoring cache)")
+    print(f"  Cache:  {PARQUET_CACHE.name} (will be overwritten)")
 elif not files_to_load:
     # Cache exists but no raw files -- rely on cache
     USE_PARQUET_CACHE = PARQUET_CACHE

@@ -41,27 +41,30 @@ BRAND: dict[str, str] = {
 }
 
 # Categorical sequence for multi-series charts. Order matters -- series 1 = CHART_PALETTE[0].
-# Pinned to a palette that reads well against the navy/orange identity without
-# muddying single-series brand emphasis.
+# Extended but CSI-derived: the four CSI anchors (Navy/Orange/Gold/Red) first,
+# then two neutrals and two navy-derived steel-blue tints for the 7th/8th series.
+# The earlier palette carried a non-CSI green (#2A8B3E) and teal (#48A6A7) as
+# categorical colors, which made multi-series charts read off-brand; those slots
+# are now on-brand hues/tints so the whole deck reads as one system.
 CHART_PALETTE: tuple[str, ...] = (
     "#00274C",   # CSI Navy (series 1)
     "#F15D22",   # CSI Orange / accent (series 2)
-    "#2A8B3E",   # positive (series 3)
+    "#F8971D",   # CSI Gold (series 3)
     "#EB2A2E",   # CSI Red / negative (series 4)
-    "#8B95A2",   # neutral (series 5)
+    "#8B95A2",   # neutral gray (series 5)
     "#5B6770",   # slate (series 6)
-    "#F8971D",   # CSI Gold (series 7)
-    "#48A6A7",   # teal (series 8)
+    "#7BA0C4",   # light navy tint (series 7) -- derived from CSI Navy
+    "#3E6B94",   # navy tint / steel blue (series 8) -- derived from CSI Navy
 )
 
 # Semantic aliases the analytics layer reads. Keep names stable; resolve to brand.
 PERSONAL    = CHART_PALETTE[0]   # navy -- consumer accounts
 BUSINESS    = CHART_PALETTE[1]   # accent -- business accounts
-HISTORICAL  = "#5B9BD5"          # historical reference line -- intentionally muted blue
+HISTORICAL  = "#9AA7B5"          # historical reference line -- muted navy-gray (CSI-derived)
 TTM         = CHART_PALETTE[1]   # accent -- recent / L12M emphasis
 ELIGIBLE    = CHART_PALETTE[0]   # navy -- canonical denominator base
 SILVER      = BRAND["muted"]
-TEAL        = CHART_PALETTE[7]
+TEAL        = CHART_PALETTE[7]   # navy-derived steel blue (was off-brand teal)
 
 # Font family
 FONTS: dict[str, str] = {

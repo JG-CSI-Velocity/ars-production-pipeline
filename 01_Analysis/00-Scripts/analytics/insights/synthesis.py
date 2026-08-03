@@ -32,7 +32,7 @@ from ars_analysis.analytics.insights._data import (
     get_value_2,
 )
 from ars_analysis.analytics.registry import register
-from ars_analysis.charts.guards import chart_figure
+from ars_analysis.charts.guards import chart_figure, label_color_for
 from ars_analysis.charts.style import (
     BAR_ALPHA,
     BAR_EDGE,
@@ -44,6 +44,7 @@ from ars_analysis.charts.style import (
     TICK_SIZE,
 )
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 CAPTURE_RATE = 0.25  # Realistic near-term capture assumption
 
@@ -138,7 +139,7 @@ def _revenue_gap(ctx: PipelineContext) -> list[AnalysisResult]:
                 total_gap * 0.5, -0.8,
                 f"{v1['accts_without']:,} accounts without debit "
                 f"+ {v2['accts_without']:,} without Reg E",
-                ha="center", fontsize=14, color="#666",
+                ha="center", fontsize=14, color=BRAND["muted"],
                 transform=ax.get_xaxis_transform(),
             )
             fig.tight_layout()
@@ -229,9 +230,9 @@ def _cost_of_attrition(ctx: PipelineContext) -> list[AnalysisResult]:
             color=NEGATIVE,
             ha="center",
         )
-        ax_left.text(5, 5.2, f"{closed:,} accounts closed", fontsize=16, color="#666", ha="center")
+        ax_left.text(5, 5.2, f"{closed:,} accounts closed", fontsize=16, color=BRAND["muted"], ha="center")
         ax_left.text(
-            5, 4.2, f"${avg_lost:,.0f} avg lost per account", fontsize=14, color="#666", ha="center"
+            5, 4.2, f"${avg_lost:,.0f} avg lost per account", fontsize=14, color=BRAND["muted"], ha="center"
         )
 
         # Right panel: Preventable Opportunity
@@ -274,7 +275,7 @@ def _cost_of_attrition(ctx: PipelineContext) -> list[AnalysisResult]:
             5.2,
             f"{preventable_closures:,} accounts saved",
             fontsize=16,
-            color="#666",
+            color=BRAND["muted"],
             ha="center",
         )
         ax_right.text(
@@ -282,7 +283,7 @@ def _cost_of_attrition(ctx: PipelineContext) -> list[AnalysisResult]:
             4.2,
             f"{retention_lift:.1%} retention lift from debit",
             fontsize=14,
-            color="#666",
+            color=BRAND["muted"],
             ha="center",
         )
 
@@ -357,7 +358,7 @@ def _mailer_roi(ctx: PipelineContext) -> list[AnalysisResult]:
             "Mailer Program: Cause and Effect",
             fontsize=24,
             fontweight="bold",
-            color="#1E3D59",
+            color=PRIMARY,
             ha="center",
         )
 
@@ -389,7 +390,7 @@ def _mailer_roi(ctx: PipelineContext) -> list[AnalysisResult]:
                 fontweight="bold",
                 color=color,
             )
-            ax_main.text(bx, by - 0.3, detail, ha="center", va="center", fontsize=11, color="#444")
+            ax_main.text(bx, by - 0.3, detail, ha="center", va="center", fontsize=11, color=BRAND["text"])
 
         # Arrows between boxes
         for x1, x2 in [(1.8, 2.7), (4.3, 5.2)]:
@@ -397,7 +398,7 @@ def _mailer_roi(ctx: PipelineContext) -> list[AnalysisResult]:
                 "",
                 xy=(x2, 6.5),
                 xytext=(x1, 6.5),
-                arrowprops={"arrowstyle": "->", "color": "#999", "lw": 2},
+                arrowprops={"arrowstyle": "->", "color": BRAND["muted"], "lw": 2},
             )
 
         # Result boxes at bottom
@@ -431,7 +432,7 @@ def _mailer_roi(ctx: PipelineContext) -> list[AnalysisResult]:
             f"Total Program Value: ${total_roi:,.0f}/year",
             fontsize=22,
             fontweight="bold",
-            color="#1E3D59",
+            color=PRIMARY,
             ha="center",
         )
 
@@ -606,7 +607,7 @@ def _debit_cascade(ctx: PipelineContext) -> list[AnalysisResult]:
         # Vertical stacked waterfall
         streams = [
             ("Interchange\nRevenue", stream_1, TEAL),
-            ("Reg E\nEligibility", stream_2, "#1E3D59"),
+            ("Reg E\nEligibility", stream_2, PRIMARY),
             ("Retention\nValue", stream_3, POSITIVE),
         ]
 
@@ -624,7 +625,7 @@ def _debit_cascade(ctx: PipelineContext) -> list[AnalysisResult]:
                 va="center",
                 fontsize=DATA_LABEL_SIZE - 2,
                 fontweight="bold",
-                color="white",
+                color=label_color_for(color),
             )
             bottom += val
 
@@ -632,7 +633,7 @@ def _debit_cascade(ctx: PipelineContext) -> list[AnalysisResult]:
         ax.bar(
             len(streams),
             total_cascade,
-            color="#D4A574",
+            color=BRAND["gold"],
             edgecolor=BAR_EDGE,
             alpha=BAR_ALPHA,
             width=0.5,
@@ -645,7 +646,7 @@ def _debit_cascade(ctx: PipelineContext) -> list[AnalysisResult]:
             va="center",
             fontsize=DATA_LABEL_SIZE,
             fontweight="bold",
-            color="white",
+            color=label_color_for(BRAND["gold"]),
         )
 
         labels = [s[0] for s in streams] + ["Total\nper Activation"]

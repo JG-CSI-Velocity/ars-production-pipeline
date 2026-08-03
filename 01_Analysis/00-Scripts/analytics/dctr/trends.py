@@ -12,14 +12,16 @@ from matplotlib.ticker import FuncFormatter
 
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.dctr._helpers import (
+    as_of_ts,
     dctr,
     filter_l12m,
     l12m_month_labels,
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import BUSINESS, HISTORICAL, NEUTRAL, PERSONAL, PRIMARY, TEAL, TTM
+from ars_analysis.charts.style import BUSINESS, HISTORICAL, NEGATIVE, NEUTRAL, PERSONAL, PRIMARY, TEAL, TTM
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -116,7 +118,7 @@ class DCTRTrends(AnalysisModule):
                         x_pos,
                         vals,
                         color=colors,
-                        edgecolor="black",
+                        edgecolor=BRAND["text"],
                         linewidth=2,
                         alpha=0.9,
                         width=0.6,
@@ -133,7 +135,9 @@ class DCTRTrends(AnalysisModule):
                     ax.set_xticks(x_pos)
                     ax.set_xticklabels(cats, fontsize=13)
                     ax.tick_params(axis="y", labelsize=13)
-                    ax.set_ylim(0, max(vals) * 1.2 if vals else 100)
+                    # `... or 100`: guard the all-zero case too (empty -> 100
+                    # already; max()==0 would give a degenerate ylim(0,0)).
+                    ax.set_ylim(0, (max(vals) * 1.2 if vals else 100) or 100)
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
                     ax.spines["top"].set_visible(False)
                     ax.spines["right"].set_visible(False)
@@ -141,7 +145,7 @@ class DCTRTrends(AnalysisModule):
 
                     # Summary badge
                     sign = "+" if p_trend >= 0 else ""
-                    badge_color = TEAL if p_trend >= 0 else "#E74C3C"
+                    badge_color = TEAL if p_trend >= 0 else NEGATIVE
                     ax.text(
                         0.98,
                         0.95,
@@ -154,7 +158,7 @@ class DCTRTrends(AnalysisModule):
                         color=badge_color,
                         bbox={
                             "boxstyle": "round,pad=0.4",
-                            "facecolor": "#E8F4FD",
+                            "facecolor": BRAND["light_gray"],
                             "edgecolor": badge_color,
                         },
                     )
@@ -199,16 +203,16 @@ class DCTRTrends(AnalysisModule):
                 with chart_figure(figsize=(16, 8), save_path=save_to) as (fig, ax):
                     ax2 = ax.twinx()
                     total_vol = d1["Total Accounts"].values
-                    ax2.bar(x, total_vol, alpha=0.2, color="gray", edgecolor="none", width=0.8)
-                    ax2.set_ylabel("Account Volume", fontsize=24, color="gray")
-                    max_vol = max(total_vol) if len(total_vol) > 0 else 100
+                    ax2.bar(x, total_vol, alpha=0.2, color=NEUTRAL, edgecolor="none", width=0.8)
+                    ax2.set_ylabel("Account Volume", fontsize=24, color=NEUTRAL)
+                    max_vol = (max(total_vol) if len(total_vol) > 0 else 100) or 100
                     ax2.set_ylim(0, max_vol * 1.3)
-                    ax2.tick_params(axis="y", colors="gray", labelsize=24)
+                    ax2.tick_params(axis="y", colors=NEUTRAL, labelsize=24)
 
                     ax.plot(
                         x,
                         overall,
-                        color="black",
+                        color=BRAND["text"],
                         linewidth=3,
                         linestyle="--",
                         marker="o",
@@ -255,7 +259,7 @@ class DCTRTrends(AnalysisModule):
                     ax.set_title(
                         "Historical DCTR Trend by Decade", fontsize=24, fontweight="bold", pad=20
                     )
-                    ax.set_ylim(0, min(110, max(overall) * 1.15) if len(overall) > 0 else 100)
+                    ax.set_ylim(0, (min(110, max(overall) * 1.15) if len(overall) > 0 else 100) or 100)
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{int(x)}%"))
                     ax.tick_params(axis="y", labelsize=24)
                     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=18)
@@ -522,7 +526,7 @@ class DCTRTrends(AnalysisModule):
                             label="Personal",
                             color=PERSONAL,
                             alpha=0.9,
-                            edgecolor="black",
+                            edgecolor=BRAND["text"],
                             linewidth=2,
                         )
                         ax.bar(
@@ -532,7 +536,7 @@ class DCTRTrends(AnalysisModule):
                             label="Business",
                             color=BUSINESS,
                             alpha=0.9,
-                            edgecolor="black",
+                            edgecolor=BRAND["text"],
                             linewidth=2,
                         )
                     else:
@@ -543,7 +547,7 @@ class DCTRTrends(AnalysisModule):
                             label="Personal",
                             color=PERSONAL,
                             alpha=0.9,
-                            edgecolor="black",
+                            edgecolor=BRAND["text"],
                             linewidth=2,
                         )
 
@@ -638,7 +642,7 @@ class DCTRTrends(AnalysisModule):
                     ax.set_ylabel("DCTR (%)", fontsize=16)
                     ax.set_title("DCTR Seasonality Analysis", fontsize=20, fontweight="bold")
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
-                    ax.set_ylim(0, max(vals) * 1.15 if len(vals) > 0 else 100)
+                    ax.set_ylim(0, (max(vals) * 1.15 if len(vals) > 0 else 100) or 100)
                     ax.spines["top"].set_visible(False)
                     ax.spines["right"].set_visible(False)
                     ax.set_axisbelow(True)
@@ -673,7 +677,7 @@ class DCTRTrends(AnalysisModule):
         if valid.empty:
             return []
 
-        valid["Account Age Days"] = (pd.Timestamp.now() - valid["Date Opened"]).dt.days
+        valid["Account Age Days"] = (as_of_ts(ctx) - valid["Date Opened"]).dt.days
         valid["Year"] = valid["Date Opened"].dt.year
 
         vintage_buckets = [
@@ -743,7 +747,7 @@ class DCTRTrends(AnalysisModule):
                         "DCTR by Account Age (Vintage Curve)", fontweight="bold", fontsize=18
                     )
                     dctr_vals = vintage_df["DCTR %"].values
-                    ax.set_ylim(0, max(dctr_vals) * 1.15 if len(dctr_vals) > 0 else 100)
+                    ax.set_ylim(0, (max(dctr_vals) * 1.15 if len(dctr_vals) > 0 else 100) or 100)
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
                     ax.grid(axis="y", alpha=0.3, linestyle="--")
                     ax.set_axisbelow(True)

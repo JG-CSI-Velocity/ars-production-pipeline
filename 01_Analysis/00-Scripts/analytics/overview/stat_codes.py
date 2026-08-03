@@ -18,6 +18,7 @@ from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.style import ELIGIBLE, SILVER
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 _BUSINESS_LABELS = {
     "Yes": "Business",
@@ -266,7 +267,7 @@ def _render_combined(
                     wrapped,
                     transform=ax_text.transAxes,
                     fontsize=12,
-                    color="#334155",
+                    color=BRAND["text"],
                     va="center",
                     ha="left",
                     style="italic",
@@ -303,7 +304,7 @@ def _draw_bar(
     # Color: eligible = ELIGIBLE green, other = SILVER
     colors = [ELIGIBLE if c.strip() in eligible else SILVER for c in codes]
 
-    ax.barh(codes, counts, color=colors, edgecolor="black", linewidth=0.8, height=0.7)
+    ax.barh(codes, counts, color=colors, edgecolor=BRAND["text"], linewidth=0.8, height=0.7)
 
     for i, (cnt, pct) in enumerate(zip(counts, pcts)):
         ax.text(
@@ -330,8 +331,8 @@ def _draw_bar(
 
         ax.legend(
             handles=[
-                Patch(facecolor=ELIGIBLE, edgecolor="black", linewidth=0.8, label="Eligible"),
-                Patch(facecolor=SILVER, edgecolor="black", linewidth=0.8, label="Other"),
+                Patch(facecolor=ELIGIBLE, edgecolor=BRAND["text"], linewidth=0.8, label="Eligible"),
+                Patch(facecolor=SILVER, edgecolor=BRAND["text"], linewidth=0.8, label="Other"),
             ],
             fontsize=10,
             loc="lower right",

@@ -14,9 +14,18 @@ from matplotlib.ticker import FuncFormatter
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.dctr._helpers import debit_mask, filter_l12m
 from ars_analysis.analytics.registry import register
-from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import ELIGIBLE, HISTORICAL, NEGATIVE, POSITIVE, TEAL
+from ars_analysis.charts.guards import chart_figure, label_color_for
+from ars_analysis.charts.style import (
+    ELIGIBLE,
+    HISTORICAL,
+    NEGATIVE,
+    NEUTRAL,
+    POSITIVE,
+    PRIMARY,
+    TEAL,
+)
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -320,7 +329,7 @@ class DCTRFunnel(AnalysisModule):
                         categories,
                         dctr_vals,
                         color=colors,
-                        edgecolor="black",
+                        edgecolor=BRAND["text"],
                         linewidth=2,
                         alpha=0.8,
                     )
@@ -338,7 +347,7 @@ class DCTRFunnel(AnalysisModule):
                     ax.set_title(
                         "TTM: Eligible vs Non-Eligible DCTR", fontsize=24, fontweight="bold", pad=20
                     )
-                    ax.set_ylim(0, max(dctr_vals) * 1.15 if max(dctr_vals) > 0 else 100)
+                    ax.set_ylim(0, (max(dctr_vals) * 1.15 if dctr_vals else 100) or 100)
                     ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
                     ax.tick_params(axis="both", labelsize=20)
                     ax.spines["top"].set_visible(False)
@@ -443,7 +452,7 @@ class DCTRFunnel(AnalysisModule):
         ]
 
         with chart_figure(figsize=(12, 10), save_path=save_to) as (fig, ax):
-            ax.set_facecolor("#f8f9fa")
+            ax.set_facecolor(BRAND["light_gray"])
             max_width = 0.8
             stage_height = 0.15
             y_start = 0.85
@@ -495,7 +504,7 @@ class DCTRFunnel(AnalysisModule):
                             ha="center",
                             va="center",
                             fontsize=20,
-                            color="white",
+                            color=label_color_for(stage["color"]),
                             fontweight="bold",
                         )
                     if b_width > 0.05:
@@ -506,7 +515,7 @@ class DCTRFunnel(AnalysisModule):
                             ha="center",
                             va="center",
                             fontsize=20,
-                            color="white",
+                            color=label_color_for(darker),
                             fontweight="bold",
                         )
                     ax.text(
@@ -517,11 +526,11 @@ class DCTRFunnel(AnalysisModule):
                         va="center",
                         fontsize=18,
                         fontweight="bold",
-                        color="black",
+                        color=BRAND["text"],
                         bbox={
                             "boxstyle": "round,pad=0.4",
                             "facecolor": "white",
-                            "edgecolor": "black",
+                            "edgecolor": BRAND["text"],
                             "alpha": 0.9,
                         },
                     )
@@ -545,7 +554,7 @@ class DCTRFunnel(AnalysisModule):
                         va="center",
                         fontsize=28,
                         fontweight="bold",
-                        color="white",
+                        color=label_color_for(stage["color"]),
                         zorder=10,
                     )
 
@@ -557,7 +566,7 @@ class DCTRFunnel(AnalysisModule):
                     va="center",
                     fontsize=20,
                     fontweight="600",
-                    color="#2c3e50",
+                    color=PRIMARY,
                 )
 
                 if i > 0 and stages[i - 1]["total"] > 0:
@@ -577,11 +586,11 @@ class DCTRFunnel(AnalysisModule):
                         va="center",
                         fontsize=18,
                         fontweight="bold",
-                        color="#e74c3c",
+                        color=NEGATIVE,
                         bbox={
                             "boxstyle": "round,pad=0.3",
                             "facecolor": "white",
-                            "edgecolor": "#e74c3c",
+                            "edgecolor": NEGATIVE,
                             "alpha": 0.9,
                         },
                     )
@@ -596,7 +605,7 @@ class DCTRFunnel(AnalysisModule):
                 va="top",
                 fontsize=28,
                 fontweight="bold",
-                color="#1e3d59",
+                color=PRIMARY,
                 transform=ax.transAxes,
             )
             ax.text(
@@ -607,17 +616,17 @@ class DCTRFunnel(AnalysisModule):
                 va="top",
                 fontsize=20,
                 style="italic",
-                color="#7f8c8d",
+                color=NEUTRAL,
                 transform=ax.transAxes,
             )
 
             if has_biz:
                 legend_elements = [
                     mpatches.Patch(
-                        facecolor="#808080", edgecolor="black", label="Personal (Lighter shade)"
+                        facecolor="#808080", edgecolor=BRAND["text"], label="Personal (Lighter shade)"
                     ),
                     mpatches.Patch(
-                        facecolor="#404040", edgecolor="black", label="Business (Darker shade)"
+                        facecolor="#404040", edgecolor=BRAND["text"], label="Business (Darker shade)"
                     ),
                 ]
                 ax.legend(

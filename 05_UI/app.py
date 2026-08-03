@@ -401,6 +401,11 @@ def get_recent_runs():
 
 # ─── PRODUCT / MODULE REGISTRY ────────────────────────────────────────
 
+# Products the analysis backend can actually run today (01_Analysis/run.py
+# --product choices). "dep" (Deposits) is advertised in the UI but has no
+# backend yet, so it is intentionally excluded -- start_run rejects it.
+SUPPORTED_PRODUCTS = {"ars", "txn", "combined"}
+
 PRODUCTS = {
     "ars": {
         "name": "ARS Full Suite",
@@ -440,21 +445,9 @@ PRODUCTS = {
              "modules": ["Scorecard", "Priorities", "Roadmap"]},
         ],
     },
-    "dep": {
-        "name": "Deposits Analysis",
-        "count": 15,
-        "time": "10-20 min",
-        "groups": [
-            {"name": "Baseline", "count": 4, "desc": "Portfolio deposit metrics, tiers, segmentation.",
-             "modules": ["Baseline", "Tiers", "Segmentation", "Cross-check"]},
-            {"name": "Campaign Impact", "count": 5, "desc": "Response, cohort DID, segment analysis, deposit lift.",
-             "modules": ["Response", "Cohort DID", "Segments", "By Offer", "By Segment"]},
-            {"name": "Evidence", "count": 4, "desc": "Distribution, trajectory, growth proof.",
-             "modules": ["Distribution", "Trajectory", "Growth Proof", "NU Conversion"]},
-            {"name": "Presentation", "count": 2, "desc": "Executive summary and visuals.",
-             "modules": ["Summary", "Visuals"]},
-        ],
-    },
+    # Deposits ('dep') removed in Phase 3: it had no analysis backend and no
+    # near-term path, so it isn't advertised. Re-add here (and build the
+    # analytics + a run_dep runner) if/when Deposits ships.
 }
 
 
@@ -586,6 +579,45 @@ async def get_products():
     return PRODUCTS
 
 
+_SECTIONS_CACHE: dict = {}
+
+
+SECTIONS_JSON = ANALYSIS_BASE / "00-Scripts" / "tools" / "sections.json"
+
+
+def _list_sections() -> list[dict]:
+    """The unified section registry (for the module picker).
+
+    Reads a STATIC precomputed file (tools/sections.json) -- no subprocess and
+    no analytics import, so the endpoint is instant and can never hang (the
+    subprocess version stalled importing matplotlib/pandas on the work machine,
+    leaving the picker stuck on "Loading modules…"). The file is committed and
+    regenerated with `python 01_Analysis/00-Scripts/tools/list_sections.py
+    --write`; a test asserts it matches the live registry.
+
+    Only a non-empty result is cached, so a missing/broken file recovers on the
+    UI's Retry after it's regenerated.
+    """
+    cached = _SECTIONS_CACHE.get("data")
+    if cached:
+        return cached
+    try:
+        data = json.loads(SECTIONS_JSON.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        print(f"  /api/modules: cannot read {SECTIONS_JSON}: {exc} "
+              f"(regenerate with: python 01_Analysis/00-Scripts/tools/list_sections.py --write)")
+        return []
+    if data:
+        _SECTIONS_CACHE["data"] = data
+    return data
+
+
+@app.get("/api/modules")
+async def get_modules():
+    """List selectable analytics sections for the 'run one module' picker."""
+    return _list_sections()
+
+
 @app.get("/api/module_counts")
 async def module_counts():
     """Live module/section/script counts from the files actually on disk.
@@ -594,15 +626,14 @@ async def module_counts():
     silently went stale as analytics cells were added or deleted -- which
     made real pipeline changes look like they hadn't landed."""
     analytics = Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts" / "analytics"
-    # Section dirs are stable; cells inside them are what churns.
-    txn_sections = [
-        "general", "merchant", "mcc_code", "business_accts", "personal_accts",
-        "competition", "financial_services", "ics_acquisition", "campaign",
-        "branch_txn", "transaction_type", "product", "attrition_txn", "balance",
-        "interchange", "rege_overdraft", "payroll", "relationship",
-        "segment_evolution", "retention", "engagement", "executive",
-    ]
-    ars_dirs = ["overview", "dctr", "rege", "attrition", "value", "mailer", "insights", "ics"]
+    # Derive the section list from the unified registry (single source of truth)
+    # rather than a hardcoded list that silently drifted -- it had omitted
+    # ICS_cohort and invented a phantom 'ics' folder.
+    sections = _list_sections()
+    txn_sections = [s["section_id"].split(".", 1)[1]
+                    for s in sections if s.get("product") == "txn"]
+    ars_dirs = [s["section_id"].split(".", 1)[1]
+                for s in sections if s.get("product") == "ars"]
 
     def _modules(d: str) -> int:
         p = analytics / d
@@ -857,16 +888,42 @@ async def start_run(
     month: str,
     client_id: str,
     product: str = "ars",
+    module: str = "",
+    modules: str = "",
     local_copy_path: str = "",
     source_path: str = "",
 ):
     """Start a full pipeline run: format (if needed) + analysis + PPTX.
+
+    ``module`` (a section id like "txn.merchant"), when set, runs the closed-loop
+    single-section path instead of the whole product -- format-if-needed, just
+    that section's analysis, and a scoped one-section deck.
 
     Optional local_copy_path: when provided, the final PPTX deck is also
     copied to this folder on the operator's machine so they don't have to
     download a large file from the shared M: drive. Validated to be a
     writable directory before the (long) run starts.
     """
+    module_list = [m.strip() for m in modules.split(",") if m.strip()] if modules else []
+    if module or module_list:
+        # Fail fast on an unknown module rather than ~20 min in when run.py's
+        # section registry rejects it.
+        known = {m["section_id"] for m in _list_sections()}
+        for _m in ([module] if module else []) + module_list:
+            if _m not in known:
+                raise HTTPException(status_code=400, detail=f"Unknown module: {_m!r}")
+    elif product not in SUPPORTED_PRODUCTS:
+        # Fail fast on an unsupported product (e.g. the Deposits 'dep' card,
+        # which has no analysis backend). Without this the run launches and
+        # only dies ~20 min in when run.py's argparse rejects --product dep.
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Product '{product}' is not available yet. "
+                f"Choose one of: {', '.join(sorted(SUPPORTED_PRODUCTS))}."
+            ),
+        )
+
     run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
     formatting_run = ARS_BASE / "00_Formatting" / "run.py"
@@ -973,6 +1030,13 @@ async def start_run(
             cmd = [sys.executable, "-u", str(analysis_run),
                    "--month", month, "--csm", csm, "--client", client_id,
                    "--product", product]
+            if module_list:
+                # Batch closed loop: aggregate ONCE, a scoped deck per section.
+                # --sections overrides --product (run.py).
+                cmd += ["--sections", ",".join(module_list)]
+            elif module:
+                # Closed-loop single-section run; --section overrides --product.
+                cmd += ["--section", module]
             if local_copy_resolved:
                 cmd += ["--local-copy", local_copy_resolved]
             # Hand the analysis step the exact ODD we already located, so it

@@ -8,17 +8,20 @@
 # Depends on: camp_acct, camp_summary, cohort_summary (cells 01, 10)
 # Falls back to PULSE benchmarks if DCTR/RegE data unavailable
 
+from ars_analysis.charts.style import PRIMARY, POSITIVE, NEGATIVE
+from ars_analysis.shared.brand import BRAND
+
 if 'camp_acct' not in dir() or len(camp_acct) == 0:
     print("    No campaign data. Run cell 01 first.")
 else:
-    _DARK = GEN_COLORS.get('dark_text', '#1B2A4A')
-    _MUTED = GEN_COLORS.get('muted', '#6C757D')
-    _SUCCESS = GEN_COLORS.get('success', '#2A9D8F')
+    _DARK = GEN_COLORS.get('dark_text', BRAND["text"])
+    _MUTED = GEN_COLORS.get('muted', BRAND["muted"])
+    _SUCCESS = GEN_COLORS.get('success', POSITIVE)
     _INFO = GEN_COLORS.get('info', '#457B9D')
-    _WARNING = GEN_COLORS.get('warning', '#E9C46A')
-    _ACCENT = GEN_COLORS.get('accent', '#E63946')
-    _PRIMARY = GEN_COLORS.get('primary', '#264653')
-    _GRID = GEN_COLORS.get('grid', '#E0E0E0')
+    _WARNING = GEN_COLORS.get('warning', BRAND["gold"])
+    _ACCENT = GEN_COLORS.get('accent', NEGATIVE)
+    _PRIMARY = GEN_COLORS.get('primary', PRIMARY)
+    _GRID = GEN_COLORS.get('grid', BRAND["light_gray"])
 
     # PULSE Industry Benchmarks (defaults)
     PULSE_ACTIVE_CARD_RATE = 66.3
@@ -73,7 +76,7 @@ else:
     ax1.set_ylabel("Active Card Rate (%)", fontsize=16, fontweight='bold')
     ax1.yaxis.set_major_formatter(plt.FuncFormatter(gen_fmt_pct))
     ax1.tick_params(axis='x', labelsize=16)
-    ax1.set_ylim(0, max(values) * 1.25)
+    ax1.set_ylim(0, (max(values) * 1.25 if values else 100) or 100)
     gen_clean_axes(ax1, keep_left=True, keep_bottom=True)
     ax1.yaxis.grid(True, color=_GRID, linewidth=0.5, alpha=0.7)
     ax1.set_axisbelow(True)
@@ -161,7 +164,7 @@ else:
     ax3.set_ylabel("Rate (%)", fontsize=16, fontweight='bold')
     ax3.yaxis.set_major_formatter(plt.FuncFormatter(gen_fmt_pct))
     ax3.legend(fontsize=14, framealpha=0.9)
-    ax3.set_ylim(0, max(max(cu_vals), max(pulse_vals)) * 1.25)
+    ax3.set_ylim(0, (max(max(cu_vals), max(pulse_vals)) * 1.25 if cu_vals else 100) or 100)
     gen_clean_axes(ax3, keep_left=True, keep_bottom=True)
     ax3.yaxis.grid(True, color=_GRID, linewidth=0.5, alpha=0.7)
     ax3.set_axisbelow(True)

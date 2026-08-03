@@ -189,7 +189,14 @@ if _cache_dirty:
             except Exception:
                 pass
 
-    print(f"\nSaving Parquet cache in background (analysis continues)...")
-    _cache_thread = threading.Thread(target=_save_cache, daemon=True)
-    _cache_thread.start()
+    if os.environ.get("TXN_CACHE_SYNC"):
+        # A short single-module run (run_module sets this) can exit before a
+        # daemon write finishes, losing the first-ever cache and forcing the
+        # next run to re-read for ~25 min. Write synchronously instead.
+        print(f"\nSaving Parquet cache (synchronous)...")
+        _save_cache()
+    else:
+        print(f"\nSaving Parquet cache in background (analysis continues)...")
+        _cache_thread = threading.Thread(target=_save_cache, daemon=True)
+        _cache_thread.start()
 

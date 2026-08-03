@@ -191,6 +191,21 @@ def main():
     parser.add_argument("--product", type=str, default="ars",
                         choices=["ars", "txn", "combined"],
                         help="Analysis product: ars (default), txn (transaction only), combined (both)")
+    parser.add_argument("--section", type=str, default=None,
+                        help="Run ONE analytics section end-to-end (closed loop) and build a "
+                             "scoped deck for just its slides. Section id like 'txn.merchant' "
+                             "or 'ars.dctr' (see analytics/section_registry.py). Overrides --product.")
+    parser.add_argument("--sections", type=str, default=None,
+                        help="Run SEVERAL sections in ONE pass -- aggregate the client's data "
+                             "ONCE, then build a scoped deck per section. Comma-separated ids, "
+                             "e.g. 'txn.merchant,txn.mcc_code,txn.competition'. Overrides --product.")
+    parser.add_argument("--all-modules", action="store_true",
+                        help="Run ALL sections for --product in one pass (aggregate once, a deck "
+                             "per section). The fast way to produce every module's deck.")
+    parser.add_argument("--rebuild-cache", action="store_true",
+                        help="Ignore the TXN parquet cache and rebuild combined_df from the raw "
+                             "files. Use after changing data-loading code so a stale cache "
+                             "isn't served.")
     parser.add_argument("--local-copy", type=str, default=None,
                         help="Optional folder path. After the deck is written to M:, also copy "
                              "it here so the operator gets a fast local copy without downloading "
@@ -411,11 +426,45 @@ def main():
 
     ctx.progress_callback = on_progress
 
-    # Run the pipeline based on --product flag
+    # Run the pipeline based on --product / --section flag
     product = args.product
     ctx.product = product  # so deck_builder names the PPTX correctly (was misdetecting as 'ars')
 
-    if product == "txn":
+    if args.rebuild_cache:
+        # Read by txn_setup/02-file-config.py to force a MISS (rebuild combined_df).
+        os.environ["TXN_FORCE_REBUILD"] = "1"
+
+    if args.sections or args.all_modules:
+        # Batch closed loop: aggregate the client's data ONCE, then build a
+        # scoped deck per section (turns N cold single-module runs into 1 setup).
+        from runner import run_modules
+        if args.all_modules:
+            from analytics.section_registry import all_sections
+            section_ids = [s.section_id for s in all_sections()
+                           if s.product == product]
+        else:
+            section_ids = [s.strip() for s in args.sections.split(",") if s.strip()]
+        if not section_ids:
+            print("  ERROR: no sections resolved for the batch run.")
+            return 1
+        ctx.product = section_ids[0].split(".", 1)[0] if "." in section_ids[0] else product
+        print(f"  Running {len(section_ids)} modules in one pass (aggregate once): "
+              f"{', '.join(section_ids)}")
+        print()
+
+        def runner_fn(c, _sids=section_ids):
+            return run_modules(c, _sids)
+    elif args.section:
+        # Closed-loop single-section run: build only what this section needs and
+        # emit a scoped one-section deck (analytics/section_registry.py ids).
+        from runner import run_module
+        ctx.product = args.section.split(".", 1)[0] if "." in args.section else product
+        print(f"  Running single module: {args.section}")
+        print()
+
+        def runner_fn(c, _sid=args.section):
+            return run_module(c, _sid)
+    elif product == "txn":
         from runner import run_txn
         print("  Starting TXN pipeline...")
         print()
@@ -440,7 +489,11 @@ def main():
         gc.collect()  # release any file handles held by python-pptx/matplotlib
 
         try:
-            pptx_files = [f for f in output_dir.iterdir() if f.suffix == '.pptx']
+            # rglob (not iterdir) so per-module decks written under
+            # modules/<id>/ by a --section run are delivered too, not just the
+            # top-level full-run deck. The dest below preserves the relative
+            # path so a module deck lands in 02_Presentations/.../modules/<id>/.
+            pptx_files = [f for f in output_dir.rglob('*.pptx')]
         except OSError as _e:
             # Network mount (M:) can drop during long runs -- WinError 53 / 67.
             # Analysis already completed, so warn and skip the PPTX move.
@@ -450,7 +503,15 @@ def main():
             print(f"    The M: drive may have disconnected. Check the folder manually once it reconnects.")
             pptx_files = []
         for pf in pptx_files:
-            dest = pptx_dir / pf.name
+            # Preserve the path relative to output_dir so module decks keep
+            # their modules/<id>/ subfolder in 02_Presentations; a top-level
+            # full-run deck just maps to pptx_dir/<name>.
+            try:
+                _rel = pf.relative_to(output_dir)
+            except ValueError:
+                _rel = Path(pf.name)
+            dest = pptx_dir / _rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
             final_pptx = None  # path of the deck after server-side delivery
             moved = False
             for _attempt in range(3):

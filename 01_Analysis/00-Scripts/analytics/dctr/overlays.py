@@ -15,6 +15,7 @@ from ars_analysis.analytics.dctr._helpers import (
     AGE_ORDER,
     BALANCE_ORDER,
     HOLDER_AGE_ORDER,
+    as_of_ts,
     by_dimension,
     categorize_account_age,
     categorize_balance,
@@ -23,8 +24,9 @@ from ars_analysis.analytics.dctr._helpers import (
 )
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import PRIMARY, SILVER, TEAL
+from ars_analysis.charts.style import NEGATIVE, NEUTRAL, PRIMARY, SILVER, TEAL
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 
 def _safe(fn, label: str, ctx: PipelineContext) -> list[AnalysisResult]:
@@ -63,7 +65,7 @@ class DCTROverlays(AnalysisModule):
 
         dc = ed.copy()
         dc["Date Opened"] = pd.to_datetime(dc["Date Opened"], errors="coerce", format="mixed")
-        dc["Account Age Days"] = (pd.Timestamp.now() - dc["Date Opened"]).dt.days
+        dc["Account Age Days"] = (as_of_ts(ctx) - dc["Date Opened"]).dt.days
         df, ins = by_dimension(
             dc, "Account Age Days", categorize_account_age, AGE_ORDER, "Account Age"
         )
@@ -86,10 +88,10 @@ class DCTROverlays(AnalysisModule):
                         volumes = dr["Total Accounts"].values
 
                         ax2 = ax.twinx()
-                        ax2.bar(x, volumes, alpha=0.3, color="gray", edgecolor="none", width=0.6)
-                        ax2.set_ylabel("Account Volume", fontsize=24, color="gray")
-                        ax2.set_ylim(0, max(volumes) * 1.3 if len(volumes) else 100)
-                        ax2.tick_params(axis="y", colors="gray", labelsize=20)
+                        ax2.bar(x, volumes, alpha=0.3, color=NEUTRAL, edgecolor="none", width=0.6)
+                        ax2.set_ylabel("Account Volume", fontsize=24, color=NEUTRAL)
+                        ax2.set_ylim(0, (max(volumes) * 1.3 if len(volumes) else 100) or 100)
+                        ax2.tick_params(axis="y", colors=NEUTRAL, labelsize=20)
 
                         ax.plot(
                             x,
@@ -126,7 +128,7 @@ class DCTROverlays(AnalysisModule):
                             dr["Account Age"].values, fontsize=18, rotation=45, ha="right"
                         )
                         ax.tick_params(axis="y", labelsize=20, colors=TEAL)
-                        ax.set_ylim(0, max(vals) * 1.2 if len(vals) else 100)
+                        ax.set_ylim(0, (max(vals) * 1.2 if len(vals) else 100) or 100)
                         ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
                         ax.set_axisbelow(True)
                         ax.spines["top"].set_visible(False)
@@ -184,7 +186,7 @@ class DCTROverlays(AnalysisModule):
                         gradient = LinearSegmentedColormap.from_list("teal_grad", [SILVER, TEAL])
                         colors = gradient(np.linspace(0.2, 1.0, len(dr)))
                         bars = ax.bar(
-                            x, vals, color=colors, edgecolor="black", linewidth=1.5, alpha=0.9
+                            x, vals, color=colors, edgecolor=BRAND["text"], linewidth=1.5, alpha=0.9
                         )
                         for bar, v in zip(bars, vals):
                             ax.text(
@@ -210,13 +212,13 @@ class DCTROverlays(AnalysisModule):
                             _tot = df[df["Age Group"] == "TOTAL"]
                             avg = float(_tot["DCTR %"].iloc[0] * 100) if not _tot.empty else None
                         if avg is not None:
-                            ax.axhline(y=avg, color="red", linestyle="--", linewidth=2, alpha=0.7)
+                            ax.axhline(y=avg, color=NEGATIVE, linestyle="--", linewidth=2, alpha=0.7)
                             ax.text(
                                 len(dr) - 0.5,
                                 avg + 0.8,
                                 f"Avg: {avg:.1f}%",
                                 ha="right",
-                                color="red",
+                                color=NEGATIVE,
                                 fontweight="bold",
                                 fontsize=16,
                             )
@@ -236,7 +238,7 @@ class DCTROverlays(AnalysisModule):
                             color=PRIMARY,
                             bbox={
                                 "boxstyle": "round,pad=0.4",
-                                "facecolor": "#E8F4FD",
+                                "facecolor": BRAND["accent_light"],
                                 "edgecolor": TEAL,
                             },
                         )
@@ -252,7 +254,7 @@ class DCTROverlays(AnalysisModule):
                         ax.set_xticks(x)
                         ax.set_xticklabels(dr["Age Group"].values, fontsize=20)
                         ax.tick_params(axis="y", labelsize=20)
-                        ax.set_ylim(0, max(vals) * 1.15 if len(vals) else 100)
+                        ax.set_ylim(0, (max(vals) * 1.15 if len(vals) else 100) or 100)
                         ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"{x:.0f}%"))
                         ax.set_axisbelow(True)
                         ax.spines["top"].set_visible(False)
@@ -360,7 +362,7 @@ class DCTROverlays(AnalysisModule):
 
         dc = ed.copy()
         dc["Date Opened"] = pd.to_datetime(dc["Date Opened"], errors="coerce", format="mixed")
-        dc["Account Age Days"] = (pd.Timestamp.now() - dc["Date Opened"]).dt.days
+        dc["Account Age Days"] = (as_of_ts(ctx) - dc["Date Opened"]).dt.days
         dc["Avg Bal"] = pd.to_numeric(dc["Avg Bal"], errors="coerce")
         valid = dc[dc["Account Age Days"].notna() & dc["Avg Bal"].notna()].copy()
 

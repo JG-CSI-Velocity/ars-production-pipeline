@@ -17,7 +17,7 @@ import pandas as pd
 from loguru import logger
 from matplotlib.ticker import FuncFormatter
 
-from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
+from ars_analysis.analytics.base import AnalysisModule, AnalysisResult, as_of_ts
 from ars_analysis.analytics.mailer._helpers import (
     AGE_SEGMENTS,
     MAILED_SEGMENTS,
@@ -36,7 +36,8 @@ from ars_analysis.analytics.mailer._helpers import (
     parse_month,
 )
 from ars_analysis.analytics.registry import register
-from ars_analysis.charts.guards import chart_figure
+from ars_analysis.charts.guards import chart_figure, label_color_for
+from ars_analysis.charts.style import NEUTRAL
 from ars_analysis.pipeline.context import PipelineContext
 
 BAR_COLORS = ["#E74C3C", "#3498DB", "#2ECC71", "#F39C12", "#9B59B6"]
@@ -57,7 +58,7 @@ def _render_donut_chart(seg_details: dict, save_path, title: str) -> bool:
         return False
 
     resp_counts = [seg_details[s]["responders"] for s in active]
-    colors = [SEGMENT_COLORS.get(s, "#888") for s in active]
+    colors = [SEGMENT_COLORS.get(s, NEUTRAL) for s in active]
     total = sum(resp_counts)
 
     with chart_figure(figsize=(6, 5.5), save_path=save_path) as (fig, ax):
@@ -106,13 +107,15 @@ def _render_hbar_chart(seg_details: dict, save_path, title: str) -> bool:
     rates = [seg_details[s]["rate"] for s in active]
     resp_counts = [seg_details[s]["responders"] for s in active]
     mailed_counts = [seg_details[s]["mailed"] for s in active]
-    colors = [SEGMENT_COLORS.get(s, "#888") for s in active]
+    colors = [SEGMENT_COLORS.get(s, NEUTRAL) for s in active]
 
     with chart_figure(figsize=(8, 7), save_path=save_path) as (fig, ax):
         y = np.arange(len(active))
         bars = ax.barh(y, rates, color=colors, edgecolor="none", height=0.65, alpha=0.90)
         max_rate = max(rates) if rates else 1
-        for bar, rate, resp, mailed in zip(bars, rates, resp_counts, mailed_counts):
+        for bar, rate, resp, mailed, bar_color in zip(
+            bars, rates, resp_counts, mailed_counts, colors
+        ):
             bar_cy = bar.get_y() + bar.get_height() / 2
             if bar.get_width() > max_rate * 0.25:
                 ax.text(
@@ -123,7 +126,7 @@ def _render_hbar_chart(seg_details: dict, save_path, title: str) -> bool:
                     va="center",
                     fontsize=14,
                     fontweight="bold",
-                    color="white",
+                    color=label_color_for(bar_color),
                 )
                 ax.text(
                     bar.get_width() + max_rate * 0.02,
@@ -502,7 +505,7 @@ def _count_trend(ctx: PipelineContext) -> list[AnalysisResult]:
         for seg in MAILED_SEGMENTS:
             if any(c > 0 for c in counts[seg]):
                 label = "NU 5+" if seg == "NU" else seg
-                color = SEGMENT_COLORS.get(seg, "#888")
+                color = SEGMENT_COLORS.get(seg, NEUTRAL)
                 ax.bar(
                     x,
                     counts[seg],
@@ -532,7 +535,7 @@ def _count_trend(ctx: PipelineContext) -> list[AnalysisResult]:
         ax.legend(fontsize=11, loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=5)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.set_ylim(0, max(totals) * 1.12)
+        ax.set_ylim(0, (max(totals) * 1.12 if totals else 100) or 100)
 
     latest = totals[-1]
     notes = f"{len(months)} months | Latest: {latest:,} responders"
@@ -586,7 +589,7 @@ def _rate_trend(ctx: PipelineContext) -> list[AnalysisResult]:
         x = np.arange(len(months))
         for seg in MAILED_SEGMENTS:
             if trend[seg] and len(trend[seg]) == len(months):
-                color = SEGMENT_COLORS.get(seg, "#888")
+                color = SEGMENT_COLORS.get(seg, NEUTRAL)
                 label = "NU 5+" if seg == "NU" else seg
                 ax.plot(
                     x,
@@ -674,7 +677,7 @@ def _account_age(ctx: PipelineContext) -> list[AnalysisResult]:
             continue
         mail_date = parse_month(f"{month} Mail")
         if pd.isna(mail_date):
-            mail_date = pd.Timestamp.now()
+            mail_date = as_of_ts(ctx)
 
         m_age = (mail_date - mailed["Date Opened"]).dt.days / 365.25
         r_mask = mailed[resp_col].isin(RESPONSE_SEGMENTS)
@@ -759,7 +762,7 @@ def _account_age(ctx: PipelineContext) -> list[AnalysisResult]:
                 va="center",
                 fontsize=18,
                 fontweight="bold",
-                color=TEAL if rate >= grand_resp / grand_mailed * 100 else "#94A3B8",
+                color=TEAL if rate >= grand_resp / grand_mailed * 100 else NEUTRAL,
             )
 
         ax.set_yticks(y)
@@ -786,7 +789,7 @@ def _account_age(ctx: PipelineContext) -> list[AnalysisResult]:
             va="bottom",
             fontsize=13,
             fontweight="bold",
-            color="#64748B",
+            color=NEUTRAL,
         )
 
         # Insight callout
@@ -804,8 +807,8 @@ def _account_age(ctx: PipelineContext) -> list[AnalysisResult]:
                     transform=ax.transAxes,
                     fontsize=12,
                     style="italic",
-                    color="#475569",
-                    bbox={"boxstyle": "round,pad=0.4", "facecolor": "#F1F5F9", "alpha": 0.9},
+                    color=_BRAND["text_muted"],
+                    bbox={"boxstyle": "round,pad=0.4", "facecolor": _BRAND["light_gray"], "alpha": 0.9},
                 )
 
     ctx.results["account_age"] = {
@@ -883,7 +886,7 @@ def _ladder_slides(ctx: PipelineContext) -> list[AnalysisResult]:
             ax1 = fig.add_subplot(gs[0, 0])
             tiers = SUCCESSFUL_TIERS
             counts = [ladder["distribution"].get(t, 0) for t in tiers]
-            colors = [SEGMENT_COLORS.get(t, "#888") for t in tiers]
+            colors = [SEGMENT_COLORS.get(t, NEUTRAL) for t in tiers]
 
             y_pos = np.arange(len(tiers))
             bars = ax1.barh(y_pos, counts, color=colors, height=0.6)
@@ -911,7 +914,7 @@ def _ladder_slides(ctx: PipelineContext) -> list[AnalysisResult]:
             if ladder["first_count"] + repeat_total > 0:
                 sizes = [ladder["first_count"], repeat_total]
                 labels = ["First", "Repeat"]
-                donut_colors = [MOVEMENT_COLORS["First"], "#607D8B"]
+                donut_colors = [MOVEMENT_COLORS["First"], NEUTRAL]
                 wedges, texts, autotexts = ax2.pie(
                     sizes,
                     labels=labels,

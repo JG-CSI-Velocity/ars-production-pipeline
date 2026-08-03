@@ -9,6 +9,9 @@
 #
 # Depends on: segment_cohort_raw (from cell 25)
 
+from ars_analysis.charts.style import PRIMARY, POSITIVE, NEGATIVE, TEAL
+from ars_analysis.shared.brand import BRAND
+
 if 'segment_cohort_raw' not in dir() or len(segment_cohort_raw) == 0:
     print("    No segment cohort data. Run cell 25 first.")
 else:
@@ -89,19 +92,19 @@ else:
             .format(_spend_fmt)
             .set_properties(**{
                 'font-size': '13px', 'font-weight': 'bold',
-                'text-align': 'center', 'border': '1px solid #E9ECEF',
+                'text-align': 'center', 'border': f'1px solid {BRAND["light_gray"]}',
                 'padding': '7px 10px',
             })
             .set_table_styles([
                 {'selector': 'th', 'props': [
-                    ('background-color', GEN_COLORS.get('info', '#457B9D')),
+                    ('background-color', GEN_COLORS.get('info', TEAL)),
                     ('color', 'white'), ('font-size', '13px'),
                     ('font-weight', 'bold'), ('text-align', 'center'),
                     ('padding', '8px 10px'),
                 ]},
                 {'selector': 'caption', 'props': [
                     ('font-size', '20px'), ('font-weight', 'bold'),
-                    ('color', GEN_COLORS.get('dark_text', '#1B2A4A')),
+                    ('color', GEN_COLORS.get('dark_text', PRIMARY)),
                     ('text-align', 'left'), ('padding-bottom', '10px'),
                 ]},
             ])
@@ -128,19 +131,19 @@ else:
                 .format(_swipe_fmt)
                 .set_properties(**{
                     'font-size': '13px', 'font-weight': 'bold',
-                    'text-align': 'center', 'border': '1px solid #E9ECEF',
+                    'text-align': 'center', 'border': f'1px solid {BRAND["light_gray"]}',
                     'padding': '7px 10px',
                 })
                 .set_table_styles([
                     {'selector': 'th', 'props': [
-                        ('background-color', GEN_COLORS.get('success', '#2A9D8F')),
+                        ('background-color', GEN_COLORS.get('success', POSITIVE)),
                         ('color', 'white'), ('font-size', '13px'),
                         ('font-weight', 'bold'), ('text-align', 'center'),
                         ('padding', '8px 10px'),
                     ]},
                     {'selector': 'caption', 'props': [
                         ('font-size', '20px'), ('font-weight', 'bold'),
-                        ('color', GEN_COLORS.get('dark_text', '#1B2A4A')),
+                        ('color', GEN_COLORS.get('dark_text', PRIMARY)),
                         ('text-align', 'left'), ('padding-bottom', '10px'),
                     ]},
                 ])
@@ -198,26 +201,26 @@ else:
                 .hide(axis='index')
                 .format(_did_fmt)
                 .applymap(
-                    lambda v: f'color: {GEN_COLORS.get("success", "#2A9D8F")}' if isinstance(v, (int, float)) and v > 0
-                    else f'color: {GEN_COLORS.get("accent", "#E63946")}' if isinstance(v, (int, float)) and v < 0
+                    lambda v: f'color: {GEN_COLORS.get("success", POSITIVE)}' if isinstance(v, (int, float)) and v > 0
+                    else f'color: {GEN_COLORS.get("accent", NEGATIVE)}' if isinstance(v, (int, float)) and v < 0
                     else '',
                     subset=[c for c in _did_df.columns if c.startswith('DID')]
                 )
                 .set_properties(**{
                     'font-size': '14px', 'font-weight': 'bold',
-                    'text-align': 'center', 'border': '1px solid #E9ECEF',
+                    'text-align': 'center', 'border': f'1px solid {BRAND["light_gray"]}',
                     'padding': '8px 12px',
                 })
                 .set_table_styles([
                     {'selector': 'th', 'props': [
-                        ('background-color', GEN_COLORS.get('warning', '#E9C46A')),
+                        ('background-color', GEN_COLORS.get('warning', BRAND["gold"])),
                         ('color', 'white'), ('font-size', '14px'),
                         ('font-weight', 'bold'), ('text-align', 'center'),
                         ('padding', '8px 12px'),
                     ]},
                     {'selector': 'caption', 'props': [
                         ('font-size', '20px'), ('font-weight', 'bold'),
-                        ('color', GEN_COLORS.get('dark_text', '#1B2A4A')),
+                        ('color', GEN_COLORS.get('dark_text', PRIMARY)),
                         ('text-align', 'left'), ('padding-bottom', '10px'),
                     ]},
                 ])

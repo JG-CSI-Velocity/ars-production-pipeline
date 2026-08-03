@@ -1517,6 +1517,24 @@ OVERVIEW_MERGES = [
     ("A3", "A1b", "Program Eligibility & Product Mix"),
 ]
 
+# Per-section consolidation rules a scoped (per-module) deck reuses so it matches
+# the full report: (skip_ids, merges, appendix_ids). Keyed by section.folder.
+# build_scoped_deck runs _consolidate() with these so paired slides (e.g. the
+# DCTR funnel A7.7+A7.8) merge into one 2x1 and detail slides drop to an appendix,
+# instead of shipping as bare single slides. Sections not listed here (and every
+# TXN section -- already single slides) pass through unconsolidated. Mailer has its
+# own consolidator (_consolidate_mailer) and is handled separately.
+_SCOPED_CONSOLIDATION = {
+    "overview":  (OVERVIEW_SKIP_IDS, OVERVIEW_MERGES, set()),
+    "dctr":      (DCTR_SKIP_IDS, DCTR_MERGES, DCTR_APPENDIX_IDS),
+    "rege":      (set(), REGE_MERGES, REGE_APPENDIX_IDS),
+    "attrition": (set(), ATTRITION_MERGES, ATTRITION_APPENDIX_IDS),
+}
+
+# Value slides the full deck distributes into a section's main body (A11.1 -> DCTR,
+# A11.2 -> Reg E). A scoped deck for that section pulls the same one in.
+_SCOPED_VALUE_SLIDE = {"dctr": "A11.1", "rege": "A11.2"}
+
 
 def _consolidate(slides, merges, appendix_ids):
     """Merge paired slides and separate appendix slides.
@@ -2307,6 +2325,127 @@ def _run_deck_qa(output_path: Path, ctx: "PipelineContext", notify=None) -> dict
         if notify:
             notify(f"Deck QA: {crit} critical / {major} major issues -- see {report_path.name}")
     return report
+
+
+def build_scoped_deck(ctx: PipelineContext, section) -> Path | None:
+    """Build a deck containing ONLY one section's slides -- the closed-loop
+    per-module output.
+
+    A separate path from build_deck (which is hardwired to the full ARS/mailer
+    preamble + all-section ordering): title slide + one section divider + the
+    section's own slides, written to a ``modules/<section_id>/`` subfolder so it
+    never collides with a full-run deck or another module's deck.
+
+    ``section`` is a SectionInfo from ``analytics.section_registry``. TXN
+    sections are selected by their ``TXN-<code>-`` slide-id prefix; ARS sections
+    by ``_get_section`` (their deck-section bucket). Returns the deck path, or
+    None if the template is missing or the section produced no slides.
+    """
+    if not ctx.all_slides:
+        logger.warning("No slides to build scoped deck from")
+        return None
+
+    global _CURRENT_MANIFEST, _CURRENT_AUX_BUILD
+    _CURRENT_AUX_BUILD = False
+    _CURRENT_CLIENT.info = ctx.client
+    _CURRENT_MANIFEST = load_manifest_decisions()
+
+    template = _FALLBACK_TEMPLATE
+    if ctx.settings and hasattr(ctx.settings, "paths"):
+        cfg_template = getattr(ctx.settings.paths, "template_path", None)
+        if cfg_template and Path(cfg_template).exists():
+            template = Path(cfg_template)
+    if not template.exists():
+        logger.warning("Template not found: {name}", name=template.name)
+        return None
+
+    # Select just this section's slides.
+    if section.product == "txn":
+        prefix = f"TXN-{section.slide_code}-"
+        picked = [s for s in ctx.all_slides
+                  if getattr(s, "slide_id", "").startswith(prefix)]
+    else:  # ars -- match the deck-section bucket (dctr, rege, ...)
+        picked = [s for s in ctx.all_slides
+                  if _get_section(getattr(s, "slide_id", "")) == section.folder]
+
+    if not picked:
+        logger.warning("Scoped deck: no slides matched section {sid}",
+                       sid=section.section_id)
+        return None
+
+    _ctx_results = ctx.results if ctx else {}
+
+    # Consolidate exactly as build_deck does for this section, so the module deck
+    # matches the full report: merge paired slides (the DCTR funnel 2x1, etc.),
+    # attach the funnel narrative, and split detail slides into an appendix.
+    # Sections without a rule (and all TXN sections) pass through unchanged.
+    appendix_raw: list = []
+    if section.product == "ars" and section.folder == "mailer":
+        main_raw, appendix_raw = _consolidate_mailer(picked)
+    elif section.product == "ars" and section.folder in _SCOPED_CONSOLIDATION:
+        skip_ids, merges, appendix_ids = _SCOPED_CONSOLIDATION[section.folder]
+        kept = [r for r in picked if getattr(r, "slide_id", "") not in skip_ids]
+        main_raw, appendix_raw = _consolidate(kept, merges, appendix_ids)
+        if section.folder == "dctr":
+            _attach_funnel_narrative(main_raw, _ctx_results)
+        value_id = _SCOPED_VALUE_SLIDE.get(section.folder)
+        if value_id:
+            main_raw += [s for s in ctx.all_slides
+                         if getattr(s, "slide_id", "") == value_id]
+    else:
+        main_raw = picked
+
+    def _convert(items) -> list[SlideContent]:
+        out: list[SlideContent] = []
+        for item in items:
+            sc = item if isinstance(item, SlideContent) else _result_to_slide(
+                item, ctx_results=_ctx_results)
+            if sc:
+                out.append(sc)
+        return out
+
+    body = _convert(main_raw)
+    appendix = _convert(appendix_raw)
+    if not body and not appendix:
+        logger.warning("Scoped deck: all slides for {sid} were dropped/empty",
+                       sid=section.section_id)
+        return None
+
+    month = ctx.client.month
+    title = SlideContent(
+        slide_type="title",
+        title=f"{ctx.client.client_name}\n{section.display_name} | {month}",
+        layout_index=LAYOUT_TITLE_RPE,
+    )
+    divider = SlideContent(
+        slide_type="section", title=section.display_name, layout_index=LAYOUT_SECTION,
+    )
+    final_slides = [title, divider] + body
+    if appendix:
+        final_slides.append(SlideContent(
+            slide_type="section", title="Appendix", layout_index=LAYOUT_SECTION,
+        ))
+        final_slides.extend(appendix)
+
+    # Flat per-client modules folder: all module decks land directly in
+    # <pptx_dir>/modules/ (the filename already makes each unique) -- no extra
+    # per-module subfolder. run.py mirrors this relative path into 02_Presentations.
+    safe_id = section.section_id.replace(".", "_")
+    out_dir = ctx.paths.pptx_dir / "modules"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    output_path = out_dir / f"{ctx.client.client_id}_{month}_{safe_id}_deck.pptx"
+
+    try:
+        DeckBuilder(str(template)).build(final_slides, str(output_path))
+        ctx.export_log.append(str(output_path))
+        logger.info("Scoped deck built: {p} ({n} slides)",
+                    p=output_path.name, n=len(final_slides))
+        _run_deck_qa(output_path, ctx, getattr(ctx, "progress_callback", None))
+    except Exception as exc:  # noqa: BLE001 -- a bad module deck must not crash the run
+        logger.error("Scoped deck build failed for {sid}: {e}",
+                     sid=section.section_id, e=exc)
+        return None
+    return output_path
 
 
 def build_deck(ctx: PipelineContext) -> Path | None:

@@ -156,6 +156,29 @@ header {
 .p-unit { font-size: 12px; color: var(--muted); }
 .p-time { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--faint); margin-top: 4px; }
 
+/* Generate mode toggle */
+.gmode-btn {
+    background: var(--card); border: 2px solid var(--border); border-radius: 8px;
+    padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+    color: var(--muted); transition: all .15s;
+}
+.gmode-btn:hover { border-color: var(--accent); }
+.gmode-btn.on { border-color: var(--accent); background: var(--accent-light); color: var(--dark); }
+/* Module checklist rows */
+.chk-row { display:flex; align-items:center; gap:10px; padding:9px 16px; border-bottom:1px solid var(--border); cursor:pointer; }
+.chk-row:hover { background: var(--accent-light); }
+.chk-row:last-child { border-bottom:none; }
+.chk-row input { width:16px; height:16px; accent-color: var(--accent); }
+.chk-prod { font-family:'Space Mono',monospace; font-size:10px; color:var(--faint); margin-left:auto; }
+.q-row { display:flex; align-items:center; gap:10px; padding:9px 16px; border-bottom:1px solid var(--border); }
+.q-row:last-child { border-bottom:none; }
+.q-badge { font-size:11px; font-weight:700; padding:2px 9px; border-radius:10px; }
+.q-queued { background:#eee; color:#777; }
+.q-running { background: var(--accent-light); color: var(--accent-dark); }
+.q-done { background:#e5f4e8; color:#2A8B3E; }
+.q-failed { background:#fde8e8; color:#c0392b; }
+.q-deck { margin-left:auto; font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); }
+
 /* Modules */
 .modules-panel { background: var(--card); border: 2px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
 .modules-head {
@@ -647,51 +670,100 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     <div class="card" style="margin-bottom: 24px;">
         <div class="card-header">
             <div class="card-title">Step 2: Generate Your Report</div>
-            <div class="card-meta">Choose an analysis product and click Generate. The pipeline will run all selected modules and produce a PowerPoint deck and Excel workbook.</div>
+            <div class="card-meta" id="gStep2Meta">Pick a product, then generate the full report or run individual modules.</div>
         </div>
 
-        <div class="run-bar" style="margin-top: 0; margin-bottom: 12px; border-radius: 8px;">
-            <div>
-                <div class="run-what" id="gRunWhat">Select a client and product</div>
-                <div class="run-meta" id="gRunMeta">--</div>
+        <!-- Mode toggle -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <button type="button" class="gmode-btn on" id="modeFullBtn" onclick="setGenMode('full')">Full report — one deck</button>
+            <button type="button" class="gmode-btn" id="modeModuleBtn" onclick="setGenMode('module')">By module — a deck each</button>
+        </div>
+
+        <!-- Product cards (drive which modules are offered) -->
+        <div class="grid-4" style="margin-bottom: 12px;">
+            <div class="p-card on" data-prod="ars" onclick="selectProd('ars')"><div class="p-name">ARS Full Suite</div><div class="p-count">22</div><div class="p-unit">modules</div><div class="p-time">~ 15-25 min</div></div>
+            <div class="p-card" data-prod="txn" onclick="selectProd('txn')"><div class="p-name">Transaction</div><div class="p-count">35</div><div class="p-unit">sections</div><div class="p-time">~ 20-35 min</div></div>
+            <div class="p-card" data-prod="combined" onclick="selectProd('combined')"><div class="p-name">Combined</div><div class="p-count">57</div><div class="p-unit">ARS + TXN</div><div class="p-time">~ 35-55 min</div></div>
+        </div>
+
+        <!-- ===== FULL REPORT mode ===== -->
+        <div id="gFullMode">
+            <div class="run-bar" style="margin-top: 0; margin-bottom: 12px; border-radius: 8px;">
+                <div>
+                    <div class="run-what" id="gRunWhat">Select a client and product</div>
+                    <div class="run-meta" id="gRunMeta">--</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <button class="btn" id="genRunBtn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
+                    <button class="btn btn-danger" onclick="stopAll()" title="Emergency: immediately kill every running formatting and generate job">&#9632; STOP ALL</button>
+                </div>
             </div>
-            <div style="display:flex;gap:10px;align-items:center;">
-                <button class="btn" id="genRunBtn" onclick="smartRunGen()">Format + Analyze + Build PPTX</button>
-                <button class="btn btn-danger" onclick="stopAll()" title="Emergency: immediately kill every running formatting and generate job">&#9632; STOP ALL</button>
+
+            <!-- Local copy option -->
+            <div class="local-copy-row">
+                <label class="local-copy-toggle">
+                    <input type="checkbox" id="gLocalCopyCb" onchange="_toggleLocalCopy()" />
+                    <span>Also save deck to a local folder (faster than downloading from the shared drive)</span>
+                </label>
+                <label class="local-copy-toggle" title="Starts the other product automatically as soon as the shared formatting step finishes, so both analyses run concurrently.">
+                    <input type="checkbox" id="gRunBothCb" />
+                    <span>Run BOTH products in parallel (TXN + ARS) &mdash; companion run starts right after formatting</span>
+                </label>
+                <div class="local-copy-input" id="gLocalCopyWrap" style="display:none;">
+                    <input type="text" id="gLocalCopyPath" class="sel" placeholder="e.g. C:\Users\you\Documents\Velocity Decks" />
+                    <div class="local-copy-hint">The folder will be created if it doesn't exist. We'll save the PowerPoint here as soon as it's built.</div>
+                </div>
+            </div>
+
+            <div class="modules-panel">
+                <div class="modules-head">
+                    <div class="card-title" id="gModTitle">ARS Full Suite</div>
+                    <div class="card-meta" id="gModCount">22 modules selected</div>
+                </div>
+                <div class="modules-body" id="gModBody"></div>
             </div>
         </div>
 
-        <!-- Local copy option -->
-        <div class="local-copy-row">
-            <label class="local-copy-toggle">
-                <input type="checkbox" id="gLocalCopyCb" onchange="_toggleLocalCopy()" />
-                <span>Also save deck to a local folder (faster than downloading from the shared drive)</span>
-            </label>
-            <label class="local-copy-toggle" title="Starts the other product automatically as soon as the shared formatting step finishes, so both analyses run concurrently.">
-                <input type="checkbox" id="gRunBothCb" />
-                <span>Run BOTH products in parallel (TXN + ARS) &mdash; companion run starts right after formatting</span>
-            </label>
-            <div class="local-copy-input" id="gLocalCopyWrap" style="display:none;">
-                <input type="text" id="gLocalCopyPath" class="sel" placeholder="e.g. C:\Users\you\Documents\Velocity Decks" />
-                <div class="local-copy-hint">The folder will be created if it doesn't exist. We'll save the PowerPoint here as soon as it's built.</div>
+        <!-- ===== BY MODULE mode ===== -->
+        <div id="gModuleMode" style="display:none;">
+            <div class="modules-panel">
+                <div class="modules-head">
+                    <div class="card-title">Pick modules to run</div>
+                    <div style="display:flex;gap:14px;align-items:center;">
+                        <span class="card-meta" id="gChkCount">0 selected</span>
+                        <a href="#" onclick="event.preventDefault();selectAllModules(true)" style="font-size:12px;">Select all</a>
+                        <a href="#" onclick="event.preventDefault();selectAllModules(false)" style="font-size:12px;">Clear</a>
+                    </div>
+                </div>
+                <div class="modules-body" id="gChkBody" style="max-height:340px;overflow:auto;">
+                    <div style="padding:16px;color:var(--muted);">Loading modules…</div>
+                </div>
+            </div>
+
+            <div class="run-bar" style="margin-top:12px;border-radius:8px;">
+                <div>
+                    <div class="run-what">Each checked module runs end-to-end and makes its own PowerPoint.</div>
+                    <div class="run-meta">They run one at a time.</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <button class="btn" id="gRunSelBtn" onclick="runSelectedModules()">Run selected (0)</button>
+                    <button class="btn btn-danger" onclick="stopAll()" title="Emergency: kill every running job">&#9632; STOP ALL</button>
+                </div>
+            </div>
+
+            <!-- Sequential run queue -->
+            <div class="modules-panel" id="gQueueWrap" style="display:none;margin-top:12px;">
+                <div class="modules-head">
+                    <div class="card-title">Run queue</div>
+                    <div class="card-meta" id="gQueueMeta"></div>
+                </div>
+                <div class="modules-body" id="gQueueBody"></div>
+                <!-- Live log of the currently-running module (restores the
+                     visible run log the single-module path used to show). -->
+                <div class="prog-log" id="gModLog"
+                     style="margin-top:10px;max-height:260px;overflow:auto;"></div>
             </div>
         </div>
-
-        <div class="grid-4" style="margin-bottom: 0;">
-            <div class="p-card on" onclick="selectProd('ars')"><div class="p-name">ARS Full Suite</div><div class="p-count">22</div><div class="p-unit">modules</div><div class="p-time">~ 15-25 min</div></div>
-            <div class="p-card" onclick="selectProd('txn')"><div class="p-name">Transaction</div><div class="p-count">35</div><div class="p-unit">sections</div><div class="p-time">~ 20-35 min</div></div>
-            <div class="p-card" onclick="selectProd('combined')"><div class="p-name">Combined</div><div class="p-count">57</div><div class="p-unit">ARS + TXN</div><div class="p-time">~ 35-55 min</div></div>
-            <div class="p-card" onclick="selectProd('dep')"><div class="p-name">Deposits</div><div class="p-count">15</div><div class="p-unit">modules</div><div class="p-time">~ 10-20 min</div></div>
-        </div>
-    </div>
-
-    <!-- Module details (expandable) -->
-    <div class="modules-panel">
-        <div class="modules-head">
-            <div class="card-title" id="gModTitle">ARS Full Suite</div>
-            <div class="card-meta" id="gModCount">22 modules selected</div>
-        </div>
-        <div class="modules-body" id="gModBody"></div>
     </div>
 
     <!-- Progress (hidden until run starts) -->
@@ -1053,23 +1125,33 @@ const prodData = {
         { name:'Risk', count:5, desc:'Attrition, balance, retention, early warning.', mods:['Attrition','Balance','PFI Score','Retention','Early Warning'] },
         { name:'Executive', count:3, desc:'Scorecard, priorities, action roadmap.', mods:['Scorecard','Priorities','Roadmap'] },
     ]},
-    dep: { name:'Deposits', count:15, time:'10-20 min', groups: [
-        { name:'Baseline', count:4, desc:'Portfolio deposit metrics, tiers, segmentation.', mods:['Baseline','Tiers','Segmentation','Cross-check'] },
-        { name:'Campaign Impact', count:5, desc:'Did the mailer affect deposits? DID, segments, lift.', mods:['Response','Cohort DID','Segments','By Offer','By Segment'] },
-        { name:'Evidence', count:4, desc:'Distribution, trajectory, growth proof, NU conversion.', mods:['Distribution','Trajectory','Growth Proof','NU Conversion'] },
-        { name:'Presentation', count:2, desc:'Executive summary and presentation visuals.', mods:['Summary','Visuals'] },
-    ]},
 };
 
 let curProd = 'ars';
 let selMods = new Set();
 
+let genMode = 'full';  // 'full' | 'module'
+
 function selectProd(key) {
     curProd = key;
-    document.querySelectorAll('.p-card').forEach((c,i) => {
-        c.classList.toggle('on', ['ars','txn','dep','custom'][i] === key);
+    // Toggle by data-prod (index-based toggling mis-highlighted combined).
+    document.querySelectorAll('.p-card[data-prod]').forEach((c) => {
+        c.classList.toggle('on', c.getAttribute('data-prod') === key);
     });
     renderModules();
+    if (genMode === 'module') renderModuleChecklist();
+}
+
+function setGenMode(mode) {
+    genMode = mode;
+    document.getElementById('modeFullBtn').classList.toggle('on', mode === 'full');
+    document.getElementById('modeModuleBtn').classList.toggle('on', mode === 'module');
+    document.getElementById('gFullMode').style.display = mode === 'full' ? '' : 'none';
+    document.getElementById('gModuleMode').style.display = mode === 'module' ? '' : 'none';
+    document.getElementById('gStep2Meta').textContent = mode === 'full'
+        ? 'Pick a product and generate the full report (one deck).'
+        : 'Pick a product, check the modules you want, and run them — each makes its own deck.';
+    if (mode === 'module') renderModuleChecklist();
 }
 
 function renderModules() {
@@ -1166,6 +1248,203 @@ async function loadClients() {
     } catch(e) {
         console.log('API not available, using defaults');
     }
+}
+
+// ─── BY-MODULE: checklist + sequential run queue ───
+let _allSections = null;  // cached /api/modules result
+
+async function renderModuleChecklist() {
+    const body = document.getElementById('gChkBody');
+    if (!body) return;
+    // Which products' sections to offer for the selected product card.
+    const wantProducts = curProd === 'combined' ? ['ars', 'txn'] : [curProd];
+    try {
+        if (!_allSections) {
+            const r = await fetch('/api/modules');
+            _allSections = await r.json();
+        }
+        if (!Array.isArray(_allSections) || !_allSections.length) throw new Error('empty');
+    } catch(e) {
+        _allSections = null;
+        body.innerHTML = `<div style="padding:16px;color:var(--red);">
+            Couldn't load the module list. Make sure the pipeline server is running.
+            <a href="#" onclick="event.preventDefault();renderModuleChecklist()">Retry</a></div>`;
+        return;
+    }
+    const sections = _allSections.filter(s => wantProducts.includes(s.product));
+    body.innerHTML = sections.map(s => `
+        <label class="chk-row">
+            <input type="checkbox" class="chk-mod" value="${s.section_id}" onchange="updateChkCount()">
+            <span>${s.display_name}</span>
+            <span class="chk-prod">${s.section_id}</span>
+        </label>`).join('') ||
+        '<div style="padding:16px;color:var(--muted);">No modules for this product.</div>';
+    updateChkCount();
+}
+
+function selectAllModules(on) {
+    document.querySelectorAll('#gChkBody .chk-mod').forEach(c => { c.checked = on; });
+    updateChkCount();
+}
+
+function _checkedModules() {
+    return [...document.querySelectorAll('#gChkBody .chk-mod:checked')].map(c => c.value);
+}
+
+function updateChkCount() {
+    const n = _checkedModules().length;
+    document.getElementById('gChkCount').textContent = `${n} selected`;
+    const btn = document.getElementById('gRunSelBtn');
+    btn.textContent = `Run selected (${n})`;
+    btn.disabled = n === 0;
+    btn.style.opacity = n === 0 ? '0.6' : '';
+}
+
+// Run one module end-to-end and resolve when it reaches a terminal state.
+// Shared POST+poll core; returns {status, deck}.
+async function runOneModule(sectionId, csm, month, clientId, onLog) {
+    const url = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}`
+        + `&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
+        + `&module=${encodeURIComponent(sectionId)}`;
+    const resp = await fetch(url, {method: 'POST'});
+    if (!resp.ok) {
+        let msg = resp.statusText;
+        try { msg = (await resp.json()).detail || msg; } catch(e) {}
+        return {status: 'error', detail: msg};
+    }
+    const {run_id} = await resp.json();
+    let deck = null, lastSeen = 0;
+    while (true) {
+        await new Promise(r => setTimeout(r, 1500));
+        let run;
+        try { run = await fetch(`/api/run/${run_id}`).then(r => r.json()); }
+        catch(e) { continue; }
+        const lines = run.log || [];
+        // Only emit NEW lines -- run.log is the full log every poll, so
+        // iterating all of it each cycle would duplicate every line.
+        for (let i = lastSeen; i < lines.length; i++) {
+            const line = lines[i];
+            if (onLog) onLog(line);
+            const m = /MODULE DECK:\s*(.+)$/.exec(line);
+            if (m) deck = m[1].trim();
+        }
+        lastSeen = lines.length;
+        if (run.status && run.status !== 'running') {
+            return {status: run.status, deck, run_id};
+        }
+    }
+}
+
+// Set by STOP ALL to abort the sequential module queue (see runSelectedModules).
+let _queueAborted = false;
+
+async function runSelectedModules() {
+    const clientId = document.getElementById('gClientSel').value;
+    const csm = document.getElementById('gCsmSel').value;
+    const month = document.getElementById('gMonthSel').value;
+    if (!csm || !month || !clientId) { alert('Pick a CSM, period, and client first.'); return; }
+    const mods = _checkedModules();
+    if (!mods.length) { alert('Check at least one module.'); return; }
+
+    const btn = document.getElementById('gRunSelBtn');
+    btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = 'Running…';
+
+    // Build the queue UI.
+    const wrap = document.getElementById('gQueueWrap');
+    const qbody = document.getElementById('gQueueBody');
+    wrap.style.display = '';
+    const label = id => (_allSections.find(s => s.section_id === id) || {}).display_name || id;
+    qbody.innerHTML = mods.map(id => `
+        <div class="q-row" id="q-${id.replace(/\W/g,'_')}">
+            <span class="q-badge q-queued">Queued</span>
+            <span>${label(id)}</span>
+            <span class="q-deck"></span>
+        </div>`).join('');
+    const setRow = (id, badgeClass, text, deck) => {
+        const row = document.getElementById('q-' + id.replace(/\W/g,'_'));
+        if (!row) return;
+        const b = row.querySelector('.q-badge');
+        b.className = 'q-badge ' + badgeClass; b.textContent = text;
+        if (deck !== undefined) row.querySelector('.q-deck').textContent = deck || '';
+    };
+
+    // Live log of the currently-running module (auto-scrolls).
+    const modLog = document.getElementById('gModLog');
+    modLog.innerHTML = '';
+    const appendLog = (line) => {
+        const el = document.createElement('div');
+        el.className = 'done';
+        el.textContent = line;
+        modLog.appendChild(el);
+        modLog.scrollTop = modLog.scrollHeight;
+    };
+
+    _queueAborted = false;
+    mods.forEach(id => setRow(id, 'q-running', 'Running…'));
+    document.getElementById('gQueueMeta').textContent =
+        `Aggregating this client's data once, then building ${mods.length} deck(s)…`;
+
+    // ONE backend job: aggregate the client's data ONCE (the ~25-min TXN load),
+    // then build a scoped deck per section. Turns N cold runs into 1 setup.
+    const url = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}`
+        + `&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
+        + `&modules=${encodeURIComponent(mods.join(','))}`;
+    let run_id;
+    try {
+        const resp = await fetch(url, {method: 'POST'});
+        if (!resp.ok) {
+            let msg = resp.statusText; try { msg = (await resp.json()).detail || msg; } catch(e) {}
+            mods.forEach(id => setRow(id, 'q-failed', 'Failed', msg));
+            document.getElementById('gQueueMeta').textContent = 'Run failed to start: ' + msg;
+            btn.disabled = false; btn.style.opacity = ''; updateChkCount();
+            return;
+        }
+        run_id = (await resp.json()).run_id;
+    } catch(e) {
+        mods.forEach(id => setRow(id, 'q-failed', 'Failed'));
+        document.getElementById('gQueueMeta').textContent = 'Could not start run: ' + e.message;
+        btn.disabled = false; btn.style.opacity = ''; updateChkCount();
+        return;
+    }
+
+    // As each section's deck lands, the log prints "MODULE DECK: <path>"; the
+    // filename ends in _<safe_id>_deck.pptx, so map it back to its queue row.
+    const safeOf = id => id.replace(/\./g, '_');
+    const doneSet = new Set();
+    let lastSeen = 0;
+    while (true) {
+        await new Promise(r => setTimeout(r, 1500));
+        let run;
+        try { run = await fetch(`/api/run/${run_id}`).then(r => r.json()); }
+        catch(e) { continue; }
+        const lines = run.log || [];
+        for (let i = lastSeen; i < lines.length; i++) {
+            const line = lines[i];
+            appendLog(line);
+            const m = /MODULE DECK:\s*(.+)$/.exec(line);
+            if (m) {
+                const deckName = m[1].trim().split(/[\\/]/).pop();
+                const id = mods.find(x => deckName.includes(`_${safeOf(x)}_deck`));
+                if (id) { setRow(id, 'q-done', 'Done', deckName); doneSet.add(id); }
+            }
+        }
+        lastSeen = lines.length;
+        document.getElementById('gQueueMeta').textContent =
+            `${doneSet.size}/${mods.length} deck(s) built…`;
+        if (_queueAborted) {
+            mods.forEach(id => { if (!doneSet.has(id)) setRow(id, 'q-failed', 'Stopped'); });
+            break;
+        }
+        if (run.status && run.status !== 'running') {
+            mods.forEach(id => { if (!doneSet.has(id)) setRow(id, 'q-failed',
+                run.status === 'complete' ? 'No deck' : 'Failed'); });
+            break;
+        }
+    }
+    const built = doneSet.size, missed = mods.length - built;
+    document.getElementById('gQueueMeta').textContent =
+        `${built} deck(s) built${missed ? `, ${missed} missing` : ''} of ${mods.length}.`;
+    btn.disabled = false; btn.style.opacity = ''; updateChkCount();
 }
 
 // Monotonic request id: the clients fetch scans network folders and can
@@ -1937,6 +2216,8 @@ async function runGenReal() {
     }
 
     try {
+        // Full-report run: the whole product, one combined deck. (Per-module
+        // runs go through runSelectedModules() in By-module mode.)
         const runUrl = `/api/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}&product=${encodeURIComponent(curProd)}`
             + (localCopyPath ? `&local_copy_path=${encodeURIComponent(localCopyPath)}` : '')
             + (sourcePath ? `&source_path=${encodeURIComponent(sourcePath)}` : '');
@@ -2642,6 +2923,9 @@ async function stopAll() {
     if (!confirm('EMERGENCY STOP\n\nThis immediately kills every running formatting and generate job. Files already written are kept, but the current run will be left incomplete.\n\nStop everything now?')) {
         return;
     }
+    // Abort the sequential module queue too, so it doesn't launch the next
+    // module after this kill (otherwise STOP ALL only stops the current one).
+    _queueAborted = true;
     try {
         const resp = await fetch('/api/stop_all', {method: 'POST'});
         if (!resp.ok) {
@@ -3096,6 +3380,7 @@ document.getElementById('rSlideContainer')?.addEventListener('dblclick', openLig
     refreshGenClients();
 })();
 loadRecent();
+setGenMode('full');
 
 // Override the generate button to use real API
 async function smartRunGen() {

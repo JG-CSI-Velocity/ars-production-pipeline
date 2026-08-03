@@ -145,8 +145,13 @@ for _kw in _FIN_KEYWORDS:
             'accounts': _sub['primary_account_num'].nunique(),
             'total_spend': _sub['amount'].sum(),
         })
-_hints = _pd.DataFrame(_hint_rows).sort_values('total_spend', ascending=False)
+# Build the frame first, THEN sort -- when no keyword matched any untagged
+# merchant (e.g. every financial merchant is already tagged), _hint_rows is
+# empty and pd.DataFrame([]) has no columns, so sort_values('total_spend')
+# raised KeyError and killed the whole section (the 1776 run).
+_hints = _pd.DataFrame(_hint_rows)
 if not _hints.empty:
+    _hints = _hints.sort_values('total_spend', ascending=False)
     print(f"\n  {'keyword':<18s}  {'merch':>7s}  {'txns':>8s}  {'accts':>7s}  {'spend':>12s}")
     print(f"  {'-'*18}  {'-'*7}  {'-'*8}  {'-'*7}  {'-'*12}")
     for _, _r in _hints.iterrows():

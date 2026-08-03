@@ -24,15 +24,16 @@ from ars_analysis.analytics.mailer._helpers import (
     parse_month,
 )
 from ars_analysis.analytics.registry import register
-from ars_analysis.charts.guards import chart_figure
+from ars_analysis.charts.guards import chart_figure, label_color_for
 from ars_analysis.pipeline.context import PipelineContext
-from ars_analysis.charts.style import PRIMARY
+from ars_analysis.charts.style import PRIMARY, POSITIVE, NEGATIVE, NEUTRAL, TEAL
+from ars_analysis.shared.brand import BRAND
 
 # Chart colors
-COLOR_OUTER = "#3498DB"  # blue - eligible w/ card
-COLOR_INNER = "#E74C3C"  # red - responders
-COLOR_RESP = "#2ECC71"  # green - responder bar
-COLOR_NON = "#95A5A6"  # gray - non-responder bar
+COLOR_OUTER = TEAL  # steel blue - eligible w/ card
+COLOR_INNER = NEGATIVE  # CSI red - responders
+COLOR_RESP = POSITIVE  # green - responder bar
+COLOR_NON = NEUTRAL  # gray - non-responder bar
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +194,7 @@ def _market_reach(ctx: PipelineContext) -> list[AnalysisResult]:
                 ha="left",
                 va="center",
                 fontsize=14,
-                color="#555",
+                color=BRAND["text_muted"],
             )
 
         ax.set_xlim(-3.0, 7.5)
@@ -322,7 +323,7 @@ def _spend_share(ctx: PipelineContext) -> list[AnalysisResult]:
         bars = ax1.barh(y_pos, values, color=bar_colors, height=0.6, alpha=0.85)
 
         max_val = max(values)
-        for bar, val, count in zip(bars, values, acct_counts):
+        for bar, val, count, bar_color in zip(bars, values, acct_counts, bar_colors):
             bar_cy = bar.get_y() + bar.get_height() / 2
             ax1.text(
                 val + max_val * 0.02,
@@ -342,7 +343,7 @@ def _spend_share(ctx: PipelineContext) -> list[AnalysisResult]:
                     va="center",
                     fontsize=12,
                     fontweight="bold",
-                    color="white",
+                    color=label_color_for(bar_color),
                 )
 
         ax1.set_yticks(y_pos)
@@ -370,7 +371,7 @@ def _spend_share(ctx: PipelineContext) -> list[AnalysisResult]:
                 ha="left",
                 va="center",
                 fontsize=14,
-                color="#555",
+                color=BRAND["text_muted"],
             )
             ax2.text(
                 0.1,
@@ -566,7 +567,7 @@ def _revenue_attribution(ctx: PipelineContext) -> list[AnalysisResult]:
                 ha="left",
                 va="center",
                 fontsize=14,
-                color="#555",
+                color=BRAND["text_muted"],
             )
             color = PRIMARY if "Incremental" not in label else COLOR_RESP
             ax2.text(
@@ -713,7 +714,7 @@ def _pre_post_delta(ctx: PipelineContext) -> list[AnalysisResult]:
             x - bar_w / 2,
             pre_vals,
             bar_w,
-            color="#BDC3C7",
+            color=NEUTRAL,
             edgecolor="none",
             label="Before Mailer",
         )
@@ -742,7 +743,7 @@ def _pre_post_delta(ctx: PipelineContext) -> list[AnalysisResult]:
         deltas = [(resp_delta, resp_pct, 0), (non_delta, non_pct, 1)]
         for delta, pct, i in deltas:
             sign = "+" if delta >= 0 else ""
-            color = COLOR_RESP if delta > 0 else "#E74C3C"
+            color = COLOR_RESP if delta > 0 else NEGATIVE
             ax.text(
                 i,
                 max(all_vals) * 1.15,
@@ -762,7 +763,7 @@ def _pre_post_delta(ctx: PipelineContext) -> list[AnalysisResult]:
         )
         ax.set_ylabel("Avg Monthly Spend per Account", fontsize=14, fontweight="bold")
         ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"${v:,.0f}"))
-        ax.set_ylim(0, max(all_vals) * 1.35)
+        ax.set_ylim(0, (max(all_vals) * 1.35) or 100)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.legend(fontsize=14, loc="upper right")
@@ -780,7 +781,7 @@ def _pre_post_delta(ctx: PipelineContext) -> list[AnalysisResult]:
             fontsize=14,
             fontweight="bold",
             color=PRIMARY,
-            bbox={"boxstyle": "round,pad=0.4", "facecolor": "#E8F4FD", "edgecolor": "#3498DB"},
+            bbox={"boxstyle": "round,pad=0.4", "facecolor": BRAND["light_gray"], "edgecolor": TEAL},
         )
 
     ctx.results["pre_post_delta"] = {

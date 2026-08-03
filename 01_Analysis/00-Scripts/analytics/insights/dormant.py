@@ -15,8 +15,9 @@ from loguru import logger
 from ars_analysis.analytics.base import AnalysisModule, AnalysisResult
 from ars_analysis.analytics.registry import register
 from ars_analysis.charts.guards import chart_figure
-from ars_analysis.charts.style import NEGATIVE, PRIMARY, SILVER, TEAL
+from ars_analysis.charts.style import NEGATIVE, NEUTRAL, PRIMARY, SILVER, TEAL
 from ars_analysis.pipeline.context import PipelineContext
+from ars_analysis.shared.brand import BRAND
 
 AVG_ANNUAL_IC = 216.0  # PULSE benchmark per active card
 
@@ -136,9 +137,9 @@ def _draw_dormant_summary(ax, dormant_df: pd.DataFrame, total_eligible: int) -> 
     for i, (label, value, sub) in enumerate(kpis):
         x = 0.125 + (i % 2) * 0.45
         y = 0.7 - (i // 2) * 0.4
-        ax.text(x, y + 0.08, label, fontsize=13, color="#666", ha="center", va="bottom")
+        ax.text(x, y + 0.08, label, fontsize=13, color=BRAND["muted"], ha="center", va="bottom")
         ax.text(x, y, value, fontsize=28, fontweight="bold", color=TEAL, ha="center", va="center")
-        ax.text(x, y - 0.06, sub, fontsize=11, color="#999", ha="center", va="top")
+        ax.text(x, y - 0.06, sub, fontsize=11, color=NEUTRAL, ha="center", va="top")
 
     ax.set_title(
         "Dormant Opportunity Summary", fontsize=20, fontweight="bold", pad=20, color=PRIMARY
