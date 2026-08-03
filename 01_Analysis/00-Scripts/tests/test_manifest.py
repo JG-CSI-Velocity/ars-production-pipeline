@@ -186,3 +186,15 @@ def test_txn_product_writes_suffixed_manifest(tmp_path: Path):
     rm.start_run()
     assert (tmp_path / "run_manifest_txn.json").exists()
     assert not (tmp_path / "run_manifest.json").exists()
+
+
+def test_sizeof_mb_helper_covers_frames_series_and_scalars():
+    import pandas as pd
+    from ars_analysis.analytics.txn_wrapper import _sizeof_mb
+
+    df = pd.DataFrame({"a": range(1000), "b": ["x"] * 1000})
+    assert _sizeof_mb(df) > 0
+    assert _sizeof_mb(df["a"]) > 0
+    assert _sizeof_mb(42) is None
+    assert _sizeof_mb("string") is None
+    assert _sizeof_mb(None) is None
