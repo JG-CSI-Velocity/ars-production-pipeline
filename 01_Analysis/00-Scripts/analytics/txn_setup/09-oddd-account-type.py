@@ -5,56 +5,79 @@
 # Clean up column names (remove leading/trailing spaces)
 rewards_df.columns = rewards_df.columns.str.strip()
 
-# Check business flag distribution
-print(f"Business account distribution:")
-print(rewards_df['Business?'].value_counts())
+# On a Parquet cache HIT the normalized business_flag merge is already in
+# combined_df; re-merging is a full-frame astype/strip + merge over millions
+# of rows that produces identical output UNLESS the ODD changed after the
+# cache was written. ODD_MTIME comes from 08-import-oddd (None = unknown ->
+# re-merge, the safe direction).
+_odd_newer_than_cache = True
+if SKIP_COMBINE:
+    try:
+        _odd_newer_than_cache = (
+            ODD_MTIME is None or ODD_MTIME > PARQUET_CACHE.stat().st_mtime
+        )
+    except (NameError, OSError):
+        _odd_newer_than_cache = True
 
-# Create a clean subset for merging
-odd_subset = rewards_df[['Acct Number', 'Business?']].copy()
-odd_subset.columns = ['account_number', 'business_flag']
-
-# Normalize account numbers to string (Excel loads as int/float, TSV as string)
-odd_subset['account_number'] = odd_subset['account_number'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
-combined_df['primary_account_num'] = combined_df['primary_account_num'].astype(str).str.strip()
-
-# Drop stale merge columns so cell is safe to re-run
-for col in ['business_flag', 'account_number', 'business_flag_x', 'business_flag_y']:
-    if col in combined_df.columns:
-        combined_df.drop(columns=col, inplace=True)
-
-# Merge with transaction data
-combined_df = combined_df.merge(
-    odd_subset,
-    left_on='primary_account_num',
-    right_on='account_number',
-    how='left'
+_cached_merge_ok = (
+    SKIP_COMBINE
+    and not _odd_newer_than_cache
+    and 'business_flag' in combined_df.columns
 )
 
-# Drop the redundant account_number column
-combined_df.drop('account_number', axis=1, inplace=True)
+if _cached_merge_ok:
+    print("business_flag reused from Parquet cache (ODD unchanged since cache write)")
+else:
+    # Check business flag distribution
+    print(f"Business account distribution:")
+    print(rewards_df['Business?'].value_counts())
 
-# Check merge results
-print(f"\nMerge results:")
-print(f"  Total transactions: {len(combined_df):,}")
-print(f"  Matched to ODD: {combined_df['business_flag'].notna().sum():,}")
-print(f"  Unmatched: {combined_df['business_flag'].isna().sum():,}")
+    # Create a clean subset for merging
+    odd_subset = rewards_df[['Acct Number', 'Business?']].copy()
+    odd_subset.columns = ['account_number', 'business_flag']
 
-# Debug: show sample account numbers from each side if match rate is low
-_match_rate = combined_df['business_flag'].notna().mean()
-if _match_rate < 0.5:
-    print(f"\n  WARNING: Low match rate ({_match_rate:.1%})")
-    print(f"  Sample txn acct nums: {combined_df['primary_account_num'].head(3).tolist()}")
-    print(f"  Sample ODDD acct nums: {odd_subset['account_number'].head(3).tolist()}")
+    # Normalize account numbers to string (Excel loads as int/float, TSV as string)
+    odd_subset['account_number'] = odd_subset['account_number'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
+    combined_df['primary_account_num'] = combined_df['primary_account_num'].astype(str).str.strip()
 
-# Check what the actual values are
-print("\nBusiness flag unique values in merged data:")
-print(combined_df['business_flag'].value_counts())
+    # Drop stale merge columns so cell is safe to re-run
+    for col in ['business_flag', 'account_number', 'business_flag_x', 'business_flag_y']:
+        if col in combined_df.columns:
+            combined_df.drop(columns=col, inplace=True)
 
-# Normalize business_flag values (handle Y/Yes/YES/True variants)
-_bf = combined_df['business_flag'].astype(str).str.strip().str.lower()
-combined_df['business_flag'] = _bf.map(
-    lambda v: 'Yes' if v in ('yes', 'y', 'true', '1') else ('No' if v in ('no', 'n', 'false', '0') else None)
-)
+    # Merge with transaction data
+    combined_df = combined_df.merge(
+        odd_subset,
+        left_on='primary_account_num',
+        right_on='account_number',
+        how='left'
+    )
+
+    # Drop the redundant account_number column
+    combined_df.drop('account_number', axis=1, inplace=True)
+
+    # Check merge results
+    print(f"\nMerge results:")
+    print(f"  Total transactions: {len(combined_df):,}")
+    print(f"  Matched to ODD: {combined_df['business_flag'].notna().sum():,}")
+    print(f"  Unmatched: {combined_df['business_flag'].isna().sum():,}")
+
+    # Debug: show sample account numbers from each side if match rate is low
+    _match_rate = combined_df['business_flag'].notna().mean()
+    if _match_rate < 0.5:
+        print(f"\n  WARNING: Low match rate ({_match_rate:.1%})")
+        print(f"  Sample txn acct nums: {combined_df['primary_account_num'].head(3).tolist()}")
+        print(f"  Sample ODDD acct nums: {odd_subset['account_number'].head(3).tolist()}")
+
+    # Check what the actual values are
+    print("\nBusiness flag unique values in merged data:")
+    print(combined_df['business_flag'].value_counts())
+
+    # Normalize business_flag values (handle Y/Yes/YES/True variants)
+    _bf = combined_df['business_flag'].astype(str).str.strip().str.lower()
+    combined_df['business_flag'] = _bf.map(
+        lambda v: 'Yes' if v in ('yes', 'y', 'true', '1') else ('No' if v in ('no', 'n', 'false', '0') else None)
+    )
 
 # Split into business and personal
 business_df = combined_df[combined_df['business_flag'] == 'Yes'].copy()
@@ -116,8 +139,16 @@ else:
 # ===========================================================================
 # SAVE PARQUET CACHE (speeds up subsequent runs from ~25 min to ~10 sec)
 # Saves in a background thread so it doesn't block the analysis from starting.
+# Also rewrites the cache after a HIT if consolidation (07, stale rules) or
+# the ODD merge (above, newer ODD) was recomputed, so the next run is a
+# clean HIT again. Pure hits skip the save exactly as before.
 # ===========================================================================
-if not SKIP_COMBINE:
+_cache_dirty = (
+    not SKIP_COMBINE
+    or globals().get('_consolidation_recomputed', True)
+    or not _cached_merge_ok
+)
+if _cache_dirty:
     import threading
 
     def _save_cache():

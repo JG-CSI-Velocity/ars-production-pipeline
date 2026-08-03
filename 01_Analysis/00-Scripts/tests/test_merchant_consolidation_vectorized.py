@@ -34,6 +34,9 @@ def _run_summary_head(combined_df: pd.DataFrame) -> dict:
     head = src.split("# Calculate consolidation impact")[0]
     ns = _load_consolidator()
     ns["combined_df"] = combined_df
+    # Cold-run posture: no parquet cache in play.
+    ns["SKIP_COMBINE"] = False
+    ns["CONSOLIDATION_STALE"] = False
     exec(compile(head, str(_SUMMARY), "exec"), ns)  # noqa: S102
     return ns
 
@@ -133,6 +136,8 @@ def test_vectorized_faster_path_uses_uniques(monkeypatch):
     head = src.split("# Calculate consolidation impact")[0]
     ns["standardize_merchant_name"] = counting
     ns["combined_df"] = df
+    ns["SKIP_COMBINE"] = False
+    ns["CONSOLIDATION_STALE"] = False
     exec(compile(head, str(_SUMMARY), "exec"), ns)  # noqa: S102
 
     assert calls["n"] <= 2, f"expected per-unique calls, got {calls['n']} for 6 rows"
