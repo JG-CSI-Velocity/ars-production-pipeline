@@ -30,6 +30,10 @@ import os
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from analytics.txn_file_detection import is_txn_dest_file  # noqa: E402
+
 
 def find_ars_base() -> Path:
     candidates = [
@@ -117,13 +121,15 @@ def main() -> int:
         print(f"ERROR: TXN directory not found: {txn_dir}")
         return 1
 
+    # Same detection as the analysis loader (txn_setup/02-file-config.py),
+    # including extensionless variants; year subfolders (e.g. 2025/) included.
     files = sorted(
-        list(txn_dir.glob("*.csv"))
-        + list(txn_dir.glob("*.txt"))
-        + [p for p in txn_dir.iterdir() if p.is_dir() and p.name.isdigit() for q in p.iterdir() if q.suffix.lower() in (".csv", ".txt")]
+        [p for p in txn_dir.iterdir() if is_txn_dest_file(p)]
+        + [q for p in txn_dir.iterdir() if p.is_dir() and p.name.isdigit()
+           for q in p.iterdir() if is_txn_dest_file(q)]
     )
     if not files:
-        print(f"ERROR: no .csv or .txt files in {txn_dir}")
+        print(f"ERROR: no transaction files in {txn_dir}")
         return 1
 
     print()
