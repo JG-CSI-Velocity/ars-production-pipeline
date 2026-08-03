@@ -39,6 +39,22 @@ from month_resolver import resolve_source_month_dir
 from settings import load_settings
 from shared.format_odd import check_odd_formatted, format_odd
 
+# Shared TXN filename detection -- single source of truth with the analysis
+# loader (01_Analysis/.../analytics/txn_file_detection.py). Loaded by file
+# path because 01_Analysis is not on sys.path here.
+import importlib.util as _importlib_util
+
+_txn_detection_path = (
+    Path(__file__).resolve().parent.parent
+    / "01_Analysis" / "00-Scripts" / "analytics" / "txn_file_detection.py"
+)
+_txn_detection_spec = _importlib_util.spec_from_file_location(
+    "txn_file_detection", _txn_detection_path
+)
+_txn_detection = _importlib_util.module_from_spec(_txn_detection_spec)
+_txn_detection_spec.loader.exec_module(_txn_detection)
+is_txn_filename = _txn_detection.is_txn_filename
+
 
 # Log files we've already failed to write to. A locked or permission-denied
 # log must degrade to console-only with a single warning, never abort the
@@ -372,23 +388,14 @@ def gather_trans_files(src_directory, txn_output_base, csm_name, client_filter=N
     if not os.path.exists(src_directory):
         return 0, 0
 
-    # Find transaction files -- 'tran' substring covers all known variants:
-    #   coasthills-trans-MMDDYYYY.txt
-    #   1441_..._debit card transaction monthly.csv
-    #   1562_..._velocity.ars.transactions.YYYY.MM.DD.txt
-    #   1585_..._monthly_transaction_data_mls.txt
-    #   1795_..._monthlytran.csv
-    #   1745_29335_[YYYY.MM.DD][HH.MM.SS]_transaction  (no extension)
+    # Find transaction files -- naming variants live in txn_file_detection.py
+    # (see issues #45 and #251 for the full list, incl. extensionless
+    # '..._monthlydebittransactions' files).
     trans_files = []
     for f in os.listdir(src_directory):
         if os.path.isdir(os.path.join(src_directory, f)):
             continue
-        f_lower = f.lower()
-        is_txn = (
-            ('tran' in f_lower and f_lower.endswith(('.txt', '.csv')))
-            or f_lower.endswith('_transaction')
-        )
-        if is_txn:
+        if is_txn_filename(f):
             # Extract client ID: either leading digits before _ or before -
             client_match = re.match(r'^(\d+)', f)
             if client_match:
@@ -402,7 +409,7 @@ def gather_trans_files(src_directory, txn_output_base, csm_name, client_filter=N
                 log_message(f"    Trans SKIPPED (no client ID in filename): {f}", log_file)
 
     if not trans_files:
-        log_message(f"    No transaction files found", log_file)
+        log_message(f"    No transaction files found in {src_directory}", log_file)
         return 0, 0
 
     success = 0
@@ -482,11 +489,7 @@ def gather_trans_from_zips(src_directory, txn_output_base, csm_name, client_filt
                         continue
 
                     # Same detection as gather_trans_files
-                    is_txn = (
-                        ('tran' in f_lower and f_lower.endswith(('.txt', '.csv')))
-                        or f_lower.endswith('_transaction')
-                    )
-                    if not is_txn:
+                    if not is_txn_filename(base):
                         continue
 
                     # Client ID: entry's leading digits, else the zip's client ID

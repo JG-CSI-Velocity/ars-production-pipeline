@@ -119,18 +119,22 @@ def parse_file_date(filepath: Path) -> datetime | None:
     return None
 
 
-def _is_txn_file(p: Path) -> bool:
-    """A TXN file is .txt/.csv, or extensionless ending in `_transaction`.
+# Shared filename detection -- loaded by path so it works both under the
+# txn_wrapper exec environment and any standalone use (issue #251: Ascend's
+# extensionless '..._monthlydebittransactions' files were silently ignored).
+import importlib.util as _importlib_util
 
-    The latter covers Dan's `1745_29335_[YYYY.MM.DD][HH.MM.SS]_transaction`
-    files, which have no extension (Path.suffix picks up the trailing
-    `.26]_transaction` from the bracketed timestamp, not a real suffix).
-    """
-    if not p.is_file():
-        return False
-    if p.suffix.lower() in ('.txt', '.csv'):
-        return True
-    return p.name.lower().endswith('_transaction')
+_txn_detection_path = Path(__file__).resolve().parent.parent / "txn_file_detection.py"
+_txn_detection_spec = _importlib_util.spec_from_file_location(
+    "txn_file_detection", _txn_detection_path
+)
+_txn_detection = _importlib_util.module_from_spec(_txn_detection_spec)
+_txn_detection_spec.loader.exec_module(_txn_detection)
+
+
+def _is_txn_file(p: Path) -> bool:
+    """A TXN file by name -- see txn_file_detection.is_txn_dest_file."""
+    return _txn_detection.is_txn_dest_file(p)
 
 
 def gather_all_txn_files(client_root: Path) -> list[Path]:
