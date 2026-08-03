@@ -13,9 +13,24 @@ print("="*100)
 print(" " * 30 + "MERCHANT NAME CONSOLIDATION")
 print("="*100)
 
-# Apply universal consolidation function
+# Apply universal consolidation function over the DISTINCT merchant strings,
+# then broadcast back across every row (same trick as tag_competitors, #214).
+# standardize_merchant_name depends only on its input string, so this is
+# identical to row-by-row apply -- but a multi-million-row client has only a
+# few hundred thousand distinct merchants, so the ~960-line if-chain runs
+# per unique value instead of per row. Real-NaN merchants never reach the
+# mapping (dropna), so map leaves them NaN and fillna applies the same
+# 'UNKNOWN MERCHANT' the function's pd.isna branch would.
 print("\nApplying merchant name standardization...")
-combined_df['merchant_consolidated'] = combined_df['merchant_name'].apply(standardize_merchant_name)
+_raw_merchants = combined_df['merchant_name']
+_uniq_merchants = pd.Index(_raw_merchants.dropna().unique())
+_consolidated_by_merchant = pd.Series(
+    [standardize_merchant_name(m) for m in _uniq_merchants],
+    index=_uniq_merchants,
+)
+combined_df['merchant_consolidated'] = (
+    _raw_merchants.map(_consolidated_by_merchant).fillna('UNKNOWN MERCHANT')
+)
 
 # ---------------------------------------------------------------------------
 # SMART UNKNOWN-MERCHANT FALLBACK
