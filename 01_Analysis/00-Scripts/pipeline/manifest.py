@@ -134,6 +134,10 @@ class RunManifest:
     ended_at: str = ""
     elapsed_s: float = 0.0
     status: RunStatus = RunStatus.RUNNING
+    # Coarse stage durations in seconds (load_data, txn_setup, sections_total,
+    # generate_output). Additive -- absent on manifests written before this
+    # field existed, so readers must tolerate a missing key.
+    stages: dict[str, float] = field(default_factory=dict)
     sections: list[SectionRecord] = field(default_factory=list)
     # Run-level anomalies not tied to a single section's script execution
     # (deck QA findings, "0 closed accounts", etc.). Section-scoped flags still
@@ -165,6 +169,11 @@ class RunManifest:
             self.elapsed_s = round(time.monotonic() - self._start_monotonic, 1)
         self.flush()
 
+    def record_stage(self, name: str, seconds: float) -> None:
+        """Record one coarse stage duration and flush."""
+        self.stages[name] = round(float(seconds), 1)
+        self.flush()
+
     def flag(self, level: FlagLevel, message: str) -> None:
         """Record a run-level anomaly and flush. Mirrors SectionRecorder.flag.
 
@@ -189,6 +198,7 @@ class RunManifest:
             "ended_at": self.ended_at,
             "elapsed_s": self.elapsed_s,
             "status": self.status.value,
+            "stages": dict(self.stages),
             "totals": self._totals(),
             "anomaly_flags": [f.to_dict() for f in self.anomaly_flags],
             "sections": [s.to_dict() for s in self.sections],

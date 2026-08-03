@@ -767,10 +767,21 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
         return namespace
 
     logger.info("Running txn_setup once for all sections...")
-    _charts, setup_failures = _execute_scripts(
-        setup_dir, namespace, ctx.paths.charts_dir, "txn_setup",
-        ctx=ctx,
-    )
+    # Record setup scripts in the run manifest -- txn_setup is the heaviest
+    # stage (file reads + combine + ODD merge) and was previously untimed.
+    _mf = getattr(ctx, "manifest", None)
+    _section_cm = _mf.start_section("txn_setup") if _mf is not None else _NullCM()
+    _manifest_meta = {
+        "client_id": getattr(ctx.client, "client_id", ""),
+        "month": getattr(ctx.client, "month", ""),
+    } if _mf is not None else None
+    with _section_cm as _sec:
+        _charts, setup_failures = _execute_scripts(
+            setup_dir, namespace, ctx.paths.charts_dir, "txn_setup",
+            section_recorder=_sec if _mf is not None else None,
+            manifest_meta=_manifest_meta,
+            ctx=ctx,
+        )
     if setup_failures:
         # txn_setup failures are CRITICAL -- combined_df may not exist and
         # every downstream section will fail. Log loudly but keep going so

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -408,11 +409,41 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
         branch_mapping=_branch_map if isinstance(_branch_map, dict) else None,
     )
 
+    # Structured run manifest -- writes run_manifest_txn.json next to the log.
+    # TXN runs previously had no manifest at all (ctx.manifest stayed None),
+    # so the per-script elapsed_s recording in txn_wrapper silently skipped
+    # and runtime work was guesswork. Mirrors pipeline/runner.py:52-67.
+    try:
+        from ars_analysis.pipeline.manifest import RunManifest
+        _manifest = RunManifest(
+            client_id=client_info.client_id,
+            client_name=client_info.client_name,
+            csm=ctx.csm or "",
+            month=month,
+            product="txn",
+            output_dir=ars_ctx.paths.base_dir,
+        )
+        _manifest.start_run()
+        ars_ctx.manifest = _manifest
+    except Exception as _exc:
+        logger.warning("TXN manifest init failed (continuing): %s", _exc)
+        ars_ctx.manifest = None
+
+    def _record_stage(name: str, seconds: float) -> None:
+        mf = getattr(ars_ctx, "manifest", None)
+        if mf is not None:
+            try:
+                mf.record_stage(name, seconds)
+            except Exception as exc:
+                logger.warning("stage timing '%s' not recorded: %s", name, exc)
+
     # Load ODD data if available (TXN scripts may need it)
     oddd_path = ctx.input_files.get("oddd")
     if oddd_path and Path(oddd_path).exists():
         from ars_analysis.pipeline.steps.load import step_load_file
+        _t0 = time.monotonic()
         step_load_file(ars_ctx, Path(oddd_path))
+        _record_stage("load_data", time.monotonic() - _t0)
 
     if ctx.progress_callback:
         ctx.progress_callback("Starting TXN analysis...")
@@ -423,9 +454,12 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
     # months this takes significant time -- doing it 22x was the bottleneck.
     if ctx.progress_callback:
         ctx.progress_callback("  Loading TXN data (txn_setup)...")
+    _t0 = time.monotonic()
     shared_namespace = prepare_shared_namespace(ars_ctx)
+    _record_stage("txn_setup", time.monotonic() - _t0)
 
     # Discover and run TXN sections against the shared namespace
+    _sections_t0 = time.monotonic()
     wrappers = discover_txn_sections()
     success_count = 0
     fail_count = 0
@@ -470,6 +504,8 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
             logger.error("TXN section %s failed: %s", wrapper.section_name, exc)
             section_results.append((wrapper.display_name, 0, f"FAILED: {exc}", []))
             fail_count += 1
+
+    _record_stage("sections_total", time.monotonic() - _sections_t0)
 
     # Print summary report
     if ctx.progress_callback:
@@ -534,7 +570,28 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
     # Generate output (deck + excel) if slides exist
     if ars_ctx.all_slides:
         from ars_analysis.pipeline.steps.generate import step_generate
+        _t0 = time.monotonic()
         step_generate(ars_ctx)
+        _record_stage("generate_output", time.monotonic() - _t0)
+
+    # Finalize the manifest, then re-render the scorecard so its verdict
+    # reflects the final status (step_generate writes it while still RUNNING).
+    if getattr(ars_ctx, "manifest", None) is not None:
+        try:
+            from ars_analysis.pipeline.manifest import RunStatus
+            if success_count == 0 and fail_count > 0:
+                _final = RunStatus.FAILED
+            elif fail_count > 0:
+                _final = RunStatus.PARTIAL
+            else:
+                _final = RunStatus.OK
+            ars_ctx.manifest.end_run(_final)
+            from ars_analysis.pipeline.scorecard import write as _scorecard_write
+            _scorecard_write(
+                ars_ctx.manifest, ars_ctx.paths.base_dir / "run_scorecard_txn.md"
+            )
+        except Exception as _exc:
+            logger.warning("TXN manifest finalize failed: %s", _exc)
 
     # Convert back to shared context
     results = _convert_results(ars_ctx)
