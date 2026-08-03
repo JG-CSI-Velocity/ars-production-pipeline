@@ -150,3 +150,51 @@ def test_no_charts_status_when_slides_zero_and_no_scripts(tmp_path: Path):
 
     data = json.loads((tmp_path / "run_manifest.json").read_text())
     assert data["sections"][0]["status"] == "no_charts"
+
+
+def test_stages_serialize_and_flush(tmp_path: Path):
+    rm = m.RunManifest(
+        client_id="1200", client_name="Guardians CU",
+        csm="JamesG", month="2026.05", product="txn",
+        output_dir=tmp_path,
+    )
+    rm.start_run()
+    rm.record_stage("load_data", 12.34)
+    rm.record_stage("txn_setup", 300.0)
+
+    data = json.loads(rm.path.read_text())
+    assert data["stages"] == {"load_data": 12.3, "txn_setup": 300.0}
+
+
+def test_stages_default_empty(tmp_path: Path):
+    rm = m.RunManifest(
+        client_id="1200", client_name="Guardians CU",
+        csm="JamesG", month="2026.05", product="combined",
+        output_dir=tmp_path,
+    )
+    rm.start_run()
+    data = json.loads(rm.path.read_text())
+    assert data["stages"] == {}
+
+
+def test_txn_product_writes_suffixed_manifest(tmp_path: Path):
+    rm = m.RunManifest(
+        client_id="1200", client_name="Guardians CU",
+        csm="JamesG", month="2026.05", product="txn",
+        output_dir=tmp_path,
+    )
+    rm.start_run()
+    assert (tmp_path / "run_manifest_txn.json").exists()
+    assert not (tmp_path / "run_manifest.json").exists()
+
+
+def test_sizeof_mb_helper_covers_frames_series_and_scalars():
+    import pandas as pd
+    from ars_analysis.analytics.txn_wrapper import _sizeof_mb
+
+    df = pd.DataFrame({"a": range(1000), "b": ["x"] * 1000})
+    assert _sizeof_mb(df) > 0
+    assert _sizeof_mb(df["a"]) > 0
+    assert _sizeof_mb(42) is None
+    assert _sizeof_mb("string") is None
+    assert _sizeof_mb(None) is None

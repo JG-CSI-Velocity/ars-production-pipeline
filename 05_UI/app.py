@@ -1208,6 +1208,9 @@ async def run_quality(csm: str, month: str, client_id: str):
         try:
             data = _json.loads(mf.read_text(encoding="utf-8"))
             out["manifest_status"] = data.get("status", "unknown")
+            # Coarse stage durations (load_data / txn_setup / sections_total /
+            # generate_output). Absent on manifests from older runs.
+            out["stages"] = data.get("stages", {})
             flags: list = []
             # Run-level flags (deck QA, "0 closed accounts", denominator-law
             # violations) live at the manifest top level; section-scoped flags

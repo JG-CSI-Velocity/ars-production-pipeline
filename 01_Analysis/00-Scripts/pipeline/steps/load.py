@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import re
+import threading
 import warnings
 from pathlib import Path
 
@@ -316,6 +318,13 @@ def _read_file(path: Path) -> pd.DataFrame:
         try:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
+                # Parsed-frame cache first: a combined run reads this exact
+                # workbook up to 3x (run_ars load, run_txn load, 08-import-
+                # oddd), and _ODD_CACHE below only skips the network copy,
+                # never the multi-minute openpyxl parse.
+                cached_df = _df_cache_get(path)
+                if cached_df is not None:
+                    return cached_df
                 # Wave 4 (CSM speed): keyed cache so a second run of the same
                 # client in one session skips the network copy. Key = (mtime, size).
                 # On cache hit, openpyxl reads the warm local copy -- ~15s instead of
@@ -325,7 +334,9 @@ def _read_file(path: Path) -> pd.DataFrame:
                     logger.info(
                         "Cache hit: reusing local copy of {name}", name=path.name
                     )
-                    return _read_tabular(cached, pd.read_excel)
+                    df = _read_tabular(cached, pd.read_excel)
+                    _df_cache_put(path, df)
+                    return df
                 with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                     tmp_path = Path(tmp.name)
                 logger.info("Copying {name} to local temp for faster read...", name=path.name)
@@ -333,7 +344,9 @@ def _read_file(path: Path) -> pd.DataFrame:
                 logger.info("Copy done ({mb:.1f} MB). Reading...", mb=file_size / 1024 / 1024)
                 _odd_cache_put(path, tmp_path)
                 # Do NOT unlink: cache reuses the file across runs in the same session.
-                return _read_tabular(tmp_path, pd.read_excel)
+                df = _read_tabular(tmp_path, pd.read_excel)
+                _df_cache_put(path, df)
+                return df
         except ValueError as exc:
             raise DataError(
                 f"Cannot read Excel file: {exc}",
@@ -392,6 +405,117 @@ def odd_cache_clear() -> None:
         except OSError:
             pass
     _ODD_CACHE.clear()
+    _ODD_DF_CACHE.clear()
+
+
+# ---------------------------------------------------------------------------
+# Parsed-DataFrame cache (perf quick win)
+# ---------------------------------------------------------------------------
+# _ODD_CACHE above only skips the network copy -- every _read_file call still
+# pays the multi-minute openpyxl parse, and a combined run parses the same
+# workbook up to three times. Two levels, both keyed by (path, mtime, size):
+#   1. In-process dict of parsed frames. Hits return a COPY: step_load_file
+#      normalizes columns on the returned frame while 08-import-oddd depends
+#      on the raw ones, so callers must never share one object.
+#   2. Cross-run pickle sidecar in <repo root>/.odd_cache (the UI spawns a
+#      fresh subprocess per run, so level 1 is always cold at run start).
+#      Pickle round-trips dtypes exactly; parquet would need object-column
+#      coercion handling. Written in a background thread (same pattern as the
+#      TXN parquet cache) with atomic tmp+replace; any read failure falls back
+#      to the normal parse.
+# Kill switch: ARS_ODD_CACHE=0 disables both levels. Root override:
+# ARS_ODD_CACHE_DIR (mirrors ARS_CHART_CACHE_DIR in charts/cache.py).
+
+_ODD_DF_CACHE: dict[tuple[str, float, int], pd.DataFrame] = {}
+
+
+def _df_cache_disabled() -> bool:
+    return os.environ.get("ARS_ODD_CACHE", "1").strip().lower() in (
+        "0", "false", "no", "off",
+    )
+
+
+def _df_sidecar_path(src: Path) -> Path | None:
+    try:
+        stat = src.stat()
+    except OSError:
+        return None
+    root = os.environ.get("ARS_ODD_CACHE_DIR")
+    base = Path(root) if root else (Path(__file__).resolve().parents[4] / ".odd_cache")
+    return base / f"{src.name}.{int(stat.st_mtime)}.{stat.st_size}.pkl"
+
+
+def _df_cache_get(src: Path) -> pd.DataFrame | None:
+    """Parsed frame for src, or None. Returns a copy the caller may mutate."""
+    if _df_cache_disabled():
+        return None
+    try:
+        key = _odd_cache_key(src)
+    except OSError:
+        return None
+    df = _ODD_DF_CACHE.get(key)
+    if df is not None:
+        logger.info("Parsed-frame cache hit (in-process): {name}", name=src.name)
+        return df.copy()
+    sidecar = _df_sidecar_path(src)
+    if sidecar is not None and sidecar.exists():
+        try:
+            df = pd.read_pickle(sidecar)
+            _ODD_DF_CACHE[key] = df
+            logger.info(
+                "Parsed-frame cache hit (sidecar): {name} -- skipping the "
+                "openpyxl parse. Delete the file or set ARS_ODD_CACHE=0 to "
+                "force a re-parse.",
+                name=sidecar.name,
+            )
+            return df.copy()
+        except Exception as exc:
+            logger.warning(
+                "ODD sidecar read failed, falling back to full parse: {err}", err=exc
+            )
+    return None
+
+
+def _df_cache_put(src: Path, df: pd.DataFrame) -> threading.Thread | None:
+    """Store the pristine parsed frame in-process and persist the sidecar.
+
+    Returns the background writer thread (test hook: join it for a
+    deterministic sidecar), or None when nothing is written.
+    """
+    if _df_cache_disabled():
+        return None
+    try:
+        key = _odd_cache_key(src)
+    except OSError:
+        return None
+    pristine = df.copy()
+    _ODD_DF_CACHE[key] = pristine
+    sidecar = _df_sidecar_path(src)
+    if sidecar is None:
+        return None
+
+    def _write_sidecar() -> None:
+        tmp = sidecar.with_name(sidecar.name + f".{os.getpid()}.tmp")
+        try:
+            sidecar.parent.mkdir(parents=True, exist_ok=True)
+            # Prune stale keys (old mtime/size) and orphaned temp files for
+            # this source so the cache dir doesn't accumulate dead copies.
+            for old in sidecar.parent.glob(f"{src.name}.*"):
+                if old != sidecar and old != tmp:
+                    old.unlink(missing_ok=True)
+            pristine.to_pickle(tmp)
+            tmp.replace(sidecar)
+            logger.info("ODD sidecar cache saved: {name}", name=sidecar.name)
+        except Exception as exc:
+            logger.warning("ODD sidecar write failed (continuing): {err}", err=exc)
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    writer = threading.Thread(target=_write_sidecar, daemon=True)
+    writer.start()
+    return writer
 
 
 def _find_data_file(directory: Path) -> str:

@@ -234,6 +234,30 @@ else:
         print(f"  Status: MISS (newer TXN files present -- rebuilding)")
         print(f"  Cache date:   {_cache_dt:%Y-%m-%d %H:%M}")
         print(f"  Newest file:  {_newest_file_dt:%Y-%m-%d %H:%M}")
+
+# Consolidation-logic staleness: the cached merchant_consolidated column bakes
+# in the rules from 06/07. If either script changed after the cache was
+# written, 07 recomputes on this run even though the data itself is a HIT
+# (cheap: the consolidator runs once per distinct merchant). 09 then rewrites
+# the cache so the next run is a clean HIT again.
+_txn_cache_path = Path(__file__).resolve().parent.parent / "txn_cache.py"
+_txn_cache_spec = _importlib_util.spec_from_file_location("txn_cache", _txn_cache_path)
+_txn_cache = _importlib_util.module_from_spec(_txn_cache_spec)
+_txn_cache_spec.loader.exec_module(_txn_cache)
+
+CONSOLIDATION_STALE = False
+if USE_PARQUET_CACHE is not None:
+    _stale_src = _txn_cache.consolidation_stale(
+        PARQUET_CACHE,
+        [
+            Path(__file__).resolve().parent / "06-merchant-name-consolidation.py",
+            Path(__file__).resolve().parent / "07-consolidation-summary.py",
+        ],
+    )
+    if _stale_src:
+        CONSOLIDATION_STALE = True
+        print(f"  Note: {_stale_src} changed after the cache was written --")
+        print(f"        merchant consolidation will be recomputed this run")
 print("-" * 60)
 print()
 

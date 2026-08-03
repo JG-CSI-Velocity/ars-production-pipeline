@@ -5,10 +5,13 @@ matplotlib
 numpy
 openpyxl
 pandas
+psutil
+pyarrow
 pydantic
 pydantic-settings
 python-pptx
 PyYAML
 rich
+seaborn
 uvicorn
 xlsxwriter
