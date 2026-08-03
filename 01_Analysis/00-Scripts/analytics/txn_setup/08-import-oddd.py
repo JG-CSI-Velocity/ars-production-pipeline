@@ -31,6 +31,13 @@ odd_file = odd_candidates[0]
 if len(odd_candidates) > 1:
     print(f"WARNING: Multiple ODD files found, using: {odd_file.name}")
 
+# Cache-gating input for 09: the cached business_flag merge is reusable only
+# if this ODD predates the Parquet cache. None = unknown -> 09 re-merges.
+try:
+    ODD_MTIME = odd_file.stat().st_mtime
+except OSError:
+    ODD_MTIME = None
+
 print(f"Loading ODD file: {odd_file.name}")
 # Reuse the pipeline's cached local-copy reader. step_load_file already read
 # this exact ODD at startup, so the (mtime, size)-keyed temp-copy cache is warm

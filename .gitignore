@@ -56,6 +56,7 @@ _archive/
 
 # Persistent cross-run chart cache (mailer summaries/combos)
 .chart_cache/
+.odd_cache/
 
 # Runtime UI state -- written by the running server, not source (#232)
 03_Config/schedules.json

@@ -95,6 +95,12 @@ def write(rm: RunManifest, path: Path) -> Path:
         f" (failed: {totals['scripts_failed']})"
     )
     out.append(f"- Elapsed: {rm.elapsed_s:.0f}s")
+    stages = getattr(rm, "stages", None) or {}
+    if stages:
+        out.append(
+            "- Stages: "
+            + " | ".join(f"{name}: {secs:.0f}s" for name, secs in stages.items())
+        )
     out.append("")
     out.append("## Section status")
     out.append("")

@@ -70,3 +70,20 @@ def test_scorecard_surfaces_anomaly_flags(tmp_path: Path):
     text = out.read_text()
     assert "top_25_fed_district=0" in text
     assert "warn" in text or "Warn" in text
+
+
+def test_scorecard_renders_stage_timings(tmp_path: Path):
+    rm = _build_fixture_manifest(tmp_path)
+    rm.record_stage("load_data", 45.0)
+    rm.record_stage("txn_setup", 322.0)
+    out = scorecard.write(rm, tmp_path / "run_scorecard.md")
+    text = out.read_text()
+    assert "Stages:" in text
+    assert "load_data: 45s" in text
+    assert "txn_setup: 322s" in text
+
+
+def test_scorecard_omits_stages_line_when_empty(tmp_path: Path):
+    rm = _build_fixture_manifest(tmp_path)
+    out = scorecard.write(rm, tmp_path / "run_scorecard.md")
+    assert "Stages:" not in out.read_text()

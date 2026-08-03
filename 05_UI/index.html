@@ -1979,6 +1979,17 @@ async function loadRunQuality(ctx) {
           <div><span style="color:var(--muted);">manifest:</span> <strong>${q.manifest_status || 'unknown'}</strong></div>
         `;
 
+        // Stage timings (load_data / txn_setup / sections_total / generate_output).
+        // Only present on manifests written after stage timing shipped.
+        const stages = q.stages || {};
+        if (Object.keys(stages).length > 0) {
+            const fmtDur = s => s >= 90 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : `${Math.round(s)}s`;
+            summary.innerHTML += `
+          <div style="grid-column:1/-1;color:var(--muted);font-size:0.85em;">
+            where the time went: ${Object.entries(stages).map(([k, v]) => `${k.replace(/_/g, ' ')} <strong>${fmtDur(v)}</strong>`).join(' &middot; ')}
+          </div>`;
+        }
+
         const flagsBox = document.getElementById('gDoneQualityFlags');
         if (flagCount > 0) {
             flagsBox.innerHTML = (q.anomaly_flags || []).map(f =>

@@ -39,6 +39,43 @@ from month_resolver import resolve_source_month_dir
 from settings import load_settings
 from shared.format_odd import check_odd_formatted, format_odd
 
+# Shared TXN filename detection -- single source of truth with the analysis
+# loader (01_Analysis/.../analytics/txn_file_detection.py). Loaded by file
+# path because 01_Analysis is not on sys.path here.
+import importlib.util as _importlib_util
+
+_txn_detection_path = (
+    Path(__file__).resolve().parent.parent
+    / "01_Analysis" / "00-Scripts" / "analytics" / "txn_file_detection.py"
+)
+_txn_detection_spec = _importlib_util.spec_from_file_location(
+    "txn_file_detection", _txn_detection_path
+)
+_txn_detection = _importlib_util.module_from_spec(_txn_detection_spec)
+_txn_detection_spec.loader.exec_module(_txn_detection)
+is_txn_filename = _txn_detection.is_txn_filename
+is_txn_dest_file = _txn_detection.is_txn_dest_file
+
+
+def count_dest_txn_files(dest_dir):
+    """How many transaction files the analysis loader will see in a client's
+    TXN Files/{CSM}/{client}/ folder.
+
+    Mirrors gather_all_txn_files in 01_Analysis/.../txn_setup/02-file-config.py:
+    flat files plus 4-digit year subfolders, using the shared dest-side
+    detection rule.
+    """
+    dest = Path(dest_dir)
+    if not dest.is_dir():
+        return 0
+    count = 0
+    for item in dest.iterdir():
+        if is_txn_dest_file(item):
+            count += 1
+        elif item.is_dir() and item.name.isdigit() and len(item.name) == 4:
+            count += sum(1 for f in item.iterdir() if is_txn_dest_file(f))
+    return count
+
 
 # Log files we've already failed to write to. A locked or permission-denied
 # log must degrade to console-only with a single warning, never abort the
@@ -372,23 +409,14 @@ def gather_trans_files(src_directory, txn_output_base, csm_name, client_filter=N
     if not os.path.exists(src_directory):
         return 0, 0
 
-    # Find transaction files -- 'tran' substring covers all known variants:
-    #   coasthills-trans-MMDDYYYY.txt
-    #   1441_..._debit card transaction monthly.csv
-    #   1562_..._velocity.ars.transactions.YYYY.MM.DD.txt
-    #   1585_..._monthly_transaction_data_mls.txt
-    #   1795_..._monthlytran.csv
-    #   1745_29335_[YYYY.MM.DD][HH.MM.SS]_transaction  (no extension)
+    # Find transaction files -- naming variants live in txn_file_detection.py
+    # (see issues #45 and #251 for the full list, incl. extensionless
+    # '..._monthlydebittransactions' files).
     trans_files = []
     for f in os.listdir(src_directory):
         if os.path.isdir(os.path.join(src_directory, f)):
             continue
-        f_lower = f.lower()
-        is_txn = (
-            ('tran' in f_lower and f_lower.endswith(('.txt', '.csv')))
-            or f_lower.endswith('_transaction')
-        )
-        if is_txn:
+        if is_txn_filename(f):
             # Extract client ID: either leading digits before _ or before -
             client_match = re.match(r'^(\d+)', f)
             if client_match:
@@ -402,7 +430,7 @@ def gather_trans_files(src_directory, txn_output_base, csm_name, client_filter=N
                 log_message(f"    Trans SKIPPED (no client ID in filename): {f}", log_file)
 
     if not trans_files:
-        log_message(f"    No transaction files found", log_file)
+        log_message(f"    No transaction files found in {src_directory}", log_file)
         return 0, 0
 
     success = 0
@@ -482,11 +510,7 @@ def gather_trans_from_zips(src_directory, txn_output_base, csm_name, client_filt
                         continue
 
                     # Same detection as gather_trans_files
-                    is_txn = (
-                        ('tran' in f_lower and f_lower.endswith(('.txt', '.csv')))
-                        or f_lower.endswith('_transaction')
-                    )
-                    if not is_txn:
+                    if not is_txn_filename(base):
                         continue
 
                     # Client ID: entry's leading digits, else the zip's client ID
@@ -805,6 +829,26 @@ def main():
                 t_ok_total += t_ok
                 t_err_total += t_err
             log_message(f"    Trans: {t_ok_total} copied, {t_err_total} errors", log_file)
+            # "0 copied" reads like data loss when the files were hand-placed
+            # or gathered in an earlier run (issue #251) -- the source dump
+            # legitimately has nothing new. Report what the analysis loader
+            # will actually see in the destination so the operator can tell
+            # "nothing to copy" apart from "no data".
+            if args.client:
+                dest_dir = Path(txn_base) / csm_name / args.client
+                n_dest = count_dest_txn_files(dest_dir)
+                log_message(
+                    f"    TXN Files/{csm_name}/{args.client}: {n_dest} "
+                    f"transaction file(s) ready for analysis",
+                    log_file,
+                )
+                if n_dest == 0 and t_ok_total == 0:
+                    log_message(
+                        f"    WARNING: no transaction files in source OR "
+                        f"destination -- TXN analysis will find nothing for "
+                        f"client {args.client}",
+                        log_file,
+                    )
 
         if args.with_deferred:
             extra_cfg = ars_config.get("extra_files", {})

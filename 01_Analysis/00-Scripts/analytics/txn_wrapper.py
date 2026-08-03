@@ -50,6 +50,24 @@ class _NullCM:
     def __exit__(self, *a): return False
 
 
+def _sizeof_mb(value) -> float | None:
+    """Approximate deep size in MB for DataFrame/Series values, else None.
+
+    Duck-typed on memory_usage so pandas isn't imported at module load:
+    DataFrame.memory_usage(deep=True) returns a per-column Series (summed),
+    Series.memory_usage(deep=True) returns an int.
+    """
+    usage = getattr(value, "memory_usage", None)
+    if usage is None:
+        return None
+    try:
+        n = usage(deep=True)
+        n = n.sum() if hasattr(n, "sum") else n
+        return float(n) / (1024 * 1024)
+    except Exception:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Chart capture -- intercept matplotlib savefig and plt.show
 # ---------------------------------------------------------------------------
@@ -468,10 +486,33 @@ class TXNSectionWrapper(AnalysisModule):
 
         # Propagate new variables back to shared namespace so later sections
         # can use them (e.g., GEN_COLORS from general, demo_df, acct_txn_counts).
+        # While copying, size the additions: this accumulation is the documented
+        # cause of the late-run "bad allocation" failures (issue #92), and a
+        # safe del-list can only be built from data on which sections retain
+        # the big intermediates. Top offenders land in the manifest.
         if shared_namespace is not None:
+            _new_var_mb: dict[str, float] = {}
             for key, val in namespace.items():
                 if key not in shared_namespace:
                     shared_namespace[key] = val
+                    _mb = _sizeof_mb(val)
+                    if _mb is not None and _mb >= 1.0:
+                        _new_var_mb[key] = round(_mb, 1)
+            if _mf is not None and _recorder is not None:
+                _memory_numbers: dict[str, Any] = {}
+                if _new_var_mb:
+                    _memory_numbers["new_vars_mb"] = dict(
+                        sorted(_new_var_mb.items(), key=lambda kv: -kv[1])[:5]
+                    )
+                try:
+                    import psutil as _psutil
+                    _memory_numbers["rss_mb"] = round(
+                        _psutil.Process().memory_info().rss / (1024 * 1024)
+                    )
+                except Exception:
+                    pass
+                if _memory_numbers:
+                    _recorder.set_key_numbers(_memory_numbers)
 
         # Slide ids are keyed to the producing script (STABLE), not section-wide
         # capture order, so adding/removing one script no longer renumbers every
@@ -855,10 +896,21 @@ def prepare_shared_namespace(ctx: PipelineContext) -> dict[str, Any]:
         return namespace
 
     logger.info("Running txn_setup once for all sections...")
-    _charts, setup_failures = _execute_scripts(
-        setup_dir, namespace, ctx.paths.charts_dir, "txn_setup",
-        ctx=ctx,
-    )
+    # Record setup scripts in the run manifest -- txn_setup is the heaviest
+    # stage (file reads + combine + ODD merge) and was previously untimed.
+    _mf = getattr(ctx, "manifest", None)
+    _section_cm = _mf.start_section("txn_setup") if _mf is not None else _NullCM()
+    _manifest_meta = {
+        "client_id": getattr(ctx.client, "client_id", ""),
+        "month": getattr(ctx.client, "month", ""),
+    } if _mf is not None else None
+    with _section_cm as _sec:
+        _charts, setup_failures = _execute_scripts(
+            setup_dir, namespace, ctx.paths.charts_dir, "txn_setup",
+            section_recorder=_sec if _mf is not None else None,
+            manifest_meta=_manifest_meta,
+            ctx=ctx,
+        )
     if setup_failures:
         # txn_setup failures are CRITICAL -- combined_df may not exist and
         # every downstream section will fail. Log loudly but keep going so
