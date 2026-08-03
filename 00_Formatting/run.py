@@ -54,6 +54,27 @@ _txn_detection_spec = _importlib_util.spec_from_file_location(
 _txn_detection = _importlib_util.module_from_spec(_txn_detection_spec)
 _txn_detection_spec.loader.exec_module(_txn_detection)
 is_txn_filename = _txn_detection.is_txn_filename
+is_txn_dest_file = _txn_detection.is_txn_dest_file
+
+
+def count_dest_txn_files(dest_dir):
+    """How many transaction files the analysis loader will see in a client's
+    TXN Files/{CSM}/{client}/ folder.
+
+    Mirrors gather_all_txn_files in 01_Analysis/.../txn_setup/02-file-config.py:
+    flat files plus 4-digit year subfolders, using the shared dest-side
+    detection rule.
+    """
+    dest = Path(dest_dir)
+    if not dest.is_dir():
+        return 0
+    count = 0
+    for item in dest.iterdir():
+        if is_txn_dest_file(item):
+            count += 1
+        elif item.is_dir() and item.name.isdigit() and len(item.name) == 4:
+            count += sum(1 for f in item.iterdir() if is_txn_dest_file(f))
+    return count
 
 
 # Log files we've already failed to write to. A locked or permission-denied
@@ -808,6 +829,26 @@ def main():
                 t_ok_total += t_ok
                 t_err_total += t_err
             log_message(f"    Trans: {t_ok_total} copied, {t_err_total} errors", log_file)
+            # "0 copied" reads like data loss when the files were hand-placed
+            # or gathered in an earlier run (issue #251) -- the source dump
+            # legitimately has nothing new. Report what the analysis loader
+            # will actually see in the destination so the operator can tell
+            # "nothing to copy" apart from "no data".
+            if args.client:
+                dest_dir = Path(txn_base) / csm_name / args.client
+                n_dest = count_dest_txn_files(dest_dir)
+                log_message(
+                    f"    TXN Files/{csm_name}/{args.client}: {n_dest} "
+                    f"transaction file(s) ready for analysis",
+                    log_file,
+                )
+                if n_dest == 0 and t_ok_total == 0:
+                    log_message(
+                        f"    WARNING: no transaction files in source OR "
+                        f"destination -- TXN analysis will find nothing for "
+                        f"client {args.client}",
+                        log_file,
+                    )
 
         if args.with_deferred:
             extra_cfg = ars_config.get("extra_files", {})
