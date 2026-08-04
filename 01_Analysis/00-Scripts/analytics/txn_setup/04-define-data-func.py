@@ -32,11 +32,12 @@ DTYPE_HINTS = {
 }
 
 
-def _read_with_sep(filepath, sep):
+def _read_with_sep(filepath, sep, on_bad_lines='error'):
     """Single attempt to read a TXN file with the given delimiter."""
     return pd.read_csv(filepath, sep=sep, skiprows=1, header=None,
                        dtype=DTYPE_HINTS, low_memory=False,
-                       na_values=['', 'NA', 'N/A'])
+                       na_values=['', 'NA', 'N/A'],
+                       on_bad_lines=on_bad_lines)
 
 
 _SEP_LABELS = {'\t': 'tab', ',': 'comma', '|': 'pipe', ';': 'semicolon'}
@@ -103,6 +104,21 @@ def load_transaction_file(filepath):
             return _read_with_sep(filepath, sep)
         except pd.errors.ParserError as exc:
             print(f"  WARNING: {filepath.name} ParserError with {_label(sep)} delimiter: {exc}")
+            # A handful of malformed rows (e.g. an embedded tab in a merchant
+            # name) must not disqualify an otherwise-correct delimiter -- 1192
+            # (issue #251) is tab-clean for 5.7M rows except one, and rejecting
+            # tab meant a full re-read per remaining candidate ending in a
+            # 1-column pipe parse of garbage. Retry the SAME delimiter skipping
+            # bad lines; accept only if the expected shape comes out, so wrong
+            # delimiters still fall through exactly as before.
+            try:
+                retry = _read_with_sep(filepath, sep, on_bad_lines='skip')
+            except pd.errors.ParserError:
+                return None
+            if len(retry.columns) == target_cols and len(retry):
+                print(f"  Recovered with {_label(sep)} delimiter by skipping "
+                      f"malformed line(s); {len(retry):,} rows kept.")
+                return retry
             return None
 
     # Sniff first so the most likely delimiter is tried first, then the rest.
