@@ -103,22 +103,27 @@ def load_transaction_file(filepath):
         try:
             return _read_with_sep(filepath, sep)
         except pd.errors.ParserError as exc:
-            print(f"  WARNING: {filepath.name} ParserError with {_label(sep)} delimiter: {exc}")
             # A handful of malformed rows (e.g. an embedded tab in a merchant
             # name) must not disqualify an otherwise-correct delimiter -- 1192
             # (issue #251) is tab-clean for 5.7M rows except one, and rejecting
             # tab meant a full re-read per remaining candidate ending in a
             # 1-column pipe parse of garbage. Retry the SAME delimiter skipping
             # bad lines; accept only if the expected shape comes out, so wrong
-            # delimiters still fall through exactly as before.
+            # delimiters still fall through exactly as before. On success this
+            # is routine recovery, so it logs as a Note -- the WARNING only
+            # fires when the delimiter is genuinely wrong (#251 operators read
+            # the old leading WARNING as 'still broken' even when recovered).
             try:
                 retry = _read_with_sep(filepath, sep, on_bad_lines='skip')
             except pd.errors.ParserError:
+                print(f"  WARNING: {filepath.name} ParserError with {_label(sep)} delimiter: {exc}")
                 return None
             if len(retry.columns) == target_cols and len(retry):
-                print(f"  Recovered with {_label(sep)} delimiter by skipping "
-                      f"malformed line(s); {len(retry):,} rows kept.")
+                print(f"  Note: {filepath.name} has malformed line(s) "
+                      f"({exc}); recovered with {_label(sep)} delimiter by "
+                      f"skipping them -- {len(retry):,} rows kept.")
                 return retry
+            print(f"  WARNING: {filepath.name} ParserError with {_label(sep)} delimiter: {exc}")
             return None
 
     # Sniff first so the most likely delimiter is tried first, then the rest.
