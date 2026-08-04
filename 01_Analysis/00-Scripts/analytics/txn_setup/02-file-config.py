@@ -167,8 +167,24 @@ def gather_all_txn_files(client_root: Path) -> list[Path]:
 import shutil
 import tempfile
 
+# Cache-path + freshness helpers, loaded by file path so they work under the
+# txn_wrapper exec environment and standalone use alike.
+import importlib.util as _importlib_util
+
+_txn_cache_path = Path(__file__).resolve().parent.parent / "txn_cache.py"
+_txn_cache_spec = _importlib_util.spec_from_file_location("txn_cache", _txn_cache_path)
+_txn_cache = _importlib_util.module_from_spec(_txn_cache_spec)
+_txn_cache_spec.loader.exec_module(_txn_cache)
+
 TRAILING_MONTHS = 12
-PARQUET_CACHE = CLIENT_PATH / f"{CLIENT_ID}_combined_cache.parquet"
+# PARQUET_CACHE is the SAVE target (machine-local SSD -- see txn_cache.
+# local_cache_root); _ACTIVE_CACHE is where this run READS from, which can be
+# the legacy copy next to the TXN files on the share exactly once (migration).
+# 09-oddd-account-type saves to PARQUET_CACHE and gates its ODD re-merge on it.
+PARQUET_CACHE, _ACTIVE_CACHE = _txn_cache.combined_cache_paths(CLIENT_ID, CLIENT_PATH)
+if _ACTIVE_CACHE != PARQUET_CACHE:
+    print(f"Note: migrating combined cache off the network share -- reading "
+          f"{_ACTIVE_CACHE} one last time; future saves go to {PARQUET_CACHE.parent}")
 USE_PARQUET_CACHE = None  # set below if cache is fresh
 
 # 1) Gather all TXN files (handles year folders or flat layout)
@@ -226,39 +242,39 @@ print()
 print("-" * 60)
 print("PARQUET CACHE STATUS")
 print("-" * 60)
-if not PARQUET_CACHE.exists():
+if not _ACTIVE_CACHE.exists():
     print(f"  Status: NO CACHE (will be built during this run)")
     print(f"  Location: {PARQUET_CACHE}")
     print(f"  Note: first run for this client is slow; subsequent runs are fast.")
-elif PARQUET_CACHE.stat().st_mtime < _CACHE_MIN_DATE.timestamp():
+elif _ACTIVE_CACHE.stat().st_mtime < _CACHE_MIN_DATE.timestamp():
     # Pre-cutoff cache: built by older code, may not match the current schema.
-    _stale_dt = datetime.fromtimestamp(PARQUET_CACHE.stat().st_mtime)
+    _stale_dt = datetime.fromtimestamp(_ACTIVE_CACHE.stat().st_mtime)
     print(f"  Status: STALE (built {_stale_dt:%Y-%m-%d} before cutoff "
           f"{_CACHE_MIN_DATE:%Y-%m-%d} -- deleting and rebuilding)")
     try:
-        PARQUET_CACHE.unlink()
+        _ACTIVE_CACHE.unlink()
     except OSError as _e:
         print(f"  WARNING: could not delete stale cache: {type(_e).__name__}: {_e}")
     # USE_PARQUET_CACHE stays None -> rebuild from source this run.
 elif _force_rebuild:
     print(f"  Status: FORCE-REBUILD (TXN_FORCE_REBUILD set -- ignoring cache)")
-    print(f"  Cache:  {PARQUET_CACHE.name} (will be overwritten)")
+    print(f"  Cache:  {_ACTIVE_CACHE.name} (will be overwritten)")
 elif not files_to_load:
     # Cache exists but no raw files -- rely on cache
-    USE_PARQUET_CACHE = PARQUET_CACHE
-    _cache_mtime = PARQUET_CACHE.stat().st_mtime
+    USE_PARQUET_CACHE = _ACTIVE_CACHE
+    _cache_mtime = _ACTIVE_CACHE.stat().st_mtime
     print(f"  Status: HIT (no raw TXN files found; using cache)")
-    print(f"  Cache:  {PARQUET_CACHE.name}")
+    print(f"  Cache:  {_ACTIVE_CACHE}")
     print(f"  Date:   {datetime.fromtimestamp(_cache_mtime):%Y-%m-%d %H:%M}")
 else:
-    _cache_mtime = PARQUET_CACHE.stat().st_mtime
+    _cache_mtime = _ACTIVE_CACHE.stat().st_mtime
     _newest_file_mtime = max(f.stat().st_mtime for f in files_to_load)
     if _cache_mtime > _newest_file_mtime:
-        USE_PARQUET_CACHE = PARQUET_CACHE
+        USE_PARQUET_CACHE = _ACTIVE_CACHE
         _age_hours = (datetime.now().timestamp() - _cache_mtime) / 3600
-        _cache_mb = PARQUET_CACHE.stat().st_size / (1024 * 1024)
+        _cache_mb = _ACTIVE_CACHE.stat().st_size / (1024 * 1024)
         print(f"  Status: HIT (skipping file read, saving ~25 min)")
-        print(f"  Cache:  {PARQUET_CACHE.name} ({_cache_mb:.0f} MB)")
+        print(f"  Cache:  {_ACTIVE_CACHE} ({_cache_mb:.0f} MB)")
         print(f"  Date:   {datetime.fromtimestamp(_cache_mtime):%Y-%m-%d %H:%M} ({_age_hours:.1f}h old)")
     else:
         _newest_file_dt = datetime.fromtimestamp(_newest_file_mtime)
@@ -272,15 +288,10 @@ else:
 # written, 07 recomputes on this run even though the data itself is a HIT
 # (cheap: the consolidator runs once per distinct merchant). 09 then rewrites
 # the cache so the next run is a clean HIT again.
-_txn_cache_path = Path(__file__).resolve().parent.parent / "txn_cache.py"
-_txn_cache_spec = _importlib_util.spec_from_file_location("txn_cache", _txn_cache_path)
-_txn_cache = _importlib_util.module_from_spec(_txn_cache_spec)
-_txn_cache_spec.loader.exec_module(_txn_cache)
-
 CONSOLIDATION_STALE = False
 if USE_PARQUET_CACHE is not None:
     _stale_src = _txn_cache.consolidation_stale(
-        PARQUET_CACHE,
+        USE_PARQUET_CACHE,
         [
             Path(__file__).resolve().parent / "06-merchant-name-consolidation.py",
             Path(__file__).resolve().parent / "07-consolidation-summary.py",

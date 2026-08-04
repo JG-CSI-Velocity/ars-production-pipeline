@@ -77,6 +77,48 @@ def _peek_delimiter(filepath, candidates=('\t', ',', '|', ';'), sample_lines=20)
         return '\t'
 
 
+def _file_cache_target(filepath):
+    """Local parquet cache path for one raw TXN file, or None when disabled.
+
+    A raw ~650 MB monthly .txt streams over the M: share at ~1.7 MB/s (#251);
+    its ~120 MB local parquet copy reads in about a second and means that
+    month's file never crosses the network again. Requires the shared
+    namespace from 02-file-config (_txn_cache, CLIENT_ID); standalone use
+    without them simply runs uncached. Kill switch: ARS_TXN_FILE_CACHE=0.
+    """
+    import os as _os
+    if _os.environ.get('ARS_TXN_FILE_CACHE', '1').strip().lower() in (
+            '0', 'false', 'no', 'off'):
+        return None
+    try:
+        return _txn_cache.file_cache_path('txn-files', CLIENT_ID, filepath, '.parquet')
+    except NameError:
+        return None
+
+
+def _write_file_cache(df, cache_target, src_name):
+    """Persist a parsed TXN file to the local parquet cache (atomic write)."""
+    if cache_target is None or len(df.columns) != len(EXPECTED_COLUMNS) + 1:
+        return  # only cache good parses (13 named columns + source_file)
+    import os as _os
+    tmp = cache_target.with_name(cache_target.name + f".{_os.getpid()}.tmp")
+    try:
+        cache_target.parent.mkdir(parents=True, exist_ok=True)
+        _txn_cache.prune_stale_keys(cache_target, src_name)
+        df.to_parquet(tmp, index=False, engine='pyarrow')
+        tmp.replace(cache_target)
+        _mb = cache_target.stat().st_size / (1024 * 1024)
+        print(f"  Local cache saved: {src_name} ({_mb:.0f} MB parquet) -- "
+              f"this file won't cross the network again")
+    except Exception as _exc:
+        print(f"  Note: could not save local cache for {src_name}: "
+              f"{type(_exc).__name__}: {_exc}")
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def load_transaction_file(filepath):
     """Load a debit card transaction file (.txt, .csv, or no extension).
 
@@ -93,6 +135,25 @@ def load_transaction_file(filepath):
     lines that downstream analytics couldn't use (issue #137, client 1585).
     """
     filepath = Path(filepath)
+
+    # Local parquet cache first -- keyed by name+mtime+size, so a
+    # re-delivered source file misses the old key and re-reads raw.
+    _cache_target = _file_cache_target(filepath)
+    if _cache_target is not None and _cache_target.exists():
+        try:
+            df = pd.read_parquet(_cache_target)
+            # Parquet round-trips object-column nulls as None; the raw reader
+            # produces NaN. Normalize so downstream string ops behave
+            # identically on both paths.
+            for _c in df.columns:
+                if df[_c].dtype == object:
+                    df[_c] = df[_c].where(df[_c].notna(), float('nan'))
+            print(f"  (local parquet cache) {filepath.name}")
+            return df
+        except Exception as _exc:
+            print(f"  Note: local cache unreadable for {filepath.name} "
+                  f"({type(_exc).__name__}) -- reading raw file")
+
     target_cols = len(EXPECTED_COLUMNS)
     candidates = ['\t', ',', '|', ';']
 
@@ -211,6 +272,7 @@ def load_transaction_file(filepath):
     # Add metadata
     df['source_file'] = filepath.name
 
+    _write_file_cache(df, _cache_target, filepath.name)
     return df
 
 
@@ -229,15 +291,35 @@ if USE_PARQUET_CACHE is not None:
     print(f"  Loaded: {len(combined_df):,} rows x {len(combined_df.columns)} cols in {_t.time() - _load_start:.1f}s")
     print(f"  Memory: {combined_df.memory_usage(deep=True).sum() / 1024**2:.0f} MB")
 else:
-    # Standard path: read TXN files (now from local temp, much faster than network)
+    # Standard path: read TXN files, a few at a time. SMB throughput is often
+    # capped per stream, so 3 concurrent reads can multiply effective
+    # bandwidth on the M: link; results are appended in sorted order either
+    # way so combined_df row order matches the sequential path exactly.
+    # Knob: ARS_TXN_PARALLEL (1 = sequential).
     transaction_files = []
     SKIP_COMBINE = False
-    print(f"Loading {len(files_to_load)} transaction files...\n")
+    _ordered_files = sorted(files_to_load)
+    import os as _os_par
+    try:
+        _workers = max(1, int(_os_par.environ.get('ARS_TXN_PARALLEL', '3')))
+    except ValueError:
+        _workers = 3
+    _workers = min(_workers, max(1, len(_ordered_files)))
+    _par_note = f" ({_workers} in parallel)" if _workers > 1 else ""
+    print(f"Loading {len(_ordered_files)} transaction files{_par_note}...\n")
 
-    for file_path in sorted(files_to_load):
-        df = load_transaction_file(file_path)
-        transaction_files.append(df)
-        print(f"  Loaded: {file_path.name} ({len(df):,} rows)")
+    if _workers <= 1:
+        for file_path in _ordered_files:
+            df = load_transaction_file(file_path)
+            transaction_files.append(df)
+            print(f"  Loaded: {file_path.name} ({len(df):,} rows)")
+    else:
+        from concurrent.futures import ThreadPoolExecutor as _TPE
+        with _TPE(max_workers=_workers) as _pool:
+            for file_path, df in zip(
+                    _ordered_files, _pool.map(load_transaction_file, _ordered_files)):
+                transaction_files.append(df)
+                print(f"  Loaded: {file_path.name} ({len(df):,} rows)")
 
     print(f"\n{'='*50}")
     print(f"Total transactions loaded: {sum(len(df) for df in transaction_files):,}")
