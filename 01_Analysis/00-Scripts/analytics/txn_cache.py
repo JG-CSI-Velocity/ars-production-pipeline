@@ -74,6 +74,50 @@ def combined_cache_paths(client_id, client_path) -> tuple[Path, Path]:
     return local, read
 
 
+def duplicate_file_groups(paths) -> list[list[Path]]:
+    """Group byte-identical files: same size AND same head+tail 1 MiB hash.
+
+    A monthly TXN export re-delivered under a new name double-counts a whole
+    month everywhere downstream (issue #251: two 1192 files, identical to the
+    byte, one relabeled). Size alone could collide, so identical sizes are
+    confirmed by hashing the first and last MiB -- cheap even over the
+    network. Returns only groups with >1 member, each sorted by name (the
+    first entry is the keeper).
+    """
+    import hashlib
+
+    by_size: dict[int, list[Path]] = {}
+    for p in paths:
+        p = Path(p)
+        try:
+            size = p.stat().st_size
+        except OSError:
+            continue
+        by_size.setdefault(size, []).append(p)
+
+    groups: list[list[Path]] = []
+    for size, candidates in by_size.items():
+        if len(candidates) < 2:
+            continue
+        by_sig: dict[str, list[Path]] = {}
+        for p in candidates:
+            try:
+                with open(p, 'rb') as fh:
+                    digest = hashlib.sha256()
+                    digest.update(fh.read(1024 * 1024))
+                    if size > 2 * 1024 * 1024:
+                        fh.seek(-1024 * 1024, 2)
+                        digest.update(fh.read(1024 * 1024))
+                sig = digest.hexdigest()
+            except OSError:
+                continue
+            by_sig.setdefault(sig, []).append(p)
+        for same in by_sig.values():
+            if len(same) > 1:
+                groups.append(sorted(same, key=lambda q: q.name))
+    return groups
+
+
 def consolidation_stale(cache_path, logic_sources) -> str | None:
     """Name of the first logic source modified after the cache was written.
 

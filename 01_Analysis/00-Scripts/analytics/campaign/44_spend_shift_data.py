@@ -152,3 +152,12 @@ else:
         _gone_v = ss_vendor_shift[ss_vendor_shift['shift'] == 'GONE']
         print(f"  Responder vendor mix: {len(_new_v):,} merchants entered, "
               f"{len(_gone_v):,} exited between windows")
+
+        # Release the transaction-level working frames immediately -- the
+        # chart cells (45-47) only read the small aggregates (ss_summary,
+        # ss_vendor_shift), and keeping two multi-million-row tables in the
+        # namespace for the rest of the run feeds the section-accumulation
+        # OOM (#92/#251).
+        del ss_txn, ss_win
+        import gc as _gc
+        _gc.collect()
