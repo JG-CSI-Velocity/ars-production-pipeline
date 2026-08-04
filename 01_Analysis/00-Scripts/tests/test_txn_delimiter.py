@@ -68,3 +68,33 @@ def test_pipe_no_longer_collapses_to_one_column(tmp_path):
     f.write_text("META BANNER\n" + "\n".join(data), encoding="utf-8")
     df = ns["load_transaction_file"](str(f))
     assert len(_data_cols(df)) == 13  # was 1 before the fix
+
+
+def test_single_bad_line_does_not_disqualify_correct_delimiter(tmp_path):
+    # 1192 (issue #251 follow-up): files are tab-clean for millions of rows
+    # except ONE line with an embedded tab (14 fields instead of 13). The old
+    # logic rejected tab entirely, fell through comma/semicolon, and settled
+    # for a 1-column pipe parse of garbage. The correct delimiter must win by
+    # skipping the malformed line(s).
+    ns = _load_module()
+    good = ["\t".join(f"v{r}_{c}" for c in range(13)) for r in range(50)]
+    bad = "\t".join(f"bad_{c}" for c in range(14))  # one extra field
+    rows = good[:25] + [bad] + good[25:]
+    f = tmp_path / "one_bad_line.txt"
+    f.write_text("BANNER ROW\n" + "\n".join(rows), encoding="utf-8")
+
+    df = ns["load_transaction_file"](str(f))
+
+    assert len(_data_cols(df)) == 13
+    assert len(df) == 50  # bad line skipped, all clean rows kept
+
+
+def test_hopeless_file_still_falls_back_like_before(tmp_path):
+    # A file that no delimiter can shape into 13 columns keeps the old
+    # closest-match fallback behavior (with its loud warning).
+    ns = _load_module()
+    f = tmp_path / "hopeless.txt"
+    f.write_text("BANNER\n" + "\n".join("just one field" for _ in range(10)),
+                 encoding="utf-8")
+    df = ns["load_transaction_file"](str(f))
+    assert len(_data_cols(df)) == 1
