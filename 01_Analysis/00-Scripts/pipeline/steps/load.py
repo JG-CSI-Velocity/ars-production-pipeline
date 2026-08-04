@@ -441,7 +441,25 @@ def _df_sidecar_path(src: Path) -> Path | None:
     except OSError:
         return None
     root = os.environ.get("ARS_ODD_CACHE_DIR")
-    base = Path(root) if root else (Path(__file__).resolve().parents[4] / ".odd_cache")
+    if root:
+        base = Path(root)
+    else:
+        # Machine-local SSD, NOT the repo root: on the work machine the repo
+        # lives on the M: share, so the old default made every sidecar
+        # read/write a multi-hundred-MB network transfer.
+        from ars_analysis.analytics.txn_cache import local_cache_root
+        base = local_cache_root() / "odd"
+    return base / f"{src.name}.{int(stat.st_mtime)}.{stat.st_size}.pkl"
+
+
+def _df_sidecar_legacy_path(src: Path) -> Path | None:
+    """Pre-local-tier sidecar location (<repo root>/.odd_cache) for one-time
+    migration reads. Never written to anymore."""
+    try:
+        stat = src.stat()
+    except OSError:
+        return None
+    base = Path(__file__).resolve().parents[4] / ".odd_cache"
     return base / f"{src.name}.{int(stat.st_mtime)}.{stat.st_size}.pkl"
 
 
@@ -458,15 +476,20 @@ def _df_cache_get(src: Path) -> pd.DataFrame | None:
         logger.info("Parsed-frame cache hit (in-process): {name}", name=src.name)
         return df.copy()
     sidecar = _df_sidecar_path(src)
-    if sidecar is not None and sidecar.exists():
+    candidates = [sidecar]
+    if not (sidecar is not None and sidecar.exists()):
+        candidates.append(_df_sidecar_legacy_path(src))
+    for candidate in candidates:
+        if candidate is None or not candidate.exists():
+            continue
         try:
-            df = pd.read_pickle(sidecar)
+            df = pd.read_pickle(candidate)
             _ODD_DF_CACHE[key] = df
             logger.info(
                 "Parsed-frame cache hit (sidecar): {name} -- skipping the "
                 "openpyxl parse. Delete the file or set ARS_ODD_CACHE=0 to "
                 "force a re-parse.",
-                name=sidecar.name,
+                name=candidate.name,
             )
             return df.copy()
         except Exception as exc:
