@@ -11,8 +11,10 @@ Then open: http://localhost:8000
 """
 
 import asyncio
+import ctypes
 import json
 import os
+import platform
 import re
 import signal
 import subprocess
@@ -90,6 +92,33 @@ def _popen_tree_kwargs() -> dict:
     if os.name == "posix":
         return {"start_new_session": True}
     return {}
+
+
+_ES_CONTINUOUS = 0x80000000
+_ES_SYSTEM_REQUIRED = 0x00000001
+
+
+def _keep_system_awake() -> bool:
+    """Block Windows idle-sleep for the lifetime of the calling thread.
+
+    Long runs die when the machine sleeps mid-pipeline (#251: a cold 1192
+    load streams ~6.5 GB of TXN files off the M: share -- over an hour on
+    that link). SetThreadExecutionState is per-thread and its requirement
+    clears automatically when the thread exits, so each run thread calls
+    this once at startup and no cleanup is needed. It does NOT override the
+    lid-close action -- that stays with Windows power settings.
+
+    Returns True if the request was made (Windows only), for testability.
+    """
+    if platform.system() != "Windows":
+        return False
+    try:
+        ctypes.windll.kernel32.SetThreadExecutionState(
+            _ES_CONTINUOUS | _ES_SYSTEM_REQUIRED
+        )
+        return True
+    except Exception:
+        return False
 
 
 def _terminate_proc(proc) -> bool:
@@ -841,6 +870,7 @@ async def start_format(
     }
 
     def _run():
+        _keep_system_awake()
         try:
             cmd = [sys.executable, "-u", str(formatting_run),
                    "--month", month, "--csm", csm, "--with-trans"]
@@ -971,6 +1001,7 @@ async def start_run(
     }
 
     def _run():
+        _keep_system_awake()
         try:
             odd_file = find_formatted_odd(csm, month, client_id)
             # With an explicit source path (#229) we always (re)format from that
@@ -1720,6 +1751,7 @@ async def run_schedule_now(schedule_id: str):
     }
 
     def _run():
+        _keep_system_awake()
         try:
             # Format first
             if formatting_run.exists():
