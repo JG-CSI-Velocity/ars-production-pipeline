@@ -113,8 +113,10 @@ def test_anchors_windows_and_summary_numbers():
     assert s.loc[("Non-Responder", "PRE"), "avg_monthly_spend_per_acct"] == 50.0
     assert s.loc[("Non-Responder", "POST"), "avg_monthly_spend_per_acct"] == 50.0
     assert s.loc[("Non-Responder", "POST"), "sig_share_pct"] == 0.0
-    # The anchor-month transaction ($999) landed in neither window
-    assert 999.0 not in ns["ss_win"]["amount"].values
+    # The anchor-month transaction ($999) landed in neither window -- proven
+    # by the exact PRE/POST averages above -- and the multi-million-row
+    # working frames are released before the chart cells run (#92 memory).
+    assert "ss_txn" not in ns and "ss_win" not in ns
 
 
 def test_vendor_shift_flags_new_and_gone():
@@ -170,3 +172,24 @@ def test_chart_cells_skip_cleanly_without_data(capsys):
         _run(script, ns)
         assert not plt.get_fignums(), script
     assert "Skipping" in capsys.readouterr().out
+
+
+def test_cleanup_cell_releases_campaign_frames(capsys):
+    ns = {
+        "camp_txn": pd.DataFrame({"a": [1]}),
+        "camp_resp_df": pd.DataFrame({"a": [1]}),
+        "camp_nonresp_df": pd.DataFrame({"a": [1]}),
+        "camp_never_df": pd.DataFrame({"a": [1]}),
+        "camp_acct": pd.DataFrame({"a": [1]}),  # must survive
+    }
+    _run("48_cleanup.py", ns)
+    for dead in ("camp_txn", "camp_resp_df", "camp_nonresp_df", "camp_never_df"):
+        assert dead not in ns, dead
+    assert "camp_acct" in ns
+    assert "Released campaign working frames" in capsys.readouterr().out
+
+
+def test_cleanup_cell_is_quiet_when_nothing_to_release(capsys):
+    ns = {"camp_acct": pd.DataFrame({"a": [1]})}
+    _run("48_cleanup.py", ns)
+    assert "Released" not in capsys.readouterr().out

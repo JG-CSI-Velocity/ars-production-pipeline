@@ -282,12 +282,37 @@ def load_transaction_file(filepath):
 import time as _t
 _load_start = _t.time()
 
+# Byte-identical duplicate files double-count a whole month (issue #251: two
+# 1192 exports identical to the byte, one relabeled) AND inflate every frame
+# in the run by their row count. Detect once; the fresh path skips the extra
+# file entirely, the cache path drops the extra's rows after loading (so an
+# already-poisoned cache self-heals on every read without a rebuild).
+try:
+    _dup_groups = _txn_cache.duplicate_file_groups(files_to_load)
+except NameError:
+    _dup_groups = []
+_dup_extra_names = {p.name for g in _dup_groups for p in g[1:]}
+if _dup_extra_names:
+    print("  WARNING: byte-identical TXN files detected -- duplicates will NOT be counted:")
+    for _g in _dup_groups:
+        print(f"    keeping  {_g[0].name}")
+        for _p in _g[1:]:
+            print(f"    skipping {_p.name} (identical content)")
+
 if USE_PARQUET_CACHE is not None:
     # Fast path: load from Parquet cache (seconds instead of minutes)
     print(f"Loading Parquet cache: {USE_PARQUET_CACHE.name}")
     combined_df = pd.read_parquet(USE_PARQUET_CACHE)
     transaction_files = []  # not needed, combined_df is ready
     SKIP_COMBINE = True
+    if _dup_extra_names and 'source_file' in combined_df.columns:
+        _rows_before_dedupe = len(combined_df)
+        combined_df = combined_df[
+            ~combined_df['source_file'].astype(str).isin(_dup_extra_names)
+        ]
+        _dup_rows = _rows_before_dedupe - len(combined_df)
+        if _dup_rows:
+            print(f"  Dropped {_dup_rows:,} cached rows from duplicate file(s)")
     print(f"  Loaded: {len(combined_df):,} rows x {len(combined_df.columns)} cols in {_t.time() - _load_start:.1f}s")
     print(f"  Memory: {combined_df.memory_usage(deep=True).sum() / 1024**2:.0f} MB")
 else:
@@ -298,7 +323,9 @@ else:
     # Knob: ARS_TXN_PARALLEL (1 = sequential).
     transaction_files = []
     SKIP_COMBINE = False
-    _ordered_files = sorted(files_to_load)
+    _ordered_files = [
+        p for p in sorted(files_to_load) if p.name not in _dup_extra_names
+    ]
     import os as _os_par
     try:
         _workers = max(1, int(_os_par.environ.get('ARS_TXN_PARALLEL', '3')))
