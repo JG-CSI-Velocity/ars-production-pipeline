@@ -72,9 +72,37 @@ tracker, not yet scheduled) · **OPEN** (needs work-PC or JG input).
 - **#263** Deck value umbrella (exec summary, headlines, length, drop-don't-zero)
 - **#264** Parity slide-text capture
 
-## Round-2 verification targets
+## Round-2 verification — outcomes (reports: `2026-08-05-r2-*.md`)
 
-1. Re-run personas against main @ e4cc64d.
-2. Confirm each FIXED row above holds under fresh eyes.
-3. Grade the DEFERRED queue: anything a persona still rates BLOCKER/CRITICAL
-   gets promoted to immediate work.
+Round 2 ran fresh adversarial personas against main @ e4cc64d.
+
+**CSM operator:** all 9 FIXED rows VERIFIED (live server probes + tests).
+Residual gaps (partial poll coverage, Results dropdown race promoted, module
+-list recovery, reattach polish, bat edge cases, schedule badge) → **#265**.
+
+**Data engineer:** 7 VERIFIED, 1 REFUTED, 2 PARTIALLY REFUTED — all three
+fixed same-day in `4860c63`:
+- REFUTED: window-anchor fix shipped a NameError in the tail summary print
+  (every TXN run branded with a failed setup script). Fixed + the script now
+  has an exec-level regression test (`test_txn_file_config_exec.py`).
+- PARTIAL: v3 empty-store path could serve stale aggregates with the marker
+  cleared → finalize now drops aggregate tables when transactions is empty;
+  orphan removal made transactional. Regression test added.
+- PARTIAL: A11.2 label + `value.yml` slide stamp + EQUATION_DICTIONARY were
+  still "Eligible" → all now Eligible Personal.
+Residuals accepted as documented: empty-`files_to_load` HIT bypasses the
+manifest (v3-philosophy consistent), `--tolerances` unrecorded in signoff,
+manifest basename keying (MINOR).
+
+**Exec consumer:** confirmed the #263 routing was right for the composition
+decisions. Key downgrades/finds: the deck_qa numeric checks have near-zero
+LIVE coverage (numbers are baked into chart PNGs — run-side checks in #217
+re-prioritized), the eligible-noop WARN reaches the Run Quality panel but no
+exec-facing artifact, A11.2 label (fixed, above), and the `_OPERATOR_FILLED`
+whitelist keeps growing in the opposite direction of #263's auto-draft
+proposal (left to the #263 owner decision).
+
+**Net state after both rounds:** 568 tests passing; issues filed this
+session: #262 (abs sign rule — decision), #263 (deck value umbrella),
+#264 (parity slide-text capture), #265 (UI residuals). Windows-only
+verification queue unchanged (see r1 e2e report).
