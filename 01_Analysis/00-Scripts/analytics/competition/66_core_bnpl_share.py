@@ -78,9 +78,6 @@ else:
                      ha='center', fontsize=12, color=GEN_COLORS['muted'],
                      style='italic')
             plt.tight_layout()
-            safe_name = str(provider).lower().replace(' ', '_')
-            plt.savefig(f'competition_66_bnpl_share_{safe_name}.png',
-                        dpi=160, bbox_inches='tight')
             plt.show(); plt.close(fig)
         else:
             # Simpler fallback: top-20 accounts by BNPL spend with this provider
@@ -111,9 +108,6 @@ else:
                      f"(Run cell 18 first for CU-vs-competitor stacked comparison.)",
                      ha='center', fontsize=12, color=GEN_COLORS['muted'], style='italic')
             plt.tight_layout()
-            safe_name = str(provider).lower().replace(' ', '_')
-            plt.savefig(f'competition_66_bnpl_share_{safe_name}.png',
-                        dpi=160, bbox_inches='tight')
             plt.show(); plt.close(fig)
 
     print(f"    Rendered BNPL account-share for top {len(top_providers)} providers.")

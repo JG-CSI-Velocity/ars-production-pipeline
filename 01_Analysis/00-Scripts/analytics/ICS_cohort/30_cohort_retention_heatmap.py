@@ -100,6 +100,6 @@ _milestones_frame, _src_name = get_or_build_cohort_milestones()
 print(f"   (milestones source: {_src_name})")
 
 # Single render — show AND save in one pass so we don't build two figures.
-cohort_retention_heatmap(_milestones_frame, save_path="cohort_heatmap.png")
+cohort_retention_heatmap(_milestones_frame)
 
-print(f"\n✅ Heatmap rendered (saved: cohort_heatmap.png)")
+print(f"\n✅ Heatmap rendered")

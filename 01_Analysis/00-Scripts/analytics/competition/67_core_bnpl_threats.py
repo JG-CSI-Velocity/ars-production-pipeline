@@ -86,7 +86,6 @@ else:
     fig0.text(0.5, 0.97, SCOPE_NOTE,
               ha='center', fontsize=13, color=GEN_COLORS['muted'], style='italic')
     plt.tight_layout()
-    plt.savefig('competition_67_bnpl_threats_kpi.png', dpi=160, bbox_inches='tight')
     plt.show(); plt.close(fig0)
 
     # --- Per-provider ranking table ---------------------------------------
@@ -131,7 +130,6 @@ else:
                     color=GEN_COLORS['grid'], linewidth=0.5, alpha=0.5)
 
     plt.tight_layout()
-    plt.savefig('competition_67_bnpl_threats_ranking.png', dpi=160, bbox_inches='tight')
     plt.show(); plt.close(fig)
 
     if len(prov) > 0:

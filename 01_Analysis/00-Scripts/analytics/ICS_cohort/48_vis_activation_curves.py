@@ -128,7 +128,6 @@ else:
     )
 
     plt.tight_layout()
-    plt.savefig('ics_48_activation_curves.png', dpi=160, bbox_inches='tight')
     plt.show()
     plt.close(fig)
 

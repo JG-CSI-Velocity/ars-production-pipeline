@@ -106,7 +106,6 @@ if spotlight and top_bank:
 fig1.text(0.5, 0.96, sub, ha='center', fontsize=12,
           color=GEN_COLORS['muted'], style='italic')
 plt.tight_layout()
-plt.savefig('competition_70_headline_kpi.png', dpi=160, bbox_inches='tight')
 plt.show(); plt.close(fig1)
 
 # ---------------------------------------------------------------------------
@@ -162,7 +161,6 @@ if spotlight:
               f"Reach = unique accounts using this competitor / all accounts in portfolio.",
               ha='center', fontsize=12, color=GEN_COLORS['muted'], style='italic')
 plt.tight_layout()
-plt.savefig('competition_70_side_by_side.png', dpi=160, bbox_inches='tight')
 plt.show(); plt.close(fig2)
 
 # ---------------------------------------------------------------------------
@@ -225,7 +223,6 @@ if 'year_month' in competitor_txns.columns and competitor_txns['year_month'].not
                                          color=GEN_COLORS['warning'],
                                          lw=1.5))
         plt.tight_layout()
-        plt.savefig('competition_70_monthly_trajectory.png', dpi=160, bbox_inches='tight')
         plt.show(); plt.close(fig3)
     else:
         print("    (Not enough months for a trajectory -- skipped panel 3.)")

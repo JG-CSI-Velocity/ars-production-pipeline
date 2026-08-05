@@ -48,6 +48,15 @@ _OPERATOR_FILLED = (
 _CHARS_PER_INCH = 15.0
 _LINE_HEIGHT_IN = 0.20
 
+# Numeric-sanity checks (#217) read "12.3% (500 / 4,132)"-style stat text.
+# They only see numbers rendered as text -- values baked into chart PNGs are
+# invisible here, so the run-side pipeline remains the deeper gate.
+_STAT_PAIR = re.compile(r"(\d+(?:\.\d+)?)\s*%\s*\(\s*([\d,]+)\s*/\s*([\d,]+)\s*\)")
+_ZERO_DENOM = re.compile(r"\(\s*[\d,]+\s*/\s*0\s*\)")
+# One arm at 0% while another clears this bar is a snapshot artifact, not a
+# real effect (the A9.9 debit 0.0%-vs-29.2% split).
+_SPLIT_SUSPECT_PCT = 20.0
+
 
 @dataclass
 class Finding:
@@ -143,6 +152,33 @@ def check_text_overflow(prs) -> list[Finding]:
     return out
 
 
+def check_numeric_sanity(prs) -> list[Finding]:
+    """Calc defects that previously shipped silently (#217).
+
+    zero_denominator: any "n / 0" stat -- the comparison arm had no population.
+    implausible_split: on one slide, one pct(n/d) stat at 0% while another
+    exceeds _SPLIT_SUSPECT_PCT -- the snapshot-flag artifact class (A9.9/A9.10).
+    Plain percentages without a (n / d) pair are ignored to avoid flagging
+    unrelated figures that legitimately coexist (0.0% growth vs a 35% rate).
+    """
+    out = []
+    for i, slide in enumerate(prs.slides, 1):
+        pair_pcts: list[float] = []
+        for shape in slide.shapes:
+            text = _text(shape)
+            if not text:
+                continue
+            for match in _ZERO_DENOM.finditer(text):
+                out.append(Finding("CRITICAL", "zero_denominator", i,
+                                   f"stat with zero denominator: {match.group(0)!r}"))
+            pair_pcts.extend(float(m.group(1)) for m in _STAT_PAIR.finditer(text))
+        if pair_pcts and min(pair_pcts) == 0.0 and max(pair_pcts) >= _SPLIT_SUSPECT_PCT:
+            out.append(Finding("MAJOR", "implausible_split", i,
+                               f"stat pair splits 0.0% vs {max(pair_pcts):.1f}% "
+                               "(snapshot-flag artifact?)"))
+    return out
+
+
 def audit_deck(path: str | Path) -> dict:
     """Run all checks; return a report dict (callable from app.py / tests / CLI)."""
     path = Path(path)
@@ -153,6 +189,7 @@ def audit_deck(path: str | Path) -> dict:
     findings += check_file_size(path)
     findings += check_empty_body(prs)
     findings += check_text_overflow(prs)
+    findings += check_numeric_sanity(prs)
     counts = {sev: sum(1 for f in findings if f.severity == sev)
               for sev in ("CRITICAL", "MAJOR", "MINOR")}
     return {

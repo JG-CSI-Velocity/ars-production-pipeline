@@ -145,7 +145,6 @@ else:
     fig1.text(0.5, 0.96, _scope_note, ha='center',
               fontsize=13, color=GEN_COLORS['muted'], style='italic')
     plt.tight_layout()
-    plt.savefig('competition_65_panel1_kpi.png', dpi=160, bbox_inches='tight')
     plt.show()
     plt.close(fig1)
 
@@ -210,7 +209,6 @@ else:
     fig2.text(0.5, 0.97, _scope_note, ha='center',
               fontsize=13, color=GEN_COLORS['muted'], style='italic')
     plt.tight_layout()
-    plt.savefig('competition_65_panel2_category.png', dpi=160, bbox_inches='tight')
     plt.show()
     plt.close(fig2)
 
@@ -275,7 +273,6 @@ else:
                      color=GEN_COLORS['grid'], linewidth=0.5, alpha=0.5)
 
     plt.tight_layout()
-    plt.savefig('competition_65_panel3_top15.png', dpi=160, bbox_inches='tight')
     plt.show()
     plt.close(fig3)
 
@@ -316,7 +313,6 @@ else:
             h2, l2 = ax4b.get_legend_handles_labels()
             ax4.legend(h1 + h2, l1 + l2, frameon=False, fontsize=13, loc='upper left')
             plt.tight_layout()
-            plt.savefig('competition_65_panel4_monthly.png', dpi=160, bbox_inches='tight')
             plt.show()
             plt.close(fig4)
         else:
@@ -383,7 +379,6 @@ else:
                       f"Previous: {', '.join(str(m) for m in prev_3)}.  {_scope_note}",
                       ha='center', fontsize=12, color=GEN_COLORS['muted'], style='italic')
             plt.tight_layout()
-            plt.savefig('competition_65_panel5_cat_momentum.png', dpi=160, bbox_inches='tight')
             plt.show()
             plt.close(fig5)
 
@@ -435,7 +430,6 @@ else:
                       f"Min floor: {min_floor} accts across both windows.  {_scope_note}",
                       ha='center', fontsize=12, color=GEN_COLORS['muted'], style='italic')
             plt.tight_layout()
-            plt.savefig('competition_65_panel6_bank_momentum.png', dpi=160, bbox_inches='tight')
             plt.show()
             plt.close(fig6)
 

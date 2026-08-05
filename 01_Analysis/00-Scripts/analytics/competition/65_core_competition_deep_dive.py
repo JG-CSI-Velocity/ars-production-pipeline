@@ -73,7 +73,6 @@ fig1.suptitle("Competitive Exposure — Banks + BNPL",
 fig1.text(0.5, 0.96, SCOPE_NOTE,
           ha='center', fontsize=13, color=GEN_COLORS['muted'], style='italic')
 plt.tight_layout()
-plt.savefig('competition_65_panel1_kpi.png', dpi=160, bbox_inches='tight')
 plt.show(); plt.close(fig1)
 
 # --- Panel 2: Category donut + stats -------------------------------------
@@ -132,7 +131,6 @@ fig2.suptitle("Category Breakdown — Banks + BNPL",
 fig2.text(0.5, 0.97, SCOPE_NOTE,
           ha='center', fontsize=13, color=GEN_COLORS['muted'], style='italic')
 plt.tight_layout()
-plt.savefig('competition_65_panel2_category.png', dpi=160, bbox_inches='tight')
 plt.show(); plt.close(fig2)
 
 # --- Panel 3: Top 15 competitors -----------------------------------------
@@ -187,7 +185,6 @@ for i, (m_name, row) in enumerate(top15.iterrows()):
         ax3.plot([0.3, 21.5], [y + 0.42, y + 0.42],
                  color=GEN_COLORS['grid'], linewidth=0.5, alpha=0.5)
 plt.tight_layout()
-plt.savefig('competition_65_panel3_top15.png', dpi=160, bbox_inches='tight')
 plt.show(); plt.close(fig3)
 
 # --- Panel 4: Monthly trend ----------------------------------------------
@@ -223,7 +220,6 @@ if 'year_month' in banks_bnpl_txns.columns and banks_bnpl_txns['year_month'].not
         h2, l2 = ax4b.get_legend_handles_labels()
         ax4.legend(h1 + h2, l1 + l2, frameon=False, fontsize=13, loc='upper left')
         plt.tight_layout()
-        plt.savefig('competition_65_panel4_monthly.png', dpi=160, bbox_inches='tight')
         plt.show(); plt.close(fig4)
     else:
         print("    (Not enough months for a trend -- skipped panel 4.)")
@@ -286,7 +282,6 @@ if 'year_month' in banks_bnpl_txns.columns and banks_bnpl_txns['year_month'].not
                   f"Previous: {', '.join(str(m) for m in prev_3)}.  {SCOPE_NOTE}",
                   ha='center', fontsize=12, color=GEN_COLORS['muted'], style='italic')
         plt.tight_layout()
-        plt.savefig('competition_65_panel5_cat_momentum.png', dpi=160, bbox_inches='tight')
         plt.show(); plt.close(fig5)
 
         # Panel 6: per-competitor growers + decliners
@@ -335,7 +330,6 @@ if 'year_month' in banks_bnpl_txns.columns and banks_bnpl_txns['year_month'].not
                   f"Min floor: {min_floor} accts across both windows.  {SCOPE_NOTE}",
                   ha='center', fontsize=12, color=GEN_COLORS['muted'], style='italic')
         plt.tight_layout()
-        plt.savefig('competition_65_panel6_comp_momentum.png', dpi=160, bbox_inches='tight')
         plt.show(); plt.close(fig6)
 
         # --- Takeaways ---

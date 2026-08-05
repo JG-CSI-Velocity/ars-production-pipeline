@@ -1206,6 +1206,11 @@ def _compute_category_codes(merchant_values):
         # Home / property
         'REALTY', 'REAL ESTATE', 'PROPERTIES', 'CONSTRUCTION',
         'PLUMBING', 'ROOFING', 'LANDSCAPING',
+        # Retail property / equipment (#122: 'Wellington Mall' tagged as a
+        # competitor). Bare CENTER/SERVICES stay OFF this list -- both appear
+        # in legitimate FI names (X FINANCIAL CENTER / X FINANCIAL SERVICES).
+        'MALL', 'PLAZA', 'SHOPPING CENTER', 'SHOPPING CTR', 'OUTLET',
+        'SUPPLY', 'RENTALS', 'RENTAL CENTER', 'STORAGE',
         # Services / misc
         'SALON', 'BARBER', 'SPA', 'NAILS',
         'CLEANERS', 'LAUNDRY',

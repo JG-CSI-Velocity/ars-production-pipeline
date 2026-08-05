@@ -86,7 +86,6 @@ else:
                     color=GEN_COLORS['grid'], linewidth=0.5, alpha=0.5)
 
     plt.tight_layout()
-    plt.savefig('competition_62_banks_bnpl_top10.png', dpi=160, bbox_inches='tight')
     plt.show()
     plt.close(fig)
 

@@ -75,10 +75,9 @@ for _ax, _metric, _ics_v, _non_v in zip(axes, _metrics, _ics_vals, _non_vals):
 fig.suptitle(f"ICS {STAT_LABEL} vs Non-ICS — Last {ACTIVITY_WINDOW_MONTHS} Months",
              fontsize=15, weight='bold', y=1.02)
 plt.tight_layout()
-fig.savefig("headline_comparison.png", dpi=160, bbox_inches='tight')
 plt.show()
 plt.close(fig)                                      # free memory
 
-print(f"\n✅ Rendered (saved: headline_comparison.png)")
+print(f"\n✅ Rendered")
 print(f"   ICS  cohort   : {len(_ics):,} accounts")
 print(f"   Non-ICS cohort: {len(_non):,} accounts")

@@ -97,10 +97,9 @@ ax.grid(True, linestyle=':', alpha=0.5)
 ax.legend(loc='best', frameon=False, fontsize=9, title="Opening Year")
 
 plt.tight_layout()
-fig.savefig("cohort_activation_curves.png", dpi=160, bbox_inches='tight')
 plt.show()
 plt.close(fig)                                      # free memory
 
-print(f"\n✅ Rendered (saved: cohort_activation_curves.png)")
+print(f"\n✅ Rendered")
 print(f"   Year groups plotted : {len(activation_curves_by_year)}")
 print(f"   Milestones covered  : {[f'M{n}' for n in _ms_nums]}")

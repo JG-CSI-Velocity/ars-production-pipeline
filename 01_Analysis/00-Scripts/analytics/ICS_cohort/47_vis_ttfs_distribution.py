@@ -190,11 +190,10 @@ for s in ('top', 'right'):
     ax.spines[s].set_visible(False)
 
 plt.tight_layout()
-fig.savefig("ttfs_distribution.png", dpi=160, bbox_inches='tight')
 plt.show()
 plt.close(fig)
 
-print(f"\n✅ Rendered (saved: ttfs_distribution.png)")
+print(f"\n✅ Rendered")
 print(f"   ICS  median TTFS : {_ics_med:.1f} months  "
       f"({_ics_total - _ics_never:,}/{_ics_total:,} swiped)")
 print(f"   Non-ICS median   : {_non_med:.1f} months  "

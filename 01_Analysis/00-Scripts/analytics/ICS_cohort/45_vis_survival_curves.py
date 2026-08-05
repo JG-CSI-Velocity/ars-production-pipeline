@@ -208,11 +208,10 @@ ax.text(0.98, 0.95, _note, transform=ax.transAxes, ha='right', va='top',
                   edgecolor='#cccccc', linewidth=1))
 
 plt.tight_layout()
-fig.savefig("survival_curves.png", dpi=160, bbox_inches='tight')
 plt.show()
 plt.close(fig)
 
-print(f"\n✅ Rendered (saved: survival_curves.png)")
+print(f"\n✅ Rendered")
 _fmt_med = lambda v: f"{v:.1f} months" if v == v else "not reached"
 print(f"   Median survival ICS    : {_fmt_med(_med_ics)}")
 print(f"   Median survival Non-ICS: {_fmt_med(_med_non)}")

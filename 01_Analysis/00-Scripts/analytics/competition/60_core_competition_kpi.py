@@ -65,7 +65,6 @@ else:
              ha='center', fontsize=14, color=GEN_COLORS['muted'], style='italic')
 
     plt.tight_layout()
-    plt.savefig('competition_60_banks_bnpl_kpi.png', dpi=160, bbox_inches='tight')
     plt.show()
     plt.close(fig)
 

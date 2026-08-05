@@ -90,3 +90,49 @@ def test_operator_filled_slides_not_flagged(tmp_path):
         _add_text(_add_slide(prs), title, top=0.5)
     report = qa.audit_deck(_save(prs, tmp_path))
     assert not any(f["code"] == "empty_body" for f in report["findings"])
+
+
+def test_zero_denominator_is_critical(tmp_path):
+    """The A9.6 '0 / 0' bar and any 'n / 0' stat must fail the gate (#217)."""
+    prs = _blank_deck()
+    slide = _add_slide(prs)
+    _add_text(slide, "Attrition Comparison", top=0.5)
+    _add_text(slide, "Closure rate 0.0% (0 / 0)", top=2.0, width=8.0)
+    report = qa.audit_deck(_save(prs, tmp_path))
+    codes = {f["code"] for f in report["findings"]}
+    assert "zero_denominator" in codes
+    assert not report["passed"]
+
+
+def test_implausible_split_flagged(tmp_path):
+    """One arm 0.0% vs another >=20% on a stat-pair slide (#217, the A9.9 debit split)."""
+    prs = _blank_deck()
+    slide = _add_slide(prs)
+    _add_text(slide, "Debit Card Impact on Retention", top=0.5)
+    _add_text(slide, "With Debit Card: 0.0% (4 / 14,642)", top=2.0, width=8.0)
+    _add_text(slide, "Without Debit Card: 29.2% (544 / 1,861)", top=3.0, width=8.0)
+    report = qa.audit_deck(_save(prs, tmp_path))
+    assert any(f["code"] == "implausible_split" for f in report["findings"])
+
+
+def test_plain_percentages_not_flagged_as_split(tmp_path):
+    """A 0.0% growth figure next to an unrelated large rate must NOT trip the
+    split check -- only pct(n/d) stat pairs are compared."""
+    prs = _blank_deck()
+    slide = _add_slide(prs)
+    _add_text(slide, "Deposit Overview", top=0.5)
+    _add_text(slide, "Growth was 0.0% this month; take rate stands at 35.2%.",
+              top=2.0, width=8.0)
+    report = qa.audit_deck(_save(prs, tmp_path))
+    assert not any(f["code"] == "implausible_split" for f in report["findings"])
+
+
+def test_healthy_stat_pair_not_flagged(tmp_path):
+    prs = _blank_deck()
+    slide = _add_slide(prs)
+    _add_text(slide, "Debit Card Impact on Retention", top=0.5)
+    _add_text(slide, "With Debit Card: 12.1% (500 / 4,132)", top=2.0, width=8.0)
+    _add_text(slide, "Without Debit Card: 18.9% (351 / 1,861)", top=3.0, width=8.0)
+    report = qa.audit_deck(_save(prs, tmp_path))
+    assert not any(f["code"] in ("implausible_split", "zero_denominator")
+                   for f in report["findings"])

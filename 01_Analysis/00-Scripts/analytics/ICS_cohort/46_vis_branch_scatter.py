@@ -118,11 +118,10 @@ fig.text(0.5, -0.01,
          ha='center', fontsize=9, style='italic', color='#555555')
 
 plt.tight_layout()
-fig.savefig("branch_quadrant_scatter.png", dpi=160, bbox_inches='tight')
 plt.show()
 plt.close(fig)                                      # free memory
 
-print(f"\n✅ Rendered (saved: branch_quadrant_scatter.png)")
+print(f"\n✅ Rendered")
 print(f"   Branches plotted        : {_shown_branches} (of {_total_branches})")
 print(f"   Median branch size      : {_med_x:.0f} accounts")
 print(f"   Median active rate      : {_med_y:.1%}")
