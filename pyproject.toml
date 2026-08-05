@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ars-pipeline"
+version = "3.0.0a0"
+description = "ARS/RPE monthly reporting pipeline (greenfield v3 engine)"
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb>=1.0",
+    "fastapi",
+    "jinja2",
+    "matplotlib",
+    "numpy",
+    "openpyxl",
+    "pandas",
+    "psutil",
+    "pyarrow",
+    "pydantic",
+    "pydantic-settings",
+    "python-pptx",
+    "PyYAML",
+    "uvicorn",
+    "xlsxwriter",
+]
+
+[tool.setuptools]
+# Packages live inside the numbered operator folders (repo rule: all code in 00-05).
+# package-dir maps them to importable top-level names, replacing the fake
+# `ars_analysis` module shim and every sys.path.insert in the legacy entry points.
+package-dir = {"ars_staging" = "00_Formatting/00-Scripts/ars_staging", "ars_engine" = "01_Analysis/00-Scripts/ars_engine", "ars_parity" = "01_Analysis/00-Scripts/ars_parity"}
+# Extend this list as migration waves land new subpackages
+# (primitives/, charts/, analytics/ arrive with Wave 1).
+packages = [
+    "ars_staging",
+    "ars_engine",
+    "ars_engine.core",
+    "ars_engine.data",
+    "ars_engine.sections",
+    "ars_parity",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["01_Analysis/00-Scripts/tests", "05_UI/tests", "00_Formatting/tests"]
