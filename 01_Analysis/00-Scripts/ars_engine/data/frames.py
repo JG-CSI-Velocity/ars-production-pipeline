@@ -6,7 +6,7 @@ the DuckDB store (txn.*) or the loaded ODD subsets (odd.*), cached per run.
 
 Keys:
     txn.monthly_by_merchant   txn.monthly_by_mcc      txn.monthly_by_type
-    txn.monthly_by_account    txn.account_first_last  txn.daily_totals
+    txn.monthly_by_account    txn.account_first_last
     odd.data / odd.open / odd.eligible / odd.eligible_personal /
     odd.eligible_business / odd.eligible_with_debit / odd.last_12_months
 """
@@ -24,7 +24,6 @@ _TXN_FRAMES = {
     "txn.monthly_by_type": "monthly_by_type",
     "txn.monthly_by_account": "monthly_by_account",
     "txn.account_first_last": "account_first_last",
-    "txn.daily_totals": "daily_totals",
 }
 
 _ODD_FRAMES = {
@@ -65,12 +64,3 @@ class FrameCatalog:
     def get_all(self, keys) -> dict[str, pd.DataFrame]:
         return {k: self.get(k) for k in keys}
 
-    def missing(self, keys) -> list[str]:
-        """Which of the requested keys can't be served right now."""
-        out = []
-        for k in keys:
-            try:
-                self.get(k)
-            except (KeyError, Exception):  # noqa: BLE001 - availability probe
-                out.append(k)
-        return out

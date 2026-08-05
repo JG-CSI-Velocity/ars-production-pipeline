@@ -116,6 +116,21 @@ class TestCompare:
         diffs = compare_snapshots(_snap(), cand, ComparePolicy(slide_prefixes=("TXN-MERCH-",)))
         assert diffs == []  # A7.* slides out of scope
 
+    def test_candidate_extras_are_reported(self):
+        """Symmetry: an extra slide/sheet/figure only in the candidate is a
+        diff -- otherwise renamed slides or lost golden figures pass silently."""
+        cand = _snap(label="candidate")
+        cand.slides = dict(cand.slides)
+        cand.slides["A9.9"] = {"module_id": "m", "success": True,
+                               "has_chart": True, "has_excel": False, "title": "x"}
+        diffs = compare_snapshots(_snap(), cand)
+        assert len(diffs) == 1
+        assert diffs[0].candidate == "extra-in-candidate"
+        # out-of-scope extras stay invisible
+        assert compare_snapshots(
+            _snap(), cand, ComparePolicy(slide_prefixes=("TXN-",))
+        ) == []
+
     def test_int_counts_are_exact(self):
         gold = _snap(sheets={"A7.6a_main": normalize_df(pd.DataFrame({"n": [1000]}))})
         cand = _snap(label="candidate",
@@ -168,3 +183,31 @@ class TestSignoff:
         signoff.approve("ars.dctr", "JG", path=p)
         signoff.record_check("ars.dctr", "1800", "2026.07", False, 12, path=p)
         assert not signoff.is_approved("ars.dctr", path=p)
+
+    def test_documented_divergence_counts_as_passing(self, tmp_path):
+        """The legacy oracle is sometimes wrong (Reg E B1 class): a failing
+        check with an attributed reason counts toward approval."""
+        p = tmp_path / "parity_status.json"
+        signoff.record_check("ars.rege", "1759", "2026.06", False, 3, path=p,
+                             divergence_reason="legacy B1 used wrong denominator",
+                             divergence_by="JG")
+        signoff.record_check("ars.rege", "1615", "2026.06", True, 0, path=p)
+        entry = signoff.approve("ars.rege", "JG", path=p)
+        assert entry["approved_by"] == "JG"
+        rec = signoff.load_status(p)["ars.rege"]["checks"]["1759"]
+        assert rec["divergence_by"] == "JG"
+        assert rec["sha"]  # checks are SHA-stamped
+
+    def test_divergence_requires_attribution(self, tmp_path):
+        p = tmp_path / "parity_status.json"
+        with pytest.raises(ValueError):
+            signoff.record_check("x", "1", "2026.06", False, 1, path=p,
+                                 divergence_reason="because")
+
+    def test_checks_from_other_sha_dont_count(self, tmp_path):
+        p = tmp_path / "parity_status.json"
+        signoff.record_check("ars.value", "1759", "2026.06", True, 0, path=p)
+        status = signoff.load_status(p)
+        status["ars.value"]["checks"]["1759"]["sha"] = "deadbeef"  # older code
+        signoff._save(status, p)
+        assert signoff.passing_clients("ars.value", path=p) == []

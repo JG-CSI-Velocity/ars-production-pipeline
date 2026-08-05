@@ -160,6 +160,18 @@ def compare_snapshots(
             continue
         _walk("", gfig, cfig, policy, diffs, stem)
 
+    # 4. Symmetry: candidate-only surfaces are diffs too. Without this, a new
+    #    engine emitting extra/renamed slides -- or a golden whose capture
+    #    quietly lost figures -- would still read as a clean pass.
+    for surface, gkeys, ckeys in (
+        ("slides", golden.slides, candidate.slides),
+        ("sheet", golden.sheets, candidate.sheets),
+        ("figure", golden.figures, candidate.figures),
+    ):
+        for key in ckeys:
+            if key not in gkeys and _included(key, policy):
+                diffs.append(Diff(surface, key, "<presence>", "", "ABSENT", "extra-in-candidate"))
+
     return diffs
 
 

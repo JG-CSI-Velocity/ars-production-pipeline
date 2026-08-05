@@ -51,14 +51,6 @@ class Section(ABC):
     def build(self, ctx: PipelineContext, frames: dict) -> list[SlideSpec]:
         """Run all analyses for this section. Return ordered slide specs."""
 
-    def validate(self, ctx: PipelineContext) -> list[str]:
-        """Check prerequisites; return error messages (empty = OK).
-
-        Frame availability is checked centrally by the runner against
-        meta.requires_frames; override for section-specific checks
-        (e.g. required ODD columns).
-        """
-        return []
 
 
 _REGISTRY: dict[str, type[Section]] = {}

@@ -76,7 +76,6 @@ AGGREGATE_TABLES = (
     "monthly_by_type",
     "monthly_by_account",
     "account_first_last",
-    "daily_totals",
 )
 
 
@@ -423,13 +422,6 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
             WHERE transaction_date IS NOT NULL AND primary_account_num IS NOT NULL
             GROUP BY 1
         """,
-        "daily_totals": """
-            SELECT transaction_date::DATE AS day,
-                   count(*) AS txn_count,
-                   sum(amount_n) AS total_amount
-            FROM txn_resolved WHERE transaction_date IS NOT NULL
-            GROUP BY 1
-        """,
     }
     for name, sql in aggregates.items():
         con.execute(f"CREATE OR REPLACE TABLE {name} AS {sql}")
@@ -476,19 +468,12 @@ def _legacy_aggregates(combined: pd.DataFrame) -> dict[str, pd.DataFrame]:
         )
         .reset_index()
     )
-    daily = (
-        df.assign(day=df["transaction_date"].dt.date)
-        .groupby("day", dropna=True)
-        .agg(txn_count=("amount", "size"), total_amount=("amount", "sum"))
-        .reset_index()
-    )
     return {
         "monthly_by_merchant": agg(["month", "merchant_consolidated"]),
         "monthly_by_mcc": agg(["month", "mcc_code"]),
         "monthly_by_type": agg(["month", "transaction_type"]),
         "monthly_by_account": agg(["month", "primary_account_num"], with_accounts=False),
         "account_first_last": first_last,
-        "daily_totals": daily,
     }
 
 

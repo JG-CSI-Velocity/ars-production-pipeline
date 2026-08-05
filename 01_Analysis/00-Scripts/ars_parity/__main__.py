@@ -79,7 +79,9 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     if args.section:
         signoff.record_check(
-            args.section, args.client, args.month, passed=not diffs, diff_count=len(diffs)
+            args.section, args.client, args.month,
+            passed=not diffs, diff_count=len(diffs),
+            divergence_reason=args.divergence_reason, divergence_by=args.divergence_by,
         )
         print(
             f"recorded check for {args.section}: "
@@ -134,6 +136,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--section", help="section_id to record the result against")
     p.add_argument("--rtol", type=float, default=1e-9)
     p.add_argument("--tolerances", help="JSON file of per-sheet/column rtol overrides")
+    p.add_argument("--divergence-reason",
+                   help="accept a failing check because the LEGACY number is wrong (document why)")
+    p.add_argument("--divergence-by", help="who signed off on the divergence")
     p.set_defaults(fn=cmd_check)
 
     p = sub.add_parser("approve", help="approve a section for cutover")

@@ -8,12 +8,25 @@ contains only metadata -- client ids, timestamps, pass counts -- never data).
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ars_engine.core.config import config_dir
+from ars_engine.core.config import config_dir, repo_root
 
 MIN_CLIENTS_FOR_APPROVAL = 2
+
+
+def _current_sha() -> str:
+    """Engine git SHA at check time -- an approval is only meaningful for the
+    code it was checked against."""
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=repo_root(), capture_output=True, text=True, timeout=10,
+        ).stdout.strip() or "unknown"
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
 
 
 def _status_path(path: Path | None = None) -> Path:
@@ -39,27 +52,55 @@ def record_check(
     passed: bool,
     diff_count: int,
     path: Path | None = None,
+    divergence_reason: str | None = None,
+    divergence_by: str | None = None,
 ) -> dict:
-    """Record one parity check result for a section."""
+    """Record one parity check result for a section.
+
+    ``divergence_reason``/``divergence_by``: the sanctioned way to accept a
+    failing check when the LEGACY number is the wrong one (the oracle has
+    known bugs -- Reg E B1, the attrition A9.x history). A documented,
+    attributed divergence counts as passing; silently replicating a legacy
+    bug to turn the gate green is exactly what this field exists to prevent.
+    """
+    if divergence_reason and not divergence_by:
+        raise ValueError("divergence_reason requires divergence_by (who signed off)")
     status = load_status(path)
     entry = status.setdefault(section_id, {"checks": {}, "approved_by": None, "approved_at": None})
     entry["checks"][client_id] = {
         "month": month,
         "passed": passed,
         "diffs": diff_count,
+        "sha": _current_sha(),
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        **(
+            {"divergence_reason": divergence_reason, "divergence_by": divergence_by}
+            if divergence_reason
+            else {}
+        ),
     }
-    if not passed:
-        # Any failing check voids a previous approval -- parity must be re-earned.
+    if not passed and not divergence_reason:
+        # Any unexplained failing check voids a previous approval.
         entry["approved_by"] = None
         entry["approved_at"] = None
     _save(status, path)
     return entry
 
 
+def _check_ok(rec: dict) -> bool:
+    return bool(rec.get("passed") or rec.get("divergence_reason"))
+
+
 def passing_clients(section_id: str, path: Path | None = None) -> list[str]:
+    """Clients whose latest check passed (or carries a documented divergence)
+    AT THE CURRENT ENGINE SHA -- checks from older code don't count."""
+    sha = _current_sha()
     entry = load_status(path).get(section_id, {})
-    return sorted(c for c, r in entry.get("checks", {}).items() if r.get("passed"))
+    return sorted(
+        c
+        for c, r in entry.get("checks", {}).items()
+        if _check_ok(r) and (r.get("sha") in (sha, "unknown"))
+    )
 
 
 def approve(section_id: str, by: str, path: Path | None = None) -> dict:
