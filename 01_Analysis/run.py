@@ -514,19 +514,27 @@ def main():
             dest.parent.mkdir(parents=True, exist_ok=True)
             final_pptx = None  # path of the deck after server-side delivery
             moved = False
-            for _attempt in range(3):
-                try:
-                    shutil.copy2(pf, dest)
-                    pf.unlink()
-                    moved = True
-                    final_pptx = dest
-                    break
-                except PermissionError:
-                    if _attempt < 2:
-                        import time
-                        print(f"    File locked, retrying in 2s... ({pf.name})")
-                        time.sleep(2)
-                        gc.collect()
+            # With --output-dir, pptx_dir IS output_dir (run.py:315), so the
+            # deck is already delivered. copy2 onto itself raises
+            # SameFileError, which escaped the PermissionError-only retry and
+            # ended an otherwise-successful run with an ERROR banner.
+            if dest.resolve() == pf.resolve():
+                final_pptx = pf
+                moved = True
+            else:
+                for _attempt in range(3):
+                    try:
+                        shutil.copy2(pf, dest)
+                        pf.unlink()
+                        moved = True
+                        final_pptx = dest
+                        break
+                    except PermissionError:
+                        if _attempt < 2:
+                            import time
+                            print(f"    File locked, retrying in 2s... ({pf.name})")
+                            time.sleep(2)
+                            gc.collect()
 
             if not moved:
                 # Destination is locked (deck open in PowerPoint). Write a
