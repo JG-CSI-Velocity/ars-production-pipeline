@@ -214,6 +214,33 @@ class TestFrameGoldenVerify:
         assert txn_store.verify("t5", parquet, log=lambda m: None) > 0
 
 
+class TestNullKeyParity:
+    def test_null_group_keys_match_pandas_dropna(self, cache_root, tmp_path):
+        """Legacy pandas groupby drops NaN keys; the store must exclude NULL
+        mcc/type/account groups the same way (real data has plenty)."""
+        f = _tab_file(tmp_path, "nulls-trans-06302026.txt", [
+            _row("06/15/2026", "A1", "SIG", "10.00", "NETFLIX.COM"),
+            _row("06/16/2026", "A1", "", "20.00", "NETFLIX.COM"),          # null type
+            _row("06/17/2026", "", "SIG", "30.00", "NETFLIX.COM"),         # null account
+            _row("06/18/2026", "A2", "SIG", "40.00", "NETFLIX.COM", mcc=""),  # null mcc
+        ])
+        txn_store.refresh("tn", staged_files=[f], log=lambda m: None)
+
+        # store-side sanity: null keys excluded from keyed aggregates
+        by_type = txn_store.read_table("tn", "monthly_by_type")
+        assert by_type["txn_count"].sum() == 3
+        by_mcc = txn_store.read_table("tn", "monthly_by_mcc")
+        assert by_mcc["txn_count"].sum() == 3
+        first_last = txn_store.read_table("tn", "account_first_last")
+        assert set(first_last["primary_account_num"]) == {"A1", "A2"}
+
+        # full golden gate against the legacy-emulated frame
+        legacy = _legacy_combined([f])
+        parquet = tmp_path / "legacy_nulls.parquet"
+        legacy.to_parquet(parquet, index=False)
+        assert txn_store.verify("tn", parquet, log=lambda m: None) == 0
+
+
 class TestFrameCatalog:
     def test_txn_frames_and_unknown_key(self, cache_root, tmp_path):
         from ars_engine.core import ClientInfo, OutputPaths, PipelineContext

@@ -86,10 +86,32 @@ def store_path(client_id: str) -> Path:
     return root / f"{client_id}.duckdb"
 
 
-def connect(client_id: str, memory_limit: str = "4GB") -> duckdb.DuckDBPyConnection:
-    con = duckdb.connect(str(store_path(client_id)))
-    con.execute(f"SET memory_limit = '{memory_limit}'")
-    return con
+def connect(
+    client_id: str,
+    memory_limit: str = "4GB",
+    retries: int = 3,
+    retry_wait_s: float = 2.0,
+) -> duckdb.DuckDBPyConnection:
+    """Open the client's store. DuckDB allows a single writer per database
+    file, so the staging daemon's post-stage refresh and a click-time run can
+    collide; retry briefly, then let the caller's error path handle it (the
+    daemon simply tries again next poll)."""
+    import time
+
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            con = duckdb.connect(str(store_path(client_id)))
+            con.execute(f"SET memory_limit = '{memory_limit}'")
+            return con
+        except duckdb.IOException as exc:
+            last_exc = exc
+            if attempt < retries - 1:
+                time.sleep(retry_wait_s)
+    raise duckdb.IOException(
+        f"store for client {client_id} is locked by another process "
+        f"(staging refresh vs. run?): {last_exc}"
+    )
 
 
 def _ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
@@ -284,8 +306,10 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
         """
     )
 
-    # 4. Aggregates -- the frames sections read. NULL dates are excluded,
-    #    matching pandas groupby's NaT-dropping behavior.
+    # 4. Aggregates -- the frames sections read. NULL group keys (dates, mcc,
+    #    type, account) are excluded to match pandas groupby's default
+    #    dropna=True behavior in every legacy script; merchant_consolidated
+    #    is never NULL (coalesce to UNKNOWN, same as legacy fillna).
     aggregates = {
         "monthly_by_merchant": """
             SELECT date_trunc('month', transaction_date)::DATE AS month,
@@ -302,7 +326,8 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
                    count(*) AS txn_count,
                    sum(amount_n) AS total_amount,
                    count(DISTINCT primary_account_num) AS unique_accounts
-            FROM txn_resolved WHERE transaction_date IS NOT NULL
+            FROM txn_resolved
+            WHERE transaction_date IS NOT NULL AND mcc_code IS NOT NULL
             GROUP BY 1, 2
         """,
         "monthly_by_type": """
@@ -311,7 +336,8 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
                    count(*) AS txn_count,
                    sum(amount_n) AS total_amount,
                    count(DISTINCT primary_account_num) AS unique_accounts
-            FROM txn_resolved WHERE transaction_date IS NOT NULL
+            FROM txn_resolved
+            WHERE transaction_date IS NOT NULL AND transaction_type IS NOT NULL
             GROUP BY 1, 2
         """,
         "monthly_by_account": """
@@ -319,7 +345,8 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
                    primary_account_num,
                    count(*) AS txn_count,
                    sum(amount_n) AS total_amount
-            FROM txn_resolved WHERE transaction_date IS NOT NULL
+            FROM txn_resolved
+            WHERE transaction_date IS NOT NULL AND primary_account_num IS NOT NULL
             GROUP BY 1, 2
         """,
         "account_first_last": """
@@ -328,7 +355,8 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
                    max(transaction_date) AS last_txn,
                    count(*) AS txn_count,
                    sum(amount_n) AS total_amount
-            FROM txn_resolved WHERE transaction_date IS NOT NULL
+            FROM txn_resolved
+            WHERE transaction_date IS NOT NULL AND primary_account_num IS NOT NULL
             GROUP BY 1
         """,
         "daily_totals": """
@@ -415,10 +443,17 @@ def verify(client_id: str, combined_parquet: Path | str, rtol: float = 1e-9, log
     diffs: list[Diff] = []
     for name, ldf in legacy.items():
         sdf = read_table(client_id, name)
+        # A missing column is a hard diff, never silently intersected away.
+        missing_cols = [c for c in ldf.columns if c not in sdf.columns]
+        if missing_cols:
+            diffs.append(
+                Diff("sheet", name, "<columns>", "", list(ldf.columns), list(sdf.columns))
+            )
+            continue
         # Column order: legacy defines the canonical order. Calendar keys
         # (month/day) come back from DuckDB as midnight timestamps and from
         # pandas as date objects -- coerce both sides to dates.
-        sdf = sdf[[c for c in ldf.columns if c in sdf.columns]].copy()
+        sdf = sdf[list(ldf.columns)].copy()
         ldf = ldf.copy()
         for col in ("month", "day"):
             for frame in (ldf, sdf):
