@@ -69,3 +69,4 @@ _archive/
 # Test artifacts: section scripts savefig/txt into CWD when smoke tests exec them
 01_Analysis/00-Scripts/*.png
 01_Analysis/00-Scripts/competition_diagnostic.txt
+ars_pipeline.egg-info/

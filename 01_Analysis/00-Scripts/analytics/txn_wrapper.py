@@ -72,6 +72,20 @@ def _sizeof_mb(value) -> float | None:
 # Chart capture -- intercept matplotlib savefig and plt.show
 # ---------------------------------------------------------------------------
 
+def _maybe_dump_figdata(fig, png_path) -> None:
+    """Parity capture (ARS_PARITY_CAPTURE=1): dump the figure's numeric payload
+    next to the PNG so chart-only scripts can be golden-master compared on
+    data instead of pixels. Best-effort by design -- never breaks a run."""
+    import os
+    if os.environ.get("ARS_PARITY_CAPTURE") != "1":
+        return
+    try:
+        from ars_parity.figure_data import dump_figure_data
+        dump_figure_data(fig, png_path)
+    except Exception:
+        pass
+
+
 class ChartCapture:
     """Context manager that captures all matplotlib figures created during execution."""
 
@@ -97,6 +111,7 @@ class ChartCapture:
                 path = self.output_dir / name
                 fig.savefig(path, dpi=150, bbox_inches="tight",
                             facecolor="white", edgecolor="none")
+                _maybe_dump_figdata(fig, path)
                 self.captured.append(path)
                 logger.debug("Captured chart: {name}", name=name)
             plt.close("all")
@@ -118,6 +133,7 @@ class ChartCapture:
             try:
                 fig.savefig(path, dpi=150, bbox_inches="tight",
                             facecolor="white", edgecolor="none")
+                _maybe_dump_figdata(fig, path)
                 self.captured.append(path)
             except Exception as exc:
                 msg = f"{name}: {type(exc).__name__}: {str(exc)[:120]}"
