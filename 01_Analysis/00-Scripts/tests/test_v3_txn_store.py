@@ -214,6 +214,59 @@ class TestFrameGoldenVerify:
         assert txn_store.verify("t5", parquet, log=lambda m: None) > 0
 
 
+class TestOrphanReconcile:
+    def test_alias_swap_does_not_double_count(self, cache_root, tmp_path):
+        """Re-delivery of a byte-identical file under a name that sorts BEFORE
+        the existing keeper demotes the old file to alias; its rows must leave
+        the store, not double every aggregate (ultrareview bug_004)."""
+        rows = [_row("06/15/2026", "A1", "SIG", "25.00", "NETFLIX.COM")]
+        b = _tab_file(tmp_path, "b-report-trans-06302026.txt", rows)
+        txn_store.refresh("to1", staged_files=[b], log=lambda m: None)
+
+        # identical content, alphabetically-earlier name; staging now passes
+        # only the new keeper
+        a = _tab_file(tmp_path, "a-report-trans-06302026.txt", rows)
+        r = txn_store.refresh("to1", staged_files=[a], log=lambda m: None)
+        assert r.orphans_removed == 1
+        assert r.finalized
+
+        con = txn_store.connect("to1")
+        try:
+            total = con.execute("SELECT count(*) FROM transactions").fetchone()[0]
+            names = [x[0] for x in con.execute(
+                "SELECT DISTINCT source_file FROM transactions").fetchall()]
+        finally:
+            con.close()
+        assert total == 1  # not 2
+        assert names == ["a-report-trans-06302026.txt"]
+        mm = txn_store.read_table("to1", "monthly_by_merchant")
+        assert mm["total_amount"].sum() == 25.00  # not 50
+
+    def test_empty_staged_list_never_mass_deletes(self, cache_root, tmp_path):
+        f = _tab_file(tmp_path, "keep-trans-06302026.txt",
+                      [_row("06/15/2026", "A1", "SIG", "10.00", "X")])
+        txn_store.refresh("to2", staged_files=[f], log=lambda m: None)
+        r = txn_store.refresh("to2", staged_files=[], log=lambda m: None)
+        assert r.orphans_removed == 0
+        con = txn_store.connect("to2")
+        try:
+            assert con.execute("SELECT count(*) FROM transactions").fetchone()[0] == 1
+        finally:
+            con.close()
+
+
+class TestWideFile:
+    def test_more_than_13_columns_truncates_instead_of_crashing(self, tmp_path):
+        """Schema drift: 14-column file keeps its rows (ultrareview bug_006;
+        legacy raised ValueError and the store would silently drop the file)."""
+        row = _row("06/15/2026", "A1", "SIG", "10.00", "SHOP") + ["extra"]
+        p = tmp_path / "wide-trans-06302026.txt"
+        p.write_text("h\t" * 13 + "h\n" + "\t".join(row) + "\n")
+        df = load_transaction_file(p, log=lambda m: None)
+        assert len(df.columns) == 14  # 13 named + source_file
+        assert df.loc[0, "merchant_name"] == "SHOP"
+
+
 class TestNullKeyParity:
     def test_null_group_keys_match_pandas_dropna(self, cache_root, tmp_path):
         """Legacy pandas groupby drops NaN keys; the store must exclude NULL

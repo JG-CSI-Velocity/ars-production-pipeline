@@ -164,8 +164,25 @@ class RefreshResult:
     ingested: int = 0
     rows_added: int = 0
     skipped: int = 0
+    orphans_removed: int = 0
     finalized: bool = False
     errors: list[str] = field(default_factory=list)
+
+
+def _source_key(f: Path) -> str:
+    """Stable identity for a staged source file in the store.
+
+    The path below the staging ``txn/`` directory ("foo.txt" or
+    "2026/foo.txt"), so same-basename files at different depths never collide;
+    files outside a staging tree (tests, ad-hoc ingest) fall back to basename.
+    """
+    parts = f.parts
+    if "txn" in parts:
+        idx = len(parts) - 1 - parts[::-1].index("txn")
+        rel = parts[idx + 1:]
+        if rel:
+            return "/".join(rel)
+    return f.name
 
 
 def refresh(
@@ -193,32 +210,34 @@ def refresh(
 
         changed = False
         for f in staged_files:
+            key = _source_key(f)
             try:
                 stat = f.stat()
             except OSError as exc:
-                result.errors.append(f"{f.name}: {exc}")
+                result.errors.append(f"{key}: {exc}")
                 continue
-            if known.get(f.name) == (stat.st_size, int(stat.st_mtime)):
+            if known.get(key) == (stat.st_size, int(stat.st_mtime)):
                 result.skipped += 1
                 continue
             try:
                 df = coerce_types(load_transaction_file(f, log=log), log=log)
             except (ValueError, OSError, pd.errors.ParserError) as exc:
-                result.errors.append(f"{f.name}: {exc}")
-                log(f"txn_store: ERROR parsing {f.name}: {exc}")
+                result.errors.append(f"{key}: {exc}")
+                log(f"txn_store: ERROR parsing {key}: {exc}")
                 continue
             for col in _TXN_COLUMNS:
                 if col not in df.columns:
                     df[col] = None
             df = df[_TXN_COLUMNS]
+            df["source_file"] = key
             con.register("_incoming", df)
             con.execute("BEGIN")
-            con.execute("DELETE FROM transactions WHERE source_file = ?", [f.name])
+            con.execute("DELETE FROM transactions WHERE source_file = ?", [key])
             con.execute("INSERT INTO transactions SELECT * FROM _incoming")
-            con.execute("DELETE FROM ingested_files WHERE name = ?", [f.name])
+            con.execute("DELETE FROM ingested_files WHERE name = ?", [key])
             con.execute(
                 "INSERT INTO ingested_files VALUES (?, ?, ?, ?)",
-                [f.name, stat.st_size, int(stat.st_mtime),
+                [key, stat.st_size, int(stat.st_mtime),
                  datetime.now(timezone.utc).isoformat(timespec="seconds")],
             )
             con.execute("COMMIT")
@@ -226,7 +245,41 @@ def refresh(
             result.ingested += 1
             result.rows_added += len(df)
             changed = True
-            log(f"txn_store: ingested {f.name} ({len(df):,} rows)")
+            log(f"txn_store: ingested {key} ({len(df):,} rows)")
+
+        # Reconcile: a source file that left the staged set (demoted to a
+        # dedupe alias, or deleted upstream) must not keep contributing rows
+        # -- otherwise a re-delivery under an alphabetically-earlier name
+        # silently DOUBLES every dollar/volume aggregate for its month. An
+        # empty staged list is treated as a staging glitch, never a mass
+        # delete: the store is left untouched.
+        if staged_files:
+            current = [_source_key(f) for f in staged_files]
+            ph = ",".join("?" * len(current))
+            orphan_rows = con.execute(
+                f"SELECT count(*) FROM transactions WHERE source_file NOT IN ({ph})",
+                current,
+            ).fetchone()[0]
+            if orphan_rows:
+                orphan_names = [
+                    r[0] for r in con.execute(
+                        f"SELECT DISTINCT source_file FROM transactions "
+                        f"WHERE source_file NOT IN ({ph})",
+                        current,
+                    ).fetchall()
+                ]
+                con.execute(
+                    f"DELETE FROM transactions WHERE source_file NOT IN ({ph})", current
+                )
+                con.execute(
+                    f"DELETE FROM ingested_files WHERE name NOT IN ({ph})", current
+                )
+                result.orphans_removed = int(orphan_rows)
+                changed = True
+                log(
+                    f"txn_store: removed {orphan_rows:,} orphaned rows from "
+                    f"{len(orphan_names)} de-staged file(s): {', '.join(orphan_names)}"
+                )
 
         rules_stale = _meta_get(con, "rules_mtime") != str(merchant_rules.rules_mtime())
         aggregates_missing = any(

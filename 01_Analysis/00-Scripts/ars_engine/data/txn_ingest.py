@@ -163,6 +163,13 @@ def load_transaction_file(filepath: Path | str, log=print) -> pd.DataFrame:
         )
     if len(df.columns) != target_cols:
         log(f"  WARNING: {filepath.name} has {len(df.columns)} columns (expected {target_cols})")
+    if len(df.columns) > target_cols:
+        # Schema drift (extra vendor columns): keep the 13 expected leading
+        # columns instead of crashing on the name assignment below. The legacy
+        # code raised ValueError here; downstream only ever reads the 13 named
+        # columns, so truncation is safe and keeps the file's rows.
+        log(f"  WARNING: keeping first {target_cols} columns of {filepath.name}; extras dropped")
+        df = df.iloc[:, :target_cols]
 
     # Drop 1-2 header rows that survived skiprows=1 (banner files)
     dropped = 0

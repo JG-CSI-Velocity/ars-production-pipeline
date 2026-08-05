@@ -63,6 +63,14 @@ class StageItem:
     client_id: str
     src: Path
     month: str = ""  # ODD only
+    # Manifest key / staged sub-path: the path relative to the client folder
+    # ("foo.txt" or "2026/foo.txt"). Basenames alone would let a year-subdir
+    # file and a top-level file with the same name clobber each other.
+    rel: str = ""
+
+    def __post_init__(self):
+        if not self.rel:
+            self.rel = self.src.name
 
 
 @dataclass
@@ -123,7 +131,11 @@ def scan_ready_tree(
                             if detection.is_txn_dest_file(f)
                         )
                 items.extend(
-                    StageItem("txn", csm, client_dir.name, f) for f in candidates
+                    StageItem(
+                        "txn", csm, client_dir.name, f,
+                        rel=f.relative_to(client_dir).as_posix(),
+                    )
+                    for f in candidates
                 )
     return items
 
@@ -132,7 +144,7 @@ def _staged_dest(item: StageItem) -> Path:
     root = staging_root(item.client_id)
     if item.kind == "odd":
         return root / "odd" / item.month / item.src.name
-    return root / "txn" / item.src.name
+    return root / "txn" / Path(item.rel)
 
 
 def poll(
@@ -171,24 +183,26 @@ def poll(
 
         # Byte-identical re-deliveries among this client's TXN files: keep the
         # first (by name), record the rest as aliases -- never staged twice.
-        txn_srcs = [it.src for it in client_items if it.kind == "txn"]
+        txn_items = [it for it in client_items if it.kind == "txn"]
+        rel_by_path = {it.src: it.rel for it in txn_items}
         alias_of: dict[str, str] = {}
-        for group in duplicate_file_groups(txn_srcs):
-            keeper = group[0]
+        for group in duplicate_file_groups([it.src for it in txn_items]):
+            keeper_rel = rel_by_path[group[0]]
             for dupe in group[1:]:
-                alias_of[dupe.name] = keeper.name
+                alias_of[rel_by_path[dupe]] = keeper_rel
 
         for it in client_items:
-            rec = files.get(it.src.name)
-            if it.src.name in alias_of:
-                keeper = alias_of[it.src.name]
+            key = it.rel
+            rec = files.get(key)
+            if key in alias_of:
+                keeper = alias_of[key]
                 if not (rec and rec.get("status") == f"alias_of:{keeper}"):
                     try:
                         stat = it.src.stat()
                     except OSError as exc:
-                        result.errors.append(f"{it.src.name}: {exc}")
+                        result.errors.append(f"{key}: {exc}")
                         continue
-                    files[it.src.name] = {
+                    files[key] = {
                         "src": str(it.src),
                         "size": stat.st_size,
                         "mtime": int(stat.st_mtime),
@@ -198,10 +212,20 @@ def poll(
                     }
                     touched = True
                     result.aliased += 1
-                    progress(f"staging: {client_id} ALIAS {it.src.name} == {keeper}")
+                    new_txn = True  # store must drop the demoted file's rows
+                    progress(f"staging: {client_id} ALIAS {key} == {keeper}")
                 else:
                     result.unchanged += 1
                 continue
+
+            # The dedupe relationship is a runtime property recomputed each
+            # poll. A record still marked alias_of:* while the file is NOT an
+            # alias anymore (e.g. its keeper was re-delivered with corrected
+            # content) is stale -- drop it so size/mtime evaluation re-stages.
+            if rec and str(rec.get("status", "")).startswith("alias_of:"):
+                files.pop(key, None)
+                rec = None
+                progress(f"staging: {client_id} {key} no longer an alias -- restaging")
 
             if not needs_staging(it.src, rec):
                 result.unchanged += 1
@@ -215,10 +239,10 @@ def poll(
                 shutil.copy2(it.src, tmp)
                 tmp.replace(dest)
             except OSError as exc:
-                result.errors.append(f"{it.src.name}: {exc}")
-                progress(f"staging: {client_id} ERROR {it.src.name}: {exc}")
+                result.errors.append(f"{key}: {exc}")
+                progress(f"staging: {client_id} ERROR {key}: {exc}")
                 continue
-            files[it.src.name] = {
+            files[key] = {
                 "src": str(it.src),
                 "size": stat.st_size,
                 "mtime": int(stat.st_mtime),
