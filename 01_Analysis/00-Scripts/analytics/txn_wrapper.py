@@ -643,6 +643,11 @@ def _build_namespace(ctx: PipelineContext) -> dict[str, Any]:
         "display": _display,
         "display_formatted": _display_formatted,
         # Pipeline context values
+        # Full context too: scripts that write client-folder artifacts
+        # (competition 41 cross-sell lists, 68 diagnostic) resolve
+        # ctx.paths.base_dir; without this key their pipeline path was dead
+        # and everything fell back to CWD.
+        "ctx": ctx,
         "CLIENT_ID": ctx.client.client_id,
         "CLIENT_NAME": ctx.client.client_name,
         "MONTH": ctx.client.month,

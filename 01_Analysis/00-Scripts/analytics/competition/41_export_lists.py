@@ -29,7 +29,11 @@ import os as _os
 _out_root = None
 try:
     # ctx is injected by the pipeline runner for module-mode runs.
-    _out_root = Path(ctx.paths.client_dir) / "cross_sell_lists"     # type: ignore[name-defined]
+    # OutputPaths has no client_dir -- base_dir IS the client/month run dir.
+    # The old client_dir reference always raised, so every pipeline run
+    # silently took the CWD fallback below (lists landed in 05_UI/ on the
+    # work PC instead of the client's output folder).
+    _out_root = Path(ctx.paths.base_dir) / "cross_sell_lists"       # type: ignore[name-defined]
 except Exception:
     _out_root = None
 

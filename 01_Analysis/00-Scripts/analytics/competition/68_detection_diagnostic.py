@@ -182,7 +182,9 @@ def _resolve_output_path():
     """
     ctx = globals().get("ctx", None)
     try:
-        target_dir = Path(ctx.paths.client_dir)
+        # base_dir IS the client/month run dir (OutputPaths has no client_dir;
+        # the old reference always raised, so pipeline runs littered the CWD).
+        target_dir = Path(ctx.paths.base_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
         return target_dir / "competition_diagnostic.txt"
     except Exception:

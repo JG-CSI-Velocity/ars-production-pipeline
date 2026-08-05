@@ -56,6 +56,10 @@ def test_full_txn_deck_builds_end_to_end(tmp_path):
         paths=SimpleNamespace(template_path=_TEMPLATE), branch_mapping=None)
 
     ns = _shared_namespace(client)
+    # Production namespaces carry ctx (txn_wrapper._build_namespace); mirror
+    # that so client-folder artifacts (cross-sell lists, competition
+    # diagnostic) land under tmp_path instead of the CWD.
+    ns["ctx"] = ctx
 
     ran = 0
     for s in txn_sections():
