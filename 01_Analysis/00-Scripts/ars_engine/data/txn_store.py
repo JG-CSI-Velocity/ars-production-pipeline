@@ -288,7 +288,13 @@ def refresh(
             ).fetchone()[0]
             for t in AGGREGATE_TABLES
         )
-        if changed or rules_stale or aggregates_missing:
+        # finalize_pending survives a crash mid-finalize (Windows sleep/reboot
+        # mid-refresh): without it, the next refresh would see unchanged inputs
+        # plus present-but-stale aggregate tables and silently skip the rebuild.
+        finalize_interrupted = _meta_get(con, "finalize_pending") == "1"
+        if changed or rules_stale or aggregates_missing or finalize_interrupted:
+            if finalize_interrupted and not changed:
+                log("txn_store: previous finalize was interrupted -- rebuilding aggregates")
             finalize(con, log=log)
             result.finalized = True
     finally:
@@ -297,11 +303,17 @@ def refresh(
 
 
 def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
-    """Whole-dataset semantics + aggregate materialization."""
+    """Whole-dataset semantics + aggregate materialization.
+
+    Crash-safe: finalize_pending is set first and cleared last, so an
+    interrupted finalize is always retried on the next refresh instead of
+    leaving present-but-stale aggregate tables that nothing would rebuild.
+    """
     n = con.execute("SELECT count(*) FROM transactions").fetchone()[0]
     if n == 0:
         log("txn_store: no transactions; nothing to finalize")
         return
+    _meta_set(con, "finalize_pending", "1")
 
     # 1. Global sign rule (05-combine-data: abs() when the combined median < 0)
     median = con.execute("SELECT median(amount) FROM transactions").fetchone()[0]
@@ -337,7 +349,6 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
         con.register("_map_new", mapping)
         con.execute("INSERT INTO merchant_map SELECT * FROM _map_new")
         con.unregister("_map_new")
-    _meta_set(con, "rules_mtime", rules_mtime)
 
     # 3. Resolved view: consolidated merchant with the smart-unknown fallback
     con.execute(
@@ -422,7 +433,12 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
     }
     for name, sql in aggregates.items():
         con.execute(f"CREATE OR REPLACE TABLE {name} AS {sql}")
+
+    # Success markers last: rules_mtime only counts once the tables that bake
+    # it in actually exist, and clearing finalize_pending commits the run.
+    _meta_set(con, "rules_mtime", rules_mtime)
     _meta_set(con, "finalized_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    _meta_set(con, "finalize_pending", "0")
     log(f"txn_store: finalized {len(aggregates)} aggregate tables over {n:,} rows")
 
 

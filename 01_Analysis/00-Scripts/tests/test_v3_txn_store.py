@@ -255,6 +255,39 @@ class TestOrphanReconcile:
             con.close()
 
 
+class TestFinalizeCrashRecovery:
+    def test_interrupted_finalize_is_retried_on_next_refresh(self, cache_root, tmp_path):
+        """A crash mid-finalize (Windows sleep/reboot) must not leave stale
+        aggregates that nothing rebuilds: finalize_pending forces a retry even
+        when inputs are unchanged."""
+        f = _tab_file(tmp_path, "cr-trans-06302026.txt",
+                      [_row("06/15/2026", "A1", "SIG", "10.00", "NETFLIX.COM")])
+        txn_store.refresh("tc1", staged_files=[f], log=lambda m: None)
+
+        # simulate a crash that died after starting finalize: pending flag set,
+        # an aggregate left stale/missing
+        con = txn_store.connect("tc1")
+        try:
+            txn_store._meta_set(con, "finalize_pending", "1")
+            con.execute("DROP TABLE monthly_by_merchant")
+        finally:
+            con.close()
+
+        r = txn_store.refresh("tc1", staged_files=[f], log=lambda m: None)
+        assert r.ingested == 0  # inputs unchanged
+        assert r.finalized     # but finalize re-ran
+        assert not txn_store.read_table("tc1", "monthly_by_merchant").empty
+        con = txn_store.connect("tc1")
+        try:
+            assert txn_store._meta_get(con, "finalize_pending") == "0"
+        finally:
+            con.close()
+
+        # and a clean state doesn't re-finalize
+        r2 = txn_store.refresh("tc1", staged_files=[f], log=lambda m: None)
+        assert not r2.finalized
+
+
 class TestWideFile:
     def test_more_than_13_columns_truncates_instead_of_crashing(self, tmp_path):
         """Schema drift: 14-column file keeps its rows (ultrareview bug_006;
