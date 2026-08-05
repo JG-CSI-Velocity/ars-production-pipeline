@@ -66,6 +66,18 @@ def cmd_check(args: argparse.Namespace) -> int:
             return 2
     golden, candidate = load_snapshot(g_dir), load_snapshot(c_dir)
 
+    # A zero-slide snapshot means capture pointed at the wrong run dir /
+    # month / product suffix -- comparing two empty snapshots would report
+    # "PARITY PASS" and count toward the approval gate while verifying
+    # nothing. Hard-fail instead of recording a vacuous pass.
+    for snap, label in ((golden, "golden"), (candidate, "candidate")):
+        if not snap.slides:
+            print(
+                f"ERROR: {label} snapshot has zero slides -- capture likely "
+                "pointed at the wrong run dir/month/product. Not comparable."
+            )
+            return 2
+
     overrides: dict = {}
     if args.tolerances and Path(args.tolerances).exists():
         overrides = json.loads(Path(args.tolerances).read_text(encoding="utf-8"))
@@ -77,6 +89,17 @@ def cmd_check(args: argparse.Namespace) -> int:
     diffs = compare_snapshots(golden, candidate, policy)
     print(summarize(diffs))
 
+    if args.section and not golden.sheets and not golden.figures:
+        # Slide booleans matched, but no sheet or figure numbers exist to
+        # compare -- for chart-only sections this means the golden was
+        # captured without ARS_PARITY_CAPTURE=1, so nothing numeric was
+        # verified. Refuse to let that count toward the approval gate.
+        print(
+            "ERROR: golden has zero sheets AND zero figures -- nothing numeric "
+            "was compared. Re-capture the golden with ARS_PARITY_CAPTURE=1 "
+            "before recording this section."
+        )
+        return 2
     if args.section:
         signoff.record_check(
             args.section, args.client, args.month,

@@ -190,10 +190,25 @@ USE_PARQUET_CACHE = None  # set below if cache is fresh
 # 1) Gather all TXN files (handles year folders or flat layout)
 all_files = gather_all_txn_files(CLIENT_PATH)
 
-# 2) Define the trailing 12-month window
-now = datetime.now()
-first_of_current_month = datetime(now.year, now.month, 1)
-window_start = first_of_current_month - relativedelta(months=TRAILING_MONTHS)
+# 2) Define the trailing 12-month window.
+# Anchor to the REPORT month (namespace MONTH, "2026.06"), not the wall
+# clock: a 2026.06 deck re-run in August must select the same file set it
+# selected in July, or every L12M aggregate changes with the run date. The
+# window is [first of month after report - 12mo, first of month after
+# report) -- for 2026.06 that is 2025-07-01..2026-07-01, matching what an
+# on-time run always produced. Wall clock remains the fallback when MONTH
+# is absent (standalone notebook use).
+_report_month = str(globals().get("MONTH") or "")
+try:
+    _rm_year, _rm_mon = (int(x) for x in _report_month.split("."))
+    window_end = datetime(_rm_year, _rm_mon, 1) + relativedelta(months=1)
+except (ValueError, TypeError):
+    now = datetime.now()
+    window_end = datetime(now.year, now.month, 1)
+    print(f"  NOTE: no report month in namespace -- anchoring the trailing "
+          f"window to today ({window_end:%Y-%m}); re-runs may select "
+          f"different files")
+window_start = window_end - relativedelta(months=TRAILING_MONTHS)
 
 # 3) Classify files: parse dates, filter to trailing window
 dated_files: list[tuple[Path, datetime]] = []
@@ -206,10 +221,12 @@ for f in all_files:
     else:
         dated_files.append((f, file_date))
 
-# 4) Sort by date descending, keep only files within trailing window
+# 4) Sort by date descending, keep only files within trailing window.
+# The upper bound matters for late re-runs: without it, a July file delivered
+# early would silently join an August re-run of the June deck.
 dated_files.sort(key=lambda x: x[1], reverse=True)
-recent_files = [f for f, d in dated_files if d >= window_start]
-older_files = [f for f, d in dated_files if d < window_start]
+recent_files = [f for f, d in dated_files if window_start <= d < window_end]
+older_files = [f for f, d in dated_files if d < window_start or d >= window_end]
 
 # 5) Include unparsed files (can't determine date -- safer to include)
 files_to_load = recent_files + unparsed_files
@@ -269,13 +286,31 @@ elif not files_to_load:
 else:
     _cache_mtime = _ACTIVE_CACHE.stat().st_mtime
     _newest_file_mtime = max(f.stat().st_mtime for f in files_to_load)
-    if _cache_mtime > _newest_file_mtime:
+    # Prefer the exact input-set manifest when the cache has one: it catches
+    # the two silent-stale paths the mtime rule can't -- a deleted input
+    # (cache still "newer than everything") and an mtime-preserving
+    # re-delivery (copy2/robocopy keep source mtimes). Legacy caches without
+    # a manifest fall back to the mtime rule; the next save writes one.
+    _inputs_match = _txn_cache.input_set_matches(_ACTIVE_CACHE, files_to_load)
+    if _inputs_match is True:
+        USE_PARQUET_CACHE = _ACTIVE_CACHE
+        _age_hours = (datetime.now().timestamp() - _cache_mtime) / 3600
+        _cache_mb = _ACTIVE_CACHE.stat().st_size / (1024 * 1024)
+        print(f"  Status: HIT (input file set unchanged; skipping file read)")
+        print(f"  Cache:  {_ACTIVE_CACHE} ({_cache_mb:.0f} MB)")
+        print(f"  Date:   {datetime.fromtimestamp(_cache_mtime):%Y-%m-%d %H:%M} ({_age_hours:.1f}h old)")
+    elif _inputs_match is False:
+        print(f"  Status: MISS (input file set changed -- files added, removed, "
+              f"or replaced since the cache was built; rebuilding)")
+    elif _cache_mtime > _newest_file_mtime:
         USE_PARQUET_CACHE = _ACTIVE_CACHE
         _age_hours = (datetime.now().timestamp() - _cache_mtime) / 3600
         _cache_mb = _ACTIVE_CACHE.stat().st_size / (1024 * 1024)
         print(f"  Status: HIT (skipping file read, saving ~25 min)")
         print(f"  Cache:  {_ACTIVE_CACHE} ({_cache_mb:.0f} MB)")
         print(f"  Date:   {datetime.fromtimestamp(_cache_mtime):%Y-%m-%d %H:%M} ({_age_hours:.1f}h old)")
+        print(f"  Note:   pre-manifest cache (mtime rule) -- next rebuild "
+              f"records the exact input set")
     else:
         _newest_file_dt = datetime.fromtimestamp(_newest_file_mtime)
         _cache_dt = datetime.fromtimestamp(_cache_mtime)

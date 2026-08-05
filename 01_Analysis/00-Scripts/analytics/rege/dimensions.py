@@ -194,7 +194,9 @@ class RegEDimensions(AnalysisModule):
                 d["Holder Age"] = pd.to_numeric(d["Account Holder Age"], errors="coerce")
             elif "Birth Date" in d.columns:
                 d["Birth Date"] = pd.to_datetime(d["Birth Date"], errors="coerce", format="mixed")
-                d["Holder Age"] = (pd.Timestamp.now() - d["Birth Date"]).dt.days / 365.25
+                # Anchor to the report end date, not the wall clock: a
+                # past-month re-run must not shift holder-age buckets.
+                d["Holder Age"] = (as_of_ts(ctx) - d["Birth Date"]).dt.days / 365.25
             elif "Age" in d.columns:
                 d["Holder Age"] = pd.to_numeric(d["Age"], errors="coerce")
             else:

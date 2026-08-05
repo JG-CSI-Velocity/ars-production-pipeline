@@ -458,7 +458,9 @@ def compute_inside_numbers(
         dob = dob_full.loc[responders.index]
         valid_dob = dob.notna()
         if valid_dob.sum() > 0:
-            member_ages = (pd.Timestamp.now() - dob[valid_dob]).dt.days / 365.25
+            # Same anchor as account age ten lines up: report end date, not
+            # the wall clock, so re-runs don't shift the dominant bucket.
+            member_ages = (as_of_ts(ctx) - dob[valid_dob]).dt.days / 365.25
             best_label, best_pct = "", 0.0
             total_valid = len(member_ages)
             for label, lo, hi in MEMBER_AGE_BUCKETS:

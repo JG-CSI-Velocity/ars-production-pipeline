@@ -39,6 +39,10 @@ Legacy/
 01_Analysis/00-Scripts/output/
 01_Analysis/01_Completed_Analysis/
 01_Analysis/Actionable Lists for Clients/
+# CWD fallback for cross-sell exports (standalone/notebook runs): contains
+# account-level member PII the moment a list is generated -- never track.
+01_Analysis/00-Scripts/Actionable Lists for Clients/
+Actionable Lists for Clients/
 01_Analysis/sample holder/
 01_Analysis/**/sample holder/
 01_Analysis/run_log.txt
@@ -46,9 +50,14 @@ Legacy/
 01_Analysis/competition_diagnostic.txt
 output/
 
-# Recordings, decks, archives parked at repo root
+# Recordings, decks, archives parked at repo root. Client workbooks/exports
+# parked at the root are data, not source -- only the manifest template is
+# tracked.
 /*.mp4
 /*.pptx
+/*.xlsx
+/*.csv
+!/SLIDE_MANIFEST.template.xlsx
 _archive/
 
 # Windows shortcuts

@@ -444,8 +444,11 @@ class ValueAnalysis(AnalysisModule):
                 chart_path=chart_path,
                 excel_data={"Comparison": comp_df},
                 notes=notes,
-                # Value figures derive from DCTR-based rate gaps -- Eligible.
-                denominator_label="Eligible",
+                # Base is ctx.subsets.eligible_personal narrowed to L12M-active
+                # -- under the 4-layer framework that is Eligible Personal
+                # (the activity overlay is noted in the methodology text), not
+                # bare Eligible (data-engineer audit r1 #15).
+                denominator_label="Eligible Personal",
                 denominator_n=int((aw or 0) + (awo or 0)),
             )
         ]

@@ -211,3 +211,15 @@ class TestSignoff:
         status["ars.value"]["checks"]["1759"]["sha"] = "deadbeef"  # older code
         signoff._save(status, p)
         assert signoff.passing_clients("ars.value", path=p) == []
+
+    def test_unknown_sha_checks_never_count(self, tmp_path):
+        """A check recorded where git was unavailable (sha == 'unknown', the
+        work machine's known failure mode) must not match every future SHA --
+        that would keep sections 'passing' across arbitrary engine changes
+        (data-engineer audit r1 #7)."""
+        p = tmp_path / "parity_status.json"
+        signoff.record_check("ars.mailer", "1759", "2026.06", True, 0, path=p)
+        status = signoff.load_status(p)
+        status["ars.mailer"]["checks"]["1759"]["sha"] = "unknown"
+        signoff._save(status, p)
+        assert signoff.passing_clients("ars.mailer", path=p) == []

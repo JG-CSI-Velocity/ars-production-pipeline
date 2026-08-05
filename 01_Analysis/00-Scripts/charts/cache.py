@@ -28,7 +28,9 @@ SHA-256 of the fingerprint inputs.
 
 Tunables:
     ARS_CHART_CACHE=0   disable the cache (force re-render every chart)
-    ARS_CHART_CACHE_PURGE=1   clear all .cachekey sidecars on import
+    ARS_CHART_CACHE_PURGE=1   treat every lookup as a miss this run
+                              (re-renders and rewrites sidecars), and clear
+                              sidecars under the persistent chart root
 """
 
 from __future__ import annotations
@@ -44,6 +46,10 @@ from loguru import logger
 import pandas as pd
 
 CACHE_DISABLED: bool = os.environ.get("ARS_CHART_CACHE", "1") == "0"
+# Purge mode: every lookup misses (re-render + fresh sidecar). This is the
+# recovery lever after a draw_fn bug shipped stale PNGs -- previously the
+# documented switch was a silent no-op.
+CACHE_PURGE: bool = os.environ.get("ARS_CHART_CACHE_PURGE") == "1"
 
 
 def fingerprint_df(
@@ -115,7 +121,7 @@ def cached_chart(
         draw_fn(save_path)
         return False
 
-    if save_path.exists() and sidecar.exists():
+    if not CACHE_PURGE and save_path.exists() and sidecar.exists():
         try:
             existing = sidecar.read_text(encoding="utf-8").strip()
         except OSError:
@@ -193,11 +199,13 @@ def purge_cache(root: Path) -> int:
     return n
 
 
-if os.environ.get("ARS_CHART_CACHE_PURGE") == "1":
-    # Best-effort startup purge for ad-hoc debugging.
-    try:
-        from ars_analysis.pipeline.context import OutputPaths  # noqa: F401
-        # We can't know the run dir at import; this is a defensive no-op.
-        # Real purge is per-run: `from charts.cache import purge_cache; purge_cache(ctx.paths.charts_dir)`
-    except Exception:
-        pass
+if CACHE_PURGE:
+    # The per-run charts dir isn't knowable at import, but the persistent
+    # cross-run root is -- purge its sidecars now. Per-run charts are covered
+    # by CACHE_PURGE forcing every cached_chart() lookup to miss.
+    _persist_root = Path(os.environ.get("ARS_CHART_CACHE_DIR")
+                         or Path(__file__).resolve().parents[3] / ".chart_cache")
+    if _persist_root.exists():
+        _n = purge_cache(_persist_root)
+        logger.info("Chart cache purge: cleared {n} sidecars under {root}",
+                    n=_n, root=_persist_root)

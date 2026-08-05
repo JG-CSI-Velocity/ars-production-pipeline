@@ -742,6 +742,26 @@ def _log_total_vs_eligible(namespace: dict[str, Any], eligible_set: set[str] | N
     print(f"  {msg}")
 
 
+def _flag_eligible_noop(ctx: PipelineContext, reason: str) -> None:
+    """Record a WARN flag in the run manifest when the eligible filter no-ops.
+
+    A log line is invisible to the deck reader; the manifest flag surfaces in
+    the run report / UI quality panel, so "Eligible"-labeled rates computed on
+    the unfiltered universe can't ship without a visible trace (denominator
+    LAW: every rate anchors to a declared layer).
+    """
+    mf = getattr(ctx, "manifest", None)
+    if mf is None:
+        return
+    try:
+        from ars_analysis.pipeline.manifest import FlagLevel
+        mf.flag(FlagLevel.WARN,
+                f"TXN eligible filter NOT applied ({reason}) -- rates labeled "
+                "'Eligible' were computed on the unfiltered universe")
+    except Exception as exc:  # noqa: BLE001 -- flagging must never kill a run
+        logger.warning("could not record eligible-noop flag: {e}", e=exc)
+
+
 def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> None:
     """Filter combined_df and rewards_df to eligible accounts only.
 
@@ -767,6 +787,8 @@ def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> 
             "Eligible filter NOT applied -- ctx.subsets.eligible_data is unavailable. "
             "TXN denominators will use unfiltered combined_df. Check client EligibleStatusCodes config."
         )
+        _flag_eligible_noop(
+            ctx, "eligible_data unavailable (check EligibleStatusCodes config)")
         namespace["ELIGIBLE_ACCOUNTS"] = set()
         namespace["ELIGIBLE_FILTER_APPLIED"] = False
         _log_total_vs_eligible(namespace, None)
@@ -785,6 +807,7 @@ def _inject_eligible_filter(namespace: dict[str, Any], ctx: PipelineContext) -> 
             "Columns: {cols}",
             cols=list(elig_df.columns)[:15],
         )
+        _flag_eligible_noop(ctx, "no recognized account column in eligible_data")
         namespace["ELIGIBLE_ACCOUNTS"] = set()
         namespace["ELIGIBLE_FILTER_APPLIED"] = False
         return

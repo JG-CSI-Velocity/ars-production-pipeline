@@ -178,6 +178,11 @@ if _cache_dirty:
                 except OSError:
                     pass
 
+            # Record the exact input set so the next run's freshness check
+            # can detect deleted or mtime-preserving re-delivered files (the
+            # mtime-only rule misses both).
+            _txn_cache.save_input_manifest(PARQUET_CACHE, files_to_load)
+
             _cache_mb = PARQUET_CACHE.stat().st_size / 1024 / 1024
             print(f"  Parquet cache saved: {PARQUET_CACHE.name} ({_cache_mb:.0f} MB)")
         except Exception as _e:

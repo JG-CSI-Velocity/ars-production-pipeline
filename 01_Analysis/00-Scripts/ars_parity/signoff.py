@@ -96,10 +96,15 @@ def passing_clients(section_id: str, path: Path | None = None) -> list[str]:
     AT THE CURRENT ENGINE SHA -- checks from older code don't count."""
     sha = _current_sha()
     entry = load_status(path).get(section_id, {})
+    # A check recorded with sha == "unknown" (git unavailable -- the known
+    # state of the work machine at times) must match NOTHING: it would
+    # otherwise count toward approval across arbitrary engine changes forever,
+    # quietly defeating the cutover gate. Re-record such checks from a machine
+    # with working git.
     return sorted(
         c
         for c, r in entry.get("checks", {}).items()
-        if _check_ok(r) and (r.get("sha") in (sha, "unknown"))
+        if _check_ok(r) and r.get("sha") == sha and sha != "unknown"
     )
 
 

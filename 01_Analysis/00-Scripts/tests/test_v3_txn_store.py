@@ -287,6 +287,39 @@ class TestFinalizeCrashRecovery:
         r2 = txn_store.refresh("tc1", staged_files=[f], log=lambda m: None)
         assert not r2.finalized
 
+    def test_crash_between_ingest_commit_and_finalize_is_recovered(
+            self, cache_root, tmp_path, monkeypatch):
+        """The other half of the crash window (data-engineer audit r1 #4): a
+        kill AFTER a file's ingest transaction commits but BEFORE finalize()
+        starts. Without the marker set inside the ingest transaction, the next
+        refresh sees the file as known + aggregates present and skips the
+        rebuild -- aggregates permanently exclude the ingested rows."""
+        f1 = _tab_file(tmp_path, "ic-a-trans-05312026.txt",
+                       [_row("05/15/2026", "A1", "SIG", "10.00", "NETFLIX.COM")])
+        txn_store.refresh("tc2", staged_files=[f1], log=lambda m: None)
+
+        # Second delivery: crash right after ingest commits, before finalize.
+        f2 = _tab_file(tmp_path, "ic-b-trans-06302026.txt",
+                       [_row("06/15/2026", "A2", "PIN", "25.00", "SPOTIFY")])
+
+        def _boom(con, log=print):
+            raise KeyboardInterrupt("simulated kill before finalize")
+
+        real_finalize = txn_store.finalize
+        monkeypatch.setattr(txn_store, "finalize", _boom)
+        with pytest.raises(KeyboardInterrupt):
+            txn_store.refresh("tc2", staged_files=[f1, f2], log=lambda m: None)
+        # restore via setattr -- undo() would also revert cache_root's env var
+        monkeypatch.setattr(txn_store, "finalize", real_finalize)
+
+        # Aggregates are now stale (missing f2's June row); next refresh with
+        # unchanged inputs must detect the pending marker and rebuild.
+        r = txn_store.refresh("tc2", staged_files=[f1, f2], log=lambda m: None)
+        assert r.ingested == 0  # both files already committed
+        assert r.finalized      # marker forced the rebuild
+        mm = txn_store.read_table("tc2", "monthly_by_merchant")
+        assert mm["total_amount"].sum() == 35.00  # both rows aggregated
+
 
 class TestWideFile:
     def test_more_than_13_columns_truncates_instead_of_crashing(self, tmp_path):

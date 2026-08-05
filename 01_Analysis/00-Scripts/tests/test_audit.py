@@ -69,7 +69,7 @@ def test_default_label_unknown_returns_empty():
 def test_default_label_specific_prefix_beats_generic():
     # Original bug: 'A1' would match 'A11.1' before 'A11' got a chance.
     # _default_label sorts prefixes by descending length to prevent that.
-    assert _default_label("A11.1") == "Eligible"   # value, not overview
+    assert _default_label("A11.1") == "Eligible Personal"  # value, not overview
     assert _default_label("A12.Jan26") == "Eligible"  # mailer aggregate
     assert _default_label("A13.Agg") == "Eligible"
     assert _default_label("A14.1") == "Eligible"   # mailer reach

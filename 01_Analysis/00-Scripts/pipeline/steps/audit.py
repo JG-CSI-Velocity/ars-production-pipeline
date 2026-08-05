@@ -70,10 +70,11 @@ DEFAULT_BY_PREFIX: dict[str, str] = {
     "ATTRITION-":   "L12M Exposure",    # W3 spec slide IDs (ATTRITION-MAIN-1)
     "A9":           "L12M Exposure",    # A9.1, A9.2, A9.11
 
-    # Value section
-    "value_":  "Eligible",
-    "VALUE-":  "Eligible",              # W3 spec slide IDs (VALUE-MAIN-1)
-    "A11":     "Eligible",              # A11.1, A11.2
+    # Value section -- bases are ctx.subsets.eligible_personal (A11.1 further
+    # narrowed to L12M-active), so the honest layer is Eligible Personal.
+    "value_":  "Eligible Personal",
+    "VALUE-":  "Eligible Personal",     # W3 spec slide IDs (VALUE-MAIN-1)
+    "A11":     "Eligible Personal",     # A11.1, A11.2
 
     # Mailer section -- response rates anchor to Eligible (mailable subset is
     # numerator framing, not denominator narrowing)

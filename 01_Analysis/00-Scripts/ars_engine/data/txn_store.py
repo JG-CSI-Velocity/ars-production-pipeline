@@ -231,6 +231,12 @@ def refresh(
             df["source_file"] = key
             con.register("_incoming", df)
             con.execute("BEGIN")
+            # Committed ingest without a finalize (crash/sleep between this
+            # commit and finalize()) must force a rebuild next refresh --
+            # otherwise aggregates permanently exclude these rows while
+            # `transactions` contains them. Setting the marker inside the
+            # ingest transaction closes that window.
+            _meta_set(con, "finalize_pending", "1")
             con.execute("DELETE FROM transactions WHERE source_file = ?", [key])
             con.execute("INSERT INTO transactions SELECT * FROM _incoming")
             con.execute("DELETE FROM ingested_files WHERE name = ?", [key])
@@ -267,6 +273,10 @@ def refresh(
                         current,
                     ).fetchall()
                 ]
+                # Same crash window as ingest: orphan removal mutates
+                # `transactions`, so a kill before finalize() must still
+                # trigger a rebuild on the next refresh.
+                _meta_set(con, "finalize_pending", "1")
                 con.execute(
                     f"DELETE FROM transactions WHERE source_file NOT IN ({ph})", current
                 )
@@ -310,6 +320,9 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
     """
     n = con.execute("SELECT count(*) FROM transactions").fetchone()[0]
     if n == 0:
+        # Nothing to rebuild -- clear any pending marker so an empty store
+        # doesn't retry finalize forever.
+        _meta_set(con, "finalize_pending", "0")
         log("txn_store: no transactions; nothing to finalize")
         return
     _meta_set(con, "finalize_pending", "1")

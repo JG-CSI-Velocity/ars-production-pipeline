@@ -74,6 +74,65 @@ def combined_cache_paths(client_id, client_path) -> tuple[Path, Path]:
     return local, read
 
 
+def input_manifest_path(cache_path) -> Path:
+    """Sidecar recording exactly which input files a combined cache baked in."""
+    p = Path(cache_path)
+    return p.with_name(p.name + ".inputs.json")
+
+
+def save_input_manifest(cache_path, files) -> None:
+    """Record {name: [size, int(mtime)]} of the inputs a cache was built from.
+
+    Written atomically next to the cache. Failures are non-fatal: a missing
+    manifest just downgrades freshness checking to the legacy mtime rule.
+    """
+    import json
+    import uuid
+
+    entries = {}
+    for f in files:
+        try:
+            st = Path(f).stat()
+        except OSError:
+            continue
+        entries[Path(f).name] = [st.st_size, int(st.st_mtime)]
+    target = input_manifest_path(cache_path)
+    try:
+        tmp = target.with_suffix(f".{uuid.uuid4().hex[:8]}.tmp")
+        tmp.write_text(json.dumps(entries, indent=0), encoding="utf-8")
+        tmp.replace(target)
+    except OSError:
+        pass
+
+
+def input_set_matches(cache_path, files):
+    """Compare the cache's recorded input set against the current files.
+
+    Returns True (exact match), False (set or any size/mtime changed), or
+    None when no manifest exists (legacy cache -- caller falls back to the
+    mtime-only rule). Catches the two silent-stale paths the mtime rule
+    misses: a deleted input (cache still 'newer than everything') and an
+    mtime-preserving re-delivery (copy2/robocopy keep source mtimes).
+    """
+    import json
+
+    target = input_manifest_path(cache_path)
+    if not target.exists():
+        return None
+    try:
+        recorded = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    current = {}
+    for f in files:
+        try:
+            st = Path(f).stat()
+        except OSError:
+            return False  # a listed input is unreadable -- treat as changed
+        current[Path(f).name] = [st.st_size, int(st.st_mtime)]
+    return current == recorded
+
+
 def duplicate_file_groups(paths) -> list[list[Path]]:
     """Group byte-identical files: same size AND same head+tail 1 MiB hash.
 
