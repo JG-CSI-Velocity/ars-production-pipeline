@@ -455,6 +455,13 @@ def run_txn(ctx: SharedContext) -> dict[str, SharedResult]:
         step_load_file(ars_ctx, Path(oddd_path))
         _record_stage("load_data", time.monotonic() - _t0)
 
+    # Build eligible subsets from the ODD so _inject_eligible_filter has a real
+    # base. The module paths (run_module / run_modules) already do this; the
+    # full-run path skipped it, so every TXN rate silently fell back to the
+    # unfiltered universe ("Eligible filter NOT applied" -- #216).
+    if ars_ctx.data is not None:
+        _ensure_txn_eligible_subsets(ars_ctx)
+
     if ctx.progress_callback:
         ctx.progress_callback("Starting TXN analysis...")
 
