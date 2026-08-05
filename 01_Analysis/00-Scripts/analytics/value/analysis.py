@@ -666,5 +666,10 @@ class ValueAnalysis(AnalysisModule):
                 chart_path=chart_path,
                 excel_data={"Comparison": comp_df},
                 notes=notes,
+                # Layer is Eligible Personal; the debit-holder intersection is
+                # a computation overlay (per-account Reg E value only exists
+                # for debit holders), noted here rather than invented as a
+                # fifth layer (r2 exec audit).
+                denominator_label="Eligible Personal",
             )
         ]

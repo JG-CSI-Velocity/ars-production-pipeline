@@ -275,7 +275,10 @@ def refresh(
                 ]
                 # Same crash window as ingest: orphan removal mutates
                 # `transactions`, so a kill before finalize() must still
-                # trigger a rebuild on the next refresh.
+                # trigger a rebuild on the next refresh. One transaction so a
+                # kill between the two DELETEs can't leave rows deleted while
+                # ingested_files still claims the file (r2 audit).
+                con.execute("BEGIN")
                 _meta_set(con, "finalize_pending", "1")
                 con.execute(
                     f"DELETE FROM transactions WHERE source_file NOT IN ({ph})", current
@@ -283,6 +286,7 @@ def refresh(
                 con.execute(
                     f"DELETE FROM ingested_files WHERE name NOT IN ({ph})", current
                 )
+                con.execute("COMMIT")
                 result.orphans_removed = int(orphan_rows)
                 changed = True
                 log(
@@ -320,10 +324,14 @@ def finalize(con: duckdb.DuckDBPyConnection, log=print) -> None:
     """
     n = con.execute("SELECT count(*) FROM transactions").fetchone()[0]
     if n == 0:
-        # Nothing to rebuild -- clear any pending marker so an empty store
-        # doesn't retry finalize forever.
+        # transactions emptied (e.g. every source file de-staged): the OLD
+        # aggregate tables would otherwise keep serving pre-removal numbers
+        # forever. Drop them so readers see an empty store, then clear the
+        # marker so we don't retry finalize pointlessly (r2 audit finding).
+        for t in AGGREGATE_TABLES:
+            con.execute(f"DROP TABLE IF EXISTS {t}")
         _meta_set(con, "finalize_pending", "0")
-        log("txn_store: no transactions; nothing to finalize")
+        log("txn_store: no transactions; dropped stale aggregates")
         return
     _meta_set(con, "finalize_pending", "1")
 

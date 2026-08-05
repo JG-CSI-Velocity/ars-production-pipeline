@@ -280,7 +280,7 @@ Deck-routing facts (`deck_builder._route_mailer`, lines ~2100-2196): each recent
 ## value — ARS
 
 **Input DataFrame(s):** `ctx.subsets.eligible_personal` (A11.1); `eligible_personal ∩ has_debit` (A11.2). Upstream `ctx.results["dctr_1"]`, `["dctr_3"]`, `["reg_e_1"]` for rates. Client params `nsf_od_fee`, `get_ic_rate(ctx)`, `reg_e_opt_in`, `reg_e_column`. Spend/items cols via `_find_col` (L12M hint). L12M-active filter: `Date Closed` NaN or ≥ `ctx.start_date`.
-**Denominator:** **Eligible** (A11.1 stamps `denominator_label="Eligible"`, `denominator_n = accts_with + accts_without`; `value.yml` labels Eligible). A11.2's actual base is Eligible-Personal-with-Debit but is labeled Eligible per spec (no stamp in code).
+**Denominator:** **Eligible Personal** (2026-08-05 relabel — audit r1 #15 / r2): A11.1 stamps `denominator_label="Eligible Personal"` (base is `eligible_personal` narrowed to L12M-active; activity overlay noted in methodology), A11.2 stamps `Eligible Personal` (debit-holder intersection is a computation overlay, not a layer), `value.yml` labels Eligible Personal, and the audit default map anchors the `A11`/`value_`/`VALUE-` prefixes to Eligible Personal. Math unchanged.
 **Deck section / slide IDs:** Value & Recommendations — `A11.1`, `A11.2` (`SLIDE_LAYOUT_MAP`: `LAYOUT_CUSTOM/titled_image`).
 
 | Cell / module | Metric | Definition / equation (real columns) | On a slide? |

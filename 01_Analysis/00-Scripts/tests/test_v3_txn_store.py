@@ -320,6 +320,32 @@ class TestFinalizeCrashRecovery:
         mm = txn_store.read_table("tc2", "monthly_by_merchant")
         assert mm["total_amount"].sum() == 35.00  # both rows aggregated
 
+    def test_emptied_store_does_not_serve_stale_aggregates(
+            self, cache_root, tmp_path):
+        """r2 audit: if orphan removal empties `transactions`, the old
+        aggregate tables must not keep serving pre-removal numbers with the
+        pending marker cleared. Readers should see an empty store (missing
+        aggregate tables raise loudly), never last delivery's totals."""
+        f = _tab_file(tmp_path, "gone-trans-06302026.txt",
+                      [_row("06/15/2026", "A1", "SIG", "10.00", "NETFLIX.COM")])
+        txn_store.refresh("tc3", staged_files=[f], log=lambda m: None)
+        assert not txn_store.read_table("tc3", "monthly_by_merchant").empty
+
+        # De-stage the only file via a still-non-empty staged list (an empty
+        # list is treated as a staging glitch and never mass-deletes).
+        other = _tab_file(tmp_path, "empty-trans-07312026.txt", [])
+        txn_store.refresh("tc3", staged_files=[other], log=lambda m: None)
+
+        con = txn_store.connect("tc3")
+        try:
+            assert con.execute(
+                "SELECT count(*) FROM transactions").fetchone()[0] == 0
+            present = {r[0] for r in con.execute(
+                "SELECT table_name FROM information_schema.tables").fetchall()}
+            assert "monthly_by_merchant" not in present
+        finally:
+            con.close()
+
 
 class TestWideFile:
     def test_more_than_13_columns_truncates_instead_of_crashing(self, tmp_path):

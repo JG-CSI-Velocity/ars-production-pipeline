@@ -349,7 +349,7 @@ LOCAL_TXN_DIR = None
 # ------------------------------------------------------------
 print(f"Client path:         {CLIENT_PATH}")
 print(f"Total files found:   {len(all_files)}")
-print(f"Trailing window:     {window_start:%Y-%m-%d} to {first_of_current_month:%Y-%m-%d} ({TRAILING_MONTHS} months)")
+print(f"Trailing window:     {window_start:%Y-%m-%d} to {window_end:%Y-%m-%d} ({TRAILING_MONTHS} months)")
 print(f"Recent files:        {len(recent_files)}")
 print(f"Older (excluded):    {len(older_files)}")
 
