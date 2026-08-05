@@ -45,6 +45,15 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM --- Close any stale pipeline server still holding port 8000. If 8000 is
+REM     busy, app.py walks to 8001+ but the browser below opens 8000 -- the
+REM     old instance -- serving last week's code. Only this pipeline listens
+REM     on 8000 on the work PC, so killing the listener is safe. ---
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8000 ^| findstr LISTENING') do (
+    echo   Closing an old copy of the pipeline server - PID %%a
+    taskkill /F /PID %%a >nul 2>nul
+)
+
 REM --- Start the server in the background using the chosen Python ---
 start "" /b "%PYEXE%" app.py
 

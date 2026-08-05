@@ -319,6 +319,25 @@ def load_clients_config():
     return {}
 
 
+def _client_meta(client_id: str) -> dict:
+    """Look up one client's metadata from clients_config.json.
+
+    The config is keyed by client ID at the top level (see /api/clients).
+    A previous `.get("clients", {})` lookup here always returned {} and
+    silently rebuilt decks with client_name = client_id and empty
+    eligibility codes. A legacy nested {"clients": {...}} shape is still
+    honored as a fallback.
+    """
+    config = load_clients_config()
+    meta = config.get(client_id)
+    if isinstance(meta, dict):
+        return meta
+    nested = config.get("clients")
+    if isinstance(nested, dict) and isinstance(nested.get(client_id), dict):
+        return nested[client_id]
+    return {}
+
+
 def get_csm_list():
     """Get CSM names from ars_config.json sources (not hardcoded)."""
     cfg = load_ars_config()
@@ -393,6 +412,8 @@ def get_recent_runs():
                 slides = "--"
                 status = "complete"
                 client_name = ""
+                product = "ARS"
+                modules = "--"
                 try:
                     text = log_file.read_text(encoding="utf-8", errors="replace")
                     # Look for: Pipeline done: 1776 (CoastHills CU) -- 4/4 steps in 1824.2s
@@ -406,6 +427,18 @@ def get_recent_runs():
                     m2 = re.search(r"(\d+)\s+slides?\s+generated", text)
                     if m2:
                         slides = m2.group(1)
+                    # Product from the run's step-2 header, e.g.
+                    # "STEP 2: ARS + TXN ANALYSIS + POWERPOINT GENERATION"
+                    if re.search(r"STEP 2:\s*ARS \+ TXN ANALYSIS", text):
+                        product = "COMBINED"
+                    elif re.search(r"STEP 2:\s*TXN ANALYSIS", text):
+                        product = "TXN"
+                    elif re.search(r"STEP 2:\s*ARS ANALYSIS", text):
+                        product = "ARS"
+                    # Module count from progress lines: "Module 14/25: mailer.cohort"
+                    mod_totals = re.findall(r"Module\s+\d+\s*/\s*(\d+):", text)
+                    if mod_totals:
+                        modules = max(mod_totals, key=int)
                     # Check for errors
                     if "ERROR" in text and "0 failed" not in text:
                         status = "warning"
@@ -421,6 +454,8 @@ def get_recent_runs():
                     "file": str(log_file),
                     "duration": duration,
                     "slides": slides,
+                    "product": product,
+                    "modules": modules,
                     "status": status,
                 })
                 if len(recent) >= 20:
@@ -1125,6 +1160,29 @@ async def get_run_status(run_id: str):
     return runs[run_id]
 
 
+@app.get("/api/active_runs")
+async def get_active_runs():
+    """List in-flight runs so a fresh page load can reattach to them.
+
+    A browser refresh mid-run used to lose all run visibility (the run
+    continued server-side with nothing showing it). The UI calls this on
+    load and offers a "view run" banner for anything still running.
+    """
+    active = []
+    for run_id, run in list(runs.items()):
+        if run.get("status") != "running":
+            continue
+        active.append({
+            "run_id": run_id,
+            "kind": run.get("product", ""),
+            "csm": run.get("csm", ""),
+            "client_id": run.get("client_id", ""),
+            "month": run.get("month", ""),
+            "started": run.get("started", ""),
+        })
+    return active
+
+
 @app.get("/api/run/{run_id}/stream")
 async def stream_run(run_id: str):
     """Stream run progress as Server-Sent Events."""
@@ -1414,8 +1472,7 @@ async def post_rebuild_deck(csm: str, month: str, client_id: str):
     pptx_dir = _resolve_csm_dir(PRESENTATIONS_BASE, csm) / month / client_id
     pptx_dir.mkdir(parents=True, exist_ok=True)
 
-    clients = load_clients_config().get("clients", {})
-    client_meta = clients.get(client_id, {})
+    client_meta = _client_meta(client_id)
     client = ClientInfo(
         client_id=client_id,
         client_name=client_meta.get("ClientName", client_id),
@@ -1437,6 +1494,7 @@ async def post_rebuild_deck(csm: str, month: str, client_id: str):
     return {
         "ok": True,
         "deck_dir": str(pptx_dir),
+        "client_name": client.client_name,
         "export_log": ctx.export_log,
     }
 
@@ -1616,8 +1674,7 @@ async def post_preview_html(csm: str, month: str, client_id: str):
     analysis_root = COMPLETED_ANALYSIS
     pres_root = PRESENTATIONS_BASE
 
-    clients = load_clients_config().get("clients", {})
-    client_display = clients.get(client_id, {}).get("ClientName", client_id)
+    client_display = _client_meta(client_id).get("ClientName", client_id)
 
     try:
         html_path = build_html_from_run_report(
@@ -1672,6 +1729,46 @@ async def download_file(path: str, inline: bool = False):
     if inline:
         return FileResponse(file_path)
     return FileResponse(file_path, filename=file_path.name)
+
+
+_LOG_TAIL_MAX_LINES = 400
+
+
+@app.get("/api/run_log_tail")
+async def run_log_tail(csm: str, month: str, name: str, lines: int = 80):
+    """Return the last N lines of a run log for the History tab's in-page
+    "View log" panel.
+
+    Security: each path component is rejected if it contains a path
+    separator or '..', and the resolved file must live under 04_Logs.
+    """
+    def _unsafe(part: str) -> bool:
+        return (not part.strip()) or "/" in part or "\\" in part or ".." in part
+
+    if _unsafe(csm) or _unsafe(month) or _unsafe(name):
+        raise HTTPException(status_code=400, detail="Invalid log reference")
+    if not name.endswith(".log"):
+        name = f"{name}.log"
+
+    logs_root = LOGS_BASE.resolve()
+    target = (LOGS_BASE / csm / month / name).resolve()
+    if logs_root not in target.parents:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="Log not found")
+
+    try:
+        text = target.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Could not read log: {exc}") from exc
+
+    n = max(1, min(lines, _LOG_TAIL_MAX_LINES))
+    return {
+        "name": name,
+        "csm": csm,
+        "month": month,
+        "lines": text.splitlines()[-n:],
+    }
 
 
 # ─── SCHEDULES ──────────────────────────────────────────────────────

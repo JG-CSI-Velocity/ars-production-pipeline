@@ -429,8 +429,17 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
         <li onclick="showPage('history')">History</li>
         <li onclick="showPage('schedules')">Schedules</li>
     </ul>
-    <div class="h-user">james.gilmore</div>
+    <div class="h-user" id="hUser"></div>
 </header>
+
+<!-- Active-run reattach strip: shown on page load when the server reports an
+     in-flight run (e.g. after a browser refresh mid-run). -->
+<div id="activeRunBanner" style="display:none;align-items:center;gap:14px;
+    padding:10px 24px;background:#fff4e0;border-bottom:1px solid var(--gold);
+    font-size:13px;color:var(--dark);">
+    <span id="activeRunBannerText"></span>
+    <button class="btn" id="activeRunBannerBtn" style="font-size:12px;padding:5px 12px;">View run</button>
+</div>
 
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
 <div class="page active" id="page-dashboard">
@@ -839,6 +848,14 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
                     <summary style="cursor:pointer;">Denominator-law violations</summary>
                     <div id="gDoneQualityViolations" style="margin-top:6px;line-height:1.5;"></div>
                 </details>
+                <details style="margin-top:6px;font-size:12px;color:var(--muted);display:none;"
+                    id="gDoneScorecardDetails">
+                    <summary style="cursor:pointer;">View scorecard</summary>
+                    <pre id="gDoneScorecardPre" style="margin:6px 0 0;padding:10px;
+                        background:#f7f6f4;border:1px solid var(--border);border-radius:6px;
+                        font-size:11px;line-height:1.5;max-height:320px;overflow:auto;
+                        white-space:pre-wrap;color:var(--text);"></pre>
+                </details>
             </div>
             <div class="done-actions" id="gDoneActions"></div>
         </div>
@@ -1005,9 +1022,9 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
 
     <div class="card">
         <table class="recent-table">
-            <thead><tr><th>Client</th><th>Product</th><th>Modules</th><th>CSM</th><th>Date</th><th>Duration</th><th>Slides</th><th>Status</th></tr></thead>
+            <thead><tr><th>Client</th><th>Product</th><th>Modules</th><th>CSM</th><th>Date</th><th>Duration</th><th>Slides</th><th>Status</th><th>Log</th></tr></thead>
             <tbody id="historyBody">
-                <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">Run history will appear here after reports are generated.</td></tr>
+                <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px;">Run history will appear here after reports are generated.</td></tr>
             </tbody>
         </table>
     </div>
@@ -1018,7 +1035,7 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px;">
         <div>
             <div class="page-title">Schedules</div>
-            <div class="page-sub">Set up recurring monthly report generation. Schedules run automatically on the specified day.</div>
+            <div class="page-sub">Set up recurring monthly report generation. Automatic execution is not enabled yet &mdash; saved schedules do not fire on their own. Use "Run Now" to fire a schedule today.</div>
         </div>
         <button class="btn" onclick="showAddSchedule()">+ New Schedule</button>
     </div>
@@ -1098,6 +1115,21 @@ function showPage(name) {
     document.getElementById('page-' + name).classList.add('active');
     document.querySelectorAll('.h-nav li').forEach(li => li.classList.remove('on'));
     event.target.classList.add('on');
+}
+
+// One canonical recovery string for "the server is unreachable" states --
+// operators never touch app.py, so every message points at the launcher.
+const SERVER_UNREACHABLE_MSG = "Can't reach the pipeline. Close the Velocity Pipeline window, "
+    + "double-click Start Here.bat, then refresh this page (Ctrl+Shift+R).";
+const LOST_CONTACT_MSG = 'Lost contact with the run — the server may have restarted. '
+    + 'Close the Velocity Pipeline window, double-click Start Here.bat, then check the History tab.';
+// Stop declaring a run lost until this many polls in a row have failed.
+const MAX_POLL_FAILURES = 10;
+
+// Header chip shows the currently selected CSM (was a hardcoded username).
+function updateHeaderUser(csm) {
+    const el = document.getElementById('hUser');
+    if (el && csm) el.textContent = csm;
 }
 
 // ─── DASHBOARD CHARTS ───
@@ -1267,7 +1299,7 @@ async function renderModuleChecklist() {
     } catch(e) {
         _allSections = null;
         body.innerHTML = `<div style="padding:16px;color:var(--red);">
-            Couldn't load the module list. Make sure the pipeline server is running.
+            Couldn't load the module list. ${SERVER_UNREACHABLE_MSG}
             <a href="#" onclick="event.preventDefault();renderModuleChecklist()">Retry</a></div>`;
         return;
     }
@@ -2008,6 +2040,19 @@ async function loadRunQuality(ctx) {
         } else {
             violBox.innerHTML = '<div style="color:var(--muted);">Every rate anchors to one of Eligible / Eligible Personal / Eligible Business / Open.</div>';
         }
+
+        // The scorecard markdown behind the one-word verdict (finding 8).
+        // Rendered as preformatted text -- no markdown library needed.
+        const scDetails = document.getElementById('gDoneScorecardDetails');
+        const scPre = document.getElementById('gDoneScorecardPre');
+        if (scDetails && scPre) {
+            if (q.scorecard_md) {
+                scPre.textContent = q.scorecard_md;
+                scDetails.style.display = '';
+            } else {
+                scDetails.style.display = 'none';
+            }
+        }
     } catch (err) {
         // Panel just stays hidden on error -- silent degrade.
         console.debug('Run quality fetch skipped:', err);
@@ -2242,10 +2287,32 @@ async function runGenReal() {
         _advanceStage('read', runStart, stageStarts);
 
         let lastSeen = 0;
+        let pollFailures = 0;
+        // After MAX_POLL_FAILURES consecutive failed polls, stop spinning
+        // forever and tell the operator the run is unreachable (finding 3b).
+        const _pollFailed = () => {
+            pollFailures += 1;
+            if (pollFailures < MAX_POLL_FAILURES) return;
+            clearInterval(pollInterval);
+            clearInterval(clockTimer);
+            document.querySelectorAll('#gStages .stage[data-state="active"]').forEach(li => {
+                li.setAttribute('data-state', 'error');
+            });
+            document.getElementById('gRunTitle').textContent = 'Lost contact with the run';
+            document.getElementById('gRunSub').textContent = LOST_CONTACT_MSG;
+            log.appendChild(Object.assign(document.createElement('div'),
+                {style: 'color:#EB2A2E', textContent: LOST_CONTACT_MSG}));
+            log.scrollTop = log.scrollHeight;
+            runBtn.disabled = false;
+            runBtn.textContent = 'Format + Analyze + Build PPTX';
+            runBtn.style.opacity = '';
+            runBtn.style.cursor = '';
+        };
         const pollInterval = setInterval(async () => {
             try {
                 const statusResp = await fetch(`/api/run/${run_id}`);
-                if (!statusResp.ok) return;
+                if (!statusResp.ok) { _pollFailed(); return; }
+                pollFailures = 0;
                 const run = await statusResp.json();
 
                 // Process new log lines for state derivation and append to the technical log
@@ -2377,7 +2444,9 @@ async function runGenReal() {
                     _renderCompletion(ctx);
                 }
             } catch(pollErr) {
-                // Network blip, keep polling
+                // Network blip -- keep polling, but count it toward the
+                // lost-contact threshold so a dead server ends the loop.
+                _pollFailed();
             }
         }, 1000);
     } catch(e) {
@@ -2723,8 +2792,12 @@ async function rebuildDeck() {
             return;
         }
         const data = await r.json();
-        msg.innerHTML = `Deck rebuilt at <code>${data.deck_dir || ''}</code>. ` +
+        // Echo the client name the backend resolved -- if this shows a bare
+        // ID, the config lookup failed and the deck title will say a number.
+        const rebuiltFor = data.client_name || clientId;
+        msg.innerHTML = `Rebuilt deck for <strong></strong> at <code>${data.deck_dir || ''}</code>. ` +
             `Re-open the .pptx to see the new shape.`;
+        msg.querySelector('strong').textContent = rebuiltFor;
     } catch (err) {
         msg.textContent = 'Rebuild error: ' + err.message;
     } finally {
@@ -2813,7 +2886,7 @@ async function loadDashboardData() {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${r.client_id}</strong>${name}</td>
-                    <td>ARS</td>
+                    <td>${r.product || 'ARS'}</td>
                     <td>${r.csm}</td>
                     <td>${r.month}</td>
                     <td class="mono">${r.duration || '--'}</td>
@@ -2835,14 +2908,21 @@ async function loadDashboardData() {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${r.client_id}</strong>${name}</td>
-                    <td>ARS</td>
-                    <td class="mono">${r.slides || '--'}</td>
+                    <td>${r.product || 'ARS'}</td>
+                    <td class="mono">${r.modules || '--'}</td>
                     <td>${r.csm}</td>
                     <td>${r.month}</td>
                     <td class="mono">${r.duration || '--'}</td>
                     <td class="mono">${r.slides || '--'}</td>
                     <td>${statusBadge}</td>
+                    <td></td>
                 `;
+                const logBtn = document.createElement('button');
+                logBtn.textContent = 'View log';
+                logBtn.style.cssText = 'background:var(--dark);color:#fff;border:none;'
+                    + 'border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;';
+                logBtn.onclick = () => toggleRunLog(logBtn, r.csm, r.month, r.timestamp);
+                tr.lastElementChild.appendChild(logBtn);
                 hbody.appendChild(tr);
             });
         }
@@ -2874,8 +2954,172 @@ async function loadResultsClients() {
     } catch(e) {}
 }
 
+// History tab: expandable in-page log tail per run (finding 6). Toggles a
+// full-width row with a <pre> under the clicked run's row.
+async function toggleRunLog(btn, csm, month, name) {
+    const tr = btn.closest('tr');
+    const next = tr.nextElementSibling;
+    if (next && next.classList.contains('log-tail-row')) {
+        next.remove();
+        btn.textContent = 'View log';
+        return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    const row = document.createElement('tr');
+    row.className = 'log-tail-row';
+    const td = document.createElement('td');
+    td.colSpan = 9;
+    const pre = document.createElement('pre');
+    pre.style.cssText = 'margin:0;padding:12px;background:var(--dark);color:#e8e8e8;'
+        + 'font-size:11px;line-height:1.5;max-height:340px;overflow:auto;'
+        + 'white-space:pre-wrap;border-radius:6px;';
+    td.appendChild(pre);
+    row.appendChild(td);
+    try {
+        const r = await fetch(`/api/run_log_tail?csm=${encodeURIComponent(csm)}`
+            + `&month=${encodeURIComponent(month)}&name=${encodeURIComponent(name)}`);
+        if (!r.ok) {
+            let msg = r.statusText;
+            try { msg = (await r.json()).detail || msg; } catch (e) {}
+            pre.textContent = 'Could not load the log: ' + msg;
+        } else {
+            const data = await r.json();
+            pre.textContent = (data.lines || []).join('\n') || '(log is empty)';
+        }
+    } catch (e) {
+        pre.textContent = 'Could not load the log: ' + e.message;
+    }
+    tr.after(row);
+    pre.scrollTop = pre.scrollHeight;
+    btn.disabled = false;
+    btn.textContent = 'Hide log';
+}
+
+// ─── ACTIVE-RUN REATTACH (finding 3a) ───
+// On page load, ask the server for in-flight runs. If one exists (e.g. the
+// operator refreshed mid-run), show a banner that jumps to the right tab
+// and resumes polling that run id.
+async function loadActiveRuns() {
+    try {
+        const resp = await fetch('/api/active_runs');
+        if (!resp.ok) return;
+        const active = await resp.json();
+        const banner = document.getElementById('activeRunBanner');
+        if (!banner) return;
+        if (!active.length) { banner.style.display = 'none'; return; }
+        const run = active[0];
+        const startedMs = run.started ? Date.parse(run.started) : NaN;
+        const elapsed = Number.isFinite(startedMs)
+            ? ` (${Math.max(0, Math.floor((Date.now() - startedMs) / 60000))}m elapsed)` : '';
+        document.getElementById('activeRunBannerText').textContent =
+            `A run is in progress: ${run.client_id} ${run.month}${elapsed}`;
+        const btn = document.getElementById('activeRunBannerBtn');
+        btn.onclick = () => {
+            banner.style.display = 'none';
+            reattachRun(run);
+        };
+        banner.style.display = 'flex';
+    } catch (e) {}
+}
+
+function reattachRun(run) {
+    const isFormat = run.kind === 'formatting';
+    showPage(isFormat ? 'format' : 'generate');
+    if (isFormat) _reattachPoll(run, {
+        panel: 'fProg', log: 'fProgLog', status: 'fProgStatus',
+        elapsed: 'fElapsed',
+    });
+    else _reattachPoll(run, {
+        panel: 'gProg', log: 'gProgLog', status: null,
+        elapsed: 'gElapsed', title: 'gRunTitle', sub: 'gRunSub',
+    });
+}
+
+// Minimal reattached view: live log + elapsed clock + terminal handling.
+// (The full stage checklist state machine only runs for runs started by
+// this page; a reattach shows the log stream and completion instead.)
+function _reattachPoll(run, ids) {
+    const panel = document.getElementById(ids.panel);
+    if (panel) panel.classList.add('visible');
+    const log = document.getElementById(ids.log);
+    if (log) {
+        log.innerHTML = '';
+        const line = document.createElement('div');
+        line.className = 'done';
+        line.textContent = `Reattached to the run in progress: ${run.client_id} (${run.csm} / ${run.month})`;
+        log.appendChild(line);
+    }
+    if (ids.title) document.getElementById(ids.title).textContent = 'Reattached to the run in progress…';
+    if (ids.sub) document.getElementById(ids.sub).textContent =
+        `${run.client_id} · ${run.csm} / ${run.month} · live log below`;
+
+    const startedMs = run.started ? Date.parse(run.started) : Date.now();
+    const clockTimer = setInterval(() => {
+        const el = document.getElementById(ids.elapsed);
+        if (!el) return;
+        const sec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
+        el.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    }, 1000);
+
+    let lastSeen = 0;
+    let pollFailures = 0;
+    const _pollFailed = () => {
+        pollFailures += 1;
+        if (pollFailures < MAX_POLL_FAILURES) return;
+        clearInterval(pollInterval);
+        clearInterval(clockTimer);
+        if (ids.title) document.getElementById(ids.title).textContent = 'Lost contact with the run';
+        if (ids.sub) document.getElementById(ids.sub).textContent = LOST_CONTACT_MSG;
+        if (ids.status) document.getElementById(ids.status).textContent = 'Lost contact with the run';
+        if (log) {
+            log.appendChild(Object.assign(document.createElement('div'),
+                {style: 'color:#EB2A2E', textContent: LOST_CONTACT_MSG}));
+            log.scrollTop = log.scrollHeight;
+        }
+    };
+    const pollInterval = setInterval(async () => {
+        try {
+            const resp = await fetch(`/api/run/${run.run_id}`);
+            if (!resp.ok) { _pollFailed(); return; }
+            pollFailures = 0;
+            const r = await resp.json();
+            if (log && r.log && r.log.length > lastSeen) {
+                for (let i = lastSeen; i < r.log.length; i++) {
+                    const el = document.createElement('div');
+                    el.className = 'done';
+                    el.textContent = r.log[i];
+                    log.appendChild(el);
+                }
+                lastSeen = r.log.length;
+                log.scrollTop = log.scrollHeight;
+            }
+            if (ids.status) document.getElementById(ids.status).textContent = r.current_step || 'Running...';
+            if (ids.sub && r.current_step) document.getElementById(ids.sub).textContent = r.current_step;
+            if (r.status === 'complete' || r.status === 'error' || r.status === 'stopped') {
+                clearInterval(pollInterval);
+                clearInterval(clockTimer);
+                const label = r.status === 'complete' ? 'Run complete'
+                    : r.status === 'stopped' ? 'Stopped by operator'
+                    : 'Run failed — open the log on the History tab';
+                if (ids.title) document.getElementById(ids.title).textContent = label;
+                if (ids.sub) document.getElementById(ids.sub).textContent =
+                    `${run.client_id} · ${run.csm} / ${run.month}`;
+                if (ids.status) document.getElementById(ids.status).textContent = label;
+                if (r.status === 'complete' && run.kind !== 'formatting') {
+                    loadDownloads(run.csm, run.month, run.client_id);
+                    loadDashboardData();
+                }
+            }
+        } catch (e) {
+            _pollFailed();
+        }
+    }, 1500);
+}
+
 // Load dashboard data on page load
 loadDashboardData();
+loadActiveRuns();
 
 // Product-card counts come from the files on disk, not hardcoded copy --
 // so deleting/adding analytics cells is visible here immediately.
@@ -2958,6 +3202,15 @@ async function runFormat(force = false) {
         return;
     }
 
+    // A blank client means "every client for this CSM" -- a long multi-client
+    // job (and Force Re-Format overwrites existing output). Confirm first.
+    if (!clientId) {
+        const allMsg = `No client ID entered — this will format ALL of ${csm}'s clients for ${month}.`
+            + (force ? '\n\nForce Re-Format will OVERWRITE any already-formatted files.' : '')
+            + '\n\nContinue?';
+        if (!confirm(allMsg)) return;
+    }
+
     // Re-entry guard: a second click would start a second elapsed-clock timer
     // on the same #fElapsed element (with a different baseline) -> the clock
     // visibly flickers/glitches, and fires a duplicate run (#232).
@@ -3021,10 +3274,28 @@ async function runFormat(force = false) {
         bar.style.width = '10%';
 
         // Poll for progress instead of SSE (more reliable on Windows)
+        let pollFailures = 0;
+        // After MAX_POLL_FAILURES consecutive failed polls, stop spinning
+        // forever and tell the operator the run is unreachable (finding 3b).
+        const _pollFailed = () => {
+            pollFailures += 1;
+            if (pollFailures < MAX_POLL_FAILURES) return;
+            clearInterval(pollInterval);
+            clearInterval(fmtTick);
+            window._formatInFlight = false;
+            st.textContent = 'Lost contact with the run';
+            bar.style.background = '#EB2A2E';
+            const lostLine = document.createElement('div');
+            lostLine.style.color = '#EB2A2E';
+            lostLine.textContent = LOST_CONTACT_MSG;
+            log.appendChild(lostLine);
+            log.scrollTop = log.scrollHeight;
+        };
         const pollInterval = setInterval(async () => {
             try {
                 const statusResp = await fetch(`/api/run/${run_id}`);
-                if (!statusResp.ok) return;
+                if (!statusResp.ok) { _pollFailed(); return; }
+                pollFailures = 0;
                 const run = await statusResp.json();
 
                 // Show new log lines + advance checklist
@@ -3101,7 +3372,9 @@ async function runFormat(force = false) {
                     }
                 }
             } catch(pollErr) {
-                // Network blip, keep polling
+                // Network blip -- keep polling, but count it toward the
+                // lost-contact threshold so a dead server ends the loop.
+                _pollFailed();
             }
         }, 1000);
 
@@ -3378,7 +3651,12 @@ document.getElementById('rSlideContainer')?.addEventListener('dblclick', openLig
     await Promise.all([loadCSMs(), loadMonths()]);
     await loadClients();
     refreshGenClients();
+    updateHeaderUser(document.getElementById('gCsmSel')?.value);
 })();
+
+// Keep the header chip in sync with whichever CSM dropdown changes.
+document.getElementById('gCsmSel')?.addEventListener('change', e => updateHeaderUser(e.target.value));
+document.getElementById('fCsmSel')?.addEventListener('change', e => updateHeaderUser(e.target.value));
 loadRecent();
 setGenMode('full');
 
@@ -3392,7 +3670,7 @@ async function smartRunGen() {
         }
     } catch(e) {}
     // No mock fallback -- show real error
-    alert('Cannot connect to the pipeline server. Make sure app.py is running.');
+    alert(SERVER_UNREACHABLE_MSG);
 }
 
 // ─── SCHEDULES ───
