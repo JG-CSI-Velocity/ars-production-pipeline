@@ -41,5 +41,13 @@ packages = [
     "ars_parity",
 ]
 
+[project.optional-dependencies]
+# Everything the test suites need beyond runtime deps.
+# `pip install -e .[test]` (or `pip install httpx seaborn`) before running pytest.
+test = ["pytest", "httpx", "seaborn"]
+
 [tool.pytest.ini_options]
 testpaths = ["01_Analysis/00-Scripts/tests", "05_UI/tests", "00_Formatting/tests"]
+# Three sibling suites are all packages named `tests`; importlib mode keeps
+# their conftests from colliding when pytest runs from the repo root.
+addopts = "--import-mode=importlib"
