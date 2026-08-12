@@ -38,7 +38,7 @@ powershell -NoProfile -Command "try { Expand-Archive -Path '%ZIP%' -DestinationP
 if errorlevel 1 goto fail_unzip
 
 echo   [3 of 3] Checking the install...
-"%TARGET%\python\python.exe" -c "import fastapi, pandas, numpy, matplotlib, pptx; print('ok')" >nul 2>nul
+"%TARGET%\python\python.exe" -c "import fastapi, pandas, numpy, matplotlib, pptx, duckdb, seaborn; print('ok')" >nul 2>nul
 if errorlevel 1 goto fail_verify
 
 del "%ZIP%" >nul 2>nul

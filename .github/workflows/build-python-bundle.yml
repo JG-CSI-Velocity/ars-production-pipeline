@@ -53,7 +53,7 @@ jobs:
         run: |
           .\python\python.exe -m pip install --upgrade pip
           .\python\python.exe -m pip install -r requirements.txt
-          .\python\python.exe -c "import fastapi, pandas, numpy, matplotlib, pptx, openpyxl, xlsxwriter; print('verify ok')"
+          .\python\python.exe -c "import fastapi, pandas, numpy, matplotlib, pptx, openpyxl, xlsxwriter, duckdb, seaborn, loguru; print('verify ok')"
 
       - name: Zip the bundle (python\ at archive root)
         shell: pwsh

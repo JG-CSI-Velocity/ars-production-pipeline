@@ -7,10 +7,13 @@ name = "ars-pipeline"
 version = "3.0.0a0"
 description = "ARS/RPE monthly reporting pipeline (greenfield v3 engine)"
 requires-python = ">=3.12"
+# Keep in lockstep with requirements.txt -- that file builds the CSM Windows
+# bundle (build-python-bundle.yml), this list is the pip-installable contract.
 dependencies = [
     "duckdb>=1.0",
     "fastapi",
     "jinja2",
+    "loguru",
     "matplotlib",
     "numpy",
     "openpyxl",
@@ -21,6 +24,8 @@ dependencies = [
     "pydantic-settings",
     "python-pptx",
     "PyYAML",
+    "rich",
+    "seaborn",
     "uvicorn",
     "xlsxwriter",
 ]
@@ -43,11 +48,16 @@ packages = [
 
 [project.optional-dependencies]
 # Everything the test suites need beyond runtime deps.
-# `pip install -e .[test]` (or `pip install httpx seaborn`) before running pytest.
-test = ["pytest", "httpx", "seaborn"]
+# `pip install -e .[test]` before running pytest.
+test = ["pytest", "httpx"]
 
 [tool.pytest.ini_options]
-testpaths = ["01_Analysis/00-Scripts/tests", "05_UI/tests", "00_Formatting/tests"]
+testpaths = [
+    "01_Analysis/00-Scripts/tests",
+    "05_UI/tests",
+    "00_Formatting/tests",
+    "02_Presentations/html_review/tests",
+]
 # Three sibling suites are all packages named `tests`; importlib mode keeps
 # their conftests from colliding when pytest runs from the repo root.
 addopts = "--import-mode=importlib"

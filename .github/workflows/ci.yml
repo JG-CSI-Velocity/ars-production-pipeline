@@ -56,13 +56,14 @@ jobs:
           python-version: "3.13"
 
       - name: Install runtime + test deps
+        # -e . exercises the declared package contract (v3 engine packages
+        # included) instead of only the requirements.txt runtime list.
         run: |
           pip install -r requirements.txt
-          pip install pytest
+          pip install -e .[test]
 
-      - name: Run the analytics test suite
-        # Locks the data-accuracy contracts (canonical denominators,
-        # DCTR-2 open-vs-eligible, brand authority, run manifest, scorecard).
-        # conftest.py wires the ars_analysis package alias from 00-Scripts.
-        working-directory: 01_Analysis/00-Scripts
-        run: python -m pytest tests/ -q
+      - name: Run every test suite
+        # Root pytest picks up all four suites via pyproject testpaths:
+        # analytics (data-accuracy contracts), 05_UI, 00_Formatting (v3
+        # staging), and 02_Presentations/html_review.
+        run: python -m pytest -q
