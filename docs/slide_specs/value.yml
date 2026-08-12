@@ -1,8 +1,8 @@
 # Value section slide specs.
-# Anchors to Eligible: value calculations use eligible-base DCTR and Reg E
-# rates per the 4-layer law. The "potential at L12M DCTR" hero number is
-# the gap between accounts with and without debit, sized at the Eligible
-# base.
+# Anchors to Eligible Personal: value calculations use eligible-base DCTR
+# and Reg E rates per the 4-layer law. The "potential at L12M DCTR" hero
+# number is the gap between accounts with and without debit, sized at the
+# Eligible Personal base.
 
 VALUE-MAIN-1:
   layout: TWO_CONTENT

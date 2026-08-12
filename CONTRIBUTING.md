@@ -212,10 +212,10 @@ If a script today only works as a notebook cell, refactor it into a callable fun
 
 Naming: `test_<module_under_test>.py`. One assertion concern per test. Use `tmp_path` for any test that writes files.
 
-Run before pushing:
+Run before pushing (from the repo root):
 
 ```
-cd 01_Analysis/00-Scripts && python -m pytest tests/ -q
-cd 05_UI && python -m pytest tests/ -q
-cd 02_Presentations && python -m pytest html_review/tests/ -q
+python -m pytest
 ```
+
+`pyproject.toml` (`[tool.pytest.ini_options]` testpaths) points this single command at all four suites: `01_Analysis/00-Scripts/tests`, `05_UI/tests`, `00_Formatting/tests`, and `02_Presentations/html_review/tests`.

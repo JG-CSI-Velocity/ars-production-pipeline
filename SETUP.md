@@ -38,8 +38,10 @@ M:\ARS\
 
 ### 1. Install Python packages
 
+Install everything in `requirements.txt` (18 packages) -- don't hand-pick, the file is the source of truth. Run from `M:\ARS\` after cloning (step 2):
+
 ```
-pip install loguru rich pydantic pydantic-settings openpyxl xlsxwriter python-pptx matplotlib numpy pandas fastapi uvicorn
+pip install -r requirements.txt
 ```
 
 ### 2. Clone the repo
@@ -68,12 +70,12 @@ pipeline, writes formatted Excel to `02-Data-Ready for Analysis`.
 
 ```
 cd M:\ARS\00_Formatting
-python run.py --month 2026.03 --csm James --client 1780
-python run.py --month 2026.03 --csm James --client 1780 --force   # overwrite existing
-python run.py --month 2026.03 --csm James                         # all clients for this CSM
+python run.py --month 2026.03 --csm JamesG --client 1780
+python run.py --month 2026.03 --csm JamesG --client 1780 --force   # overwrite existing
+python run.py --month 2026.03 --csm JamesG                         # all clients for this CSM
 ```
 
-CSM name is fuzzy-matched: `James` matches `JamesG` folder.
+Use the exact CSM key from `03_Config/ars_config.json` (`csm_sources`) -- e.g. `JamesG`, not `James`. Short prefixes may resolve, but the canonical key avoids stale `James/` output folders (see Troubleshooting).
 
 **Output folders created:**
 ```
@@ -88,7 +90,7 @@ workbook + PowerPoint deck.
 
 ```
 cd M:\ARS\01_Analysis
-python run.py --month 2026.03 --csm James --client 1780
+python run.py --month 2026.03 --csm JamesG --client 1780
 ```
 
 #### `--product` flag
@@ -116,29 +118,19 @@ M:\ARS\04_Logs\JamesG\2026.03\1780_YYYYMMDD_HHMMSS.log                 <- run lo
 
 ### Launch the UI
 
-```
-cd M:\ARS\05_UI
-python app.py
-```
+Double-click **`Start Here.bat`** at `M:\ARS\`. It starts the server in the background, waits for it to respond, and opens http://localhost:8000 in the browser. Closing the terminal window stops the server.
 
-Then open http://localhost:8000
-
-If port 8000 is already in use from a previous run:
-```
-netstat -ano | findstr :8000
-taskkill /PID <pid> /F
-python app.py
-```
+If a previous run left a stale server holding port 8000, `Start Here.bat` closes it automatically before starting -- just relaunch it. (Manual fallback only, if the .bat itself can't free the port: `netstat -ano | findstr :8000`, then `taskkill /PID <pid> /F`.)
 
 ### Run all clients (batch)
 
 ```
 cd M:\ARS\00_Formatting
-python run.py --month 2026.03 --csm James
+python run.py --month 2026.03 --csm JamesG
 
 cd M:\ARS\01_Analysis
-python run.py --month 2026.03 --csm James --client 1200
-python run.py --month 2026.03 --csm James --client 1780
+python run.py --month 2026.03 --csm JamesG --client 1200
+python run.py --month 2026.03 --csm JamesG --client 1780
 ```
 
 ## Updating
@@ -172,7 +164,7 @@ the file was written with openpyxl. Re-run Step 1 with `--force` after
 pulling the latest code (now uses xlsxwriter).
 
 ### Port 8000 already in use
-Kill the old process:
+`Start Here.bat` closes a stale listener on port 8000 automatically before starting -- relaunch it first. Manual fallback if that fails:
 ```
 netstat -ano | findstr :8000
 taskkill /PID <pid> /F

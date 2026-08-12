@@ -45,7 +45,7 @@ never install Python yourself.
 The CSM machines don't have Python, or have Python but none of our packages
 (see issue #226 — one machine had Python 3.12 but `ModuleNotFoundError: No
 module named 'fastapi'`). Rather than install Python on every machine by hand,
-we ship a **self-contained Python** — interpreter plus all 14 packages from
+we ship a **self-contained Python** — interpreter plus every package in
 `requirements.txt` — and the launcher uses *that* instead of the system Python.
 
 Two locations, and only two:

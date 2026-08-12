@@ -120,7 +120,7 @@ From then on it's yours &mdash; nothing in git can clobber it.
 | **Competition diagnostic** | Auto-runs at the end of the competition section, writes `competition_diagnostic.txt` | Per-category counts, top merchants, unmatched financial keywords, BNPL audit. Surfaced in the completion card. |
 | **File-lock fallback** | Automatic | If your previous deck is open in PowerPoint when a new run finishes, the new deck saves as `..._v2.pptx` instead of failing. Long analyses never have to be redone. |
 | **Versioned outputs** | Automatic | Three product flags, three distinct deck filenames. Run TXN without losing your ARS deck. |
-| **Actionable Lists for Clients** | `Actionable Lists for Clients/<client-id>_<client-name>/cross_sell_lists/` | Cross-sell candidate lists from the competition module, in a clearly-named folder (formerly `output/`). Low-volume competitors are suppressed so the export stays operational. |
+| **Actionable Lists for Clients** | `01_Analysis/00-Scripts/Actionable Lists for Clients/<client-id>_<client-name>/cross_sell_lists/` | Cross-sell candidate lists from the competition module, in a clearly-named folder (formerly `output/`). Low-volume competitors are suppressed so the export stays operational. |
 | **Resilient file loading** | Automatic | ODD workbooks read via a cached local copy; TXN files auto-detect their delimiter (tab / comma / pipe / semicolon) so unusual processor exports still parse. |
 
 ---
@@ -131,7 +131,7 @@ From then on it's yours &mdash; nothing in git can clobber it.
 M:\ARS\
 |-- 00_Formatting/                    Step 1: format raw ODDs
 |   |-- run.py
-|   |-- 00-Scripts/                     Formatting helpers (settings, month resolver, shared/)
+|   |-- 00-Scripts/                     Formatting helpers (settings, month resolver, shared/, ars_staging/ file-drop poller)
 |   |-- 01-Data-Ready for Formatting/   Staging (extracted ZIPs)
 |   `-- 02-Data-Ready for Analysis/     Formatted Excel (per CSM/period/client)
 |
@@ -139,11 +139,18 @@ M:\ARS\
 |   |-- run.py
 |   |-- 00-Scripts/
 |   |   |-- analytics/                    ARS modules + TXN script-folder sections
+|   |   |-- ars_engine/                   v3 engine (Wave 0, not yet routed to production) -- see docs/V3_STATUS.md
+|   |   |-- ars_parity/                   v3 parity harness (capture/compare vs v2 output) -- see docs/V3_STATUS.md
 |   |   |-- charts/                       Chart styling, cache, guards
 |   |   |-- output/                       Deck builder, manifest loader, slide-spec renderer
 |   |   |-- pipeline/                     Runner, steps, context, run_manifest, scorecard
 |   |   |-- shared/                       Utilities: brand, branch_mapping, format_odd, helpers
-|   |   `-- tests/                        pytest test suite
+|   |   |-- tests/                        pytest test suite
+|   |   |-- tools/                        Dev utilities (section lister, baseline diff, stale-cache cleaner)
+|   |   |-- Actionable Lists for Clients/ Cross-sell candidate lists (was: output/)
+|   |   |-- ars_bootstrap.py              Canonical sys.path + ars_analysis alias wiring for entry points
+|   |   |-- config.py                     Pydantic settings loaded from the JSON config files
+|   |   `-- runner.py                     Bridge between the shared PipelineContext and ARS v2 internals
 |   `-- 01_Completed_Analysis/        Excel + charts + JSON per client per run
 |
 |-- 02_Presentations/                 PowerPoint decks: {CSM}/{YYYY.MM}/{client}/
@@ -157,8 +164,6 @@ M:\ARS\
 |   |-- app.py                            API + run orchestration
 |   |-- index.html                        Operator console
 |   `-- UI-OVERVIEW.md                    Developer-facing component map
-|
-|-- Actionable Lists for Clients/    Cross-sell candidate lists (was: output/)
 |
 |-- Start Here.bat                    Double-click to launch the UI
 |-- requirements.txt                  Python deps (pip install -r requirements.txt)
@@ -190,6 +195,20 @@ python run.py --month 2026.04 --csm <csm> --client <client-id>
 python run.py --month 2026.04 --csm <csm> --client <client-id> --product txn
 python run.py --month 2026.04 --csm <csm> --client <client-id> --product combined
 ```
+
+**Run one section (or a few) instead of a whole product:**
+```
+python run.py --month 2026.04 --csm <csm> --client <client-id> --section txn.merchant
+python run.py --month 2026.04 --csm <csm> --client <client-id> --sections txn.merchant,txn.mcc_code
+python run.py --month 2026.04 --csm <csm> --client <client-id> --product txn --all-modules
+```
+`--section` runs ONE analytics section end-to-end and builds a scoped deck for just its slides; `--sections` does the same for several sections in one pass (aggregate once, a deck per section); `--all-modules` runs every section for the chosen `--product` that way. Section ids like `txn.merchant` / `ars.dctr` are listed in `analytics/section_registry.py`. All three override `--product`'s normal single-deck behavior.
+
+**Force a rebuild of the TXN cache:**
+```
+python run.py --month 2026.04 --csm <csm> --client <client-id> --product txn --rebuild-cache
+```
+Ignores the TXN parquet cache and rebuilds `combined_df` from the raw files -- use after changing data-loading code so a stale cache isn't served.
 
 **Save a local copy of the deck:**
 ```
@@ -350,12 +369,12 @@ Restart `Start Here.bat`, then Ctrl+Shift+R in the browser.
 - `CLAUDE.md` &mdash; AI-assistant working notes
 
 ### Tests
+Run from the repo root:
 ```
-cd 01_Analysis/00-Scripts
-python -m pytest tests/ -q
+python -m pytest
 ```
 
-Covers the run manifest, error-capture and scorecard utilities, the slide-manifest loader, the branch ID &rarr; name helper, competitor tagging + detection, TXN delimiter detection, the formatting month-folder resolver, and pipeline integration.
+`pyproject.toml` points pytest at all four suites (`01_Analysis/00-Scripts/tests`, `05_UI/tests`, `00_Formatting/tests`, `02_Presentations/html_review/tests`), so the single command covers everything. Highlights: the run manifest, error-capture and scorecard utilities, the slide-manifest loader, the branch ID &rarr; name helper, competitor tagging + detection, TXN delimiter detection, the formatting month-folder resolver, and pipeline integration.
 
 ---
 

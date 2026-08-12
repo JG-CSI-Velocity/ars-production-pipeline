@@ -1,5 +1,11 @@
 # Master Slide Mapping Document
 
+> **Related:** design principles (layout regions, action titles, chart conventions) live in
+> `SLIDE_DESIGN.md`. Per-slide YAML specs — one file per section, loaded by
+> `01_Analysis/00-Scripts/output/slide_spec.py` — live in `docs/slide_specs/` (see
+> `docs/slide_specs/_TEMPLATE.yml`). This document maps slide IDs to layouts and headlines;
+> the YAML layer is where per-slide action titles, callouts, and inputs are specified.
+
 ## CSI Template Spec
 
 **Template:** `2025-CSI-PPT-Template.pptx`
@@ -311,7 +317,7 @@ BOTTOM:  Business implication (speaker note or annotation)
 
 1. Create analysis function that returns `AnalysisResult` with chart + data
 2. Register with `@register` decorator in `analytics/`
-3. Add to `MODULE_ORDER` in `registry.py`
+3. Add to `MODULE_ORDER` in `01_Analysis/00-Scripts/analytics/registry.py` (not the v3 `ars_engine/core/registry.py`)
 4. Add a row to the appropriate section in this mapping doc
 5. Define: headline pattern, chart type, layout index
 6. The deck builder picks it up automatically

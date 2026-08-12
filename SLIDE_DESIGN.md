@@ -78,7 +78,7 @@ Every engagement deck follows this skeleton:
 10. Methodology appendix          (data sources, assumptions, benchmark definitions)
 ```
 
-**Hard rule: main deck ≤ 25 slides** (excluding appendix). More than that and the client stops reading.
+**Design target: main deck ≤ 25 slides** (excluding appendix). More than that and the client stops reading. What is actually *enforced* today is `MAX_SLIDES = 60` in `01_Analysis/00-Scripts/output/deck_qa.py` (a guard against uncapped expansion, not a design budget), and the TXN deck budget question (`docs/deck/txn-deck-review.md` works to a 150-slide budget) is an open decision — see issue #263 / `docs/improvements-2026-08.md` item 1.4.
 
 ---
 
