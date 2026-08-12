@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PFI Verdict — Definition (v0)</title>
+<style>
+  :root{
+    --bg:#f4f6f9;--card:#fff;--ink:#0c1a2e;--muted:#5a6b82;--line:#e3e8f0;
+    --navy:#0d1f38;--teal:#0d9488;--teal-ink:#0b6b62;--teal-soft:#d5f5f0;
+    --gold:#b9821a;--gold-soft:#f8ecd4;--slate:#5b6b80;--slate-soft:#e9edf3;--red:#c0392b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin:0 auto;padding:0 28px 80px}
+  header.h{background:linear-gradient(160deg,var(--navy),#0a1830);color:#eaf1fb;padding:44px 0 34px;margin-bottom:34px}
+  .eyebrow{text-transform:uppercase;letter-spacing:.15em;font-size:11.5px;font-weight:800;color:var(--teal);margin:0 0 12px}
+  h1{font-size:34px;line-height:1.1;margin:0 0 10px;color:#fff;letter-spacing:-.01em}
+  header.h p{margin:0;color:#c6d4e8;font-size:17px;max-width:60ch}
+  .tagv0{display:inline-block;background:var(--gold-soft);color:var(--gold);font-size:11px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:6px;margin-left:8px;vertical-align:middle}
+
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--teal-ink);margin:36px 0 12px;
+    padding-bottom:7px;border-bottom:2px solid var(--teal-soft)}
+
+  .formula{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;text-align:center;font-size:18px}
+  .formula .eq{font-weight:800;letter-spacing:-.01em}
+  .formula .eq .w{color:var(--teal-ink)}
+  .formula .note{font-size:13px;color:var(--muted);margin-top:10px}
+
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+  @media(max-width:720px){.pillars{grid-template-columns:1fr}}
+  .pil{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--teal);border-radius:12px;padding:18px}
+  .pil .wt{float:right;background:var(--teal);color:#fff;font-weight:800;font-size:13px;border-radius:20px;padding:2px 10px}
+  .pil h3{margin:0 0 4px;font-size:17px}
+  .pil .q{font-size:13px;color:var(--muted);font-style:italic;margin:0 0 10px}
+  .pil p{margin:0 0 8px;font-size:14px}
+  .pil .src{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#33475f;background:#f2f5f8;border:1px solid var(--line);border-radius:6px;padding:6px 8px;display:block}
+
+  .band{display:flex;height:52px;border-radius:11px;overflow:hidden;border:1px solid var(--line);margin-top:6px}
+  .band div{display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px}
+  .band small{font-weight:600;font-size:11px;opacity:.92}
+  .band .b1{background:var(--red);flex:40}.band .b2{background:#4f9a92;flex:30}.band .b3{background:var(--teal);flex:30}
+  .thresh{font-size:13px;color:var(--muted);margin-top:8px;text-align:center}
+
+  .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  ul.tight{margin:0;padding-left:20px}
+  ul.tight li{margin:7px 0;font-size:14.5px}
+  ul.tight li b{color:var(--ink)}
+  code{background:#eef2f6;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12.5px}
+
+  .rule{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:14.5px}
+  .rule:first-child{border-top:none}
+  .rule .k{font-weight:800;color:var(--teal-ink);min-width:120px}
+  .rule p{margin:0;color:var(--muted)}
+  .rule p b{color:var(--ink)}
+
+  .out2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.out2{grid-template-columns:1fr}}
+  .amber{background:var(--gold-soft);border:1px solid #e8cf9a;border-radius:12px;padding:16px 18px}
+  .amber h3{margin:0 0 8px;font-size:15px;color:var(--gold)}
+  .amber ul{margin:0;padding-left:18px}.amber li{font-size:14px;margin:5px 0;color:#7a5a12}
+  .foot{color:var(--muted);font-size:12.5px;text-align:center;margin-top:40px}
+</style>
+</head>
+<body>
+<header class="h"><div class="wrap" style="padding-bottom:0">
+  <p class="eyebrow">Methodology · Baby Step 1 · The Keystone</p>
+  <h1>The PFI Verdict <span class="tagv0">v0 — for calibration</span></h1>
+  <p>The single rule that turns each account into a verdict: are <b style="color:#fff">we</b> their primary financial institution, is it <b style="color:#fff">split</b>, or has a <b style="color:#fff">competitor</b> won them — inferred entirely from outbound activity, balances, and engagement.</p>
+</div></header>
+
+<div class="wrap">
+
+  <h2>The score</h2>
+  <div class="formula">
+    <div class="eq">Primacy&nbsp;Score <span style="color:var(--muted)">=</span>
+      <span class="w">0.50 ×</span> Retention <span style="color:var(--muted)">+</span>
+      <span class="w">0.25 ×</span> Balance <span style="color:var(--muted)">+</span>
+      <span class="w">0.25 ×</span> Engagement</div>
+    <div class="note">0–100. Weights <b>re-normalize</b> if a pillar's data is missing for a client — the schema never breaks, confidence drops instead.</div>
+  </div>
+
+  <div class="pillars">
+    <div class="pil"><span class="wt">50%</span><h3>Retention</h3><p class="q">Does the wallet stay with us?</p>
+      <p><code>100 − scaled(competitor_fi_share)</code>, coverage-corrected. Counts <b>only the Competitor-FI role</b> — not ecosystems (rails), not FS products (that's cross-sell), not merchants.</p>
+      <span class="src">TXN merchant_name · type · counterparty role</span></div>
+    <div class="pil"><span class="wt">25%</span><h3>Balance</h3><p class="q">Do they park real money here?</p>
+      <p>Percentile rank of the account's balance within the client's portfolio (relative, not absolute — a "real" balance depends on the book).</p>
+      <span class="src">ODD Avg Bal → Curr Bal</span></div>
+    <div class="pil"><span class="wt">25%</span><h3>Engagement</h3><p class="q">Do they actively use it?</p>
+      <p>Activity level (swipe percentile) blended with trend (3-mo vs 12-mo direction). Dormant = spoke, not hub.</p>
+      <span class="src">ODD swipes · SwipeCat · MonthlySpend 3/12</span></div>
+  </div>
+
+  <h2>The verdict</h2>
+  <div class="band">
+    <div class="b1">Competitor primary<small>score &lt; 40</small></div>
+    <div class="b2">Split<small>40 – 69</small></div>
+    <div class="b3">We're primary<small>≥ 70</small></div>
+  </div>
+  <p class="thresh">Plus a fourth outcome — <b>No verdict</b> — when we don't have enough to judge (see confidence). <b>Thresholds are v0</b>; calibrate on the first real client distribution.</p>
+
+  <h2>Confidence &amp; when we abstain</h2>
+  <div class="box">
+    <ul class="tight">
+      <li><b>Coverage gate.</b> <code>coverage_pct = classified outbound ÷ total outbound</code>. Below ~30% → <b>No verdict</b>. We refuse to guess primacy on a book we can barely see.</li>
+      <li><b>Missing pillar.</b> No balance or no engagement data → re-normalize weights, drop <code>pfi_confidence</code> to Medium/Low.</li>
+      <li><b>Output.</b> Every account carries <code>pfi_confidence</code> = High / Medium / Low <b>with a reason</b>, never a bare score.</li>
+    </ul>
+  </div>
+
+  <h2>Rules &amp; special cases</h2>
+  <div class="box">
+    <div class="rule"><div class="k">Ecosystems</div><p>Venmo / Zelle / Cash-App-P2P are <b>excluded from primacy entirely</b> — reported as a separate disintermediation signal. A rail is not a bank.</p></div>
+    <div class="rule"><div class="k">Neobanks</div><p>Cash App / PayPal balance / Chime count toward Retention <b>only when outbound crosses the amount-gate</b> (big / recurring = a parked balance); small flows stay conduit.</p></div>
+    <div class="rule"><div class="k">Product guard</div><p>Non-transacting products (CD / savings-only per <code>Prod Desc</code>) are <b>not primacy candidates</b> — excluded, or the Engagement pillar is dropped. Low card use there isn't disengagement, it's the design.</p></div>
+    <div class="rule"><div class="k">Personal vs business</div><p>Scored <b>separately</b> — business primacy behaves differently and shares no thresholds with consumer.</p></div>
+    <div class="rule"><div class="k">Cash</div><p>ATM withdrawals count in the <b>denominator</b> (total outflow) but are unattributed — they lower coverage, never assign a competitor.</p></div>
+  </div>
+
+  <h2>What comes out</h2>
+  <div class="out2">
+    <div class="box"><b>Per account</b>
+      <ul class="tight" style="margin-top:8px">
+        <li><code>primacy_score</code> · <code>pfi_status</code></li>
+        <li><code>primary_competitor</code> (name + tier)</li>
+        <li><code>pfi_confidence</code> + reason · <code>coverage_pct</code></li>
+        <li>the three <b>pillar sub-scores</b> = the reason codes</li>
+      </ul>
+    </div>
+    <div class="box"><b>Portfolio</b>
+      <ul class="tight" style="margin-top:8px">
+        <li>% Primary / Split / Competitor / No-verdict</li>
+        <li>The headline: <b>"X% of members bank primarily with you."</b></li>
+        <li>Sliced by personal/business, product, tenure, age, branch</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="amber" style="margin-top:22px">
+    <h3>⚠ Open for calibration — decide with real data, not now</h3>
+    <ul>
+      <li>The three <b>weights</b> (0.50 / 0.25 / 0.25) and the <b>thresholds</b> (40 / 70)</li>
+      <li>The <b>coverage floor</b> (~30%) and the <b>neobank amount-gate</b></li>
+      <li>Tune on the first real client's distribution → later validate against your <code>Mail</code>/<code>Resp</code> campaign-response history</li>
+    </ul>
+  </div>
+
+  <p class="foot">PFI Verdict Definition · v0 · the keystone the number and the pitch both hang on</p>
+</div>
+</body>
+</html>

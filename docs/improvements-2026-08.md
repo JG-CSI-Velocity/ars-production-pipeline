@@ -79,6 +79,13 @@ declared as the `[test]` extra. Follow-through: CI job should `pip install
 review (it gates 1.4) or delete the file — a half-filled review document reads
 as abandoned quality control.
 
+### 2.6 Merge the second backlog queue
+`docs/deck/txn-followups.md` is a finished ~30-item action list (chart fixes,
+`25_at_risk_accounts` real-ID CSV, `17_total_spend` misnaming, G-series engine
+items) that predates this document and was never folded in. It is the other
+work queue for the TXN deck; triage its rows into buckets 1-3 here so there is
+exactly one backlog.
+
 ---
 
 ## 3. New analyses (highest value)

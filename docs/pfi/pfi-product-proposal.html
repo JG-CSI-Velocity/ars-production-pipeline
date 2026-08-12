@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Analysis — Internal Proposal</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#0c1a2e; --muted:#5a6b82; --line:#e3e8f0;
+    --navy:#0d1f38; --teal:#0d9488; --teal-ink:#0b6b62; --teal-soft:#d5f5f0;
+    --gold:#b9821a; --gold-soft:#f8ecd4; --slate:#5b6b80; --slate-soft:#e9edf3; --red:#c0392b;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 30px}
+  .narrow{max-width:880px}
+
+  nav.top{position:sticky;top:0;z-index:50;background:rgba(13,31,56,.96);backdrop-filter:blur(6px);border-bottom:1px solid #1c3355}
+  nav.top .wrap{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:12px 30px}
+  nav.top .brand{color:#fff;font-weight:800;margin-right:auto;font-size:15px}
+  nav.top .brand span{color:var(--teal)}
+  nav.top a{color:#b7c6dc;text-decoration:none;font-size:13px;font-weight:600;padding:6px 10px;border-radius:7px}
+  nav.top a:hover{background:#1c3355;color:#fff}
+
+  .hero{background:linear-gradient(160deg,var(--navy) 0%,#0a1830 100%);color:#eaf1fb;padding:74px 0 60px;border-bottom:3px solid var(--teal)}
+  .eyebrow{text-transform:uppercase;letter-spacing:.16em;font-size:12px;font-weight:800;color:var(--teal);margin:0 0 16px}
+  .hero h1{font-size:50px;line-height:1.05;letter-spacing:-.02em;margin:0 0 18px;color:#fff}
+  .hero .tag{font-size:20px;line-height:1.5;color:#c6d4e8;max-width:52ch;margin:0}
+  .hero .oneline{margin-top:28px;padding:16px 22px;border-left:3px solid var(--gold);background:#0c1c34;border-radius:0 10px 10px 0;font-size:15.5px;color:#e7eefb;max-width:66ch}
+  .hero .oneline b{color:#fff}
+
+  section{padding:58px 0}
+  section.alt{background:#eef2f7}
+  section.dark{background:var(--navy);color:#e7eefb}
+  section.dark h2,section.dark h3{color:#fff}
+  h2{font-size:32px;line-height:1.15;letter-spacing:-.015em;margin:0 0 10px}
+  .kicker{text-transform:uppercase;letter-spacing:.12em;font-size:12px;font-weight:800;color:var(--teal-ink);margin:0 0 10px}
+  section.dark .kicker{color:var(--teal)}
+  .sub{color:var(--muted);font-size:18px;margin:0 0 30px;max-width:68ch}
+  section.dark .sub{color:#b7c6dc}
+
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:820px){.g2,.g3{grid-template-columns:1fr}}
+
+  /* DATA FLOW MAP */
+  .flow{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px 26px}
+  .flow .stage-lbl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--slate);text-align:center;margin:0 0 12px}
+  .inputs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.inputs{grid-template-columns:1fr}}
+  .src{border:1.5px solid var(--slate);background:var(--slate-soft);border-radius:12px;padding:16px 18px}
+  .src h4{margin:0 0 3px;font-size:16px}
+  .src .meta{font-size:12px;color:var(--slate);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 10px}
+  .src .fields{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#33475f;line-height:1.7}
+  .src .fields span{background:#fff;border:1px solid #d5dbe4;border-radius:5px;padding:1px 6px;display:inline-block;margin:2px 3px 2px 0}
+  .down{display:flex;justify-content:center;color:var(--teal);font-size:24px;margin:8px 0}
+  .band{border-radius:12px;padding:15px 18px;text-align:center;border:1.5px solid}
+  .band .bt{font-weight:800;font-size:16px}
+  .band .bd{font-size:13.5px;color:var(--muted);margin-top:4px}
+  .band.join{border-color:#c3ccd8;background:#fafbfc}
+  .band.tag{border-color:var(--teal);background:var(--teal-soft)}
+  .band.tag .bt{color:var(--teal-ink)}
+  .band.tag .bd{color:var(--teal-ink)}
+  .band.analyze{border-color:var(--navy);background:#eef2f8}
+  .outs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.outs{grid-template-columns:1fr}}
+  .out{border-radius:12px;padding:15px 18px;text-align:center;border:1.5px solid var(--gold);background:var(--gold-soft)}
+  .out .bt{font-weight:800;font-size:16px;color:var(--gold)}
+  .out .bd{font-size:13px;color:#8a6412;margin-top:3px}
+
+  /* ANALYSIS FLOW steps */
+  .aflow{margin-top:4px}
+  .astep{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:14px;padding:18px 20px}
+  .astep .num{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--teal-ink);margin-bottom:13px}
+  .astep .num b{background:var(--teal);color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+  .astep .io{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .astep .col{flex:1;min-width:230px}
+  .astep .col .h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);margin-bottom:8px}
+  .astep .chip{display:inline-block;background:var(--slate-soft);border:1px solid #dbe1ea;border-radius:6px;padding:3px 9px;font-size:12.5px;margin:0 4px 5px 0;color:#33475f}
+  .astep .col.out .chip{background:var(--teal-soft);border-color:#a9e5dd;color:var(--teal-ink);font-weight:600}
+  .astep .col.out.gold .chip{background:var(--gold-soft);border-color:#e8cf9a;color:var(--gold)}
+  .astep .ar{font-size:22px;color:var(--teal);font-weight:800}
+  .astep .desc{margin:13px 0 0;font-size:14px;color:var(--muted)}
+  .astepdown{display:flex;justify-content:center;color:var(--teal);font-size:22px;margin:9px 0}
+  @media(max-width:640px){.astep .ar{display:none}}
+
+  /* analysis modules */
+  .mod{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column}
+  .mod .top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px}
+  .mod .name{font-size:18px;font-weight:800}
+  .mod .tier{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);background:var(--slate-soft);padding:3px 8px;border-radius:6px;white-space:nowrap}
+  .mod .lens{color:var(--muted);font-size:14px;margin:6px 0 14px;line-height:1.5}
+  .mod .stat{margin-top:auto;background:var(--teal-soft);border-radius:10px;padding:12px 15px}
+  .mod .stat .big{font-size:24px;font-weight:800;color:var(--teal-ink);letter-spacing:-.02em;line-height:1.1}
+  .mod .stat .cap{font-size:12.5px;color:var(--teal-ink);margin-top:4px}
+  .mod.headline{border:2px solid var(--teal)}
+  .mod.headline .tier{background:var(--teal);color:#fff}
+  .mod .stat.gold{background:var(--gold-soft)}
+  .mod .stat.gold .big,.mod .stat.gold .cap{color:var(--gold)}
+
+  /* roles */
+  .role{border-radius:13px;padding:18px;border:1px solid var(--line);background:#fff}
+  .role .tag{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;display:inline-block;padding:3px 9px;border-radius:6px;margin-bottom:9px}
+  .role h4{margin:0 0 5px;font-size:16px}
+  .role p{margin:0;font-size:13.5px;color:var(--muted)}
+  .role.comp{border-top:4px solid var(--red)} .role.comp .tag{background:#fbe9e7;color:var(--red)}
+  .role.fs{border-top:4px solid var(--gold)} .role.fs .tag{background:var(--gold-soft);color:var(--gold)}
+  .role.eco{border-top:4px solid var(--teal)} .role.eco .tag{background:var(--teal-soft);color:var(--teal-ink)}
+  .role.merch{border-top:4px solid var(--slate)} .role.merch .tag{background:var(--slate-soft);color:var(--slate)}
+
+  /* PFI bar */
+  .pfibar{display:flex;height:56px;border-radius:12px;overflow:hidden;border:1px solid #1c3355;margin:6px 0 10px}
+  .pfibar .seg{display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:800}
+  .pfibar .seg small{font-weight:600;opacity:.9;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .pfibar .us{background:var(--teal);flex:31}.pfibar .split{background:#4f9a92;flex:38}.pfibar .comp{background:var(--red);flex:31}
+
+  /* can / cant */
+  .cc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  .cc h3{margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:8px}
+  .cc ul{list-style:none;margin:0;padding:0}
+  .cc li{padding:7px 0 7px 24px;position:relative;font-size:15px;border-top:1px solid var(--line)}
+  .cc li:first-child{border-top:none}
+  .cc.can li::before{content:"✓";position:absolute;left:0;color:var(--teal);font-weight:800}
+  .cc.cant li::before{content:"✕";position:absolute;left:0;color:var(--red);font-weight:800}
+
+  /* table */
+  .tbl{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .tbl th{background:#0f2643;color:#dbe6f5;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;padding:11px 16px}
+  .tbl td{padding:12px 16px;border-top:1px solid var(--line);font-size:15px}
+  .tbl tr td:first-child{font-weight:700}
+  .tbl .cnt{font-variant-numeric:tabular-nums;color:var(--muted)}
+  .dotc{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:middle}
+
+  /* value */
+  .valcol{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px}
+  .valcol h3{margin:0 0 2px;font-size:20px}
+  .valcol .who{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--teal-ink);margin:0 0 14px}
+  ul.check{list-style:none;padding:0;margin:0}
+  ul.check li{position:relative;padding:9px 0 9px 28px;border-top:1px solid var(--line);font-size:15px}
+  ul.check li:first-child{border-top:none}
+  ul.check li::before{content:"→";position:absolute;left:2px;top:9px;color:var(--teal);font-weight:800}
+  ul.check li b{color:var(--ink)}
+
+  .illus{font-size:12px;color:var(--muted);font-style:italic}
+  .foot{color:var(--muted);font-size:13px;text-align:center;padding:32px 0 60px}
+  .pill{display:inline-block;background:var(--slate-soft);color:var(--slate);font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;margin:0 4px 4px 0}
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="wrap">
+  <div class="brand">The <span>Analysis</span> · Internal Proposal</div>
+  <a href="#flow">Data Flow</a>
+  <a href="#analysis-flow">Analysis Flow</a>
+  <a href="#suite">The Analysis</a>
+  <a href="#pfi">PFI</a>
+  <a href="#roles">Classification</a>
+  <a href="#limits">Scope</a>
+  <a href="#value">Why We Sell It</a>
+</div></nav>
+
+<div class="hero"><div class="wrap narrow">
+  <p class="eyebrow">Internal Product Proposal · For Team Review</p>
+  <h1>Our analysis <em>is</em> the product.</h1>
+  <p class="tag">This walks the team through it end to end: how a client's data flows in, what we analyze, how we classify it, what we can and can't see, and the intelligence that comes out.</p>
+  <div class="oneline"><b>What we sell:</b> the analysis — <b>internally</b>, to sharpen every campaign and client story; <b>externally</b>, as the standing monthly intelligence a bank or credit union pays for.</div>
+</div></div>
+
+<!-- DATA FLOW -->
+<section id="flow"><div class="wrap narrow">
+  <p class="kicker">How The Data Flows</p>
+  <h2>From two files a client already sends → to member-level intelligence.</h2>
+  <p class="sub">Everything starts with two feeds we already receive each month. We join them, classify who the money went to, run the analyses, and produce the outputs.</p>
+
+  <div class="flow">
+    <p class="stage-lbl">— What comes in each month —</p>
+    <div class="inputs">
+      <div class="src">
+        <h4>TXN — transactions</h4>
+        <p class="meta">Outbound · ~12 months · per client</p>
+        <div class="fields">
+          <span>transaction_date</span><span>account_num</span><span>type: PIN/SIG/ACH/CHK</span><span>amount</span><span>mcc_code</span><span>merchant_name</span><span>terminal_location</span>
+        </div>
+      </div>
+      <div class="src">
+        <h4>ODD — account snapshot</h4>
+        <p class="meta">Account-level · monthly · per client</p>
+        <div class="fields">
+          <span>Account</span><span>Business?</span><span>Prod Desc</span><span>Stat</span><span>DOB → age</span><span>Date Opened → tenure</span><span>Avg/Curr Bal</span><span>OD Limit / Reg E</span><span>spend / swipes</span><span>Mail / Resp</span>
+        </div>
+      </div>
+    </div>
+    <div class="down">↓</div>
+    <div class="band join"><div class="bt">Join on account number</div><div class="bd">There is no member ID — the account is the unit of analysis</div></div>
+    <div class="down">↓</div>
+    <div class="band tag"><div class="bt">Normalize &amp; classify the counterparty</div><div class="bd">clean the merchant name → tag its role: competitor (by tier) · financial-services category · payment ecosystem</div></div>
+    <div class="down">↓</div>
+    <div class="band analyze"><div class="bt">Roll up to the account — run the six analyses</div><div class="bd">wallet share · competition · PFI · FS leakage · disintermediation · engagement</div></div>
+    <div class="down">↓</div>
+    <p class="stage-lbl">— What comes out —</p>
+    <div class="outs">
+      <div class="out"><div class="bt">The monthly deck</div><div class="bd">the aggregate story — "what happened"</div></div>
+      <div class="out"><div class="bt">Member-level intelligence</div><div class="bd">named, ranked lists — "who to target"</div></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ANALYSIS FLOW -->
+<section id="analysis-flow" class="alt"><div class="wrap narrow">
+  <p class="kicker">The Analysis Flow</p>
+  <h2>How a transaction becomes a verdict — in four moves.</h2>
+  <p class="sub">This opens up the "run the analyses" box from the data flow. Each move takes the prior output and adds a layer, until a member resolves to a verdict and a play.</p>
+  <div class="aflow">
+
+    <div class="astep">
+      <div class="num"><b>1</b> Measure</div>
+      <div class="io">
+        <div class="col"><div class="h">From</div><span class="chip">tagged transactions</span><span class="chip">account attributes</span></div>
+        <div class="ar">→</div>
+        <div class="col out"><div class="h">Per-account measures</div><span class="chip">competitor share %</span><span class="chip">coverage %</span><span class="chip">FS categories</span><span class="chip">leakage score</span><span class="chip">ecosystem share</span><span class="chip">spend/swipe trend</span><span class="chip">balance</span><span class="chip">tenure</span></div>
+      </div>
+      <p class="desc">Reduce a year of a member's transactions to a set of comparable numbers.</p>
+    </div>
+    <div class="astepdown">↓</div>
+
+    <div class="astep">
+      <div class="num"><b>2</b> Interpret</div>
+      <div class="io">
+        <div class="col"><div class="h">From</div><span class="chip">per-account measures</span></div>
+        <div class="ar">→</div>
+        <div class="col out"><div class="h">Six findings</div><span class="chip">Competition</span><span class="chip">Wallet Share</span><span class="chip">FS Leakage</span><span class="chip">Disintermediation</span><span class="chip">Engagement</span></div>
+      </div>
+      <p class="desc">Each analysis reads the measures and produces its own finding.</p>
+    </div>
+    <div class="astepdown">↓</div>
+
+    <div class="astep">
+      <div class="num"><b>3</b> Synthesize — the PFI verdict</div>
+      <div class="io">
+        <div class="col"><div class="h">The primacy signals converge</div><span class="chip">wallet share</span><span class="chip">balance held</span><span class="chip">engagement</span></div>
+        <div class="ar">→</div>
+        <div class="col out"><div class="h">One verdict per member</div><span class="chip">Primacy score</span><span class="chip">Primary / Split / Competitor</span></div>
+      </div>
+      <p class="desc">The primacy-relevant signals combine into a single classification — the headline finding.</p>
+    </div>
+    <div class="astepdown">↓</div>
+
+    <div class="astep">
+      <div class="num"><b>4</b> Resolve — to action</div>
+      <div class="io">
+        <div class="col"><div class="h">Verdict + opportunity findings</div><span class="chip">PFI verdict</span><span class="chip">FS leakage</span><span class="chip">attrition</span><span class="chip">disintermediation</span></div>
+        <div class="ar">→</div>
+        <div class="col out gold"><div class="h">Ranked target lists</div><span class="chip">win-back</span><span class="chip">win the wallet</span><span class="chip">cross-sell</span><span class="chip">re-engage</span><span class="chip">deepen</span></div>
+      </div>
+      <p class="desc">Findings resolve into named, ranked member lists with the play for each.</p>
+    </div>
+
+  </div>
+</div></section>
+
+<!-- THE ANALYSIS -->
+<section id="suite"><div class="wrap">
+  <p class="kicker">What We Analyze</p>
+  <h2>Six lenses on a client's book.</h2>
+  <p class="sub">Each is a distinct analysis with a concrete finding. Together they form the picture the client's core system can't produce. <span class="illus">(figures illustrative — to show output shape)</span></p>
+  <div class="grid g3">
+    <div class="mod"><div class="top"><span class="name">Competition</span><span class="tier">Who</span></div><p class="lens">Members' activity with rival institutions across national, regional, <b>local</b>, credit-union and digital tiers — named.</p><div class="stat"><div class="big">Chase · 18%</div><div class="cap">top competitor · $2.4M member spend/yr</div></div></div>
+    <div class="mod"><div class="top"><span class="name">Wallet Share</span><span class="tier">How much</span></div><p class="lens">Of each member's outbound money, what share stays vs. leaks. Segments Primary / Balanced / Competitor-Heavy.</p><div class="stat"><div class="big">42%</div><div class="cap">are Competitor-Heavy — most of the wallet leaves</div></div></div>
+    <div class="mod headline"><div class="top"><span class="name">PFI Verdict</span><span class="tier">Headline</span></div><p class="lens">The synthesis: primacy from wallet share + balances + engagement → a Primary / Split / Competitor verdict per member.</p><div class="stat"><div class="big">31%</div><div class="cap">bank <em>primarily</em> with us — the rest is contested</div></div></div>
+    <div class="mod"><div class="top"><span class="name">FS Leakage</span><span class="tier">What</span></div><p class="lens">What members finance and invest elsewhere — 15 product categories we already offer.</p><div class="stat gold"><div class="big">12%</div><div class="cap">financing an auto loan through a competitor</div></div></div>
+    <div class="mod"><div class="top"><span class="name">Disintermediation</span><span class="tier">Rails</span></div><p class="lens">Spend routed through payment apps — Venmo, Cash App, Zelle, BNPL — tracked <b>separately</b> from competitors.</p><div class="stat"><div class="big">27%</div><div class="cap">move spend through Cash App / Venmo</div></div></div>
+    <div class="mod"><div class="top"><span class="name">Engagement &amp; Attrition</span><span class="tier">Leaving</span></div><p class="lens">Spend &amp; swipe activity, trend, and dormancy — early warning on members going quiet.</p><div class="stat"><div class="big">9%</div><div class="cap">show 3 months of declining activity</div></div></div>
+  </div>
+  <p style="text-align:center;margin-top:24px;color:var(--muted);font-size:15px">Every lens slices by <b>personal vs. business</b>, product, tenure, age, and branch.</p>
+</div></section>
+
+<!-- PFI -->
+<section id="pfi" class="dark"><div class="wrap narrow">
+  <p class="kicker">The Headline Finding</p>
+  <h2>The PFI verdict — the number a CEO reacts to.</h2>
+  <p class="sub">Everything rolls up into one classification per member. <span class="illus" style="color:#8fa6c4">(illustrative distribution)</span></p>
+  <div class="pfibar"><div class="seg us">31%<small>We're primary</small></div><div class="seg split">38%<small>Split</small></div><div class="seg comp">31%<small>Competitor primary</small></div></div>
+  <p style="color:#c6d4e8;font-size:16px;margin:14px 0 0"><b style="color:#fff">"Only 31% of your members bank primarily with you"</b> reframes a board meeting — and every member is named, with the reasons behind the verdict.</p>
+</div></section>
+
+<!-- CLASSIFICATION -->
+<section id="roles"><div class="wrap">
+  <p class="kicker">How We Classify — The Detail</p>
+  <h2>Not all "competitor" spend means the same thing.</h2>
+  <p class="sub">This is the distinction that keeps the numbers honest. Every counterparty gets a role, and each role drives a different play. Mixing them is what inflates the story.</p>
+  <div class="grid g3">
+    <div class="role comp"><span class="tag">Competitor FI</span><h4>Chase · BofA · local · CU</h4><p>A real banking relationship. Drives PFI displacement, wallet share, win-back. Strongest on ACH / check.</p></div>
+    <div class="role fs"><span class="tag">FS Product</span><h4>Auto · mortgage · invest</h4><p>A product held elsewhere = cross-sell / leakage. Reported in aggregate; credit stays report-only.</p></div>
+    <div class="role eco"><span class="tag">Ecosystem</span><h4>Venmo · Cash App · Zelle</h4><p>A <em>rail</em>, not a destination. Its own disintermediation signal — never counted as a competitor.</p></div>
+    <div class="role merch"><span class="tag">Merchant</span><h4>Everyday spend</h4><p>Context &amp; life-stage color (pet, moving, travel) — supporting signal, never a target alone.</p></div>
+  </div>
+</div></section>
+
+<!-- SCOPE / LIMITS -->
+<section id="limits" class="alt"><div class="wrap">
+  <p class="kicker">What We Can &amp; Can't See — Be Honest Up Front</p>
+  <h2>The scope the team needs to know.</h2>
+  <p class="sub">These are the guardrails that keep us credible with a bank's compliance team — and stop us overselling internally.</p>
+  <div class="grid g2">
+    <div class="cc can">
+      <h3>We can see</h3>
+      <ul>
+        <li>Outbound spend &amp; transfers — card, ACH, check</li>
+        <li>The counterparty on each (merchant / institution)</li>
+        <li>Balance <b>held</b> with us (Avg / Curr Bal)</li>
+        <li>Tenure, age, product, personal vs. business</li>
+        <li>Card engagement, trends, and campaign response history</li>
+      </ul>
+    </div>
+    <div class="cc cant">
+      <h3>We can't see</h3>
+      <ul>
+        <li>Inbound deposits / paychecks — <b>primacy is inferred, not observed</b></li>
+        <li>A member ID linking one person's accounts — <b>grain is the account</b></li>
+        <li>Where cash withdrawals ultimately go</li>
+        <li>The true destination behind an ecosystem transfer</li>
+        <li>Fields vary by client — a signal fires only when its inputs are present</li>
+      </ul>
+    </div>
+  </div>
+  <p style="text-align:center;margin-top:22px;color:var(--muted);font-size:15px"><b>Two deliberate choices:</b> wallet share is coverage-corrected (we abstain when coverage is thin), and lending is report-only (no individual credit targeting → clears fair-lending).</p>
+</div></section>
+
+<!-- PAYOFF -->
+<section id="targets"><div class="wrap narrow">
+  <p class="kicker">The Payoff</p>
+  <h2>The analysis names names.</h2>
+  <p class="sub">It doesn't stop at a chart — every finding resolves to a specific, ranked list and the play that fits. <span class="illus">(illustrative)</span></p>
+  <table class="tbl">
+    <thead><tr><th>Segment the analysis surfaces</th><th>The play</th><th>Members</th></tr></thead>
+    <tbody>
+      <tr><td><span class="dotc" style="background:var(--red)"></span>Competitor is primary</td><td>Win-back / defend</td><td class="cnt">4,120</td></tr>
+      <tr><td><span class="dotc" style="background:#4f9a92"></span>Split wallet</td><td>Win the rest of the wallet</td><td class="cnt">5,050</td></tr>
+      <tr><td><span class="dotc" style="background:var(--gold)"></span>Financing elsewhere</td><td>Cross-sell what we offer</td><td class="cnt">1,590</td></tr>
+      <tr><td><span class="dotc" style="background:var(--slate)"></span>Going quiet</td><td>Re-engage before they leave</td><td class="cnt">1,200</td></tr>
+      <tr><td><span class="dotc" style="background:var(--teal)"></span>Primary &amp; active</td><td>Deepen — safe to grow</td><td class="cnt">4,150</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<!-- VALUE -->
+<section id="value" class="dark"><div class="wrap">
+  <p class="kicker">Why We Sell It — Both Directions</p>
+  <h2>The same analysis, two markets.</h2>
+  <p class="sub">Differentiated intelligence internally, a standing product externally — off data that's already in the door.</p>
+  <div class="grid g2">
+    <div class="valcol" style="background:#0c1c34;border-color:#1c3355">
+      <h3 style="color:#fff">Internally</h3><p class="who" style="color:var(--teal)">Within our org</p>
+      <ul class="check">
+        <li style="color:#dbe6f5;border-color:#1c3355"><b style="color:#fff">Sharpens what we already deliver</b> — the deck stops describing, starts targeting.</li>
+        <li style="color:#dbe6f5;border-color:#1c3355"><b style="color:#fff">Differentiated IP</b> — competitor-tier + PFI intelligence nothing else on our shelf has.</li>
+        <li style="color:#dbe6f5;border-color:#1c3355"><b style="color:#fff">One analysis, more value</b> — built on data &amp; detection we already run.</li>
+        <li style="color:#dbe6f5;border-color:#1c3355"><b style="color:#fff">A reason to expand every account.</b></li>
+      </ul>
+    </div>
+    <div class="valcol" style="background:#0c1c34;border-color:#1c3355">
+      <h3 style="color:#fff">Externally</h3><p class="who" style="color:var(--teal)">To banks &amp; credit unions</p>
+      <ul class="check">
+        <li style="color:#dbe6f5;border-color:#1c3355"><b style="color:#fff">Intelligence they can't build</b> — their core sees inside; we see where money goes outside.</li>
+        <li style="color:#dbe6f5;border-color:#1c3355"><b style="color:#fff">The PFI list, out of the box</b> — who's primary, who's leaving, named.</li>
+        <li style="color:#dbe6f5;border-color:#1c3355"><b style="color:#fff">Explainable</b> — every verdict carries its reasons; survives compliance review.</li>
+        <li style="color:#dbe6f5;border-color:#1c3355"><b style="color:#fff">Standing monthly value</b> — on data they already send. No new integration.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot" style="color:#7f92ad">
+    The Analysis · Internal Product Proposal · Draft for team review<br>
+    <span class="pill" style="background:#12294a;color:#9fb2cd">Competitor intelligence</span><span class="pill" style="background:#12294a;color:#9fb2cd">Wallet share</span><span class="pill" style="background:#12294a;color:#9fb2cd">PFI verdict</span><span class="pill" style="background:#12294a;color:#9fb2cd">FS leakage</span><span class="pill" style="background:#12294a;color:#9fb2cd">Attrition</span>
+  </div>
+</div></section>
+
+</body>
+</html>
