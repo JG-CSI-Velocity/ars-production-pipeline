@@ -21,11 +21,10 @@ from pathlib import Path
 _SCRIPTS = Path(__file__).resolve().parents[1]
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
-if "ars_analysis" not in sys.modules:
-    _pkg = types.ModuleType("ars_analysis")
-    _pkg.__path__ = [str(_SCRIPTS)]
-    _pkg.__package__ = "ars_analysis"
-    sys.modules["ars_analysis"] = _pkg
+
+import ars_bootstrap  # noqa: E402
+
+ars_bootstrap.ensure_ars_analysis()
 
 _SECTIONS_JSON = Path(__file__).resolve().parent / "sections.json"
 

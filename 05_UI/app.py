@@ -263,11 +263,8 @@ def _ensure_scripts_importable() -> None:
     _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
     if _scripts not in sys.path:
         sys.path.insert(0, _scripts)
-    if "ars_analysis" not in sys.modules:
-        import types as _types
-        _pkg = _types.ModuleType("ars_analysis")
-        _pkg.__path__ = [_scripts]
-        sys.modules["ars_analysis"] = _pkg
+    import ars_bootstrap
+    ars_bootstrap.ensure_ars_analysis()
 
 
 def get_code_version() -> dict:
@@ -1416,15 +1413,7 @@ async def get_manifest():
 
     Wave 4 follow-up: backs the in-UI Deck Shape editor on the Results tab.
     """
-    import sys as _sys
-    _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
-    if _scripts not in _sys.path:
-        _sys.path.insert(0, _scripts)
-    if "ars_analysis" not in _sys.modules:
-        import types as _types
-        _pkg = _types.ModuleType("ars_analysis")
-        _pkg.__path__ = [_scripts]
-        _sys.modules["ars_analysis"] = _pkg
+    _ensure_scripts_importable()
 
     from ars_analysis.output.manifest import _resolve_manifest_path, read_manifest_rows
 
@@ -1463,15 +1452,7 @@ async def post_rebuild_deck(csm: str, month: str, client_id: str):
     Y/A/N in the UI, saves to manifest, then clicks Rebuild deck to test
     the new shape without paying for a full re-analysis.
     """
-    import sys as _sys
-    _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
-    if _scripts not in _sys.path:
-        _sys.path.insert(0, _scripts)
-    if "ars_analysis" not in _sys.modules:
-        import types as _types
-        _pkg = _types.ModuleType("ars_analysis")
-        _pkg.__path__ = [_scripts]
-        _sys.modules["ars_analysis"] = _pkg
+    _ensure_scripts_importable()
 
     from ars_analysis.pipeline.context import ClientInfo, OutputPaths, PipelineContext
     from ars_analysis.pipeline.steps.generate import rebuild_deck_from_report
@@ -1517,15 +1498,7 @@ async def post_manifest(updates: dict):
     Request body: {"updates": {"DCTR-1": "Y", "A7.6a": "A", "A12.Foo": "N"}}
     Returns: {"updated": <count>, "path": "..."}
     """
-    import sys as _sys
-    _scripts = str(Path(__file__).resolve().parent.parent / "01_Analysis" / "00-Scripts")
-    if _scripts not in _sys.path:
-        _sys.path.insert(0, _scripts)
-    if "ars_analysis" not in _sys.modules:
-        import types as _types
-        _pkg = _types.ModuleType("ars_analysis")
-        _pkg.__path__ = [_scripts]
-        _sys.modules["ars_analysis"] = _pkg
+    _ensure_scripts_importable()
 
     from ars_analysis.output.manifest import _resolve_manifest_path, write_manifest_decisions
 

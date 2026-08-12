@@ -32,17 +32,16 @@ import time
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Path setup -- same as run.py
+# Path setup. NOTE: the previous hand-copied shim here pointed __path__ at
+# output/00-Scripts, a folder that does not exist -- and unconditionally
+# clobbered any working alias. The canonical bootstrap fixes both.
 # ---------------------------------------------------------------------------
-_scripts_dir = Path(__file__).parent / "00-Scripts"
+_scripts_dir = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_scripts_dir))
 
-import types as _types
+import ars_bootstrap
 
-_ars_pkg = _types.ModuleType("ars_analysis")
-_ars_pkg.__path__ = [str(_scripts_dir)]
-_ars_pkg.__package__ = "ars_analysis"
-sys.modules["ars_analysis"] = _ars_pkg
+ars_bootstrap.ensure_ars_analysis()
 
 # ---------------------------------------------------------------------------
 # Section → module ID mapping (mirrors runner.py _UI_KEY_TO_PREFIXES)

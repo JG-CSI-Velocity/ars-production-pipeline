@@ -9,7 +9,6 @@ behavior is what's under test.
 from __future__ import annotations
 
 import sys
-import types
 from pathlib import Path
 from unittest.mock import patch
 
@@ -17,10 +16,9 @@ import pytest
 
 _SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_SCRIPTS_DIR))
-if "ars_analysis" not in sys.modules:
-    _pkg = types.ModuleType("ars_analysis")
-    _pkg.__path__ = [str(_SCRIPTS_DIR)]
-    sys.modules["ars_analysis"] = _pkg
+import ars_bootstrap  # noqa: E402
+
+ars_bootstrap.ensure_ars_analysis()
 
 from ars_analysis.charts.cache import cached_chart, fingerprint_df
 

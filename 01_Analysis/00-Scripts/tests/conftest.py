@@ -19,9 +19,7 @@ _TESTS_DIR = Path(__file__).resolve().parent
 if str(_TESTS_DIR) not in sys.path:
     sys.path.insert(0, str(_TESTS_DIR))
 
-# Same alias trick run.py uses to expose 00-Scripts/<pkg>/ as ars_analysis.<pkg>
-if "ars_analysis" not in sys.modules:
-    _ars_pkg = types.ModuleType("ars_analysis")
-    _ars_pkg.__path__ = [str(_SCRIPTS_DIR)]
-    _ars_pkg.__package__ = "ars_analysis"
-    sys.modules["ars_analysis"] = _ars_pkg
+# Same alias run.py uses, via the one canonical bootstrap.
+import ars_bootstrap  # noqa: E402
+
+ars_bootstrap.ensure_ars_analysis()

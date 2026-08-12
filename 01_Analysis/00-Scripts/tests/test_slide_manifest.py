@@ -12,15 +12,12 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-# Make ars_analysis importable from 00-Scripts (mirrors run.py wiring)
+# Make ars_analysis importable from 00-Scripts (one canonical bootstrap)
 _SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_SCRIPTS_DIR))
-import types
+import ars_bootstrap  # noqa: E402
 
-if "ars_analysis" not in sys.modules:
-    _pkg = types.ModuleType("ars_analysis")
-    _pkg.__path__ = [str(_SCRIPTS_DIR)]
-    sys.modules["ars_analysis"] = _pkg
+ars_bootstrap.ensure_ars_analysis()
 
 from ars_analysis.output.manifest import (  # noqa: E402
     ManifestDecisions,

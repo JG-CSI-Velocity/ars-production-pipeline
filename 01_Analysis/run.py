@@ -67,19 +67,14 @@ class TeeLogger:
             pass
 
 
-# Add 00-Scripts to path so imports work
+# Add 00-Scripts to path, then wire the ars_analysis alias through the one
+# canonical bootstrap (the code imports "from ars_analysis.X import Y").
 _scripts_dir = Path(__file__).parent / "00-Scripts"
 sys.path.insert(0, str(_scripts_dir))
 
-# Rewire imports: the code uses "from ars_analysis.X import Y"
-# but we have the modules in 00-Scripts/. Create the package alias.
-import importlib
-import types
+import ars_bootstrap
 
-_ars_pkg = types.ModuleType("ars_analysis")
-_ars_pkg.__path__ = [str(_scripts_dir)]
-_ars_pkg.__package__ = "ars_analysis"
-sys.modules["ars_analysis"] = _ars_pkg
+ars_bootstrap.ensure_ars_analysis()
 
 
 def _versioned_path(dest: Path) -> Path:

@@ -6,17 +6,15 @@ Mirrors the fixture pattern in test_slide_manifest_editor.py.
 from __future__ import annotations
 
 import sys
-import types
 from pathlib import Path
 
 import openpyxl
 
 _SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_SCRIPTS_DIR))
-if "ars_analysis" not in sys.modules:
-    _pkg = types.ModuleType("ars_analysis")
-    _pkg.__path__ = [str(_SCRIPTS_DIR)]
-    sys.modules["ars_analysis"] = _pkg
+import ars_bootstrap  # noqa: E402
+
+ars_bootstrap.ensure_ars_analysis()
 
 from ars_analysis.output.manifest import (  # noqa: E402
     ensure_manifest_rows,

@@ -16,14 +16,13 @@ from pathlib import Path
 import types
 import json
 
-# Same path setup as run.py
+# Same path setup as run.py -- alias wired by the one canonical bootstrap.
 _scripts_dir = Path(__file__).parent / "00-Scripts"
 sys.path.insert(0, str(_scripts_dir))
 
-_ars_pkg = types.ModuleType("ars_analysis")
-_ars_pkg.__path__ = [str(_scripts_dir)]
-_ars_pkg.__package__ = "ars_analysis"
-sys.modules["ars_analysis"] = _ars_pkg
+import ars_bootstrap
+
+ars_bootstrap.ensure_ars_analysis()
 
 _config_dir = Path(__file__).resolve().parent.parent / "03_Config"
 sys.path.insert(0, str(_config_dir))
