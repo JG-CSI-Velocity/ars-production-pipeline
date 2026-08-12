@@ -860,6 +860,136 @@ async def get_results_clients():
     return clients
 
 
+# ─── SHARED RUN ORCHESTRATION ─────────────────────────────────────────
+# Every subprocess the UI launches goes through these two helpers. The
+# Generate button, the format-only button, and the scheduler previously
+# carried three hand-copied variants of this logic that had drifted apart
+# (the scheduler lost the ODD hand-off, env forwarding, and staleness
+# tracking) -- a scheduled run silently was not the same operation as a
+# clicked run.
+
+
+def _stream_subprocess(run_id: str, cmd: list, cwd, *, step_prefix: str = "",
+                       progress_per_line: int = 0, track_output: bool = False) -> int:
+    """Spawn ``cmd``, stream its merged output into ``runs[run_id]``, return
+    the exit code.
+
+    The environment is an explicit copy of the parent's so SLIDE_MODE and
+    SLIDE_BUDGET deck-size controls always reach the child, with
+    PYTHONUNBUFFERED as belt+braces alongside ``-u``.
+    """
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, encoding="utf-8", errors="replace",
+        bufsize=1,
+        cwd=str(cwd),
+        env=env,
+        **_popen_tree_kwargs(),
+    )
+    _register_proc(run_id, proc)
+    if track_output and run_id in runs:
+        runs[run_id]["last_output_at"] = datetime.now().isoformat()
+    for line in proc.stdout:
+        line = line.rstrip()
+        if run_id not in runs:
+            continue
+        runs[run_id]["log"].append(line)
+        runs[run_id]["current_step"] = f"{step_prefix}{line.strip()}"
+        if track_output:
+            runs[run_id]["last_output_at"] = datetime.now().isoformat()
+        if progress_per_line:
+            runs[run_id]["progress"] = min(95, len(runs[run_id]["log"]) * progress_per_line)
+    proc.wait()
+    return proc.returncode
+
+
+def _run_full_pipeline(run_id: str, csm: str, month: str, client_id: str,
+                       product: str, *, module: str = "", module_list=(),
+                       local_copy: str = "", source: str = "",
+                       format_extras=(), always_format: bool = False) -> None:
+    """Format (if needed) then analyze -- the one pipeline body behind both
+    the Generate button and the scheduler. Runs on a worker thread.
+
+    ``always_format`` re-formats even when a formatted ODD already exists
+    (scheduled runs always want the freshest data). ``format_extras`` are
+    extra formatting flags such as ``--with-trans`` / ``--with-all``.
+    """
+    formatting_run = ARS_BASE / "00_Formatting" / "run.py"
+    analysis_run = ARS_BASE / "01_Analysis" / "run.py"
+    _keep_system_awake()
+    try:
+        odd_file = find_formatted_odd(csm, month, client_id)
+        # With an explicit source path (#229) we always (re)format from that
+        # file; otherwise we only format when no formatted ODD exists yet.
+        need_format = always_format or bool(source) or not odd_file
+        if need_format and formatting_run.exists():
+            runs[run_id]["current_step"] = "Step 1: Formatting ODD file..."
+            runs[run_id]["log"].append("=" * 60)
+            runs[run_id]["log"].append("  STEP 1: Formatting ODD file")
+            if source:
+                runs[run_id]["log"].append(f"  Source: {source}")
+            runs[run_id]["log"].append("=" * 60)
+
+            fmt_cmd = [sys.executable, "-u", str(formatting_run),
+                       "--month", month, "--csm", csm, "--client", client_id]
+            fmt_cmd += list(format_extras)
+            if source:
+                fmt_cmd += ["--source-file", source, "--force"]
+
+            rc = _stream_subprocess(run_id, fmt_cmd, formatting_run.parent,
+                                    step_prefix="Formatting: ")
+            if rc != 0:
+                runs[run_id]["log"].append("  Formatting failed!")
+            else:
+                runs[run_id]["log"].append("  Formatting complete.")
+                odd_file = find_formatted_odd(csm, month, client_id)
+
+            runs[run_id]["log"].append("")
+
+        if not odd_file:
+            # Suppress the error verdict/log if the operator already stopped it.
+            if runs.get(run_id, {}).get("status") == "running":
+                runs[run_id]["log"].append("ERROR: No formatted ODD file found after formatting.")
+                runs[run_id]["log"].append(f"Check: {READY_FOR_ANALYSIS / csm / month / client_id}")
+                _mark_terminal(run_id, "error")
+            return
+
+        product_label = {"ars": "ARS", "txn": "TXN", "combined": "ARS + TXN"}.get(product, "ARS")
+        runs[run_id]["current_step"] = f"Step 2: Running {product_label} analysis..."
+        runs[run_id]["log"].append("=" * 60)
+        runs[run_id]["log"].append(f"  STEP 2: Running {product_label} Analysis")
+        runs[run_id]["log"].append("=" * 60)
+
+        cmd = [sys.executable, "-u", str(analysis_run),
+               "--month", month, "--csm", csm, "--client", client_id,
+               "--product", product]
+        if module_list:
+            # Batch closed loop: aggregate ONCE, a scoped deck per section.
+            # --sections overrides --product (run.py).
+            cmd += ["--sections", ",".join(module_list)]
+        elif module:
+            # Closed-loop single-section run; --section overrides --product.
+            cmd += ["--section", module]
+        if local_copy:
+            cmd += ["--local-copy", local_copy]
+        # Hand the analysis step the exact ODD we already located, so it
+        # doesn't re-discover it with a separate finder that can drift out
+        # of sync (#231: app found it, analysis's stricter finder didn't).
+        cmd.append(str(odd_file))
+
+        rc = _stream_subprocess(run_id, cmd, analysis_run.parent,
+                                progress_per_line=2, track_output=True)
+        _mark_terminal(run_id, "complete" if rc == 0 else "error",
+                       progress=100 if rc == 0 else None)
+    except Exception as e:
+        if run_id in runs:
+            runs[run_id]["log"].append(f"ERROR: {e}")
+        _mark_terminal(run_id, "error")
+
+
 @app.post("/api/format")
 async def start_format(
     csm: str,
@@ -917,26 +1047,10 @@ async def start_format(
             if force:
                 cmd.append("--force")
 
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace",
-                bufsize=1,
-                cwd=str(formatting_run.parent),
-                **_popen_tree_kwargs(),
-            )
-            _register_proc(run_id, proc)
-            for line in proc.stdout:
-                line = line.rstrip()
-                if run_id in runs:
-                    runs[run_id]["log"].append(line)
-                    runs[run_id]["current_step"] = line.strip()
-                    log_len = len(runs[run_id]["log"])
-                    runs[run_id]["progress"] = min(95, log_len * 3)
-
-            proc.wait()
-            _mark_terminal(run_id, "complete" if proc.returncode == 0 else "error",
-                           progress=100 if proc.returncode == 0 else None)
+            rc = _stream_subprocess(run_id, cmd, formatting_run.parent,
+                                    progress_per_line=3)
+            _mark_terminal(run_id, "complete" if rc == 0 else "error",
+                           progress=100 if rc == 0 else None)
         except Exception as e:
             if run_id in runs:
                 runs[run_id]["log"].append(f"ERROR: {e}")
@@ -991,9 +1105,7 @@ async def start_run(
 
     run_id = f"{client_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
-    formatting_run = ARS_BASE / "00_Formatting" / "run.py"
     analysis_run = ARS_BASE / "01_Analysis" / "run.py"
-
     if not analysis_run.exists():
         raise HTTPException(status_code=500, detail=f"Analysis run.py not found at {analysis_run}")
 
@@ -1035,118 +1147,17 @@ async def start_run(
         "log": [],
     }
 
-    def _run():
-        _keep_system_awake()
-        try:
-            odd_file = find_formatted_odd(csm, month, client_id)
-            # With an explicit source path (#229) we always (re)format from that
-            # file; otherwise we only format when no formatted ODD exists yet.
-            need_format = bool(source_resolved) or not odd_file
-            if need_format and formatting_run.exists():
-                runs[run_id]["current_step"] = "Step 1: Formatting ODD file..."
-                runs[run_id]["log"].append("=" * 60)
-                runs[run_id]["log"].append("  STEP 1: Formatting ODD file")
-                if source_resolved:
-                    runs[run_id]["log"].append(f"  Source: {source_resolved}")
-                runs[run_id]["log"].append("=" * 60)
-
-                fmt_cmd = [sys.executable, "-u", str(formatting_run),
-                           "--month", month, "--csm", csm, "--client", client_id]
-                if source_resolved:
-                    fmt_cmd += ["--source-file", source_resolved, "--force"]
-
-                fmt_proc = subprocess.Popen(
-                    fmt_cmd,
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, encoding="utf-8", errors="replace",
-                    bufsize=1,
-                    cwd=str(formatting_run.parent),
-                    **_popen_tree_kwargs(),
-                )
-                _register_proc(run_id, fmt_proc)
-                for line in fmt_proc.stdout:
-                    line = line.rstrip()
-                    if run_id in runs:
-                        runs[run_id]["log"].append(line)
-                        runs[run_id]["current_step"] = f"Formatting: {line.strip()}"
-                fmt_proc.wait()
-
-                if fmt_proc.returncode != 0:
-                    runs[run_id]["log"].append("  Formatting failed!")
-                else:
-                    runs[run_id]["log"].append("  Formatting complete.")
-                    odd_file = find_formatted_odd(csm, month, client_id)
-
-                runs[run_id]["log"].append("")
-
-            if not odd_file:
-                # Suppress the error verdict/log if the operator already stopped it.
-                if runs.get(run_id, {}).get("status") == "running":
-                    runs[run_id]["log"].append("ERROR: No formatted ODD file found after formatting.")
-                    runs[run_id]["log"].append(f"Check: {READY_FOR_ANALYSIS / csm / month / client_id}")
-                    _mark_terminal(run_id, "error")
-                return
-
-            product_label = {"ars": "ARS", "txn": "TXN", "combined": "ARS + TXN"}.get(product, "ARS")
-            runs[run_id]["current_step"] = f"Step 2: Running {product_label} analysis..."
-            runs[run_id]["log"].append("=" * 60)
-            runs[run_id]["log"].append(f"  STEP 2: Running {product_label} Analysis")
-            runs[run_id]["log"].append("=" * 60)
-
-            cmd = [sys.executable, "-u", str(analysis_run),
-                   "--month", month, "--csm", csm, "--client", client_id,
-                   "--product", product]
-            if module_list:
-                # Batch closed loop: aggregate ONCE, a scoped deck per section.
-                # --sections overrides --product (run.py).
-                cmd += ["--sections", ",".join(module_list)]
-            elif module:
-                # Closed-loop single-section run; --section overrides --product.
-                cmd += ["--section", module]
-            if local_copy_resolved:
-                cmd += ["--local-copy", local_copy_resolved]
-            # Hand the analysis step the exact ODD we already located, so it
-            # doesn't re-discover it with a separate finder that can drift out
-            # of sync (#231: app found it, analysis's stricter finder didn't).
-            # odd_file is guaranteed set here -- we returned above otherwise.
-            if odd_file:
-                cmd.append(str(odd_file))
-
-            # Forward SLIDE_MODE and SLIDE_BUDGET so UI-set deck-size
-            # controls reach the analysis subprocess. Without this, the
-            # child inherits parent env but ARS_UI_PORT and similar
-            # wrapper-only vars can overwrite intended values.
-            _run_env = os.environ.copy()
-            _run_env["PYTHONUNBUFFERED"] = "1"  # belt+braces with -u
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace",
-                bufsize=1,
-                cwd=str(analysis_run.parent),
-                env=_run_env,
-                **_popen_tree_kwargs(),
-            )
-            _register_proc(run_id, proc)
-            runs[run_id]["last_output_at"] = datetime.now().isoformat()
-            for line in proc.stdout:
-                line = line.rstrip()
-                if run_id in runs:
-                    runs[run_id]["log"].append(line)
-                    runs[run_id]["current_step"] = line.strip()
-                    runs[run_id]["last_output_at"] = datetime.now().isoformat()
-                    log_len = len(runs[run_id]["log"])
-                    runs[run_id]["progress"] = min(95, log_len * 2)
-
-            proc.wait()
-            _mark_terminal(run_id, "complete" if proc.returncode == 0 else "error",
-                           progress=100 if proc.returncode == 0 else None)
-        except Exception as e:
-            if run_id in runs:
-                runs[run_id]["log"].append(f"ERROR: {e}")
-            _mark_terminal(run_id, "error")
-
-    thread = threading.Thread(target=_run, daemon=True)
+    thread = threading.Thread(
+        target=_run_full_pipeline,
+        args=(run_id, csm, month, client_id, product),
+        kwargs=dict(
+            module=module,
+            module_list=module_list,
+            local_copy=local_copy_resolved,
+            source=source_resolved,
+        ),
+        daemon=True,
+    )
     thread.start()
 
     return {"run_id": run_id}
@@ -1824,11 +1835,7 @@ async def run_schedule_now(schedule_id: str):
     month = datetime.now().strftime("%Y.%m")
     product = sched.get("product", "ars")
 
-    # Trigger the run via the existing /api/run logic
     run_id = f"{sched['client_id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
-
-    analysis_run = ARS_BASE / "01_Analysis" / "run.py"
-    formatting_run = ARS_BASE / "00_Formatting" / "run.py"
 
     # Same concurrency guard the manual Generate path uses -- the schedule
     # trigger previously bypassed it entirely and could stack a run on top of
@@ -1847,65 +1854,25 @@ async def run_schedule_now(schedule_id: str):
         "log": [],
     }
 
+    extras = sched.get("extras", "none")
+    format_extras = {"trans": ["--with-trans"], "all": ["--with-all"]}.get(extras, [])
+
     def _run():
-        _keep_system_awake()
-        try:
-            # Format first
-            if formatting_run.exists():
-                fmt_cmd = [sys.executable, "-u", str(formatting_run),
-                           "--month", month, "--csm", sched["csm"],
-                           "--client", sched["client_id"]]
-                extras = sched.get("extras", "none")
-                if extras == "trans":
-                    fmt_cmd.append("--with-trans")
-                elif extras == "all":
-                    fmt_cmd.append("--with-all")
+        # Scheduled runs go through the same pipeline body as the Generate
+        # button -- same ODD hand-off, env forwarding, and staleness tracking.
+        # always_format because a scheduled run wants the freshest data even
+        # when a formatted ODD from an earlier run exists.
+        _run_full_pipeline(run_id, sched["csm"], month, sched["client_id"],
+                           product, format_extras=format_extras,
+                           always_format=True)
 
-                proc = subprocess.Popen(
-                    fmt_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, encoding="utf-8", errors="replace", bufsize=1,
-                    cwd=str(formatting_run.parent),
-                    **_popen_tree_kwargs(),
-                )
-                _register_proc(run_id, proc)
-                for line in proc.stdout:
-                    if run_id in runs:
-                        runs[run_id]["log"].append(line.rstrip())
-                proc.wait()
-
-            # Run analysis
-            cmd = [sys.executable, "-u", str(analysis_run),
-                   "--month", month, "--csm", sched["csm"],
-                   "--client", sched["client_id"], "--product", product]
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace", bufsize=1,
-                cwd=str(analysis_run.parent),
-                **_popen_tree_kwargs(),
-            )
-            _register_proc(run_id, proc)
-            for line in proc.stdout:
-                if run_id in runs:
-                    runs[run_id]["log"].append(line.rstrip())
-                    runs[run_id]["current_step"] = line.strip()
-                    runs[run_id]["progress"] = min(95, len(runs[run_id]["log"]) * 2)
-            proc.wait()
-
-            _mark_terminal(run_id, "complete" if proc.returncode == 0 else "error",
-                           progress=100 if proc.returncode == 0 else None)
-
-            # Update schedule last_run
-            schedules = _load_schedules()
-            for s in schedules:
-                if s["id"] == schedule_id:
-                    s["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    break
-            _save_schedules(schedules)
-
-        except Exception as e:
-            if run_id in runs:
-                runs[run_id]["log"].append(f"ERROR: {e}")
-            _mark_terminal(run_id, "error")
+        # Stamp last_run once the pipeline reaches a terminal state.
+        schedules = _load_schedules()
+        for s in schedules:
+            if s["id"] == schedule_id:
+                s["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                break
+        _save_schedules(schedules)
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()

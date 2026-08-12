@@ -48,10 +48,12 @@ def test_windows_api_failure_is_swallowed(app_module, monkeypatch):
 
 
 def test_every_run_thread_calls_keep_awake(app_module):
-    # All three run-launching endpoints spawn a thread whose body opens with
-    # the keep-awake call -- source-level check so a new launch site that
-    # forgets the guard fails loudly here.
+    # Both run-launching worker bodies open with the keep-awake call: the
+    # format-only worker and _run_full_pipeline (shared by the Generate
+    # button and the scheduler). Source-level check so a new launch site
+    # that forgets the guard fails loudly here.
     import inspect
 
+    assert "_keep_system_awake()" in inspect.getsource(app_module._run_full_pipeline)
     src = inspect.getsource(app_module)
-    assert src.count("_keep_system_awake()") >= 4  # 1 def + 3 call sites
+    assert src.count("_keep_system_awake()") >= 3  # 1 def + 2 worker call sites
