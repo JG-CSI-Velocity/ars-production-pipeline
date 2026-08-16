@@ -1,0 +1,4 @@
+source_path,file_name,file_type,suffix,exists,size_bytes,modified_at,sha256
+01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_ODD_accounts_2026.07.csv,9999_ODD_accounts_2026.07.csv,odd,.csv,True,452,2026-08-15T18:01:12,b9d4a05af751ba2f62a4275d537bcf3139bc4ff380387b8e21375049bd3157f7
+01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_transactions_2026.07.csv,9999_transactions_2026.07.csv,transaction,.csv,True,1379,2026-08-15T18:01:12,c6a1111f37321bb64a75e352a90c2ba7cb54bb1f48aa040c427ed2861858042f
+01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_marketing_suppressions_2026.07.csv,9999_marketing_suppressions_2026.07.csv,unknown,.csv,True,77,2026-08-15T18:01:12,57d7f0b05d1dc43a15b6ef08aa2d2c64da06fc772f24be7cadc695a8d0e4812e

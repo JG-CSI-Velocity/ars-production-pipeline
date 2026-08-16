@@ -1,8 +1,10 @@
 # Module Reference
 
+**Visual analysis browser:** open [`modules.html`](modules.html) to see every ARS and TXN analysis section, scripts, generated outputs, charts/graphs, semantic metrics, data requirements, and readiness blockers in an HTML view. This Markdown file is the detailed methodology appendix.
+
 The pipeline's calculators and the DataFrames they read from. Use this when you need to know **what a rate divides by**, **which DataFrame slice a module touches**, or **where a downstream consumer (Insights, Value, the Scorecard) gets its inputs**.
 
-For run instructions, see [`../README.md`](../README.md). For slide IDs → layouts → headlines, see [`../SLIDE_MAPPING.md`](../SLIDE_MAPPING.md).
+For run instructions, see [`../README.html`](../README.html). For slide IDs → layouts → headlines, see [`../SLIDE_MAPPING.md`](../SLIDE_MAPPING.md).
 
 ---
 

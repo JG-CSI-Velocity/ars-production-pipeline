@@ -1,6 +1,10 @@
 # RPE-Workflow — Pipeline Visual Map
 
+Browser HTML workflow view: [`workflow-map.html`](workflow-map.html)
+
 End-to-end map of the Velocity Pipeline: from raw ODD ZIPs in a CSM's data dump folder to a finished PowerPoint deck. All three steps are driven by the UI at `05_UI/`; the `run.py` entrypoints are the same code paths, exposed for batch/debug.
+
+For a concise purpose statement for each ARS/TXN analysis section, see [`ANALYSIS_SECTION_SUMMARY.md`](ANALYSIS_SECTION_SUMMARY.md). For the Snowflake-first product/data architecture, see [`TRANSACTIONAL_INTELLIGENCE_ENGINE_BLUEPRINT.md`](TRANSACTIONAL_INTELLIGENCE_ENGINE_BLUEPRINT.md). For the analysis/product strategy, see [`TRANSACTIONAL_INTELLIGENCE_ANALYSIS_STRATEGY.md`](TRANSACTIONAL_INTELLIGENCE_ANALYSIS_STRATEGY.md).
 
 ---
 

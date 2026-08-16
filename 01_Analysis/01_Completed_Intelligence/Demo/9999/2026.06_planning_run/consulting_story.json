@@ -1,0 +1,204 @@
+{
+  "story_version": "consulting_story_v0_rules",
+  "client_id": "9999",
+  "client_name": "Demo Community Credit Union",
+  "period_month": "2026-06",
+  "headline": "Primary Banking Conversion is the lead relationship play.",
+  "executive_summary": "The lead recommendation is Primary Banking Conversion for 4 target account(s), supported by a quality score of 88.1 and high confidence. 1 data warning(s) should be reviewed before presentation. No prior campaign package was available for outcome measurement.",
+  "recommended_conversation": [
+    "Start with data confidence and what the file coverage can support.",
+    "Explain the top relationship behavior, not just the top chart.",
+    "Recommend one to three action plays with owners, channels, and measurement.",
+    "Agree on campaign or banker execution and the next monthly outcome readout."
+  ],
+  "consulting_questions": [
+    "Which play is most aligned to the client's current growth or retention priority?",
+    "Who owns activation: marketing, branch leadership, banker team, or CSM follow-up?",
+    "What suppressions, compliance exclusions, or branch assignments are required before launch?",
+    "How will outcomes be captured back into next month's run?"
+  ],
+  "top_plays": [
+    {
+      "action_id": "9999:2026.06:action:1",
+      "client_id": "9999",
+      "period_month": "2026.06",
+      "priority_rank": 1,
+      "play_name": "Primary Banking Conversion",
+      "opportunity_type": "payroll_conversion",
+      "objective": "Move external income or credits into a primary banking relationship.",
+      "target_accounts": 4,
+      "expected_value": 3204.0,
+      "confidence": "medium",
+      "audience_definition": "Accounts with external money movement or credits but no payroll detected.",
+      "owner_role": "CSM plus retail banking",
+      "recommended_channel": "Email plus banker follow-up",
+      "next_step": "Create a direct-deposit conversion audience and review top balances with branch managers.",
+      "talk_track": "4 account(s) show payroll conversion behavior with $3,204 in modeled value. Review data confidence, approve the target list, and measure movement over 30/60/90 days.",
+      "target_list_ref": "opportunities.csv#payroll_conversion",
+      "measurement_id": "9999:2026.06:measure:1",
+      "status": "ready_for_review",
+      "model_version": "action_plan_v0_rules"
+    },
+    {
+      "action_id": "9999:2026.06:action:2",
+      "client_id": "9999",
+      "period_month": "2026.06",
+      "priority_rank": 2,
+      "play_name": "Relationship Expansion",
+      "opportunity_type": "relationship_expansion",
+      "objective": "Grow thin relationships with next-best-product outreach.",
+      "target_accounts": 4,
+      "expected_value": 800.0,
+      "confidence": "medium",
+      "audience_definition": "Thin relationships with external financial activity.",
+      "owner_role": "CSM plus retail banking",
+      "recommended_channel": "Next-best-product outreach",
+      "next_step": "Review top thin-relationship accounts for targeted product expansion.",
+      "talk_track": "4 account(s) show relationship expansion behavior with $800 in modeled value. Review data confidence, approve the target list, and measure movement over 30/60/90 days.",
+      "target_list_ref": "opportunities.csv#relationship_expansion",
+      "measurement_id": "9999:2026.06:measure:2",
+      "status": "ready_for_review",
+      "model_version": "action_plan_v0_rules"
+    },
+    {
+      "action_id": "9999:2026.06:action:3",
+      "client_id": "9999",
+      "period_month": "2026.06",
+      "priority_rank": 3,
+      "play_name": "Attrition Prevention",
+      "opportunity_type": "attrition_prevention",
+      "objective": "Stabilize at-risk accounts before balance runoff or closure.",
+      "target_accounts": 4,
+      "expected_value": 561.0,
+      "confidence": "high",
+      "audience_definition": "Split or competitor-primary relationships with weak internal activity.",
+      "owner_role": "CSM plus retention team",
+      "recommended_channel": "Save-list outreach",
+      "next_step": "Escalate highest-risk relationships to a retention save list.",
+      "talk_track": "4 account(s) show attrition prevention behavior with $561 in modeled value. Review data confidence, approve the target list, and measure movement over 30/60/90 days.",
+      "target_list_ref": "opportunities.csv#attrition_prevention",
+      "measurement_id": "9999:2026.06:measure:3",
+      "status": "ready_for_review",
+      "model_version": "action_plan_v0_rules"
+    }
+  ],
+  "top_opportunity_portfolio": [
+    {
+      "priority_rank": 1,
+      "portfolio_id": "9999:2026.06:payroll_conversion",
+      "client_id": "9999",
+      "period_month": "2026.06",
+      "opportunity_type": "payroll_conversion",
+      "play_name": "Primary Banking Conversion",
+      "target_accounts": 4,
+      "high_priority_accounts": 1,
+      "expected_value": 3204.0,
+      "avg_expected_value_per_account": 801.0,
+      "avg_priority_score": 41.1,
+      "confidence": "medium",
+      "confidence_score": 0.725,
+      "top_reason_codes": "no_payroll_detected|external_money_movement",
+      "pfi_mix": "Split|Competitor-primary|No verdict",
+      "source_sections": "txn.competition|txn.payroll|txn.relationship",
+      "audience_definition": "Accounts with external money movement or credits but no payroll detected.",
+      "owner_role": "CSM plus retail banking",
+      "recommended_channel": "Email plus banker follow-up",
+      "next_step": "Create a direct-deposit conversion audience and review top balances with branch managers.",
+      "primary_metric": "new_direct_deposit_or_payroll_detected",
+      "model_version": "portfolio_v0_rules"
+    },
+    {
+      "priority_rank": 2,
+      "portfolio_id": "9999:2026.06:relationship_expansion",
+      "client_id": "9999",
+      "period_month": "2026.06",
+      "opportunity_type": "relationship_expansion",
+      "play_name": "Relationship Expansion",
+      "target_accounts": 4,
+      "high_priority_accounts": 0,
+      "expected_value": 800.0,
+      "avg_expected_value_per_account": 200.0,
+      "avg_priority_score": 27.7,
+      "confidence": "medium",
+      "confidence_score": 0.725,
+      "top_reason_codes": "thin_relationship|external_financial_activity",
+      "pfi_mix": "Split|Competitor-primary|No verdict",
+      "source_sections": "txn.financial_services|txn.relationship",
+      "audience_definition": "Thin relationships with external financial activity.",
+      "owner_role": "CSM plus retail banking",
+      "recommended_channel": "Next-best-product outreach",
+      "next_step": "Review top thin-relationship accounts for targeted product expansion.",
+      "primary_metric": "new_product_or_relationship_depth",
+      "model_version": "portfolio_v0_rules"
+    },
+    {
+      "priority_rank": 3,
+      "portfolio_id": "9999:2026.06:attrition_prevention",
+      "client_id": "9999",
+      "period_month": "2026.06",
+      "opportunity_type": "attrition_prevention",
+      "play_name": "Attrition Prevention",
+      "target_accounts": 4,
+      "high_priority_accounts": 0,
+      "expected_value": 561.0,
+      "avg_expected_value_per_account": 140.25,
+      "avg_priority_score": 35.2,
+      "confidence": "high",
+      "confidence_score": 0.812,
+      "top_reason_codes": "relationship_risk|low_activity_or_competitor_pull",
+      "pfi_mix": "Split|Competitor-primary",
+      "source_sections": "ars.attrition|txn.attrition_txn|txn.retention",
+      "audience_definition": "Split or competitor-primary relationships with weak internal activity.",
+      "owner_role": "CSM plus retention team",
+      "recommended_channel": "Save-list outreach",
+      "next_step": "Escalate highest-risk relationships to a retention save list.",
+      "primary_metric": "account_retained_and_activity_stabilized",
+      "model_version": "portfolio_v0_rules"
+    }
+  ],
+  "story_arc": [
+    {
+      "step": "Data readiness",
+      "summary": "Quality score 88.1 with high confidence and 1 warning(s).",
+      "artifact": "data_quality_report.html"
+    },
+    {
+      "step": "Behavioral signals",
+      "summary": "Account-month features summarize payroll, debit use, balances, external FI movement, engagement, and relationship depth.",
+      "artifact": "account_month_features.csv"
+    },
+    {
+      "step": "Relationship diagnosis",
+      "summary": "PFI verdicts separate primary, split, competitor-primary, and no-verdict relationships with reason codes.",
+      "artifact": "pfi_verdicts.csv"
+    },
+    {
+      "step": "Opportunity portfolio",
+      "summary": "Primary Banking Conversion covers 4 account(s) with $3,204 in modeled value.",
+      "artifact": "opportunity_portfolio.csv"
+    },
+    {
+      "step": "Action and activation",
+      "summary": "Start with Primary Banking Conversion owned by CSM plus retail banking; next step: Create a direct-deposit conversion audience and review top balances with branch managers..",
+      "artifact": "action_plan.csv|campaign_targets.csv"
+    },
+    {
+      "step": "Measurement loop",
+      "summary": "No prior campaign package was available for outcome measurement.",
+      "artifact": "measurement_plan.csv|outcome_summary.csv"
+    }
+  ],
+  "analyst_notes": [
+    "short_transaction_history"
+  ],
+  "measurement_message": "No prior campaign package was available for outcome measurement.",
+  "source_artifacts": [
+    "data_quality.json",
+    "opportunity_portfolio.csv",
+    "action_plan.csv",
+    "campaign_targets.csv",
+    "measurement_plan.csv",
+    "outcome_summary.csv"
+  ],
+  "insight_count": 7
+}

@@ -1,0 +1,115 @@
+[
+  {
+    "source_path": "01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_ODD_accounts_2026.06.csv",
+    "file_name": "9999_ODD_accounts_2026.06.csv",
+    "suffix": ".csv",
+    "exists": true,
+    "size_bytes": 415,
+    "sha256": "f6b7851d39087420425f1a25f3eb2847175525efbd57026b399056a9c1cbe1e2",
+    "detected_format": "text",
+    "delimiter": "comma",
+    "header_columns": [
+      "Account Number",
+      "Stat Code",
+      "Product Code",
+      "Date Opened",
+      "Avg Bal",
+      "Debit?",
+      "Business?",
+      "Branch"
+    ],
+    "column_count": 8,
+    "estimated_rows": 9,
+    "profile_warnings": [],
+    "header_mode": "header_row",
+    "contract_match": {
+      "contract_id": "account.odd_extract.v1",
+      "display_name": "ODD-style account extract",
+      "source_family": "odd",
+      "score": 0.917,
+      "matched_fields": [
+        "account_id",
+        "avg_balance",
+        "branch_id",
+        "business_flag",
+        "date_opened",
+        "has_debit",
+        "product_code",
+        "stat_code"
+      ],
+      "missing_required_fields": [],
+      "status": "matched"
+    }
+  },
+  {
+    "source_path": "01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_transactions_2026.06.csv",
+    "file_name": "9999_transactions_2026.06.csv",
+    "suffix": ".csv",
+    "exists": true,
+    "size_bytes": 1223,
+    "sha256": "33020872a1a6dde85ea02e05b1878daaade55faca01bd96fed5b312cbe2d6168",
+    "detected_format": "text",
+    "delimiter": "comma",
+    "header_columns": [
+      "primary_account_num",
+      "transaction_date",
+      "amount",
+      "description",
+      "transaction_type"
+    ],
+    "column_count": 5,
+    "estimated_rows": 23,
+    "profile_warnings": [],
+    "header_mode": "header_row",
+    "contract_match": {
+      "contract_id": "txn.velocity_standard.v1",
+      "display_name": "Velocity standard raw transaction file",
+      "source_family": "transaction",
+      "score": 0.846,
+      "matched_fields": [
+        "account_id",
+        "amount",
+        "merchant_name",
+        "transaction_date",
+        "transaction_type"
+      ],
+      "missing_required_fields": [],
+      "status": "matched"
+    }
+  },
+  {
+    "source_path": "01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_branch_roster_2026.06.csv",
+    "file_name": "9999_branch_roster_2026.06.csv",
+    "suffix": ".csv",
+    "exists": true,
+    "size_bytes": 143,
+    "sha256": "d6cd74ed7b8fd791ce9f3c68a000e47c0fdbcf4d36d992d575bceecba6eff98b",
+    "detected_format": "text",
+    "delimiter": "comma",
+    "header_columns": [
+      "Branch",
+      "Market",
+      "Manager Email"
+    ],
+    "column_count": 3,
+    "estimated_rows": 3,
+    "profile_warnings": [],
+    "header_mode": "header_row",
+    "contract_match": {
+      "contract_id": "account.odd_extract.v1",
+      "display_name": "ODD-style account extract",
+      "source_family": "odd",
+      "score": 0.121,
+      "matched_fields": [
+        "branch_id"
+      ],
+      "missing_required_fields": [
+        "avg_balance",
+        "date_opened",
+        "product_code",
+        "stat_code"
+      ],
+      "status": "candidate"
+    }
+  }
+]

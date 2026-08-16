@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transactional Intelligence Analysis Map</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --muted: #5b6472;
+      --line: #d6dde8;
+      --paper: #ffffff;
+      --soft: #f5f7fa;
+      --navy: #112a46;
+      --blue: #2463eb;
+      --teal: #0f766e;
+      --green: #287a4e;
+      --gold: #a16207;
+      --orange: #c8501b;
+      --red: #b42318;
+      --violet: #6d4aff;
+      --radius: 8px;
+      --shadow: 0 14px 36px rgba(17, 42, 70, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #e9eef5;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    header {
+      padding: 24px 32px 20px;
+      background: var(--navy);
+      color: #fff;
+      border-bottom: 6px solid var(--orange);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 4vw, 56px);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      max-width: 940px;
+      color: #dbe7f3;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    main {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 26px 28px 44px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--blue);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      box-shadow: 0 8px 20px rgba(17, 42, 70, 0.07);
+    }
+
+    .stat strong {
+      display: block;
+      color: var(--navy);
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      background: #f9fafb;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-title h2 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .panel-title span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: 0.85fr 1.05fr 1.5fr 1fr;
+      gap: 12px;
+      padding: 16px;
+      align-items: stretch;
+    }
+
+    .lane {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .lane h3 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .card {
+      min-height: 82px;
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--blue);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+    }
+
+    .card.teal { border-left-color: var(--teal); }
+    .card.green { border-left-color: var(--green); }
+    .card.gold { border-left-color: var(--gold); }
+    .card.orange { border-left-color: var(--orange); }
+    .card.red { border-left-color: var(--red); }
+    .card.violet { border-left-color: var(--violet); }
+
+    .card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--navy);
+      font-size: 14px;
+      line-height: 1.15;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .unknown {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      border-left-color: var(--orange);
+    }
+
+    .domain-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(220px, 1fr));
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .domain {
+      border: 1px solid var(--line);
+      border-top: 6px solid var(--blue);
+      border-radius: var(--radius);
+      background: #fff;
+      min-height: 210px;
+      padding: 13px;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 8px;
+    }
+
+    .domain.teal { border-top-color: var(--teal); }
+    .domain.green { border-top-color: var(--green); }
+    .domain.gold { border-top-color: var(--gold); }
+    .domain.orange { border-top-color: var(--orange); }
+    .domain.red { border-top-color: var(--red); }
+    .domain.violet { border-top-color: var(--violet); }
+
+    .domain h3 {
+      margin: 0;
+      color: var(--navy);
+      font-size: 17px;
+      line-height: 1.12;
+    }
+
+    .question {
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-content: start;
+    }
+
+    .chip {
+      border-radius: 999px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      padding: 5px 7px;
+      color: #374151;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .outputs {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(220px, 1fr));
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .note-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .note {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 13px;
+      background: #fff;
+    }
+
+    .note h3 {
+      margin: 0 0 8px;
+      color: var(--navy);
+      font-size: 16px;
+    }
+
+    .note ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      padding: 0 2px;
+    }
+
+    code {
+      font-family: Menlo, Consolas, monospace;
+      font-size: 11px;
+      color: #1f2937;
+    }
+
+    @media (max-width: 1100px) {
+      .stats,
+      .flow,
+      .domain-grid,
+      .product-grid,
+      .note-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Transactional Intelligence Analysis Map</h1>
+    <p class="subtitle">This is the analysis architecture, not a final table schema. Client file layouts are an intake dependency. The engine map starts with the existing analysis IP, then shows the canonical inputs and intelligence products those analyses need.</p>
+  </header>
+
+  <main>
+    <section class="stats" aria-label="Analysis inventory">
+      <div class="stat"><strong>30</strong><span>Registered sections</span></div>
+      <div class="stat"><strong>407</strong><span>Script catalog rows</span></div>
+      <div class="stat"><strong>402</strong><span>Runnable scripts</span></div>
+      <div class="stat"><strong>8</strong><span>Input families</span></div>
+      <div class="stat"><strong>7</strong><span>Opportunity models</span></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Step Process</h2>
+        <span>Do this before final Snowflake table design</span>
+      </div>
+      <div class="flow">
+        <div class="lane">
+          <h3>1. Monthly File Drop</h3>
+          <div class="card unknown">
+            <strong>Client import files</strong>
+            <p>Up to 15 files per month. Some match known layouts, some need mapping, some should be held out.</p>
+          </div>
+          <div class="card">
+            <strong>Known seed contracts</strong>
+            <p><code>odd_extract.v1</code> and <code>txn_velocity_standard.v1</code> exist, but they are not enough to describe every client.</p>
+          </div>
+        </div>
+
+        <div class="lane">
+          <h3>2. Intake and Contract Mapping</h3>
+          <div class="card orange">
+            <strong>Profile files</strong>
+            <p>Detect delimiter, header, columns, row count, source family, period, and likely business role.</p>
+          </div>
+          <div class="card orange">
+            <strong>Map or flag gaps</strong>
+            <p>Produce field mapping, missing required fields, join-key warnings, and data-team remediation.</p>
+          </div>
+        </div>
+
+        <div class="lane">
+          <h3>3. Canonical Input Families</h3>
+          <div class="card teal"><strong>Account / ODD</strong><p>Status, product, open/close dates, branch, age, business flag, debit flag, Reg E, balance.</p></div>
+          <div class="card teal"><strong>Transactions</strong><p>Account id, date, amount, type, merchant, MCC, channel, terminal, card present, transaction code.</p></div>
+          <div class="card teal"><strong>Enrichment</strong><p>Balance, product holdings, household/member, counterparty taxonomy, branch roster, suppressions.</p></div>
+          <div class="card teal"><strong>Campaign and outcomes</strong><p>Audience, wave, offer, response, holdout, activation, conversion, retained balance, churn.</p></div>
+        </div>
+
+        <div class="lane">
+          <h3>4. Engine Products</h3>
+          <div class="card green"><strong>Feature mart</strong><p>Reusable account-month behavior and relationship features.</p></div>
+          <div class="card green"><strong>Verdicts and segments</strong><p>PFI, external leakage, relationship depth, lifecycle, risk, readiness.</p></div>
+          <div class="card green"><strong>Action and measurement</strong><p>Ranked opportunities, CSM queue, marketing export, banker list, baseline, outcomes.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Analysis Domains</h2>
+        <span>Current repo sections mapped to intelligence roles</span>
+      </div>
+      <div class="domain-grid">
+        <article class="domain">
+          <h3>Portfolio Foundation</h3>
+          <div class="question">What is the usable account base and how is it structured?</div>
+          <div class="chips">
+            <span class="chip">ars.overview</span><span class="chip">txn.general</span><span class="chip">txn.product</span><span class="chip">business</span><span class="chip">personal</span>
+          </div>
+          <div class="outputs">Outputs: data quality, account-month features, executive scorecard.</div>
+        </article>
+
+        <article class="domain teal">
+          <h3>Spend, Merchant, Channel</h3>
+          <div class="question">Where is activity concentrating, changing, or leaking?</div>
+          <div class="chips">
+            <span class="chip">txn.merchant</span><span class="chip">txn.mcc_code</span><span class="chip">txn.transaction_type</span><span class="chip">txn.branch_txn</span>
+          </div>
+          <div class="outputs">Outputs: counterparty signals, category summaries, relationship segments.</div>
+        </article>
+
+        <article class="domain orange">
+          <h3>Competitive Leakage</h3>
+          <div class="question">Which outside institutions and ecosystems are capturing the financial relationship?</div>
+          <div class="chips">
+            <span class="chip">txn.competition</span><span class="chip">txn.financial_services</span>
+          </div>
+          <div class="outputs">Outputs: competitor intensity, external FI graph, PFI evidence, win-back opportunities.</div>
+        </article>
+
+        <article class="domain green">
+          <h3>Primacy, Payroll, Relationship</h3>
+          <div class="question">Who owns the relationship and where is primacy weak?</div>
+          <div class="chips">
+            <span class="chip">txn.payroll</span><span class="chip">txn.relationship</span><span class="chip">txn.balance</span>
+          </div>
+          <div class="outputs">Outputs: PFI verdicts, payroll conversion, deposit retention, relationship expansion.</div>
+        </article>
+
+        <article class="domain red">
+          <h3>Retention and Lifecycle</h3>
+          <div class="question">Who is degrading, dormant, at risk, or ready to upgrade?</div>
+          <div class="chips">
+            <span class="chip">ars.attrition</span><span class="chip">txn.attrition_txn</span><span class="chip">txn.retention</span><span class="chip">txn.engagement</span><span class="chip">txn.segment_evolution</span>
+          </div>
+          <div class="outputs">Outputs: attrition risk, dormant reactivation, segment migration, save lists.</div>
+        </article>
+
+        <article class="domain gold">
+          <h3>Debit, Reg E, Revenue</h3>
+          <div class="question">Where is card, overdraft, interchange, or modeled value opportunity?</div>
+          <div class="chips">
+            <span class="chip">ars.dctr</span><span class="chip">ars.rege</span><span class="chip">txn.rege_overdraft</span><span class="chip">txn.interchange</span><span class="chip">ars.value</span>
+          </div>
+          <div class="outputs">Outputs: debit activation, compliant Reg E education, interchange value, action roadmap.</div>
+        </article>
+
+        <article class="domain violet">
+          <h3>Campaign and Cohort Measurement</h3>
+          <div class="question">Which actions changed behavior and what should be targeted next?</div>
+          <div class="chips">
+            <span class="chip">ars.mailer</span><span class="chip">txn.campaign</span><span class="chip">txn.ics_acquisition</span><span class="chip">txn.ICS_cohort</span>
+          </div>
+          <div class="outputs">Outputs: target lists, holdouts, baselines, lift, persistence, outcome summary.</div>
+        </article>
+
+        <article class="domain">
+          <h3>Executive Synthesis</h3>
+          <div class="question">What is the story, decision, priority, and roadmap?</div>
+          <div class="chips">
+            <span class="chip">ars.insights</span><span class="chip">txn.executive</span>
+          </div>
+          <div class="outputs">Outputs: insight registry, consulting story, executive scorecard, strategy roadmap.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Intelligence Products</h2>
+        <span>What the analysis should produce</span>
+      </div>
+      <div class="product-grid">
+        <div class="card orange"><strong>Data readiness</strong><p>File ledger, layout gap report, account match rate, missing fields, confidence, blocker list.</p></div>
+        <div class="card teal"><strong>Account-month feature mart</strong><p>Activity, spend, payroll, external FI, balances, merchants, channel mix, relationship depth.</p></div>
+        <div class="card teal"><strong>Counterparty graph</strong><p>Merchant, payroll, competitor, lender, payment ecosystem, recurring relationship signals.</p></div>
+        <div class="card green"><strong>PFI and relationship verdicts</strong><p>Primary with us, split, competitor-primary, no verdict, reason codes, confidence.</p></div>
+        <div class="card green"><strong>Opportunity portfolio</strong><p>Payroll conversion, debit activation, deposit retention, competitor win-back, dormancy, expansion, attrition prevention.</p></div>
+        <div class="card violet"><strong>Action package</strong><p>CSM queue, analyst validation, marketing export, banker list, suppressions, measurement plan.</p></div>
+        <div class="card"><strong>Insight registry</strong><p>Standardized consulting findings with evidence, recommendation, owner, source sections, proof metric.</p></div>
+        <div class="card gold"><strong>Outcome layer</strong><p>Baseline, test/control assignment, outcome results, lift, persistence, month-over-month deltas.</p></div>
+        <div class="card red"><strong>Executive story</strong><p>Situation, finding, implication, action, proof, top decisions, roadmap.</p></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Known vs Unknown</h2>
+        <span>The key design constraint</span>
+      </div>
+      <div class="note-grid">
+        <div class="note">
+          <h3>Known Now</h3>
+          <ul>
+            <li>Existing analysis inventory and script locations.</li>
+            <li>Major analysis domains and business questions.</li>
+            <li>Seed contracts for ODD-style account extracts and the raw transaction file.</li>
+            <li>Engine outputs such as feature mart, PFI, opportunities, insight registry, role exports, and measurement.</li>
+          </ul>
+        </div>
+        <div class="note">
+          <h3>Unknown Until File Layouts</h3>
+          <ul>
+            <li>Exact monthly import files, table names, columns, delimiters, and header rules.</li>
+            <li>Which files are authoritative for account, transaction, balance, branch, campaign, suppression, and outcome data.</li>
+            <li>Join-key reliability and account-match coverage.</li>
+            <li>Which Snowflake tables should become durable facts, dimensions, marts, and views.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer">
+      Source evidence: <code>01_Analysis/00-Scripts/tools/sections.json</code>, <code>01_Analysis/00-Scripts/analytics/</code>, <code>01_Analysis/00-Scripts/ars_engine/intelligence/catalog.py</code>, and generated demo output <code>analysis_execution_map.csv</code>.
+    </p>
+  </main>
+</body>
+</html>

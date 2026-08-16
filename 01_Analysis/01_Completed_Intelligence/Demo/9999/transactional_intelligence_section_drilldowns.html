@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transactional Intelligence Analysis Section Drilldowns</title>
+  <style>
+    
+    :root { --ink:#101828; --muted:#667085; --line:#d8dee8; --panel:#fff; --wash:#f5f7fb; --blue:#155eef; --teal:#0f766e; --green:#047857; --amber:#b45309; --red:#c2410c; --violet:#6d28d9; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial, Helvetica, sans-serif; color:var(--ink); background:var(--wash); }
+    main { max-width:1360px; margin:0 auto; padding:24px; }
+    h1 { margin:0; font-size:28px; line-height:1.15; }
+    h2 { margin:0 0 12px; font-size:18px; }
+    h3 { margin:0 0 8px; font-size:14px; }
+    p { margin:0; line-height:1.45; }
+    a { color:var(--blue); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    code { background:#eef2f7; border:1px solid #d8dee8; border-radius:4px; padding:2px 5px; white-space:nowrap; }
+    table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); }
+    th,td { border-bottom:1px solid #e7ebf2; padding:8px 9px; text-align:left; vertical-align:top; font-size:12px; }
+    th { background:#eef3f8; color:#344054; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+    tr:last-child td { border-bottom:0; }
+    .topline { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; margin-bottom:18px; }
+    .eyebrow { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; font-weight:700; }
+    .subtle,.small { color:var(--muted); font-size:13px; }
+    .nav { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; font-size:13px; }
+    .nav a { border:1px solid var(--line); background:var(--panel); border-radius:6px; padding:7px 9px; }
+    .metric-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin:16px 0 18px; }
+    .metric { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; min-height:78px; }
+    .metric span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+    .metric strong { display:block; font-size:24px; margin-top:8px; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px; margin-top:16px; }
+    .split { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
+    .coverage-grid { display:grid; grid-template-columns:minmax(280px,.75fr) minmax(0,1.25fr); gap:16px; align-items:start; }
+    .facts { display:grid; grid-template-columns:150px minmax(0,1fr); gap:10px 14px; margin:0; }
+    .facts dt { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+    .facts dd { margin:0; font-size:13px; line-height:1.45; }
+    .status { display:inline-block; border-radius:999px; padding:3px 7px; font-size:11px; background:#eef2f7; color:#344054; white-space:nowrap; }
+    .status.blocked,.status.qualified_by_layout_blockers { background:#fff1f0; color:var(--red); }
+    .status.validate,.status.validation_required { background:#fff7ed; color:var(--amber); }
+    .status.ready,.status.client_ready { background:#ecfdf3; color:var(--green); }
+    .chip-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .chip-row a,.chip-row span { border:1px solid var(--line); border-radius:5px; padding:4px 6px; background:#fbfcfe; font-size:11px; color:#344054; }
+    .scroll { overflow-x:auto; }
+    .gallery { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:12px; }
+    .gallery.compact .chart-card { min-height:280px; }
+    .chart-card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; min-height:320px; }
+    .chart-card header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:10px; }
+    .chart-card h2 { font-size:16px; line-height:1.25; }
+    .meta { display:flex; flex-wrap:wrap; gap:6px; margin:9px 0 12px; }
+    .meta span { border:1px solid var(--line); background:#fbfcfe; border-radius:5px; padding:4px 6px; font-size:11px; color:#344054; }
+    .bar-row { display:grid; grid-template-columns:minmax(132px,.9fr) minmax(100px,1.4fr) 86px; gap:10px; align-items:center; min-height:28px; margin:7px 0; }
+    .bar-label { font-size:12px; overflow-wrap:anywhere; }
+    .bar-track { height:16px; border:1px solid #d5dbe5; background:#f2f4f7; border-radius:3px; overflow:hidden; }
+    .bar-fill { display:block; height:100%; background:var(--blue); }
+    .bar-fill.teal { background:var(--teal); }
+    .bar-fill.violet { background:var(--violet); }
+    .bar-fill.red { background:var(--red); }
+    .bar-value { color:var(--muted); font-size:12px; text-align:right; }
+    .story-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .story-card { border:1px solid var(--line); background:#fbfcfe; border-radius:7px; padding:9px; font-size:12px; }
+    @media (max-width:980px) { .topline { display:block; } .nav { justify-content:flex-start; margin-top:12px; } .metric-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .split,.coverage-grid,.gallery { grid-template-columns:1fr; } }
+    @media (max-width:620px) { main { padding:16px; } .metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .facts { grid-template-columns:1fr; } .bar-row { grid-template-columns:1fr; gap:4px; } .bar-value { text-align:left; } .story-grid { grid-template-columns:1fr; } }
+    
+  </style>
+</head>
+<body>
+<main>
+  <div class="topline">
+    <div>
+      <div class="eyebrow">Synthetic client 9999 / analysis sections</div>
+      <h1>Analysis Section Drilldowns</h1>
+      <p class="subtle">One inspectable page per analysis section. Each page shows the consulting question, supporting scripts, generated outputs, chart previews, field coverage, blockers, and lineage edges.</p>
+    </div>
+    <nav class="nav">
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_analysis_dashboard.html">Dashboard</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_client_story.html">Client story</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_intake_cockpit.html">Intake cockpit</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_analysis_workbench.html">Analysis workbench</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_lineage_map.html">Lineage map</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_chart_gallery.html">Chart gallery</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/README.html">Package README</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/2026.07_measurement_run/analysis_section_evidence_review.csv">Section evidence CSV</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/2026.07_measurement_run/analysis_consulting_playbook.csv">Consulting playbook CSV</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/2026.07_measurement_run/analysis_insight_brief.csv">Insight brief CSV</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/2026.07_measurement_run/analysis_chart_data_snapshot.csv">Chart data CSV</a>
+      <a href="file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/2026.07_measurement_run/intelligence_metric_catalog.csv">Metric catalog CSV</a>
+    </nav>
+  </div>
+
+  <section class="metric-grid">
+    <div class='metric'><span>Analysis sections</span><strong>30</strong></div>
+    <div class='metric'><span>Chart specs</span><strong>91</strong></div>
+    <div class='metric'><span>Chart data rows</span><strong>91</strong></div>
+    <div class='metric'><span>Playbook rows</span><strong>30</strong></div>
+    <div class='metric'><span>Field checks</span><strong>757</strong></div>
+    <div class='metric'><span>Lineage edges</span><strong>2,382</strong></div>
+  </section>
+
+  <section class="panel">
+    <h2>Section Index</h2>
+    <p class="subtle">Open a section to inspect what the engine is analyzing and which charts or outputs it can produce from the current file drop.</p>
+    <div class='scroll'><table><thead><tr><th>Section</th><th>Domain</th><th>Name</th><th>Status</th><th>Scripts</th><th>Outputs</th><th>Charts</th><th>Mapped / review / blocked fields</th></tr></thead><tbody><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_mailer.html'><code>ars.mailer</code></a></td><td>Campaign and Cohort Measurement</td><td>Mailer</td><td><span class='status blocked'>data mapping blocked</span></td><td>6</td><td>3</td><td>3</td><td>1 / 5 / 1</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_ics_cohort.html'><code>txn.ICS_cohort</code></a></td><td>Campaign and Cohort Measurement</td><td>ICS Cohort</td><td><span class='status blocked'>data mapping blocked</span></td><td>48</td><td>3</td><td>3</td><td>6 / 34 / 30</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_campaign.html'><code>txn.campaign</code></a></td><td>Campaign and Cohort Measurement</td><td>Campaign Analysis</td><td><span class='status blocked'>data mapping blocked</span></td><td>44</td><td>4</td><td>4</td><td>5 / 34 / 22</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_ics_acquisition.html'><code>txn.ics_acquisition</code></a></td><td>Campaign and Cohort Measurement</td><td>ICS Acquisition</td><td><span class='status blocked'>data mapping blocked</span></td><td>10</td><td>3</td><td>3</td><td>4 / 23 / 2</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_competition.html'><code>txn.competition</code></a></td><td>Competitive Leakage</td><td>Competition</td><td><span class='status blocked'>data mapping blocked</span></td><td>43</td><td>3</td><td>3</td><td>6 / 31 / 17</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_financial_services.html'><code>txn.financial_services</code></a></td><td>Competitive Leakage</td><td>Financial Services</td><td><span class='status blocked'>data mapping blocked</span></td><td>20</td><td>3</td><td>3</td><td>5 / 22 / 3</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_dctr.html'><code>ars.dctr</code></a></td><td>Debit, Reg E, and Revenue</td><td>Dctr</td><td><span class='status blocked'>data mapping blocked</span></td><td>6</td><td>3</td><td>3</td><td>4 / 8 / 1</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_rege.html'><code>ars.rege</code></a></td><td>Debit, Reg E, and Revenue</td><td>Rege</td><td><span class='status blocked'>data mapping blocked</span></td><td>4</td><td>3</td><td>3</td><td>5 / 7 / 1</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_value.html'><code>ars.value</code></a></td><td>Debit, Reg E, and Revenue</td><td>Value</td><td><span class='status blocked'>data mapping blocked</span></td><td>1</td><td>3</td><td>3</td><td>1 / 1 / 2</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_interchange.html'><code>txn.interchange</code></a></td><td>Debit, Reg E, and Revenue</td><td>Interchange Revenue</td><td><span class='status blocked'>data mapping blocked</span></td><td>10</td><td>3</td><td>3</td><td>5 / 5 / 30</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_insights.html'><code>ars.insights</code></a></td><td>Executive Synthesis</td><td>Insights</td><td><span class='status blocked'>data mapping blocked</span></td><td>6</td><td>3</td><td>3</td><td>3 / 5 / 2</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_executive.html'><code>txn.executive</code></a></td><td>Executive Synthesis</td><td>Executive Scorecard</td><td><span class='status blocked'>data mapping blocked</span></td><td>5</td><td>3</td><td>3</td><td>2 / 4 / 8</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_overview.html'><code>ars.overview</code></a></td><td>Portfolio Foundation</td><td>Overview</td><td><span class='status blocked'>data mapping blocked</span></td><td>3</td><td>3</td><td>3</td><td>3 / 3 / 1</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_general.html'><code>txn.general</code></a></td><td>Portfolio Foundation</td><td>Portfolio Overview</td><td><span class='status blocked'>data mapping blocked</span></td><td>30</td><td>3</td><td>3</td><td>7 / 29 / 27</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_relationship.html'><code>txn.relationship</code></a></td><td>Primacy, Payroll, and Relationship</td><td>Relationship Depth</td><td><span class='status blocked'>data mapping blocked</span></td><td>10</td><td>3</td><td>3</td><td>7 / 11 / 2</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_attrition.html'><code>ars.attrition</code></a></td><td>Retention and Lifecycle</td><td>Attrition</td><td><span class='status blocked'>data mapping blocked</span></td><td>5</td><td>3</td><td>3</td><td>5 / 14 / 1</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_attrition_txn.html'><code>txn.attrition_txn</code></a></td><td>Retention and Lifecycle</td><td>Attrition (Velocity)</td><td><span class='status blocked'>data mapping blocked</span></td><td>12</td><td>3</td><td>3</td><td>5 / 18 / 18</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_segment_evolution.html'><code>txn.segment_evolution</code></a></td><td>Retention and Lifecycle</td><td>Segment Evolution</td><td><span class='status blocked'>data mapping blocked</span></td><td>8</td><td>3</td><td>3</td><td>3 / 13 / 3</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_mcc_code.html'><code>txn.mcc_code</code></a></td><td>Spend, Merchant, and Channel</td><td>MCC Categories</td><td><span class='status blocked'>data mapping blocked</span></td><td>15</td><td>3</td><td>3</td><td>5 / 14 / 1</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_transaction_type.html'><code>txn.transaction_type</code></a></td><td>Spend, Merchant, and Channel</td><td>Transaction Type</td><td><span class='status blocked'>data mapping blocked</span></td><td>16</td><td>3</td><td>3</td><td>5 / 22 / 10</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_rege_overdraft.html'><code>txn.rege_overdraft</code></a></td><td>Debit, Reg E, and Revenue</td><td>Reg E / Overdraft</td><td><span class='status validate'>validate before external use</span></td><td>10</td><td>3</td><td>3</td><td>5 / 8 / 0</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_business_accts.html'><code>txn.business_accts</code></a></td><td>Portfolio Foundation</td><td>Business Accounts</td><td><span class='status validate'>validate before external use</span></td><td>14</td><td>3</td><td>3</td><td>5 / 14 / 0</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_personal_accts.html'><code>txn.personal_accts</code></a></td><td>Portfolio Foundation</td><td>Personal Accounts</td><td><span class='status validate'>validate before external use</span></td><td>14</td><td>3</td><td>3</td><td>5 / 14 / 0</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_product.html'><code>txn.product</code></a></td><td>Portfolio Foundation</td><td>Product Analysis</td><td><span class='status validate'>validate before external use</span></td><td>10</td><td>3</td><td>3</td><td>6 / 12 / 0</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_balance.html'><code>txn.balance</code></a></td><td>Primacy, Payroll, and Relationship</td><td>Balance Analysis</td><td><span class='status validate'>validate before external use</span></td><td>10</td><td>3</td><td>3</td><td>7 / 17 / 0</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_payroll.html'><code>txn.payroll</code></a></td><td>Primacy, Payroll, and Relationship</td><td>Payroll &amp; Direct Deposit</td><td><span class='status validate'>validate before external use</span></td><td>10</td><td>3</td><td>3</td><td>8 / 23 / 0</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_engagement.html'><code>txn.engagement</code></a></td><td>Retention and Lifecycle</td><td>Engagement Migration</td><td><span class='status validate'>validate before external use</span></td><td>6</td><td>3</td><td>3</td><td>1 / 7 / 0</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_retention.html'><code>txn.retention</code></a></td><td>Retention and Lifecycle</td><td>Retention Analysis</td><td><span class='status validate'>validate before external use</span></td><td>7</td><td>3</td><td>3</td><td>2 / 15 / 0</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_branch_txn.html'><code>txn.branch_txn</code></a></td><td>Spend, Merchant, and Channel</td><td>Branch Performance</td><td><span class='status validate'>validate before external use</span></td><td>10</td><td>3</td><td>3</td><td>6 / 11 / 0</td></tr><tr><td><a href='file:///Users/jgmbp/Desktop/RPE-Workflow/01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_merchant.html'><code>txn.merchant</code></a></td><td>Spend, Merchant, and Channel</td><td>Merchant Analysis</td><td><span class='status validate'>validate before external use</span></td><td>14</td><td>3</td><td>3</td><td>5 / 14 / 0</td></tr></tbody></table></div>
+  </section>
+</main>
+</body>
+</html>

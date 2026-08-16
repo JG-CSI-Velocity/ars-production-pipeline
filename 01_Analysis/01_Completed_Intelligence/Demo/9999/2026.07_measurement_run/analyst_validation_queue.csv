@@ -1,0 +1,5 @@
+item_rank,client_id,period_month,severity,item_type,item_id,issue,recommended_action,source_artifact,model_version
+1,9999,2026.07,warning,data_quality_warning,data_quality:1,short_transaction_history,Review the warning and document whether it affects client-facing interpretation.,data_quality.json,stakeholder_export_v0_rules
+2,9999,2026.07,error,layout_gap,9999_marketing_suppressions_2026.07.csv:amount,9999_marketing_suppressions_2026.07.csv has missing_required for amount.,Map or request required field before loading this file.,layout_gap_report.csv,stakeholder_export_v0_rules
+3,9999,2026.07,error,layout_gap,9999_marketing_suppressions_2026.07.csv:transaction_date,9999_marketing_suppressions_2026.07.csv has missing_required for transaction_date.,Map or request required field before loading this file.,layout_gap_report.csv,stakeholder_export_v0_rules
+4,9999,2026.07,error,layout_gap,9999_marketing_suppressions_2026.07.csv:transaction_type,9999_marketing_suppressions_2026.07.csv has missing_required for transaction_type.,Map or request required field before loading this file.,layout_gap_report.csv,stakeholder_export_v0_rules

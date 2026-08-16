@@ -1,0 +1,88 @@
+contract_id: account.odd_extract.v1
+source_family: odd
+display_name: ODD-style account extract
+version: "1"
+status: draft
+notes:
+  - Supports the current modified ODD extract path used by the Python pipeline.
+  - Raw core extracts can use this contract as a fallback target when a direct raw layout is not ready.
+match:
+  filename_patterns:
+    - "*ODD*"
+    - "*ODDD*"
+    - "*formatted*"
+  extensions:
+    - xlsx
+    - csv
+  header:
+    mode: header_row
+    header_row: 1
+  positional: false
+canonical_fields:
+  account_id:
+    required: false
+    type: string
+    aliases: ["Acct Number", " Account Number", "Account Number", "Acct"]
+  stat_code:
+    required: true
+    type: string
+    aliases: ["Stat Code", "Status Code", "StatCode", "Account Status"]
+  product_code:
+    required: true
+    type: string
+    aliases: ["Product Code", "Prod Code"]
+  date_opened:
+    required: true
+    type: date
+    aliases: ["Date Opened", "Open Date"]
+  date_closed:
+    required: false
+    type: date
+    aliases: ["Date Closed", "Close Date"]
+  avg_balance:
+    required: true
+    type: decimal
+    aliases: ["Avg Bal", "Balance", "Current Balance", "Cur Bal"]
+  business_flag:
+    required: false
+    type: boolean
+    aliases: ["Business?", "Business", "Biz"]
+  has_debit:
+    required: false
+    type: boolean
+    aliases: ["Debit?", "Debit", "DC Indicator", "DC_Indicator"]
+  branch_id:
+    required: false
+    type: string
+    aliases: ["Branch", "Branch ID", "Branch Number"]
+  account_holder_age:
+    required: false
+    type: number
+    aliases: ["Account Holder Age", "Age"]
+  account_age:
+    required: false
+    type: number
+    aliases: ["Account Age", "Account Age Days"]
+  reg_e_status:
+    required: false
+    type: string
+    aliases:
+      - "Reg E Code"
+      - "Reg E Desc"
+    pattern_aliases:
+      - "^Reg E Code"
+      - "^.* Reg E Code$"
+validation:
+  - id: required_columns
+    severity: error
+    rule: stat_code, product_code, date_opened, and avg_balance are present
+  - id: open_account_detectable
+    severity: error
+    rule: stat_code or date_closed supports open-account detection
+  - id: eligible_mapping
+    severity: warning
+    rule: configured eligible status/product codes match at least one row
+  - id: debit_detection
+    severity: warning
+    rule: has_debit field is present or derivable for DCTR and Reg E sections
+

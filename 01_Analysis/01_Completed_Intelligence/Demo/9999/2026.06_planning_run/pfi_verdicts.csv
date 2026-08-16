@@ -1,0 +1,9 @@
+account_id,period_month,pfi_verdict,pfi_score,internal_score,external_score,confidence,confidence_score,reason_codes,model_version
+1001,2026-06,Split,56.2,0.733,0.57,high,1.0,account_match|payroll_detected|meaningful_balance|multi_product|external_fi_activity|material_external_amount,pfi_v0_rules
+1002,2026-06,No verdict,5.8,0.109,0.17,medium,0.65,account_match|external_fi_activity,pfi_v0_rules
+1003,2026-06,Competitor-primary,1.5,0.3,0.95,high,0.8,account_match|meaningful_balance|external_fi_activity|material_external_amount,pfi_v0_rules
+1004,2026-06,No verdict,26.7,0.267,0.0,low,0.4,account_match|meaningful_balance,pfi_v0_rules
+1005,2026-06,No verdict,49.8,0.498,0.0,high,0.9,account_match|payroll_detected,pfi_v0_rules
+1006,2026-06,Split,0.3,0.118,0.382,high,0.8,account_match|external_fi_activity,pfi_v0_rules
+1007,2026-06,Split,15.3,0.283,0.435,medium,0.65,account_match|meaningful_balance|external_fi_activity|material_external_amount,pfi_v0_rules
+1008,2026-06,No verdict,13.5,0.135,0.0,medium,0.6,account_match,pfi_v0_rules

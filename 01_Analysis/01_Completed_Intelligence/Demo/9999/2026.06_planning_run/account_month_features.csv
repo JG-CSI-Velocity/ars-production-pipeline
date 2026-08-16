@@ -1,0 +1,9 @@
+account_id,period_month,matched_account,txn_count,active_days,spend_amount,credit_amount,net_amount,payroll_count,payroll_amount,external_fi_count,external_fi_amount,financial_services_count,unique_merchants,balance,has_debit,business_flag,branch,product_code,product_count,account_status,date_opened,external_intensity,payroll_detected,engagement_tier,feature_version
+1001,2026-06,True,6,6,12786.0,7200.0,1614,2,7200.0,2,3700.0,1,5,18000,True,False,Main,CHK|SAV,2,A,2020-01-15,0.18512032821333868,True,Low,ti_v1
+1002,2026-06,True,2,2,1900.0,1200.0,500,0,0.0,1,700.0,0,2,650,False,False,North,SAV,1,A,2024-03-10,0.22573363431151242,False,Very Low,ti_v1
+1003,2026-06,True,4,4,10225.0,7200.0,-3025,0,0.0,1,8500.0,1,4,23000,True,True,Downtown,BUS,1,A,2019-08-03,0.4877768851141972,False,Low,ti_v1
+1004,2026-06,True,0,0,0.0,0.0,0,0,0.0,0,0.0,0,0,8200,False,False,South,CHK,1,A,2021-11-22,0.0,False,Dormant,ti_v1
+1005,2026-06,True,3,3,235.0,3200.0,2965,1,3200.0,0,0.0,0,3,1400,True,False,Main,CHK,1,A,2023-02-18,0.0,True,Low,ti_v1
+1006,2026-06,True,4,4,1720.0,1300.0,80,0,0.0,3,820.0,1,4,450,True,False,North,CHK,1,A,2022-07-01,0.27143330023171136,False,Low,ti_v1
+1007,2026-06,True,2,2,2350.0,0.0,-2350,0,0.0,2,2350.0,1,2,7600,False,False,West,MMA,1,A,2018-05-09,0.9995746490854955,False,Very Low,ti_v1
+1008,2026-06,True,2,2,83.0,0.0,-83,0,0.0,0,0.0,0,2,1300,True,False,South,CHK,1,A,2025-01-04,0.0,False,Very Low,ti_v1

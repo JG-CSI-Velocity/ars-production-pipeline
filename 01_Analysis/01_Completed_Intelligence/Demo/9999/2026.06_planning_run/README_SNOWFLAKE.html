@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Snowflake Load Package</title>
+  <style>
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #14213d; background: #f6f7f9; }
+    main { max-width: 1180px; margin: 0 auto; padding: 28px; }
+    h1 { margin: 0 0 10px; font-size: 28px; }
+    h2 { margin: 28px 0 12px; font-size: 18px; }
+    p, li { line-height: 1.45; }
+    code { background: #eef1f5; border: 1px solid #d9dee8; border-radius: 4px; padding: 2px 5px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+    .metric { background: #fff; border: 1px solid #d9dee8; border-radius: 8px; padding: 14px; }
+    .metric span { display: block; color: #5f6b7a; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .metric strong { display: block; font-size: 20px; margin-top: 5px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d9dee8; }
+    th, td { border-bottom: 1px solid #e6e9ef; padding: 9px 10px; text-align: left; vertical-align: top; font-size: 13px; }
+    th { background: #edf2f8; color: #344054; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: 0; }
+    @media (max-width: 760px) { main { padding: 18px; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Snowflake Load Package</h1>
+  <section class="grid" aria-label="Package metadata">
+    <div class="metric"><span>Run ID</span><strong>ti_9999_2026_06_20260816010115</strong></div>
+    <div class="metric"><span>Client</span><strong>9999</strong></div>
+    <div class="metric"><span>Period</span><strong>2026.06</strong></div>
+  </section>
+
+  <h2>Load Steps</h2>
+  <ol>
+    <li>Run <code>snowflake/001_foundation.sql</code>.</li>
+    <li>Run <code>snowflake/002_transactional_intelligence_outputs.sql</code>.</li>
+    <li>Run <code>snowflake_load.sql</code> from this output folder in SnowSQL or a Snowflake worksheet with local file access configured.</li>
+  </ol>
+
+  <h2>Files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Target table</th><th>Rows</th><th>Format</th></tr></thead>
+    <tbody><tr><td><code>file_ledger.csv</code></td><td><code>out.ti_file_ledger</code></td><td>3</td><td>csv</td></tr>
+<tr><td><code>intake_work_order.csv</code></td><td><code>out.ti_intake_work_order</code></td><td>3</td><td>csv</td></tr>
+<tr><td><code>file_assembly_plan.csv</code></td><td><code>out.ti_file_assembly_plan</code></td><td>3</td><td>csv</td></tr>
+<tr><td><code>monthly_file_requirements.csv</code></td><td><code>out.ti_monthly_file_requirements</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>layout_gap_report.csv</code></td><td><code>out.ti_layout_gap_report</code></td><td>37</td><td>csv</td></tr>
+<tr><td><code>source_layout_profile.csv</code></td><td><code>out.ti_source_layout_profile</code></td><td>16</td><td>csv</td></tr>
+<tr><td><code>layout_contract_draft_queue.csv</code></td><td><code>out.ti_layout_contract_draft_queue</code></td><td>3</td><td>csv</td></tr>
+<tr><td><code>layout_contract_export_manifest.csv</code></td><td><code>out.ti_layout_contract_export_manifest</code></td><td>3</td><td>csv</td></tr>
+<tr><td><code>intelligence_lineage_graph.csv</code></td><td><code>out.ti_intelligence_lineage_graph</code></td><td>2328</td><td>csv</td></tr>
+<tr><td><code>engine_run_ledger.csv</code></td><td><code>out.ti_engine_run_ledger</code></td><td>11</td><td>csv</td></tr>
+<tr><td><code>engine_readiness_assessment.csv</code></td><td><code>out.ti_engine_readiness_assessment</code></td><td>10</td><td>csv</td></tr>
+<tr><td><code>account_month_features.csv</code></td><td><code>mart.ti_account_month_features</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>account_intelligence_profile.csv</code></td><td><code>mart.ti_account_intelligence_profile</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>model_rulebook.csv</code></td><td><code>out.ti_model_rulebook</code></td><td>23</td><td>csv</td></tr>
+<tr><td><code>account_scoring_trace.csv</code></td><td><code>out.ti_account_scoring_trace</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>pfi_verdicts.csv</code></td><td><code>mart.ti_pfi_verdicts</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>counterparty_signals.csv</code></td><td><code>mart.ti_counterparty_signals</code></td><td>22</td><td>csv</td></tr>
+<tr><td><code>counterparty_summary.csv</code></td><td><code>mart.ti_counterparty_summary</code></td><td>22</td><td>csv</td></tr>
+<tr><td><code>relationship_segments.csv</code></td><td><code>mart.ti_relationship_segments</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>segment_summary.csv</code></td><td><code>mart.ti_segment_summary</code></td><td>5</td><td>csv</td></tr>
+<tr><td><code>opportunities.csv</code></td><td><code>mart.ti_opportunities</code></td><td>29</td><td>csv</td></tr>
+<tr><td><code>opportunity_portfolio.csv</code></td><td><code>mart.ti_opportunity_portfolio</code></td><td>7</td><td>csv</td></tr>
+<tr><td><code>executive_scorecard.csv</code></td><td><code>out.ti_executive_scorecard</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>strategy_roadmap.csv</code></td><td><code>out.ti_strategy_roadmap</code></td><td>6</td><td>csv</td></tr>
+<tr><td><code>action_plan.csv</code></td><td><code>out.ti_action_plan</code></td><td>7</td><td>csv</td></tr>
+<tr><td><code>measurement_plan.csv</code></td><td><code>out.ti_measurement_plan</code></td><td>7</td><td>csv</td></tr>
+<tr><td><code>campaign_targets.csv</code></td><td><code>out.ti_campaign_targets</code></td><td>29</td><td>csv</td></tr>
+<tr><td><code>csm_review_queue.csv</code></td><td><code>out.ti_csm_review_queue</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>analyst_validation_queue.csv</code></td><td><code>out.ti_analyst_validation_queue</code></td><td>7</td><td>csv</td></tr>
+<tr><td><code>marketing_activation_export.csv</code></td><td><code>out.ti_marketing_activation_export</code></td><td>29</td><td>csv</td></tr>
+<tr><td><code>banker_call_list.csv</code></td><td><code>out.ti_banker_call_list</code></td><td>5</td><td>csv</td></tr>
+<tr><td><code>data_team_load_plan.csv</code></td><td><code>out.ti_data_team_load_plan</code></td><td>3</td><td>csv</td></tr>
+<tr><td><code>stakeholder_export_manifest.csv</code></td><td><code>out.ti_stakeholder_export_manifest</code></td><td>5</td><td>csv</td></tr>
+<tr><td><code>measurement_baseline.csv</code></td><td><code>out.ti_measurement_baseline</code></td><td>7</td><td>csv</td></tr>
+<tr><td><code>outcome_results.csv</code></td><td><code>out.ti_outcome_results</code></td><td>0</td><td>csv</td></tr>
+<tr><td><code>outcome_summary.csv</code></td><td><code>out.ti_outcome_summary</code></td><td>0</td><td>csv</td></tr>
+<tr><td><code>intelligence_delta_report.csv</code></td><td><code>out.ti_intelligence_delta_report</code></td><td>1</td><td>csv</td></tr>
+<tr><td><code>consulting_insight_register.csv</code></td><td><code>out.ti_consulting_insight_register</code></td><td>21</td><td>csv</td></tr>
+<tr><td><code>role_handoffs.csv</code></td><td><code>out.ti_role_handoffs</code></td><td>6</td><td>csv</td></tr>
+<tr><td><code>operating_control_plane.csv</code></td><td><code>out.ti_operating_control_plane</code></td><td>6</td><td>csv</td></tr>
+<tr><td><code>user_interaction_map.csv</code></td><td><code>out.ti_user_interaction_map</code></td><td>93</td><td>csv</td></tr>
+<tr><td><code>production_readiness_backlog.csv</code></td><td><code>out.ti_production_readiness_backlog</code></td><td>478</td><td>csv</td></tr>
+<tr><td><code>analysis_section_catalog.csv</code></td><td><code>out.ti_analysis_section_catalog</code></td><td>30</td><td>csv</td></tr>
+<tr><td><code>analysis_script_catalog.csv</code></td><td><code>out.ti_analysis_script_catalog</code></td><td>407</td><td>csv</td></tr>
+<tr><td><code>analysis_field_usage_catalog.csv</code></td><td><code>out.ti_analysis_field_usage_catalog</code></td><td>5841</td><td>csv</td></tr>
+<tr><td><code>analysis_provenance_map.csv</code></td><td><code>out.ti_analysis_provenance_map</code></td><td>19</td><td>csv</td></tr>
+<tr><td><code>analysis_execution_map.csv</code></td><td><code>out.ti_analysis_execution_map</code></td><td>30</td><td>csv</td></tr>
+<tr><td><code>analysis_domain_map.csv</code></td><td><code>out.ti_analysis_domain_map</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>analysis_input_dependency_map.csv</code></td><td><code>out.ti_analysis_input_dependency_map</code></td><td>8</td><td>csv</td></tr>
+<tr><td><code>analysis_layout_coverage_matrix.csv</code></td><td><code>out.ti_analysis_layout_coverage_matrix</code></td><td>757</td><td>csv</td></tr>
+<tr><td><code>analysis_data_team_backlog.csv</code></td><td><code>out.ti_analysis_data_team_backlog</code></td><td>59</td><td>csv</td></tr>
+<tr><td><code>analysis_metric_validation_queue.csv</code></td><td><code>out.ti_analysis_metric_validation_queue</code></td><td>300</td><td>csv</td></tr>
+<tr><td><code>analysis_visual_output_map.csv</code></td><td><code>out.ti_analysis_visual_output_map</code></td><td>83</td><td>csv</td></tr>
+<tr><td><code>analysis_chart_spec_catalog.csv</code></td><td><code>out.ti_analysis_chart_spec_catalog</code></td><td>83</td><td>csv</td></tr>
+<tr><td><code>analysis_chart_data_snapshot.csv</code></td><td><code>out.ti_analysis_chart_data_snapshot</code></td><td>83</td><td>csv</td></tr>
+<tr><td><code>intelligence_metric_catalog.csv</code></td><td><code>out.ti_intelligence_metric_catalog</code></td><td>49</td><td>csv</td></tr>
+<tr><td><code>analysis_section_evidence_review.csv</code></td><td><code>out.ti_analysis_section_evidence_review</code></td><td>30</td><td>csv</td></tr>
+<tr><td><code>analysis_requirement_matrix.csv</code></td><td><code>out.ti_analysis_requirement_matrix</code></td><td>30</td><td>csv</td></tr>
+<tr><td><code>analysis_consulting_playbook.csv</code></td><td><code>out.ti_analysis_consulting_playbook</code></td><td>30</td><td>csv</td></tr>
+<tr><td><code>analysis_insight_brief.csv</code></td><td><code>out.ti_analysis_insight_brief</code></td><td>30</td><td>csv</td></tr>
+<tr><td><code>client_meeting_deck_blueprint.csv</code></td><td><code>out.ti_client_meeting_deck_blueprint</code></td><td>64</td><td>csv</td></tr>
+<tr><td><code>analysis_review_board.csv</code></td><td><code>out.ti_analysis_review_board</code></td><td>30</td><td>csv</td></tr>
+<tr><td><code>analysis_package_index.csv</code></td><td><code>out.ti_analysis_package_index</code></td><td>68</td><td>csv</td></tr>
+<tr><td><code>data_quality.json</code></td><td><code>out.ti_data_quality</code></td><td>1</td><td>json</td></tr>
+<tr><td><code>insights.json</code></td><td><code>out.ti_insights</code></td><td>7</td><td>json</td></tr>
+<tr><td><code>consulting_story.json</code></td><td><code>out.ti_consulting_story</code></td><td>1</td><td>json</td></tr>
+<tr><td><code>run_summary.json</code></td><td><code>out.ti_run_summary</code></td><td>1</td><td>json</td></tr>
+<tr><td><code>intake_profile.json</code></td><td><code>out.ti_intake_profile</code></td><td>3</td><td>json</td></tr></tbody>
+  </table>
+</main>
+</body>
+</html>

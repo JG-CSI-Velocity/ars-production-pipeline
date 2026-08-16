@@ -42,6 +42,7 @@ packages = [
     "ars_engine",
     "ars_engine.core",
     "ars_engine.data",
+    "ars_engine.intelligence",
     "ars_engine.sections",
     "ars_parity",
 ]
@@ -50,6 +51,7 @@ packages = [
 # Everything the test suites need beyond runtime deps.
 # `pip install -e .[test]` before running pytest.
 test = ["pytest", "httpx"]
+browser = ["playwright"]
 
 [tool.pytest.ini_options]
 testpaths = [

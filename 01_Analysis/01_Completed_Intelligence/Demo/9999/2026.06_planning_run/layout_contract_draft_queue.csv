@@ -1,0 +1,119 @@
+draft_rank,client_id,period_month,file_name,source_path,source_family,detected_format,delimiter,header_mode,estimated_rows,match_status,match_score,current_contract_id,proposed_contract_id,contract_action,priority_band,missing_required_fields,matched_canonical_fields,unmapped_source_columns,source_columns,draft_alias_map,draft_yaml,data_team_action,analyst_question,target_snowflake_layer,source_artifacts,model_version
+1,9999,2026-06,9999_branch_roster_2026.06.csv,01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_branch_roster_2026.06.csv,odd,text,comma,header_row,3,candidate,0.121,account.odd_extract.v1,account.9999_branch_roster_2026_06.draft.v1,review_candidate_contract,P1,account_id,branch_id,Market|Manager Email,Branch|Market|Manager Email,"{""branch_id"": [""Branch""]}","contract_id: account.9999_branch_roster_2026_06.draft.v1
+source_family: account
+display_name: 9999 Branch Roster 2026.06
+version: '1'
+status: draft
+match:
+  filename_patterns:
+  - 9999_branch_roster_2026.06.csv
+  required_headers_any:
+  - Branch
+  - Market
+  - Manager Email
+canonical_fields:
+  account_id:
+    type: string
+    required: true
+    aliases: []
+  branch_id:
+    type: string
+    required: false
+    aliases:
+    - Branch","Confirm whether this file belongs to accounts; if yes, promote or edit account.9999_branch_roster_2026_06.draft.v1.",Is this the authoritative ODD/account file for eligibility and relationship features?,raw.accounts,source_layout_profile.csv|layout_gap_report.csv|intake_work_order.csv,layout_contract_draft_queue_v0_rules
+2,9999,2026-06,9999_transactions_2026.06.csv,01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_transactions_2026.06.csv,transaction,text,comma,header_row,23,matched,0.846,txn.velocity_standard.v1,txn.velocity_standard.v1,promote_existing_contract,P2,,account_id|amount|merchant_name|transaction_date|transaction_type,,primary_account_num|transaction_date|amount|description|transaction_type,"{""account_id"": [""primary_account_num""], ""amount"": [""amount""], ""merchant_name"": [""description""], ""transaction_date"": [""transaction_date""], ""transaction_type"": [""transaction_type""]}","contract_id: txn.velocity_standard.v1
+source_family: transaction
+display_name: 9999 Transactions 2026.06
+version: '1'
+status: draft
+match:
+  filename_patterns:
+  - 9999_transactions_2026.06.csv
+  required_headers_any:
+  - primary_account_num
+  - transaction_date
+  - amount
+  - description
+  - transaction_type
+canonical_fields:
+  account_id:
+    type: string
+    required: true
+    aliases:
+    - primary_account_num
+  amount:
+    type: number
+    required: true
+    aliases:
+    - amount
+  merchant_name:
+    type: string
+    required: false
+    aliases:
+    - description
+  transaction_date:
+    type: date
+    required: true
+    aliases:
+    - transaction_date
+  transaction_type:
+    type: string
+    required: true
+    aliases:
+    - transaction_type",Reuse the existing contract and publish this layout lineage to Snowflake.,Should 9999_transactions_2026.06.csv be included in this month's analysis package or kept as supporting lineage?,raw.transactions,source_layout_profile.csv|layout_gap_report.csv|intake_work_order.csv,layout_contract_draft_queue_v0_rules
+3,9999,2026-06,9999_ODD_accounts_2026.06.csv,01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_ODD_accounts_2026.06.csv,odd,text,comma,header_row,9,matched,0.917,account.odd_extract.v1,account.odd_extract.v1,promote_existing_contract,P2,,account_id|avg_balance|branch_id|business_flag|date_opened|has_debit|product_code|stat_code,,Account Number|Stat Code|Product Code|Date Opened|Avg Bal|Debit?|Business?|Branch,"{""account_id"": [""Account Number""], ""avg_balance"": [""Avg Bal""], ""branch_id"": [""Branch""], ""business_flag"": [""Business?""], ""date_opened"": [""Date Opened""], ""has_debit"": [""Debit?""], ""product_code"": [""Product Code""], ""stat_code"": [""Stat Code""]}","contract_id: account.odd_extract.v1
+source_family: account
+display_name: 9999 Odd Accounts 2026.06
+version: '1'
+status: draft
+match:
+  filename_patterns:
+  - 9999_ODD_accounts_2026.06.csv
+  required_headers_any:
+  - Account Number
+  - Stat Code
+  - Product Code
+  - Date Opened
+  - Avg Bal
+  - Debit?
+canonical_fields:
+  account_id:
+    type: string
+    required: true
+    aliases:
+    - Account Number
+  avg_balance:
+    type: number
+    required: false
+    aliases:
+    - Avg Bal
+  branch_id:
+    type: string
+    required: false
+    aliases:
+    - Branch
+  business_flag:
+    type: boolean
+    required: false
+    aliases:
+    - Business?
+  date_opened:
+    type: date
+    required: false
+    aliases:
+    - Date Opened
+  has_debit:
+    type: boolean
+    required: false
+    aliases:
+    - Debit?
+  product_code:
+    type: string
+    required: false
+    aliases:
+    - Product Code
+  stat_code:
+    type: string
+    required: false
+    aliases:
+    - Stat Code",Reuse the existing contract and publish this layout lineage to Snowflake.,Should 9999_ODD_accounts_2026.06.csv be included in this month's analysis package or kept as supporting lineage?,raw.accounts,source_layout_profile.csv|layout_gap_report.csv|intake_work_order.csv,layout_contract_draft_queue_v0_rules

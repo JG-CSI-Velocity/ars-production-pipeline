@@ -1,0 +1,274 @@
+[
+  {
+    "insight_id": "ti.payroll_conversion",
+    "client_id": "9999",
+    "period_month": "2026.06",
+    "domain": "Relationship and Primacy",
+    "section_id": "ti.engine",
+    "population": "ranked account opportunities",
+    "finding": "4 accounts qualify for payroll conversion.",
+    "metric_name": "expected_value",
+    "current_value": 3204.0,
+    "affected_accounts": 4,
+    "opportunity_amount": 3204.0,
+    "priority_score": 41.1,
+    "confidence": "medium",
+    "confidence_reasons": [
+      "no_payroll_detected",
+      "external_money_movement"
+    ],
+    "recommended_action": "Target for direct-deposit or primary-banking conversion.",
+    "target_list_ref": "opportunities.csv#payroll_conversion",
+    "source_tables": [
+      "mart.account_month_features",
+      "mart.pfi_verdicts"
+    ],
+    "source_sections": [
+      "txn.competition",
+      "txn.payroll",
+      "txn.relationship"
+    ],
+    "measurement": {
+      "recommended_design": "holdout_or_matched_control",
+      "windows": [
+        "30d",
+        "60d",
+        "90d"
+      ],
+      "primary_metric": "new_direct_deposit_or_payroll_detected"
+    }
+  },
+  {
+    "insight_id": "ti.relationship_expansion",
+    "client_id": "9999",
+    "period_month": "2026.06",
+    "domain": "Relationship and Primacy",
+    "section_id": "ti.engine",
+    "population": "ranked account opportunities",
+    "finding": "4 accounts qualify for relationship expansion.",
+    "metric_name": "expected_value",
+    "current_value": 800.0,
+    "affected_accounts": 4,
+    "opportunity_amount": 800.0,
+    "priority_score": 27.7,
+    "confidence": "medium",
+    "confidence_reasons": [
+      "thin_relationship",
+      "external_financial_activity"
+    ],
+    "recommended_action": "Target for next-best-product or relationship expansion offer.",
+    "target_list_ref": "opportunities.csv#relationship_expansion",
+    "source_tables": [
+      "mart.account_month_features",
+      "mart.pfi_verdicts"
+    ],
+    "source_sections": [
+      "txn.financial_services",
+      "txn.relationship"
+    ],
+    "measurement": {
+      "recommended_design": "holdout_or_matched_control",
+      "windows": [
+        "30d",
+        "60d",
+        "90d"
+      ],
+      "primary_metric": "new_product_or_relationship_depth"
+    }
+  },
+  {
+    "insight_id": "ti.attrition_prevention",
+    "client_id": "9999",
+    "period_month": "2026.06",
+    "domain": "Lifecycle and Retention",
+    "section_id": "ti.engine",
+    "population": "ranked account opportunities",
+    "finding": "4 accounts qualify for attrition prevention.",
+    "metric_name": "expected_value",
+    "current_value": 561.0,
+    "affected_accounts": 4,
+    "opportunity_amount": 561.0,
+    "priority_score": 35.2,
+    "confidence": "high",
+    "confidence_reasons": [
+      "relationship_risk",
+      "low_activity_or_competitor_pull"
+    ],
+    "recommended_action": "Prioritize for save outreach before dormancy or closure.",
+    "target_list_ref": "opportunities.csv#attrition_prevention",
+    "source_tables": [
+      "mart.account_month_features",
+      "mart.pfi_verdicts"
+    ],
+    "source_sections": [
+      "ars.attrition",
+      "txn.attrition_txn",
+      "txn.retention"
+    ],
+    "measurement": {
+      "recommended_design": "holdout_or_matched_control",
+      "windows": [
+        "30d",
+        "60d",
+        "90d"
+      ],
+      "primary_metric": "account_retained_and_activity_stabilized"
+    }
+  },
+  {
+    "insight_id": "ti.deposit_retention",
+    "client_id": "9999",
+    "period_month": "2026.06",
+    "domain": "Competitive Leakage",
+    "section_id": "ti.engine",
+    "population": "ranked account opportunities",
+    "finding": "3 accounts qualify for deposit retention.",
+    "metric_name": "expected_value",
+    "current_value": 486.0,
+    "affected_accounts": 3,
+    "opportunity_amount": 486.0,
+    "priority_score": 38.7,
+    "confidence": "high",
+    "confidence_reasons": [
+      "high_balance",
+      "external_fi_outflow"
+    ],
+    "recommended_action": "Route to banker or branch for deposit retention conversation.",
+    "target_list_ref": "opportunities.csv#deposit_retention",
+    "source_tables": [
+      "mart.account_month_features",
+      "mart.pfi_verdicts"
+    ],
+    "source_sections": [
+      "txn.balance",
+      "txn.competition",
+      "txn.relationship"
+    ],
+    "measurement": {
+      "recommended_design": "holdout_or_matched_control",
+      "windows": [
+        "30d",
+        "60d",
+        "90d"
+      ],
+      "primary_metric": "retained_balance"
+    }
+  },
+  {
+    "insight_id": "ti.competitor_winback",
+    "client_id": "9999",
+    "period_month": "2026.06",
+    "domain": "Competitive Leakage",
+    "section_id": "ti.engine",
+    "population": "ranked account opportunities",
+    "finding": "4 accounts qualify for competitor winback.",
+    "metric_name": "expected_value",
+    "current_value": 233.25,
+    "affected_accounts": 4,
+    "opportunity_amount": 233.25,
+    "priority_score": 26.2,
+    "confidence": "high",
+    "confidence_reasons": [
+      "competitor_intensity",
+      "split",
+      "competitor-primary"
+    ],
+    "recommended_action": "Target with competitor win-back or relationship consolidation play.",
+    "target_list_ref": "opportunities.csv#competitor_winback",
+    "source_tables": [
+      "mart.account_month_features",
+      "mart.pfi_verdicts"
+    ],
+    "source_sections": [
+      "txn.competition",
+      "txn.financial_services"
+    ],
+    "measurement": {
+      "recommended_design": "holdout_or_matched_control",
+      "windows": [
+        "30d",
+        "60d",
+        "90d"
+      ],
+      "primary_metric": "reduced_external_fi_transfer_share"
+    }
+  },
+  {
+    "insight_id": "ti.dormant_reactivation",
+    "client_id": "9999",
+    "period_month": "2026.06",
+    "domain": "Lifecycle and Retention",
+    "section_id": "ti.engine",
+    "population": "ranked account opportunities",
+    "finding": "5 accounts qualify for dormant reactivation.",
+    "metric_name": "expected_value",
+    "current_value": 154.0,
+    "affected_accounts": 5,
+    "opportunity_amount": 154.0,
+    "priority_score": 15.0,
+    "confidence": "medium",
+    "confidence_reasons": [
+      "low_activity",
+      "reactivation_candidate"
+    ],
+    "recommended_action": "Target with reactivation message and digital/card usage prompt.",
+    "target_list_ref": "opportunities.csv#dormant_reactivation",
+    "source_tables": [
+      "mart.account_month_features",
+      "mart.pfi_verdicts"
+    ],
+    "source_sections": [
+      "txn.attrition_txn",
+      "txn.engagement",
+      "txn.retention"
+    ],
+    "measurement": {
+      "recommended_design": "holdout_or_matched_control",
+      "windows": [
+        "30d",
+        "60d",
+        "90d"
+      ],
+      "primary_metric": "recovered_transaction_activity"
+    }
+  },
+  {
+    "insight_id": "ti.debit_activation",
+    "client_id": "9999",
+    "period_month": "2026.06",
+    "domain": "Revenue and Value",
+    "section_id": "ti.engine",
+    "population": "ranked account opportunities",
+    "finding": "5 accounts qualify for debit activation.",
+    "metric_name": "expected_value",
+    "current_value": 108.75,
+    "affected_accounts": 5,
+    "opportunity_amount": 108.75,
+    "priority_score": 12.6,
+    "confidence": "medium",
+    "confidence_reasons": [
+      "weak_debit_activity",
+      "eligible_account"
+    ],
+    "recommended_action": "Target for debit activation, wallet provisioning, or usage incentive.",
+    "target_list_ref": "opportunities.csv#debit_activation",
+    "source_tables": [
+      "mart.account_month_features",
+      "mart.pfi_verdicts"
+    ],
+    "source_sections": [
+      "ars.dctr",
+      "txn.general",
+      "txn.interchange"
+    ],
+    "measurement": {
+      "recommended_design": "holdout_or_matched_control",
+      "windows": [
+        "30d",
+        "60d",
+        "90d"
+      ],
+      "primary_metric": "new_or_increased_debit_usage"
+    }
+  }
+]

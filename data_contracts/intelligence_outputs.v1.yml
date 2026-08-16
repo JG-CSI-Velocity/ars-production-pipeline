@@ -1,0 +1,354 @@
+contract_id: ti.outputs.v1
+source_family: transactional_intelligence_output
+display_name: Transactional Intelligence Engine output package
+version: "1"
+status: draft
+notes:
+  - Produced by ars_engine.intelligence V1.
+  - Written under 01_Analysis/01_Completed_Intelligence/<CSM>/<period>/<client_id>/.
+  - Snowflake targets are defined in snowflake/002_transactional_intelligence_outputs.sql.
+artifacts:
+  intake_profile:
+    file: intake_profile.json
+    target_table: out.ti_intake_profile
+    purpose: File-drop profile, layout/contract match, delimiter/header detection, row estimates.
+  intake_work_order:
+    file: intake_work_order.csv
+    target_table: out.ti_intake_work_order
+    primary_key: [file_name]
+    purpose: Operator triage table for every received file, including contract match, decision, severity, assigned role, required mapping action, and Snowflake/load target.
+  file_assembly_plan:
+    file: file_assembly_plan.csv
+    target_table: out.ti_file_assembly_plan
+    primary_key: [file_name]
+    purpose: File-drop assembly table showing which profiled files were selected for account input, selected for transaction input, retained as supporting lineage, skipped as duplicates, or held for mapping/replacement.
+  monthly_file_requirements:
+    file: monthly_file_requirements.csv
+    target_table: out.ti_monthly_file_requirements
+    primary_key: [client_id, period_month, input_family]
+    purpose: Monthly data-team checklist by expected input family, showing whether the client sent the file, which file was selected, Snowflake target, contract actions, missing required fields, affected sections, and next analyst/data-team actions.
+  layout_gap_report:
+    file: layout_gap_report.csv
+    target_table: out.ti_layout_gap_report
+    primary_key: [file_name, canonical_field]
+    purpose: Field-level layout diagnosis for each received file, including canonical field coverage, suggested source column or position, missing required fields, and remediation action.
+  source_layout_profile:
+    file: source_layout_profile.csv
+    target_table: out.ti_source_layout_profile
+    primary_key: [client_id, period_month, file_name, source_position]
+    purpose: Source-column layout profile for each received file, including source column/position, matched canonical fields, mapping status, role guess, proposed input family, proposed contract id, and data-team mapping action.
+  layout_contract_draft_queue:
+    file: layout_contract_draft_queue.csv
+    target_table: out.ti_layout_contract_draft_queue
+    primary_key: [client_id, period_month, file_name]
+    purpose: File-level layout contract work queue showing each received file, current contract match, proposed contract id, required field gaps, alias-map draft, YAML contract stub, priority, analyst question, and data-team action.
+  layout_contract_export_manifest:
+    file: layout_contract_export_manifest.csv
+    target_table: out.ti_layout_contract_export_manifest
+    primary_key: [client_id, period_month, file_name, proposed_contract_id]
+    purpose: Manifest of exported layout contract YAML draft files, including contract action, priority, YAML relative path, Snowflake target, missing required fields, and data-team promotion action.
+  intelligence_lineage_graph:
+    file: intelligence_lineage_graph.csv
+    target_table: out.ti_intelligence_lineage_graph
+    primary_key: [client_id, period_month, edge_rank]
+    purpose: End-to-end lineage edge graph connecting raw files, layout contracts, source columns, canonical fields, analysis sections, engine outputs, visual/chart specs, action plays, roles, and operating decisions.
+  file_ledger:
+    file: file_ledger.csv
+    target_table: out.ti_file_ledger
+    purpose: Source file lineage and hash ledger.
+  data_quality:
+    file: data_quality.json
+    target_table: out.ti_data_quality
+    purpose: Input coverage, column mapping, account match rate, warnings, confidence.
+  engine_run_ledger:
+    file: engine_run_ledger.csv
+    target_table: out.ti_engine_run_ledger
+    primary_key: [client_id, period_month, run_stage]
+    purpose: Operator run ledger showing each monthly engine stage, owner role, status, row counts, key metric, input and output artifacts, Snowflake targets, evidence summary, blocking issue, and next operator action.
+  engine_readiness_assessment:
+    file: engine_readiness_assessment.csv
+    target_table: out.ti_engine_readiness_assessment
+    primary_key: [client_id, period_month, readiness_area]
+    purpose: Run-level go/no-go assessment showing readiness area, owner, client-use status, severity, blocker and validation counts, proof artifacts, Snowflake targets, and next action.
+  account_month_features:
+    file: account_month_features.csv
+    target_table: mart.ti_account_month_features
+    primary_key: [account_id, period_month]
+    purpose: Canonical account-month feature mart for scoring, modeling, dashboards, and exports.
+  account_intelligence_profile:
+    file: account_intelligence_profile.csv
+    target_table: mart.ti_account_intelligence_profile
+    primary_key: [profile_id]
+    purpose: Consolidated account-level intelligence profile combining behavior features, PFI verdict, relationship segment, top counterparties, top opportunity, campaign/action linkage, recommended action, and evidence summary for CSM/analyst review.
+  model_rulebook:
+    file: model_rulebook.csv
+    target_table: out.ti_model_rulebook
+    primary_key: [rule_id]
+    purpose: Analyst-readable catalog of model rules, rule families, threshold logic, output fields, evidence fields, source artifacts, owner role, and consulting use.
+  account_scoring_trace:
+    file: account_scoring_trace.csv
+    target_table: out.ti_account_scoring_trace
+    primary_key: [trace_id]
+    purpose: Account-month explainability trace showing the PFI, segment, top opportunity, feature evidence, thresholds, reason codes, recommended action, and decision narrative behind each account diagnosis.
+  pfi_verdicts:
+    file: pfi_verdicts.csv
+    target_table: mart.ti_pfi_verdicts
+    primary_key: [account_id, period_month]
+    purpose: PFI verdict, score, confidence, and reason codes.
+  counterparty_signals:
+    file: counterparty_signals.csv
+    target_table: mart.ti_counterparty_signals
+    primary_key: [signal_id]
+    purpose: Account-month counterparty signals for payroll processors, external FIs, lenders/financial services, merchants, direction, recurrence, amount, and confidence.
+  counterparty_summary:
+    file: counterparty_summary.csv
+    target_table: mart.ti_counterparty_summary
+    primary_key: [counterparty_id]
+    purpose: Client/month counterparty rollup for strategy review, external relationship graphing, payroll proof, competitor leakage, and merchant behavior.
+  relationship_segments:
+    file: relationship_segments.csv
+    target_table: mart.ti_relationship_segments
+    primary_key: [segment_id]
+    purpose: Account-level financial-life segment classification with lifecycle stage, risk, readiness score, next-best motion, and top opportunity linkage.
+  segment_summary:
+    file: segment_summary.csv
+    target_table: mart.ti_segment_summary
+    primary_key: [client_id, period_month, relationship_segment]
+    purpose: Aggregated relationship segment rollup for consulting story, dashboards, and strategy prioritization.
+  opportunities:
+    file: opportunities.csv
+    target_table: mart.ti_opportunities
+    primary_key: [opportunity_id]
+    purpose: Ranked action opportunities with expected value, priority, reasons, and recommended action.
+  opportunity_portfolio:
+    file: opportunity_portfolio.csv
+    target_table: mart.ti_opportunity_portfolio
+    primary_key: [portfolio_id]
+    purpose: Aggregated opportunity plays with target counts, value, confidence, owner, channel, and next step.
+  executive_scorecard:
+    file: executive_scorecard.csv
+    target_table: out.ti_executive_scorecard
+    primary_key: [scorecard_id]
+    purpose: Executive RAG scorecard across data trust, primacy, competitive risk, activation, retention, economics, measurement, and outcomes.
+  strategy_roadmap:
+    file: strategy_roadmap.csv
+    target_table: out.ti_strategy_roadmap
+    primary_key: [roadmap_id]
+    purpose: Now/Next/Later strategic execution roadmap derived from scorecard gaps, top plays, segment strategy, and measurement dependencies.
+  action_plan:
+    file: action_plan.csv
+    target_table: out.ti_action_plan
+    primary_key: [action_id]
+    purpose: CSM/consulting action plan for campaign, banker, or strategy execution.
+  role_handoffs:
+    file: role_handoffs.csv
+    target_table: out.ti_role_handoffs
+    primary_key: [handoff_id]
+    purpose: Operating handoff map that tells the owner, CSM, analyst, marketing, client team, and data team what decision they own, which outputs they use, and what they do next.
+  operating_control_plane:
+    file: operating_control_plane.csv
+    target_table: out.ti_operating_control_plane
+    primary_key: [client_id, period_month, role]
+    purpose: Role-by-role monthly control plane showing workflow lane, operating question, decision owner, status, client-use readiness, priority, first artifact to open, export row count, blockers, next action, handoff, and Snowflake targets.
+  user_interaction_map:
+    file: user_interaction_map.csv
+    target_table: out.ti_user_interaction_map
+    primary_key: [client_id, period_month, interaction_rank]
+    purpose: Role-to-output interaction manifest showing each user role, workflow lane, UI entry point, artifact/file to open or download, row count, target table, delivery mode, decision supported, evidence, downstream use, next action, blockers, and proof artifacts.
+  production_readiness_backlog:
+    file: production_readiness_backlog.csv
+    target_table: out.ti_production_readiness_backlog
+    primary_key: [client_id, period_month, backlog_rank]
+    purpose: Productization backlog that consolidates engine readiness findings, data-team mapping gaps, metric validation needs, layout contract actions, monthly file requirements, analysis review blockers, and user delivery blockers into owner-ready work items with acceptance criteria and Snowflake targets.
+  analysis_section_catalog:
+    file: analysis_section_catalog.csv
+    target_table: out.ti_analysis_section_catalog
+    primary_key: [source_section_id]
+    purpose: Catalog of existing ARS/TXN analysis sections, script counts, intelligence layers, supported opportunity types, and consulting use.
+  analysis_script_catalog:
+    file: analysis_script_catalog.csv
+    target_table: out.ti_analysis_script_catalog
+    primary_key: [source_section_id, script_name]
+    purpose: Script-level inventory that links each existing analysis script to its section, source path, inferred topic, and output role.
+  analysis_field_usage_catalog:
+    file: analysis_field_usage_catalog.csv
+    target_table: out.ti_analysis_field_usage_catalog
+    primary_key: [source_section_id, script_name, line_number, field_reference]
+    purpose: Static code-evidence catalog of field references parsed from analysis scripts, including inferred input family, canonical field hint, evidence context, and source line number for layout mapping.
+  analysis_provenance_map:
+    file: analysis_provenance_map.csv
+    target_table: out.ti_analysis_provenance_map
+    primary_key: [opportunity_type, source_section_id]
+    purpose: Provenance bridge from each engine opportunity model back to the existing analysis sections that support the recommendation.
+  analysis_execution_map:
+    file: analysis_execution_map.csv
+    target_table: out.ti_analysis_execution_map
+    primary_key: [client_id, period_month, source_section_id]
+    purpose: Section-level execution and evidence map that ties each existing analysis section to required inputs, discovered scripts, generated engine outputs, row counts, missing evidence, model rules, consulting question, and analyst next step.
+  analysis_domain_map:
+    file: analysis_domain_map.csv
+    target_table: out.ti_analysis_domain_map
+    primary_key: [client_id, period_month, domain_id]
+    purpose: Domain-level analysis map that rolls existing sections into business questions, required input families, evidence readiness, intelligence products, opportunity types, layout dependencies, and next decisions.
+  analysis_input_dependency_map:
+    file: analysis_input_dependency_map.csv
+    target_table: out.ti_analysis_input_dependency_map
+    primary_key: [client_id, period_month, input_family]
+    purpose: Canonical input-family dependency map showing the minimum fields, source candidates, dependent domains/sections, contract status, file-drop readiness, layout gaps, Snowflake design decision, and analyst next step.
+  analysis_layout_coverage_matrix:
+    file: analysis_layout_coverage_matrix.csv
+    target_table: out.ti_analysis_layout_coverage_matrix
+    primary_key: [client_id, period_month, source_section_id, input_family_hint, field_key]
+    purpose: Field-level coverage matrix joining actual script field references to canonical input families, current layout/contract mapping status, matched source columns, and analyst/data-team actions.
+  analysis_feature_derivation_catalog:
+    file: analysis_feature_derivation_catalog.csv
+    target_table: out.ti_analysis_feature_derivation_catalog
+    primary_key: [client_id, period_month, source_section_id, input_family_hint, analysis_field_key]
+    purpose: Catalog of existing analysis fields satisfied by derived engine outputs, with output lineage, base input requirements, validation status, and Snowflake expression hints.
+  analysis_data_team_backlog:
+    file: analysis_data_team_backlog.csv
+    target_table: out.ti_analysis_data_team_backlog
+    primary_key: [client_id, period_month, input_family, field_key, coverage_status]
+    purpose: Grouped data-team backlog translating hard analysis field blockers into prioritized layout, contract, and Snowflake modeling work items.
+  analysis_metric_validation_queue:
+    file: analysis_metric_validation_queue.csv
+    target_table: out.ti_analysis_metric_validation_queue
+    primary_key: [client_id, period_month, input_family, field_key, coverage_status]
+    purpose: Grouped analyst validation queue for derived outputs, aliases, direct-load fields, and rule-based fields that need definition, lineage, or client validation before external use.
+  analysis_visual_output_map:
+    file: analysis_visual_output_map.csv
+    target_table: out.ti_analysis_visual_output_map
+    primary_key: [client_id, period_month, source_section_id, output_file]
+    purpose: Section-to-output visual catalog mapping each analysis section to generated artifacts, chart/table/story surface, readiness status, proof artifacts, source scripts, and analyst/data-team actions.
+  analysis_chart_spec_catalog:
+    file: analysis_chart_spec_catalog.csv
+    target_table: out.ti_analysis_chart_spec_catalog
+    primary_key: [client_id, period_month, source_section_id, output_file, chart_type]
+    purpose: Render-ready chart/table/story specification catalog with source artifact, chart type, x/y/series/label/value/color fields, available columns, readiness status, owner, and proof artifacts.
+  analysis_chart_data_snapshot:
+    file: analysis_chart_data_snapshot.csv
+    target_table: out.ti_analysis_chart_data_snapshot
+    primary_key: [client_id, period_month, spec_rank]
+    purpose: Machine-readable backing data snapshot for each analysis chart spec, including source/plotted row counts, field cardinality, numeric summaries, top data points, sample records, data status, and insight callout.
+  intelligence_metric_catalog:
+    file: intelligence_metric_catalog.csv
+    target_table: out.ti_intelligence_metric_catalog
+    primary_key: [client_id, period_month, metric_id]
+    purpose: Semantic metric catalog tying chart fields and generated outputs to business definitions, source artifacts, aggregation methods, validation status, model rules, sample values, Snowflake expression hints, and CSM/data-team interpretation.
+  analysis_section_evidence_review:
+    file: analysis_section_evidence_review.csv
+    target_table: out.ti_analysis_section_evidence_review
+    primary_key: [client_id, period_month, source_section_id]
+    purpose: Section-level evidence review summarizing each analysis section's business question, generated outputs, field coverage counts, blocker/review fields, review status, and analyst/data-team next steps.
+  analysis_requirement_matrix:
+    file: analysis_requirement_matrix.csv
+    target_table: out.ti_analysis_requirement_matrix
+    primary_key: [client_id, period_month, source_section_id]
+    purpose: Section-level requirement matrix linking each analysis section to its domain, business question, scripts, required input families, minimum fields, layout readiness, generated outputs, CSM/data-team questions, and Snowflake design action.
+  analysis_consulting_playbook:
+    file: analysis_consulting_playbook.csv
+    target_table: out.ti_analysis_consulting_playbook
+    primary_key: [client_id, period_month, source_section_id]
+    purpose: Section-level consulting playbook that maps each analysis section to the client story role, meeting moment, primary proof chart/output, CSM talk track, analyst validation focus, data-team dependency, marketing use, and Snowflake design action.
+  analysis_insight_brief:
+    file: analysis_insight_brief.csv
+    target_table: out.ti_analysis_insight_brief
+    primary_key: [client_id, period_month, source_section_id]
+    purpose: Data-backed section brief combining chart callouts, semantic metrics, validation caveats, CSM talk track, recommended client question, proof artifacts, and analyst/data-team next actions.
+  client_meeting_deck_blueprint:
+    file: client_meeting_deck_blueprint.csv
+    target_table: out.ti_client_meeting_deck_blueprint
+    primary_key: [client_id, period_month, blueprint_rank]
+    purpose: Ordered client meeting and deck blueprint that sequences executive summary, scorecard, analysis proof, actions, roadmap, measurement, and role handoffs with source artifacts, caveats, decision prompts, and follow-up actions.
+  analysis_review_board:
+    file: analysis_review_board.csv
+    target_table: out.ti_analysis_review_board
+    primary_key: [client_id, period_month, source_section_id]
+    purpose: One-row-per-section analysis review board that combines what each analysis examines, scripts, required inputs, chart/graph outputs, semantic metrics, section insight, data caveats, client question, Snowflake targets, and meeting-story placement.
+  measurement_plan:
+    file: measurement_plan.csv
+    target_table: out.ti_measurement_plan
+    primary_key: [measurement_id]
+    purpose: Measurement design for each action play, including holdout guidance and 30/60/90-day metrics.
+  campaign_targets:
+    file: campaign_targets.csv
+    target_table: out.ti_campaign_targets
+    primary_key: [action_id, account_id]
+    purpose: Account-level execution list with play, channel, target rank, measurement group, reason codes, and baseline behavior.
+  csm_review_queue:
+    file: csm_review_queue.csv
+    target_table: out.ti_csm_review_queue
+    primary_key: [client_id, period_month, account_id]
+    purpose: CSM-facing account review queue sorted by priority, with segment, PFI, top play, expected value, recommended action, and evidence summary.
+  analyst_validation_queue:
+    file: analyst_validation_queue.csv
+    target_table: out.ti_analyst_validation_queue
+    primary_key: [item_id]
+    purpose: Analyst QA queue covering data warnings, layout blockers, and high-priority account confidence checks before client use.
+  marketing_activation_export:
+    file: marketing_activation_export.csv
+    target_table: out.ti_marketing_activation_export
+    primary_key: [action_id, account_id]
+    purpose: Campaign-tool export containing account audiences, play metadata, test/holdout assignment, channel, priority, reason codes, and measurement identifiers.
+  banker_call_list:
+    file: banker_call_list.csv
+    target_table: out.ti_banker_call_list
+    primary_key: [client_id, period_month, account_id, action_id]
+    purpose: High-touch banker or branch outreach list with account evidence, talk track, top play, counterparties, and measurement linkage.
+  data_team_load_plan:
+    file: data_team_load_plan.csv
+    target_table: out.ti_data_team_load_plan
+    primary_key: [source_path]
+    purpose: Data-team load readiness plan joining file assembly decisions to layout blocker counts and remediation actions.
+  stakeholder_export_manifest:
+    file: stakeholder_export_manifest.csv
+    target_table: out.ti_stakeholder_export_manifest
+    primary_key: [artifact_name]
+    purpose: Manifest of stakeholder-facing exports, primary role, row count, use case, first action, and readiness status.
+  measurement_baseline:
+    file: measurement_baseline.csv
+    target_table: out.ti_measurement_baseline
+    primary_key: [measurement_id]
+    purpose: Aggregated pre-campaign baseline metrics by action for future outcome measurement.
+  outcome_results:
+    file: outcome_results.csv
+    target_table: out.ti_outcome_results
+    primary_key: [measurement_id, account_id]
+    purpose: Account-level measured outcome comparison between prior campaign targets and current account-month behavior.
+  outcome_summary:
+    file: outcome_summary.csv
+    target_table: out.ti_outcome_summary
+    primary_key: [measurement_id]
+    purpose: Action-level measured outcome rates, pre/post deltas, and holdout lift when a control group exists.
+  intelligence_delta_report:
+    file: intelligence_delta_report.csv
+    target_table: out.ti_intelligence_delta_report
+    primary_key: [delta_rank]
+    purpose: Month-over-month intelligence movement report comparing current outputs to the prior package across quality score, account profile movement, opportunity target movement, and portfolio value/count changes.
+  consulting_insight_register:
+    file: consulting_insight_register.csv
+    target_table: out.ti_consulting_insight_register
+    primary_key: [insight_id]
+    purpose: Tabular consulting insight register tying opportunity insights, scorecard signals, and story steps to evidence artifacts, source sections, model rules, actions, owners, measurement IDs, consulting questions, and next decisions.
+  insights:
+    file: insights.json
+    target_table: out.ti_insights
+    primary_key: [run_id, insight_id]
+    purpose: Structured insight registry for consulting story, dashboards, API, and decks.
+  consulting_story:
+    file: consulting_story.json
+    target_table: out.ti_consulting_story
+    purpose: Narrative layer for executive summary, story arc, client conversation guide, top plays, and analyst notes.
+  run_summary:
+    file: run_summary.json
+    target_table: out.ti_run_summary
+    purpose: Run row counts, quality score, contract match count, and creation timestamp.
+  analysis_package_index:
+    file: analysis_package_index.csv
+    target_table: out.ti_analysis_package_index
+    primary_key: [artifact_name]
+    purpose: Run-level artifact inventory with file, layer, consumer, row count, local path, Snowflake target table, primary key, and purpose for every generated engine output.
+warehouse_package:
+  manifest: snowflake_manifest.json
+  load_sql: snowflake_load.sql
+  readme: README_SNOWFLAKE.html

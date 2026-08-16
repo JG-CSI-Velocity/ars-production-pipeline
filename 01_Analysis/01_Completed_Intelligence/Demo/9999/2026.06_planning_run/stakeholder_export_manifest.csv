@@ -1,0 +1,6 @@
+export_rank,client_id,period_month,artifact_name,file_name,primary_role,row_count,use_case,first_action,status,model_version
+1,9999,2026.06,csm_review_queue,csm_review_queue.csv,CSM,8,Client strategy review and meeting prep.,Choose the top plays and account examples for the client conversation.,ready,stakeholder_export_v0_rules
+2,9999,2026.06,analyst_validation_queue,analyst_validation_queue.csv,Analyst,7,Quality assurance and exception review.,Resolve blockers and sample high-priority lower-confidence accounts.,ready,stakeholder_export_v0_rules
+3,9999,2026.06,marketing_activation_export,marketing_activation_export.csv,Marketing,29,Campaign/audience upload.,Load test and holdout groups while preserving action_id and measurement_id.,ready,stakeholder_export_v0_rules
+4,9999,2026.06,banker_call_list,banker_call_list.csv,Client bankers,5,High-touch account outreach.,Use the talk track and evidence summary for banker follow-up.,ready,stakeholder_export_v0_rules
+5,9999,2026.06,data_team_load_plan,data_team_load_plan.csv,Data team,3,Monthly file load and mapping readiness.,Load ready files and resolve mapping blockers.,ready,stakeholder_export_v0_rules

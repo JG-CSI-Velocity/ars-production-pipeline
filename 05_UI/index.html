@@ -350,6 +350,74 @@ header {
 .dl-name { font-size: 15px; font-weight: 600; }
 .dl-meta { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 3px; }
 
+/* ─── INTELLIGENCE ENGINE ─── */
+.intel-flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.intel-node {
+    background: var(--card); border: 2px solid var(--border); border-radius: 8px;
+    padding: 18px 18px 16px; min-height: 120px;
+}
+.intel-node-num { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 700; margin-bottom: 10px; }
+.intel-node-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.intel-node-copy { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.intel-analysis-console {
+    background: var(--card); border: 2px solid var(--border); border-radius: 10px;
+    padding: 20px 22px; margin-bottom: 22px;
+}
+.intel-analysis-head {
+    display: flex; justify-content: space-between; gap: 18px; align-items: flex-start;
+    padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 14px;
+}
+.intel-analysis-title { font-size: 20px; font-weight: 700; }
+.intel-analysis-copy { font-size: 13px; color: var(--muted); line-height: 1.45; margin-top: 4px; max-width: 760px; }
+.intel-analysis-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.intel-analysis-actions a,
+.intel-primary-action {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 38px; padding: 9px 13px; border-radius: 8px;
+    background: var(--dark); color: #fff; text-decoration: none;
+    font-size: 12px; font-weight: 700; border: 0;
+}
+.intel-analysis-actions a:hover,
+.intel-primary-action:hover { background: #444; }
+.intel-analysis-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.intel-analysis-kpi {
+    border: 1px solid var(--border); border-left: 4px solid var(--accent);
+    border-radius: 8px; padding: 12px 14px; background: var(--bg);
+}
+.intel-analysis-kpi b { display: block; font-family: 'Space Mono', monospace; font-size: 24px; line-height: 1; color: var(--text); }
+.intel-analysis-kpi span { display: block; margin-top: 5px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.intel-readiness { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+.intel-tile {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px;
+}
+.intel-tile-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.intel-tile-value { font-size: 18px; font-weight: 700; color: var(--dark); }
+.intel-tile-meta { font-size: 12px; color: var(--muted); margin-top: 4px; word-break: break-word; }
+.intel-tile.ready { border-left: 4px solid var(--green); }
+.intel-tile.missing { border-left: 4px solid var(--red); }
+.intel-story { display: none; }
+.intel-story.visible { display: block; }
+.intel-story-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; }
+.intel-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+.intel-metric { background: var(--bg); border-left: 4px solid var(--accent); border-radius: 8px; padding: 12px 14px; }
+.intel-metric-val { font-family: 'Space Mono', monospace; font-size: 24px; font-weight: 700; }
+.intel-metric-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+.intel-primary-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+.intel-primary-action {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    min-height: 64px; padding: 12px; flex-direction: column; align-items: flex-start;
+}
+.intel-primary-action strong { font-size: 13px; line-height: 1.2; }
+.intel-primary-action span { color: var(--muted); font-size: 11px; margin-top: 4px; line-height: 1.35; text-align: left; }
+.intel-primary-action:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.intel-primary-action.missing { pointer-events: none; opacity: 0.45; }
+.intel-insight { border-bottom: 1px solid var(--border); padding: 12px 0; }
+.intel-insight:last-child { border-bottom: none; }
+.intel-insight-type { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--accent); text-transform: uppercase; }
+.intel-insight-title { font-size: 14px; font-weight: 700; margin-top: 3px; }
+.intel-insight-summary { font-size: 12px; color: var(--muted); line-height: 1.45; margin-top: 4px; }
+
 /* ─── RESULTS PAGE ─── */
 .results-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .result-card {
@@ -415,6 +483,37 @@ header {
 
 /* ─── FOOTER ─── */
 footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint); border-top: 1px solid var(--border); margin-top: 40px; }
+
+@media (max-width: 900px) {
+    header { flex-wrap: wrap; gap: 10px; padding: 14px 16px; }
+    .h-brand { font-size: 22px; }
+    .h-user { margin-left: auto; }
+    .h-nav {
+        order: 3; width: 100%; overflow-x: auto; padding-top: 4px;
+        scrollbar-width: thin;
+    }
+    .h-nav li { flex: 0 0 auto; padding: 8px 12px; font-size: 13px; }
+    .page { padding: 24px 16px; }
+    .page-title { font-size: 32px; line-height: 1.1; }
+    .page-sub { font-size: 14px; line-height: 1.45; }
+    .grid-2, .grid-3, .grid-4, .config-detail,
+    .intel-flow, .intel-readiness, .intel-story-grid, .intel-metrics,
+    .intel-analysis-kpis, .intel-primary-actions {
+        grid-template-columns: 1fr;
+    }
+    .config-row, .client-banner, .run-bar, .card-header, .intel-analysis-head {
+        flex-direction: column; align-items: stretch;
+    }
+    .intel-analysis-actions { justify-content: flex-start; }
+    .client-banner { gap: 14px; }
+    .cb-stats { gap: 18px; }
+    .run-bar { gap: 14px; }
+    .run-bar > div:last-child { flex-wrap: wrap; }
+    .run-bar .btn { flex: 1; min-width: 0; padding-left: 16px; padding-right: 16px; }
+    .dl-grid.visible { grid-template-columns: 1fr; }
+    .intel-node { min-height: auto; }
+    .intel-tile-value, .intel-metric-val { font-size: 22px; }
+}
 </style>
 </head>
 <body>
@@ -422,12 +521,13 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
 <header>
     <div class="h-brand">Velocity</div>
     <ul class="h-nav">
-        <li class="on" onclick="showPage('dashboard')">Dashboard</li>
-        <li onclick="showPage('format')">Format</li>
-        <li onclick="showPage('generate')">Generate</li>
-        <li onclick="showPage('results')">Results</li>
-        <li onclick="showPage('history')">History</li>
-        <li onclick="showPage('schedules')">Schedules</li>
+        <li class="on" data-page="dashboard" onclick="showPage('dashboard')">Dashboard</li>
+        <li data-page="format" onclick="showPage('format')">Format</li>
+        <li data-page="generate" onclick="showPage('generate')">Generate</li>
+        <li data-page="intelligence" onclick="showPage('intelligence')">Intelligence</li>
+        <li data-page="results" onclick="showPage('results')">Results</li>
+        <li data-page="history" onclick="showPage('history')">History</li>
+        <li data-page="schedules" onclick="showPage('schedules')">Schedules</li>
     </ul>
     <div class="h-user" id="hUser"></div>
 </header>
@@ -879,6 +979,182 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
     </div>
 </div>
 
+<!-- ═══════════════ INTELLIGENCE ═══════════════ -->
+<div class="page" id="page-intelligence">
+    <div class="page-title">Intelligence Engine</div>
+    <div class="page-sub">Turn staged ODD and transaction files into relationship signals, ranked opportunities, consulting briefs, and exportable data.</div>
+
+    <div class="intel-flow">
+        <div class="intel-node">
+            <div class="intel-node-num">01</div>
+            <div class="intel-node-title">Inputs</div>
+            <div class="intel-node-copy">Formatted ODD plus transaction extracts from the ready-for-analysis folder.</div>
+        </div>
+        <div class="intel-node">
+            <div class="intel-node-num">02</div>
+            <div class="intel-node-title">Signals</div>
+            <div class="intel-node-copy">Payroll, external FI activity, debit usage, balances, engagement, and account-month behavior.</div>
+        </div>
+        <div class="intel-node">
+            <div class="intel-node-num">03</div>
+            <div class="intel-node-title">Intelligence</div>
+            <div class="intel-node-copy">PFI verdicts, ranked opportunity rows, confidence, expected value, and recommended action.</div>
+        </div>
+        <div class="intel-node">
+            <div class="intel-node-num">04</div>
+            <div class="intel-node-title">Outputs</div>
+            <div class="intel-node-copy">Excel package, CSV/JSON tables, executive brief, and data quality report.</div>
+        </div>
+    </div>
+
+    <section class="intel-analysis-console">
+        <div class="intel-analysis-head">
+            <div>
+                <div class="intel-analysis-title">See The Analysis</div>
+                <div class="intel-analysis-copy">Open the actual ARS/TXN analysis catalog: every section, scripts, generated outputs, chart and graph specs, metric definitions, data requirements, Snowflake targets, and blockers.</div>
+            </div>
+            <div class="intel-analysis-actions">
+                <a href="../docs/modules.html" target="_blank">All Sections</a>
+                <a href="../docs/modules.html#analysisTable" target="_blank">Charts/Graphs</a>
+                <a href="../docs/modules.html#requirementsTable" target="_blank">Data Requirements</a>
+                <a href="../docs/modules.html#backlogTable" target="_blank">Backlog</a>
+            </div>
+        </div>
+        <div class="intel-analysis-kpis">
+            <div class="intel-analysis-kpi"><b>30</b><span>Sections</span></div>
+            <div class="intel-analysis-kpi"><b>91</b><span>Chart Specs</span></div>
+            <div class="intel-analysis-kpi"><b>91</b><span>Snapshots</span></div>
+            <div class="intel-analysis-kpi"><b>56</b><span>Metrics</span></div>
+            <div class="intel-analysis-kpi"><b>473</b><span>Backlog Rows</span></div>
+        </div>
+    </section>
+
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Run Intelligence</div>
+                <div class="card-meta">Select a client, check readiness, then generate the intelligence package.</div>
+            </div>
+            <button class="btn btn-dark" onclick="checkIntelReadiness()" style="font-size:12px;padding:8px 16px;">Check Readiness</button>
+        </div>
+        <div class="config-row" style="margin-bottom: 0;">
+            <div class="config-field"><div class="label">CSM</div>
+                <select class="sel" id="iCsmSel" onchange="refreshIntelClients()">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Period</div>
+                <select class="sel" id="iMonthSel" onchange="refreshIntelClients()">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="config-field"><div class="label">Client</div>
+                <select class="sel" id="iClientSel" onchange="updateIntelClient()">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="intel-readiness" id="iReadiness">
+            <div class="intel-tile" id="iOddTile">
+                <div class="intel-tile-label">ODD</div>
+                <div class="intel-tile-value">Not checked</div>
+                <div class="intel-tile-meta">Account file readiness</div>
+            </div>
+            <div class="intel-tile" id="iTxnTile">
+                <div class="intel-tile-label">Transactions</div>
+                <div class="intel-tile-value">Not checked</div>
+                <div class="intel-tile-meta">Transaction extract readiness</div>
+            </div>
+            <div class="intel-tile" id="iOutTile">
+                <div class="intel-tile-label">Prior Outputs</div>
+                <div class="intel-tile-value">Not checked</div>
+                <div class="intel-tile-meta">Existing intelligence package</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="run-bar">
+        <div>
+            <div class="run-what" id="iRunWhat">Select a client to run the engine</div>
+            <div class="run-meta" id="iRunMeta">Creates analyst workbook, client brief, quality report, CSVs, and JSON.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+            <button class="btn" id="iRunBtn" onclick="runIntelligence()">Run Intelligence Engine</button>
+            <button class="btn btn-danger" onclick="stopAll()" title="Emergency: stop in-progress jobs">&#9632; STOP ALL</button>
+        </div>
+    </div>
+
+    <div class="prog-section card" id="iProg">
+        <div class="card-header">
+            <div>
+                <div class="card-title" id="iRunTitle">Running transactional intelligence&hellip;</div>
+                <div class="run-sub" id="iRunSub">Building data products and story artifacts.</div>
+            </div>
+            <div class="run-clock">
+                <div class="run-clock-label">Elapsed</div>
+                <div class="run-clock-value" id="iElapsed">0:00</div>
+            </div>
+        </div>
+        <ul class="stage-list" id="iStages">
+            <li class="stage" data-stage="locate"><span class="stage-icon"></span><span class="stage-label">Locate staged files</span><span class="stage-time"></span></li>
+            <li class="stage" data-stage="read"><span class="stage-icon"></span><span class="stage-label">Read account and transaction data</span><span class="stage-time"></span></li>
+            <li class="stage" data-stage="build"><span class="stage-icon"></span><span class="stage-label">Build relationship intelligence</span><span class="stage-time"></span></li>
+            <li class="stage" data-stage="write"><span class="stage-icon"></span><span class="stage-label">Write workbook, briefs, and tables</span><span class="stage-time"></span></li>
+            <li class="stage" data-stage="done"><span class="stage-icon"></span><span class="stage-label">Publish outputs</span><span class="stage-time"></span></li>
+        </ul>
+        <div class="prog-track"><div class="prog-fill" id="iProgBar" style="width:0%"></div></div>
+        <div class="card-meta" id="iProgStatus">Starting...</div>
+        <details class="prog-details">
+            <summary>Show technical log</summary>
+            <div class="prog-log" id="iProgLog"></div>
+        </details>
+    </div>
+
+    <div class="intel-story" id="iStory">
+        <div class="intel-story-grid">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Consulting Story</div>
+                        <div class="card-meta" id="iStoryMeta">Latest intelligence package</div>
+                    </div>
+                    <button class="btn btn-dark" onclick="loadIntelligenceOutputs()" style="font-size:12px;padding:8px 16px;">Refresh Outputs</button>
+                </div>
+                <div id="iNarrative" style="font-size:15px;line-height:1.55;color:var(--text);">Run the engine to populate the story.</div>
+                <div class="intel-metrics">
+                    <div class="intel-metric"><div class="intel-metric-val" id="iQualityVal">--</div><div class="intel-metric-label">Quality</div></div>
+                    <div class="intel-metric"><div class="intel-metric-val" id="iFeatureVal">--</div><div class="intel-metric-label">Features</div></div>
+                    <div class="intel-metric"><div class="intel-metric-val" id="iOppVal">--</div><div class="intel-metric-label">Opportunities</div></div>
+                    <div class="intel-metric"><div class="intel-metric-val" id="iInsightVal">--</div><div class="intel-metric-label">Insights</div></div>
+                </div>
+                <div class="intel-primary-actions" id="iPrimaryActions"></div>
+                <div id="iActionPlan" style="margin-top:18px;"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Analysis Objects</div>
+                    <div class="card-meta">Engine-generated insight layer</div>
+                </div>
+                <div id="iInsights">
+                    <div style="color:var(--muted);font-size:13px;">Insights appear after a completed run.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Download Intelligence Outputs</div>
+                    <div class="card-meta" id="iOutputDir">--</div>
+                </div>
+            </div>
+            <div class="dl-grid visible" id="iDl"></div>
+        </div>
+    </div>
+</div>
+
 <!-- ═══════════════ RESULTS ═══════════════ -->
 <div class="page" id="page-results">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px;">
@@ -1112,9 +1388,11 @@ footer { text-align: center; padding: 28px; font-size: 11px; color: var(--faint)
 // ─── NAV ───
 function showPage(name) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-' + name).classList.add('active');
+    const page = document.getElementById('page-' + name);
+    if (page) page.classList.add('active');
     document.querySelectorAll('.h-nav li').forEach(li => li.classList.remove('on'));
-    event.target.classList.add('on');
+    const nav = document.querySelector(`.h-nav li[data-page="${name}"]`);
+    if (nav) nav.classList.add('on');
 }
 
 // One canonical recovery string for "the server is unreachable" states --
@@ -1531,8 +1809,8 @@ async function refreshGenClients() {
 }
 
 async function loadCSMs() {
-    // Populate BOTH Format and Generate CSM dropdowns from API
-    const selectors = ['gCsmSel', 'fCsmSel'];
+    // Populate Format, Generate, and Intelligence CSM dropdowns from API
+    const selectors = ['gCsmSel', 'fCsmSel', 'iCsmSel'];
     try {
         const resp = await fetch('/api/csms');
         if (!resp.ok) throw '';
@@ -1584,24 +1862,30 @@ async function loadMonths() {
     }
 
     // Generate page: scan all sources (raw + formatted)
-    const gSel = document.getElementById('gMonthSel');
-    if (gSel) {
-        gSel.innerHTML = `<option value="${curMonth}">${curMonth}</option>`;
-        try {
-            const resp = await fetch('/api/months?source=all');
-            if (!resp.ok) throw '';
-            const data = await resp.json();
-            if (data.length > 0) {
-                gSel.innerHTML = '';
+    const allMonthSelectors = ['gMonthSel', 'iMonthSel'];
+    allMonthSelectors.forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.innerHTML = `<option value="${curMonth}">${curMonth}</option>`;
+    });
+    try {
+        const resp = await fetch('/api/months?source=all');
+        if (!resp.ok) throw '';
+        const data = await resp.json();
+        if (data.length > 0) {
+            allMonthSelectors.forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                sel.innerHTML = '';
                 data.forEach(m => {
                     const opt = document.createElement('option');
                     opt.value = m;
                     opt.textContent = m;
-                    gSel.appendChild(opt);
+                    sel.appendChild(opt);
                 });
-            }
-        } catch(e) {}
-    }
+            });
+        }
+    } catch(e) {}
+
 }
 
 function updateGenClientFromAPI() {
@@ -1640,6 +1924,11 @@ function updateGenClientFromAPI() {
                 status.innerHTML += '<span class="badge badge-green">ODD READY</span>';
             } else {
                 status.innerHTML += '<span class="badge badge-red">ODD MISSING</span>';
+            }
+            if ((files.transactions?.count || 0) > 0) {
+                status.innerHTML += `<span class="badge badge-green">TXN ${files.transactions.count}</span>`;
+            } else {
+                status.innerHTML += '<span class="badge badge-red">TXN MISSING</span>';
             }
         }).catch(() => {});
     }
@@ -2498,6 +2787,802 @@ async function loadDownloads(csm, month, clientId) {
     }
 }
 
+// ─── INTELLIGENCE ENGINE UI ───
+let _intelClientsReq = 0;
+
+function _intelSelection() {
+    return {
+        csm: document.getElementById('iCsmSel')?.value || '',
+        month: document.getElementById('iMonthSel')?.value || '',
+        clientId: document.getElementById('iClientSel')?.value || '',
+        clientLabel: document.querySelector('#iClientSel option:checked')?.textContent || '',
+    };
+}
+
+async function refreshIntelClients() {
+    const {csm, month} = _intelSelection();
+    const sel = document.getElementById('iClientSel');
+    if (!sel) return;
+    const reqId = ++_intelClientsReq;
+    const url = (csm && month)
+        ? `/api/clients?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}`
+        : '/api/clients';
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (reqId !== _intelClientsReq) return;
+        const prev = sel.value;
+        sel.innerHTML = '';
+        if (!data.length) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'No clients for this CSM / period';
+            sel.appendChild(opt);
+        } else {
+            data.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.id} — ${c.name}`;
+                opt.dataset.name = c.name;
+                sel.appendChild(opt);
+            });
+            if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+        }
+        updateIntelClient();
+    } catch(e) {
+        sel.innerHTML = '<option value="">Could not load clients</option>';
+    }
+}
+
+function updateIntelClient() {
+    const {csm, month, clientId, clientLabel} = _intelSelection();
+    updateHeaderUser(csm);
+    const name = clientLabel || 'Select a client';
+    document.getElementById('iRunWhat').textContent = clientId
+        ? `Transactional intelligence for ${name}`
+        : 'Select a client to run the engine';
+    document.getElementById('iRunMeta').textContent = csm && month
+        ? `${csm} / ${month} · workbook, briefs, CSVs, JSON`
+        : 'Creates analyst workbook, client brief, quality report, CSVs, and JSON.';
+    if (csm && month && clientId) {
+        checkIntelReadiness(false);
+        loadIntelligenceOutputs(false);
+    }
+}
+
+function _setIntelTile(id, state, value, meta) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = `intel-tile ${state || ''}`;
+    el.querySelector('.intel-tile-value').textContent = value;
+    el.querySelector('.intel-tile-meta').textContent = meta || '';
+}
+
+async function checkIntelReadiness(showAlert = true) {
+    const {csm, month, clientId} = _intelSelection();
+    if (!csm || !month || !clientId) {
+        if (showAlert) alert('Pick a CSM, period, and client first.');
+        return null;
+    }
+    try {
+        const resp = await fetch(`/api/files/${encodeURIComponent(csm)}/${encodeURIComponent(month)}/${encodeURIComponent(clientId)}`);
+        if (!resp.ok) throw new Error('readiness check failed');
+        const files = await resp.json();
+        const oddReady = files.odd?.status === 'ready';
+        const txnCount = files.transactions?.count || 0;
+        const outputCount = files.intelligence?.count || 0;
+        _setIntelTile('iOddTile', oddReady ? 'ready' : 'missing', oddReady ? 'Ready' : 'Missing',
+            oddReady ? (files.odd.path || '').split(/[\\/]/).pop() : 'Format or stage an ODD file');
+        _setIntelTile('iTxnTile', txnCount ? 'ready' : 'missing', txnCount ? `${txnCount} file${txnCount === 1 ? '' : 's'}` : 'Missing',
+            txnCount ? 'Transaction extract available' : 'Stage TXN, TRAN, or transaction extract files');
+        _setIntelTile('iOutTile', outputCount ? 'ready' : '', outputCount ? `${outputCount} file${outputCount === 1 ? '' : 's'}` : 'None yet',
+            files.intelligence?.output_dir || 'Run the engine to create outputs');
+        return files;
+    } catch(e) {
+        _setIntelTile('iOddTile', 'missing', 'Check failed', SERVER_UNREACHABLE_MSG);
+        _setIntelTile('iTxnTile', 'missing', 'Check failed', SERVER_UNREACHABLE_MSG);
+        _setIntelTile('iOutTile', '', 'Unknown', '');
+        return null;
+    }
+}
+
+function _resetIntelProgress() {
+    document.getElementById('iProg').classList.add('visible');
+    document.getElementById('iProgLog').innerHTML = '';
+    document.getElementById('iProgBar').style.width = '0%';
+    document.getElementById('iProgStatus').textContent = 'Starting...';
+    document.getElementById('iRunTitle').textContent = 'Running transactional intelligence…';
+    document.getElementById('iRunSub').textContent = 'Building data products and story artifacts.';
+    document.querySelectorAll('#iStages .stage').forEach(li => {
+        li.removeAttribute('data-state');
+        const t = li.querySelector('.stage-time');
+        if (t) t.textContent = '';
+    });
+}
+
+function _updateIntelStages(progress, status) {
+    const order = [
+        {stage: 'locate', min: 1},
+        {stage: 'read', min: 15},
+        {stage: 'build', min: 55},
+        {stage: 'write', min: 75},
+        {stage: 'done', min: 95},
+    ];
+    let activeIdx = 0;
+    order.forEach((s, idx) => { if (progress >= s.min) activeIdx = idx; });
+    order.forEach((s, idx) => {
+        const li = document.querySelector(`#iStages .stage[data-stage="${s.stage}"]`);
+        if (!li) return;
+        if (status === 'error' || status === 'stopped') {
+            if (idx === activeIdx) li.setAttribute('data-state', 'error');
+            else if (idx < activeIdx) li.setAttribute('data-state', 'done');
+            return;
+        }
+        if (status === 'complete' || progress >= 100 || idx < activeIdx) li.setAttribute('data-state', 'done');
+        else if (idx === activeIdx) li.setAttribute('data-state', 'active');
+        else li.removeAttribute('data-state');
+    });
+}
+
+async function runIntelligence() {
+    const {csm, month, clientId} = _intelSelection();
+    if (!csm || !month || !clientId) {
+        alert('Pick a CSM, period, and client first.');
+        return;
+    }
+    const files = await checkIntelReadiness(false);
+    if (!files || (files.odd?.status !== 'ready' && !(files.transactions?.count > 0))) {
+        alert('No staged ODD or transaction files were found for this client. Format or stage the files first.');
+        return;
+    }
+
+    const btn = document.getElementById('iRunBtn');
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+    btn.style.opacity = '0.6';
+    _resetIntelProgress();
+    const log = document.getElementById('iProgLog');
+    const runStart = Date.now();
+    const clockTimer = setInterval(() => {
+        document.getElementById('iElapsed').textContent = _fmtElapsed((Date.now() - runStart) / 1000);
+    }, 500);
+
+    try {
+        const resp = await fetch(`/api/intelligence/run?csm=${encodeURIComponent(csm)}&month=${encodeURIComponent(month)}&client_id=${encodeURIComponent(clientId)}`, {method: 'POST'});
+        if (!resp.ok) {
+            let msg = resp.statusText;
+            try { msg = (await resp.json()).detail || msg; } catch(e) {}
+            throw new Error(msg);
+        }
+        const {run_id} = await resp.json();
+        let lastSeen = 0;
+        let pollFailures = 0;
+        const pollInterval = setInterval(async () => {
+            try {
+                const statusResp = await fetch(`/api/run/${run_id}`);
+                if (!statusResp.ok) throw new Error('poll failed');
+                pollFailures = 0;
+                const run = await statusResp.json();
+                const pct = run.progress || 0;
+                document.getElementById('iProgBar').style.width = `${pct}%`;
+                document.getElementById('iProgStatus').textContent = run.current_step || 'Running...';
+                document.getElementById('iRunSub').textContent = run.current_step || 'Running...';
+                _updateIntelStages(pct, run.status);
+                if (run.log && run.log.length > lastSeen) {
+                    for (let i = lastSeen; i < run.log.length; i++) {
+                        const el = document.createElement('div');
+                        el.className = 'done';
+                        el.textContent = run.log[i];
+                        log.appendChild(el);
+                    }
+                    lastSeen = run.log.length;
+                    log.scrollTop = log.scrollHeight;
+                }
+                if (run.status === 'complete' || run.status === 'error' || run.status === 'stopped') {
+                    clearInterval(pollInterval);
+                    clearInterval(clockTimer);
+                    btn.disabled = false;
+                    btn.textContent = 'Run Intelligence Engine';
+                    btn.style.opacity = '';
+                    _updateIntelStages(pct, run.status);
+                    if (run.status === 'complete') {
+                        document.getElementById('iRunTitle').textContent = 'Intelligence package ready';
+                        document.getElementById('iRunSub').textContent = `${clientId} · ${csm} / ${month}`;
+                        await loadIntelligenceOutputs(true);
+                        await checkIntelReadiness(false);
+                    } else {
+                        document.getElementById('iRunTitle').textContent =
+                            run.status === 'stopped' ? 'Stopped by operator' : 'Intelligence run failed';
+                    }
+                }
+            } catch(e) {
+                pollFailures += 1;
+                if (pollFailures < MAX_POLL_FAILURES) return;
+                clearInterval(pollInterval);
+                clearInterval(clockTimer);
+                btn.disabled = false;
+                btn.textContent = 'Run Intelligence Engine';
+                btn.style.opacity = '';
+                document.getElementById('iRunTitle').textContent = 'Lost contact with the run';
+                document.getElementById('iRunSub').textContent = LOST_CONTACT_MSG;
+            }
+        }, 1000);
+    } catch(e) {
+        clearInterval(clockTimer);
+        btn.disabled = false;
+        btn.textContent = 'Run Intelligence Engine';
+        btn.style.opacity = '';
+        document.getElementById('iRunTitle').textContent = 'Could not start intelligence';
+        document.getElementById('iRunSub').textContent = e.message || SERVER_UNREACHABLE_MSG;
+        const el = document.createElement('div');
+        el.style.color = '#EB2A2E';
+        el.textContent = 'ERROR: ' + (e.message || SERVER_UNREACHABLE_MSG);
+        log.appendChild(el);
+    }
+}
+
+async function loadIntelligenceOutputs(showEmpty = false, override = null) {
+    const {csm, month, clientId} = override || _intelSelection();
+    if (!csm || !month || !clientId) return;
+    try {
+        const resp = await fetch(`/api/intelligence/outputs/${encodeURIComponent(csm)}/${encodeURIComponent(month)}/${encodeURIComponent(clientId)}`);
+        if (!resp.ok) return;
+        const payload = await resp.json();
+        renderIntelligenceOutputs(payload, showEmpty);
+    } catch(e) {}
+}
+
+function _fmtCompact(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return value == null || value === '' ? '--' : String(value);
+    return n.toLocaleString();
+}
+
+function _html(value) {
+    return String(value == null ? '' : value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function _intelFile(files, name) {
+    return files.find(f => f.name === name || f.name.endsWith('/' + name));
+}
+
+function _intelFileHref(file, inline = true) {
+    if (!file) return '#';
+    return `/api/download?path=${encodeURIComponent(file.path)}${inline ? '&inline=true' : ''}`;
+}
+
+function _renderPrimaryIntelActions(files) {
+    const actions = [
+        {
+            label: 'All Analysis Sections',
+            detail: '30 ARS/TXN sections, scripts, charts, metrics, fields, and blockers.',
+            href: '../docs/modules.html',
+            inline: true,
+            staticLink: true,
+        },
+        {
+            label: 'Client Story',
+            detail: 'CSM narrative, meeting prompts, activation exports, and measurement plan.',
+            file: _intelFile(files, 'transactional_intelligence_client_story.html'),
+            inline: true,
+        },
+        {
+            label: 'Intake Cockpit',
+            detail: 'Monthly file requirements, layout matches, contracts, and Snowflake readiness.',
+            file: _intelFile(files, 'transactional_intelligence_intake_cockpit.html'),
+            inline: true,
+        },
+        {
+            label: 'Analysis Workbook',
+            detail: 'Excel package with section catalog, charts, metrics, exports, and backlog.',
+            file: _intelFile(files, 'transactional_intelligence_package.xlsx'),
+            inline: false,
+        },
+        {
+            label: 'Review Board',
+            detail: 'What each section analyzes and whether it is ready for client use.',
+            file: _intelFile(files, 'analysis_review_board.csv'),
+            inline: true,
+        },
+        {
+            label: 'Chart Data',
+            detail: 'Backing snapshots behind the generated chart and graph specs.',
+            file: _intelFile(files, 'analysis_chart_data_snapshot.csv'),
+            inline: true,
+        },
+        {
+            label: 'Metric Catalog',
+            detail: 'Business definitions, source artifacts, validation status, and Snowflake hints.',
+            file: _intelFile(files, 'intelligence_metric_catalog.csv'),
+            inline: true,
+        },
+        {
+            label: 'Derivation Catalog',
+            detail: 'Old analysis fields matched to engine outputs, base inputs, and Snowflake hints.',
+            file: _intelFile(files, 'analysis_feature_derivation_catalog.csv'),
+            inline: true,
+        },
+        {
+            label: 'Production Backlog',
+            detail: 'Data, validation, Snowflake, and delivery actions needed before scale.',
+            file: _intelFile(files, 'production_readiness_backlog.csv'),
+            inline: true,
+        },
+    ];
+    return actions.map(action => {
+        const href = action.staticLink ? action.href : _intelFileHref(action.file, action.inline);
+        const missing = !action.staticLink && !action.file;
+        const target = action.inline || action.staticLink ? ' target="_blank"' : '';
+        const download = !action.inline && action.file ? ` download="${_html(action.file.name)}"` : '';
+        return `
+            <a class="intel-primary-action${missing ? ' missing' : ''}" href="${_html(href)}"${target}${download}>
+                <strong>${_html(action.label)}</strong>
+                <span>${_html(missing ? 'Run the engine to generate this artifact.' : action.detail)}</span>
+            </a>`;
+    }).join('');
+}
+
+function renderIntelligenceOutputs(payload, showEmpty = false) {
+    const files = payload.files || [];
+    if (!files.length && !showEmpty) return;
+    document.getElementById('iStory').classList.add('visible');
+    document.getElementById('iOutputDir').textContent = payload.output_dir || '--';
+    const summary = payload.summary || {};
+    const quality = payload.quality || {};
+    const insights = payload.insights || [];
+    const story = payload.consulting_story || {};
+    const intakeWorkOrder = payload.intake_work_order || [];
+    const monthlyFileRequirements = payload.monthly_file_requirements || [];
+    const layoutContractDraftQueue = payload.layout_contract_draft_queue || [];
+    const layoutContractExportManifest = payload.layout_contract_export_manifest || [];
+    const analysisChartDataSnapshot = payload.analysis_chart_data_snapshot || [];
+    const intelligenceMetricCatalog = payload.intelligence_metric_catalog || [];
+    const analysisFeatureDerivationCatalog = payload.analysis_feature_derivation_catalog || [];
+    const analysisConsultingPlaybook = payload.analysis_consulting_playbook || [];
+    const analysisInsightBrief = payload.analysis_insight_brief || [];
+    const clientMeetingDeckBlueprint = payload.client_meeting_deck_blueprint || [];
+    const analysisReviewBoard = payload.analysis_review_board || [];
+    const intelligenceLineageGraph = payload.intelligence_lineage_graph || [];
+    const counterpartySummary = payload.counterparty_summary || [];
+    const segmentSummary = payload.segment_summary || [];
+    const executiveScorecard = payload.executive_scorecard || [];
+    const strategyRoadmap = payload.strategy_roadmap || [];
+    const actionPlan = payload.action_plan || [];
+    const roleHandoffs = payload.role_handoffs || [];
+    const operatingControlPlane = payload.operating_control_plane || [];
+    const userInteractionMap = payload.user_interaction_map || [];
+    const productionReadinessBacklog = payload.production_readiness_backlog || [];
+    const outcomeSummary = payload.outcome_summary || [];
+    const qScore = quality.quality_score ?? summary.quality_score ?? '--';
+    const featureRows = summary.feature_rows ?? quality.feature_rows ?? '--';
+    const oppRows = summary.opportunity_rows ?? '--';
+    const actionRows = summary.action_plan_rows ?? actionPlan.length ?? '--';
+    const insightCount = summary.insight_count ?? insights.length ?? '--';
+    document.getElementById('iQualityVal').textContent = qScore === '--' ? '--' : `${qScore}`;
+    document.getElementById('iFeatureVal').textContent = _fmtCompact(featureRows);
+    document.getElementById('iOppVal').textContent = _fmtCompact(oppRows);
+    document.getElementById('iInsightVal').textContent = _fmtCompact(insightCount);
+    document.getElementById('iStoryMeta').textContent = story.headline || (summary.created_at ? `Created ${summary.created_at}` : 'Latest intelligence package');
+    const primaryActions = document.getElementById('iPrimaryActions');
+    if (primaryActions) primaryActions.innerHTML = _renderPrimaryIntelActions(files);
+    const warnings = quality.warnings || [];
+    const confidence = quality.confidence || summary.confidence || 'unknown';
+    document.getElementById('iNarrative').textContent = story.executive_summary || (files.length
+        ? `The engine created ${_fmtCompact(oppRows)} ranked opportunity rows and ${_fmtCompact(actionRows)} action play(s) from ${_fmtCompact(featureRows)} account-month feature rows. Data confidence is ${confidence}${warnings.length ? ` with ${warnings.length} warning(s) to review before client presentation.` : '.'}`
+        : 'No intelligence package exists for this client yet.');
+
+    const actionWrap = document.getElementById('iActionPlan');
+    if (actionWrap) {
+        const intakeHtml = intakeWorkOrder.length ? `
+            <div style="font-weight:700;font-size:14px;margin-bottom:8px;">File Intake Work Order</div>
+            <table class="recent-table">
+                <thead><tr><th>File</th><th>Family</th><th>Match</th><th>Decision</th><th>Action</th></tr></thead>
+                <tbody>
+                    ${intakeWorkOrder.slice(0, 6).map(row => `
+                        <tr>
+                            <td>${_html(row.file_name)}</td>
+                            <td>${_html(row.source_family)}</td>
+                            <td>${_html(row.match_status)}</td>
+                            <td>${_html(row.intake_decision)}</td>
+                            <td>${_html(row.operator_action)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const fileRequirementsHtml = monthlyFileRequirements.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length ? '18px 0 8px' : '0 0 8px'};">Monthly File Requirements</div>
+            <table class="recent-table">
+                <thead><tr><th>Input</th><th>Status</th><th>Files</th><th>Snowflake</th><th>Data Team Action</th></tr></thead>
+                <tbody>
+                    ${monthlyFileRequirements.slice(0, 8).map(row => `
+                        <tr>
+                            <td>${_html(row.display_name || row.input_family)}</td>
+                            <td>${_html(row.monthly_status)}</td>
+                            <td>${_html(row.received_file_names || '--')}</td>
+                            <td>${_html(row.target_snowflake_layer || '--')}</td>
+                            <td>${_html(row.data_team_action)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const contractDraftHtml = layoutContractDraftQueue.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || monthlyFileRequirements.length ? '18px 0 8px' : '0 0 8px'};">Layout Contract Draft Queue</div>
+            <table class="recent-table">
+                <thead><tr><th>File</th><th>Priority</th><th>Action</th><th>Proposed Contract</th><th>Data Team Action</th></tr></thead>
+                <tbody>
+                    ${layoutContractDraftQueue.slice(0, 8).map(row => `
+                        <tr>
+                            <td>${_html(row.file_name)}</td>
+                            <td>${_html(row.priority_band)}</td>
+                            <td>${_html(row.contract_action)}</td>
+                            <td>${_html(row.proposed_contract_id)}</td>
+                            <td>${_html(row.data_team_action)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const contractExportHtml = layoutContractExportManifest.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || monthlyFileRequirements.length || layoutContractDraftQueue.length ? '18px 0 8px' : '0 0 8px'};">Layout Contract Exports</div>
+            <table class="recent-table">
+                <thead><tr><th>Contract</th><th>Priority</th><th>YAML Path</th><th>Snowflake</th><th>Data Team Action</th></tr></thead>
+                <tbody>
+                    ${layoutContractExportManifest.slice(0, 8).map(row => `
+                        <tr>
+                            <td>${_html(row.proposed_contract_id)}</td>
+                            <td>${_html(row.priority_band)}</td>
+                            <td>${_html(row.yaml_relative_path)}</td>
+                            <td>${_html(row.target_snowflake_layer || '--')}</td>
+                            <td>${_html(row.data_team_action)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const analysisPlaybookHtml = analysisConsultingPlaybook.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || monthlyFileRequirements.length || layoutContractDraftQueue.length || layoutContractExportManifest.length ? '18px 0 8px' : '0 0 8px'};">Analysis Consulting Playbook</div>
+            <table class="recent-table">
+                <thead><tr><th>Section</th><th>Story Role</th><th>Proof</th><th>Owner</th><th>Talk Track</th></tr></thead>
+                <tbody>
+                    ${analysisConsultingPlaybook.slice(0, 10).map(row => `
+                        <tr>
+                            <td>${_html(row.source_section_id || row.display_name)}</td>
+                            <td>${_html(row.client_story_role)}</td>
+                            <td>${_html(row.primary_output_file || row.primary_chart_title || '--')}</td>
+                            <td>${_html(row.stakeholder_owner)}</td>
+                            <td>${_html(row.csm_talk_track)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const insightBriefHtml = analysisInsightBrief.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || monthlyFileRequirements.length || layoutContractDraftQueue.length || layoutContractExportManifest.length || analysisConsultingPlaybook.length ? '18px 0 8px' : '0 0 8px'};">Analysis Insight Brief</div>
+            <table class="recent-table">
+                <thead><tr><th>Section</th><th>Status</th><th>Headline</th><th>Caveat</th><th>Client Question</th></tr></thead>
+                <tbody>
+                    ${analysisInsightBrief.slice(0, 10).map(row => `
+                        <tr>
+                            <td>${_html(row.source_section_id || row.display_name)}</td>
+                            <td>${_html(row.brief_status)}</td>
+                            <td>${_html(row.headline_insight)}</td>
+                            <td>${_html(row.data_caveat)}</td>
+                            <td>${_html(row.recommended_client_question)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const meetingBlueprintHtml = clientMeetingDeckBlueprint.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || monthlyFileRequirements.length || layoutContractDraftQueue.length || layoutContractExportManifest.length || analysisConsultingPlaybook.length || analysisInsightBrief.length ? '18px 0 8px' : '0 0 8px'};">Client Meeting Blueprint</div>
+            <table class="recent-table">
+                <thead><tr><th>#</th><th>Phase</th><th>Title</th><th>Decision</th><th>Status</th></tr></thead>
+                <tbody>
+                    ${clientMeetingDeckBlueprint.slice(0, 12).map(row => `
+                        <tr>
+                            <td>${_html(row.blueprint_rank)}</td>
+                            <td>${_html(row.meeting_phase)}</td>
+                            <td>${_html(row.slide_title)}</td>
+                            <td>${_html(row.decision_prompt)}</td>
+                            <td>${_html(row.blueprint_status)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const analysisReviewBoardHtml = analysisReviewBoard.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || monthlyFileRequirements.length || layoutContractDraftQueue.length || layoutContractExportManifest.length || analysisConsultingPlaybook.length || analysisInsightBrief.length || clientMeetingDeckBlueprint.length ? '18px 0 8px' : '0 0 8px'};">Analysis Review Board</div>
+            <table class="recent-table">
+                <thead><tr><th>Section</th><th>Analyzed</th><th>Charts</th><th>Story</th><th>Status</th></tr></thead>
+                <tbody>
+                    ${analysisReviewBoard.slice(0, 12).map(row => `
+                        <tr>
+                            <td>${_html(row.source_section_id || row.display_name)}</td>
+                            <td>${_html(row.what_is_analyzed || row.headline_insight)}</td>
+                            <td>${_html((_fmtCompact(row.chart_count || 0)) + ' / ' + (row.primary_chart_type || row.chart_types || '--'))}</td>
+                            <td>${_html(row.meeting_phase_refs || row.client_story_role || '--')}</td>
+                            <td>${_html(row.review_status || row.output_readiness_status)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const metricCatalogHtml = intelligenceMetricCatalog.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || monthlyFileRequirements.length || layoutContractDraftQueue.length || layoutContractExportManifest.length || analysisConsultingPlaybook.length || analysisInsightBrief.length || clientMeetingDeckBlueprint.length || analysisReviewBoard.length ? '18px 0 8px' : '0 0 8px'};">Intelligence Metric Catalog</div>
+            <table class="recent-table">
+                <thead><tr><th>Metric</th><th>Family</th><th>Source</th><th>Validation</th><th>CSM Use</th></tr></thead>
+                <tbody>
+                    ${intelligenceMetricCatalog.slice(0, 12).map(row => `
+                        <tr>
+                            <td>${_html(row.metric_name || row.metric_id)}</td>
+                            <td>${_html(row.metric_family)}</td>
+                            <td>${_html((row.source_artifact || '--') + (row.source_field ? ':' + row.source_field : ''))}</td>
+                            <td>${_html(row.validation_status)}</td>
+                            <td>${_html(row.csm_interpretation || row.business_definition)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const featureDerivationHtml = analysisFeatureDerivationCatalog.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || monthlyFileRequirements.length || layoutContractDraftQueue.length || layoutContractExportManifest.length || analysisConsultingPlaybook.length || analysisInsightBrief.length || clientMeetingDeckBlueprint.length || analysisReviewBoard.length || intelligenceMetricCatalog.length ? '18px 0 8px' : '0 0 8px'};">Feature Derivation Catalog</div>
+            <table class="recent-table">
+                <thead><tr><th>Analysis Field</th><th>Derived From</th><th>Base Inputs</th><th>Validation</th><th>Snowflake Hint</th></tr></thead>
+                <tbody>
+                    ${analysisFeatureDerivationCatalog.slice(0, 12).map(row => `
+                        <tr>
+                            <td>${_html((row.source_section_id ? row.source_section_id + ': ' : '') + (row.analysis_field_key || row.display_name || '--'))}</td>
+                            <td>${_html(row.derived_output_lineage || row.derived_fields || '--')}</td>
+                            <td>${_html(row.base_input_requirements || row.input_family_hint || '--')}</td>
+                            <td>${_html(row.validation_status || row.current_run_readiness || '--')}</td>
+                            <td>${_html(row.snowflake_expression_hint || '--')}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const chartSnapshotHtml = analysisChartDataSnapshot.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || monthlyFileRequirements.length || layoutContractDraftQueue.length || layoutContractExportManifest.length || analysisConsultingPlaybook.length || intelligenceMetricCatalog.length || analysisFeatureDerivationCatalog.length ? '18px 0 8px' : '0 0 8px'};">Chart Data Snapshots</div>
+            <table class="recent-table">
+                <thead><tr><th>Chart</th><th>Artifact</th><th>Rows</th><th>Status</th><th>Callout</th></tr></thead>
+                <tbody>
+                    ${analysisChartDataSnapshot.slice(0, 10).map(row => `
+                        <tr>
+                            <td>${_html(row.chart_title || row.source_section_id)}</td>
+                            <td>${_html(row.data_artifact)}</td>
+                            <td>${_html(_fmtCompact(row.plotted_row_count))}/${_html(_fmtCompact(row.source_row_count))}</td>
+                            <td>${_html(row.data_status)}</td>
+                            <td>${_html(row.insight_callout)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const scorecardHtml = executiveScorecard.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || layoutContractDraftQueue.length || layoutContractExportManifest.length || analysisConsultingPlaybook.length || intelligenceMetricCatalog.length || analysisChartDataSnapshot.length ? '18px 0 8px' : '0 0 8px'};">Executive Scorecard</div>
+            <table class="recent-table">
+                <thead><tr><th>Domain</th><th>Metric</th><th>Status</th><th>Focus</th></tr></thead>
+                <tbody>
+                    ${executiveScorecard.slice(0, 8).map(row => `
+                        <tr>
+                            <td>${_html(row.domain)}</td>
+                            <td>${_html(row.metric_display)}</td>
+                            <td>${_html(row.rag_status)}</td>
+                            <td>${_html(row.recommended_focus)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const lineageHtml = intelligenceLineageGraph.length ? `
+            <div style="font-weight:700;font-size:14px;margin:18px 0 8px;">Intelligence Lineage Graph</div>
+            <table class="recent-table">
+                <thead><tr><th>Stage</th><th>From</th><th>To</th><th>Status</th><th>Next Action</th></tr></thead>
+                <tbody>
+                    ${intelligenceLineageGraph.slice(0, 10).map(row => `
+                        <tr>
+                            <td>${_html(row.lineage_stage)}</td>
+                            <td>${_html(row.source_label || row.source_node_id)}</td>
+                            <td>${_html(row.target_label || row.target_node_id)}</td>
+                            <td>${_html(row.edge_status)}</td>
+                            <td>${_html(row.next_action)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const roadmapHtml = strategyRoadmap.length ? `
+            <div style="font-weight:700;font-size:14px;margin:18px 0 8px;">Strategy Roadmap</div>
+            <table class="recent-table">
+                <thead><tr><th>Phase</th><th>Initiative</th><th>Owner</th><th>Proof Metric</th></tr></thead>
+                <tbody>
+                    ${strategyRoadmap.slice(0, 6).map(row => `
+                        <tr>
+                            <td>${_html(row.phase)}</td>
+                            <td>${_html(row.initiative)}</td>
+                            <td>${_html(row.owner_role)}</td>
+                            <td>${_html(row.proof_metric)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const counterpartyHtml = counterpartySummary.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || layoutContractDraftQueue.length || executiveScorecard.length || strategyRoadmap.length ? '18px 0 8px' : '0 0 8px'};">Counterparty Intelligence</div>
+            <table class="recent-table">
+                <thead><tr><th>Counterparty</th><th>Category</th><th>Accounts</th><th>Amount</th><th>Relevance</th></tr></thead>
+                <tbody>
+                    ${counterpartySummary.slice(0, 6).map(row => `
+                        <tr>
+                            <td>${_html(row.counterparty_name)}</td>
+                            <td>${_html(row.counterparty_category)}</td>
+                            <td>${_html(_fmtCompact(row.account_count))}</td>
+                            <td>${_html(row.total_amount == null || row.total_amount === '' ? '--' : '$' + _fmtCompact(row.total_amount))}</td>
+                            <td>${_html(row.strategy_relevance)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const segmentHtml = segmentSummary.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || executiveScorecard.length || strategyRoadmap.length || counterpartySummary.length ? '18px 0 8px' : '0 0 8px'};">Relationship Segments</div>
+            <table class="recent-table">
+                <thead><tr><th>Segment</th><th>Accounts</th><th>Value</th><th>Risk</th><th>Next Motion</th></tr></thead>
+                <tbody>
+                    ${segmentSummary.slice(0, 6).map(row => `
+                        <tr>
+                            <td>${_html(row.relationship_segment)}</td>
+                            <td>${_html(_fmtCompact(row.account_count))}</td>
+                            <td>${_html(row.total_expected_value == null || row.total_expected_value === '' ? '--' : '$' + _fmtCompact(row.total_expected_value))}</td>
+                            <td>${_html(row.risk_level)}</td>
+                            <td>${_html(row.top_next_best_motion)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const actionHtml = actionPlan.length ? `
+            <div style="font-weight:700;font-size:14px;margin:${intakeWorkOrder.length || segmentSummary.length ? '18px 0 8px' : '0 0 8px'};">Action Plan</div>
+            <table class="recent-table">
+                <thead><tr><th>Rank</th><th>Play</th><th>Accounts</th><th>Owner</th><th>Next Step</th></tr></thead>
+                <tbody>
+                    ${actionPlan.slice(0, 5).map(row => `
+                        <tr>
+                            <td>${_html(row.priority_rank)}</td>
+                            <td>${_html(row.play_name)}</td>
+                            <td>${_html(_fmtCompact(row.target_accounts))}</td>
+                            <td>${_html(row.owner_role)}</td>
+                            <td>${_html(row.next_step)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '<div style="color:var(--muted);font-size:13px;">No action plan found yet.</div>';
+        const outcomeHtml = outcomeSummary.length ? `
+            <div style="font-weight:700;font-size:14px;margin:18px 0 8px;">Measured Outcomes</div>
+            <table class="recent-table">
+                <thead><tr><th>Play</th><th>Targets</th><th>Outcome Rate</th><th>Status</th></tr></thead>
+                <tbody>
+                    ${outcomeSummary.slice(0, 5).map(row => `
+                        <tr>
+                            <td>${_html(row.play_name)}</td>
+                            <td>${_html(_fmtCompact(row.target_accounts))}</td>
+                            <td>${_html(row.test_outcome_rate == null || row.test_outcome_rate === '' ? '--' : (Number(row.test_outcome_rate) * 100).toFixed(1) + '%')}</td>
+                            <td>${_html(row.interpretation)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const handoffHtml = roleHandoffs.length ? `
+            <div style="font-weight:700;font-size:14px;margin:18px 0 8px;">Operating Handoff</div>
+            <table class="recent-table">
+                <thead><tr><th>Role</th><th>Decision</th><th>Export</th><th>First Action</th></tr></thead>
+                <tbody>
+                    ${roleHandoffs.slice(0, 6).map(row => `
+                        <tr>
+                            <td>${_html(row.role)}</td>
+                            <td>${_html(row.decision_owned)}</td>
+                            <td>${_html(row.export_artifact)}</td>
+                            <td>${_html(row.first_action)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const controlPlaneHtml = operatingControlPlane.length ? `
+            <div style="font-weight:700;font-size:14px;margin:18px 0 8px;">Operating Control Plane</div>
+            <table class="recent-table">
+                <thead><tr><th>Lane</th><th>Role</th><th>Status</th><th>Open First</th><th>Next Action</th></tr></thead>
+                <tbody>
+                    ${operatingControlPlane.slice(0, 6).map(row => `
+                        <tr>
+                            <td>${_html(row.workflow_lane)}</td>
+                            <td>${_html(row.role)}</td>
+                            <td>${_html(row.client_use_status || row.current_status)}</td>
+                            <td>${_html(row.open_first)}</td>
+                            <td>${_html(row.next_action)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const userInteractionHtml = userInteractionMap.length ? `
+            <div style="font-weight:700;font-size:14px;margin:18px 0 8px;">User Interaction Map</div>
+            <table class="recent-table">
+                <thead><tr><th>Role</th><th>Open</th><th>Artifact</th><th>Decision</th><th>Next Action</th></tr></thead>
+                <tbody>
+                    ${userInteractionMap.slice(0, 10).map(row => `
+                        <tr>
+                            <td>${_html(row.user_role)}</td>
+                            <td>${_html(row.open_first || row.primary_screen)}</td>
+                            <td>${_html(row.file_name)}</td>
+                            <td>${_html(row.decision_supported)}</td>
+                            <td>${_html(row.owner_next_action)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        const productionBacklogHtml = productionReadinessBacklog.length ? `
+            <div style="font-weight:700;font-size:14px;margin:18px 0 8px;">Production Readiness Backlog</div>
+            <table class="recent-table">
+                <thead><tr><th>Priority</th><th>Workstream</th><th>Owner</th><th>Problem</th><th>Required Action</th></tr></thead>
+                <tbody>
+                    ${productionReadinessBacklog.slice(0, 14).map(row => `
+                        <tr>
+                            <td>${_html(row.priority_band)}</td>
+                            <td>${_html(row.workstream)}</td>
+                            <td>${_html(row.owner_role)}</td>
+                            <td>${_html(row.problem_statement)}</td>
+                            <td>${_html(row.required_action)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        ` : '';
+        actionWrap.innerHTML = `${intakeHtml}${fileRequirementsHtml}${contractDraftHtml}${contractExportHtml}${analysisPlaybookHtml}${insightBriefHtml}${meetingBlueprintHtml}${analysisReviewBoardHtml}${metricCatalogHtml}${featureDerivationHtml}${chartSnapshotHtml}${lineageHtml}${controlPlaneHtml}${userInteractionHtml}${productionBacklogHtml}${scorecardHtml}${roadmapHtml}${counterpartyHtml}${segmentHtml}${actionHtml}${outcomeHtml}${handoffHtml}`;
+    }
+
+    const storyArc = story.story_arc || [];
+    const insightWrap = document.getElementById('iInsights');
+    insightWrap.innerHTML = '';
+    if (storyArc.length) {
+        storyArc.slice(0, 6).forEach(step => {
+            const div = document.createElement('div');
+            div.className = 'intel-insight';
+            div.innerHTML = `
+                <div class="intel-insight-type">${_html(step.artifact || 'story')}</div>
+                <div class="intel-insight-title">${_html(step.step || 'Story step')}</div>
+                <div class="intel-insight-summary">${_html(step.summary || '')}</div>
+            `;
+            insightWrap.appendChild(div);
+        });
+    } else if (!insights.length) {
+        insightWrap.innerHTML = '<div style="color:var(--muted);font-size:13px;">No insight objects found yet.</div>';
+    } else {
+        insights.slice(0, 6).forEach(insight => {
+            const div = document.createElement('div');
+            div.className = 'intel-insight';
+            div.innerHTML = `
+                <div class="intel-insight-type">${_html(insight.domain || insight.insight_type || 'insight')}</div>
+                <div class="intel-insight-title">${_html(insight.title || insight.finding || 'Insight')}</div>
+                <div class="intel-insight-summary">${_html(insight.summary || insight.recommended_action || '')}</div>
+            `;
+            insightWrap.appendChild(div);
+        });
+    }
+
+    const dl = document.getElementById('iDl');
+    dl.innerHTML = '';
+    if (!files.length) {
+        dl.innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;padding:24px;color:var(--muted);">No intelligence files found.</div>';
+        return;
+    }
+    const rank = {xlsx: 1, html: 2, csv: 3, yml: 4, yaml: 4, json: 5, sql: 6};
+    [...files].sort((a, b) => (rank[a.type] || 9) - (rank[b.type] || 9) || a.name.localeCompare(b.name)).forEach(f => {
+        const card = document.createElement('div');
+        card.className = 'card dl-card';
+        const isHtml = f.type === 'html';
+        const href = `/api/download?path=${encodeURIComponent(f.path)}${isHtml ? '&inline=true' : ''}`;
+        card.innerHTML = `
+            <div class="dl-ext">.${f.type}</div>
+            <div class="dl-name">${f.name}</div>
+            <div class="dl-meta">${f.size_mb} MB · ${f.category}</div>
+            <a href="${href}" ${isHtml ? 'target="_blank"' : `download="${f.name}"`} style="text-decoration:none;">
+                <button class="${isHtml ? 'btn' : 'btn btn-dark'}" style="margin-top:12px;width:100%;">${isHtml ? 'Open' : 'Download'}</button>
+            </a>
+        `;
+        dl.appendChild(card);
+    });
+}
+
 // HTML preview surface for completed runs. Builds an embedded version of
 // the html_review/index.html from the persisted run_report.json + chart PNGs.
 let _htmlPreviewState = {csm: '', month: '', clientId: '', url: ''};
@@ -3025,10 +4110,15 @@ async function loadActiveRuns() {
 
 function reattachRun(run) {
     const isFormat = run.kind === 'formatting';
-    showPage(isFormat ? 'format' : 'generate');
+    const isIntel = run.kind === 'intelligence';
+    showPage(isFormat ? 'format' : isIntel ? 'intelligence' : 'generate');
     if (isFormat) _reattachPoll(run, {
         panel: 'fProg', log: 'fProgLog', status: 'fProgStatus',
         elapsed: 'fElapsed',
+    });
+    else if (isIntel) _reattachPoll(run, {
+        panel: 'iProg', log: 'iProgLog', status: 'iProgStatus',
+        elapsed: 'iElapsed', title: 'iRunTitle', sub: 'iRunSub',
     });
     else _reattachPoll(run, {
         panel: 'gProg', log: 'gProgLog', status: null,
@@ -3106,9 +4196,14 @@ function _reattachPoll(run, ids) {
                 if (ids.sub) document.getElementById(ids.sub).textContent =
                     `${run.client_id} · ${run.csm} / ${run.month}`;
                 if (ids.status) document.getElementById(ids.status).textContent = label;
-                if (r.status === 'complete' && run.kind !== 'formatting') {
-                    loadDownloads(run.csm, run.month, run.client_id);
-                    loadDashboardData();
+                if (r.status === 'complete') {
+                    if (run.kind === 'intelligence') {
+                        loadIntelligenceOutputs(true, {csm: run.csm, month: run.month, clientId: run.client_id});
+                        checkIntelReadiness(false);
+                    } else if (run.kind !== 'formatting') {
+                        loadDownloads(run.csm, run.month, run.client_id);
+                        loadDashboardData();
+                    }
                 }
             }
         } catch (e) {
@@ -3651,12 +4746,14 @@ document.getElementById('rSlideContainer')?.addEventListener('dblclick', openLig
     await Promise.all([loadCSMs(), loadMonths()]);
     await loadClients();
     refreshGenClients();
+    refreshIntelClients();
     updateHeaderUser(document.getElementById('gCsmSel')?.value);
 })();
 
 // Keep the header chip in sync with whichever CSM dropdown changes.
 document.getElementById('gCsmSel')?.addEventListener('change', e => updateHeaderUser(e.target.value));
 document.getElementById('fCsmSel')?.addEventListener('change', e => updateHeaderUser(e.target.value));
+document.getElementById('iCsmSel')?.addEventListener('change', e => updateHeaderUser(e.target.value));
 loadRecent();
 setGenMode('full');
 

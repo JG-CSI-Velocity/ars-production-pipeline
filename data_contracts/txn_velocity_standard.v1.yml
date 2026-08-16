@@ -1,0 +1,106 @@
+contract_id: txn.velocity_standard.v1
+source_family: transaction
+display_name: Velocity standard raw transaction file
+version: "1"
+status: draft
+notes:
+  - Mirrors the current repo transaction loader in analytics/txn_setup/04-define-data-func.py.
+  - Current files may be .txt, .csv, .dat, or extensionless.
+  - Current loader skips the first row, sniffs tab/comma/pipe/semicolon, and maps positional columns.
+match:
+  filename_patterns:
+    - "*tran*"
+    - "*transaction*"
+    - "*transactions*"
+    - "*monthlydebittransactions*"
+    - "*velocity.ars.transactions*"
+  extensions:
+    - txt
+    - csv
+    - dat
+    - none
+  delimiters:
+    - tab
+    - comma
+    - pipe
+    - semicolon
+  header:
+    mode: skip_rows
+    skip_rows: 1
+  positional: true
+canonical_fields:
+  transaction_date:
+    source_position: 0
+    required: true
+    type: date
+    aliases: ["transaction_date", "Transaction Date", "trans date"]
+  account_id:
+    source_position: 1
+    required: true
+    type: string
+    aliases: ["primary_account_num", "account number", "acct"]
+  transaction_type:
+    source_position: 2
+    required: true
+    type: string
+    aliases: ["transaction_type", "trans type", "type"]
+  amount:
+    source_position: 3
+    required: true
+    type: decimal
+    aliases: ["amount", "txn amount"]
+  mcc_code:
+    source_position: 4
+    required: false
+    type: string
+    aliases: ["mcc_code", "mcc"]
+  merchant_name:
+    source_position: 5
+    required: false
+    type: string
+    aliases: ["merchant_name", "merchant", "description"]
+  terminal_location_1:
+    source_position: 6
+    required: false
+    type: string
+  terminal_location_2:
+    source_position: 7
+    required: false
+    type: string
+  terminal_id:
+    source_position: 8
+    required: false
+    type: string
+  merchant_id:
+    source_position: 9
+    required: false
+    type: string
+  institution:
+    source_position: 10
+    required: false
+    type: string
+  card_present:
+    source_position: 11
+    required: false
+    type: string
+  transaction_code:
+    source_position: 12
+    required: false
+    type: string
+validation:
+  - id: txn_date_required
+    severity: error
+    rule: transaction_date parse success rate >= 99.5%
+  - id: account_required
+    severity: error
+    rule: account_id non-null rate >= 99.5%
+  - id: amount_required
+    severity: error
+    rule: amount parse success rate >= 99.5%
+  - id: period_coverage
+    severity: warning
+    rule: transaction_date overlaps requested reporting period
+  - id: account_match
+    severity: warning
+    rule: account_id match rate to canonical account >= 95%
+

@@ -1,0 +1,22 @@
+contract_id: account.9999_branch_roster_2026_06.draft.v1
+source_family: account
+display_name: 9999 Branch Roster 2026.06
+version: '1'
+status: draft
+match:
+  filename_patterns:
+  - 9999_branch_roster_2026.06.csv
+  required_headers_any:
+  - Branch
+  - Market
+  - Manager Email
+canonical_fields:
+  account_id:
+    type: string
+    required: true
+    aliases: []
+  branch_id:
+    type: string
+    required: false
+    aliases:
+    - Branch

@@ -1,0 +1,4 @@
+source_path,file_name,file_type,suffix,exists,size_bytes,modified_at,sha256
+01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_ODD_accounts_2026.06.csv,9999_ODD_accounts_2026.06.csv,odd,.csv,True,415,2026-08-15T18:01:12,f6b7851d39087420425f1a25f3eb2847175525efbd57026b399056a9c1cbe1e2
+01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_transactions_2026.06.csv,9999_transactions_2026.06.csv,transaction,.csv,True,1223,2026-08-15T18:01:12,33020872a1a6dde85ea02e05b1878daaade55faca01bd96fed5b312cbe2d6168
+01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_branch_roster_2026.06.csv,9999_branch_roster_2026.06.csv,unknown,.csv,True,143,2026-08-15T18:01:12,d6cd74ed7b8fd791ce9f3c68a000e47c0fdbcf4d36d992d575bceecba6eff98b

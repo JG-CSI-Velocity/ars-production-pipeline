@@ -1,0 +1,6 @@
+client_id,period_month,relationship_segment,segment_group,lifecycle_stage,risk_level,account_count,avg_pfi_score,avg_external_intensity,avg_balance,payroll_accounts,total_expected_value,avg_readiness_score,top_next_best_motion,top_reason_codes,model_version
+9999,2026-06,Split Wallet / Competitor Pull,Win Back,Recover,high,1,1.5,0.488,23000.0,0,2877.5,76.0,Prioritize consolidation or retention outreach.,external_fi_intensity|competitor-primary,segment_summary_v0_rules
+9999,2026-06,Split Wallet / Competitor Pull,Win Back,Recover,medium,1,15.3,1.0,7600.0,0,1074.5,51.7,Prioritize consolidation or retention outreach.,external_fi_intensity|split,segment_summary_v0_rules
+9999,2026-06,Primary Banking Conversion Candidate,Grow,Convert,medium,2,3.0,0.248,550.0,0,1043.5,52.4,Target for direct deposit or primary banking conversion.,no_payroll_detected|money_movement_present,segment_summary_v0_rules
+9999,2026-06,Engagement Activation Candidate,Activate,Activate,medium,1,56.2,0.185,18000.0,1,415.5,69.6,"Prompt debit, wallet, or digital engagement.",weak_debit_or_activity|eligible_account,segment_summary_v0_rules
+9999,2026-06,Dormant Save Candidate,Reactivate,Save,high,3,30.0,0.0,3633.33,1,136.0,27.5,Queue for reactivation or save-list outreach.,low_activity|relationship_value_present,segment_summary_v0_rules

@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Velocity Pipeline</title>
+  <style>body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #14213d; background: #f6f7f9; }
+main { max-width: 1120px; margin: 0 auto; padding: 28px; }
+h1 { margin: 0 0 12px; font-size: 30px; }
+h2 { margin: 30px 0 10px; font-size: 21px; }
+h3 { margin: 24px 0 8px; font-size: 17px; }
+p, li { line-height: 1.5; }
+a { color: #155eef; text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { background: #eef1f5; border: 1px solid #d9dee8; border-radius: 4px; padding: 2px 5px; }
+pre { overflow-x: auto; background: #101828; color: #f8fafc; border-radius: 8px; padding: 14px; }
+pre code { background: transparent; border: 0; color: inherit; padding: 0; }
+table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d9dee8; margin: 12px 0; }
+th, td { border-bottom: 1px solid #e6e9ef; padding: 9px 10px; text-align: left; vertical-align: top; font-size: 13px; }
+th { background: #edf2f8; color: #344054; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+tr:last-child td { border-bottom: 0; }
+blockquote { border-left: 4px solid #d9dee8; margin: 14px 0; padding: 8px 14px; color: #475467; background: #fff; }
+hr { border: 0; border-top: 1px solid #d9dee8; margin: 24px 0; }
+.analysis-entry { background: #fff; border: 1px solid #cfd8e3; border-radius: 8px; padding: 18px; margin: 18px 0 24px; }
+.analysis-entry h2 { margin-top: 0; }
+.analysis-lede { max-width: 820px; color: #475467; }
+.analysis-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 16px 0; }
+.analysis-stat { background: #14213d; color: #fff; border-radius: 8px; padding: 13px; }
+.analysis-stat b { display: block; font-size: 24px; line-height: 1; margin-bottom: 4px; }
+.analysis-stat span { color: #cbd5e1; font-size: 12px; }
+.analysis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.analysis-card { border: 1px solid #d9dee8; border-radius: 8px; padding: 13px; background: #fbfdff; }
+.analysis-card strong { display: block; margin-bottom: 6px; }
+.analysis-card p { margin: 0 0 10px; color: #475467; font-size: 13px; }
+.analysis-card a { display: inline-block; font-weight: 700; }
+.analysis-primary { display: inline-block; background: #155eef; color: #fff; border-radius: 8px; padding: 10px 14px; font-weight: 700; margin: 4px 8px 12px 0; }
+.analysis-primary:hover { text-decoration: none; background: #004eeb; }
+.analysis-table-wrap { overflow-x: auto; border: 1px solid #d9dee8; border-radius: 8px; background: #fff; margin-top: 14px; }
+.analysis-table { margin: 0; border: 0; min-width: 980px; }
+.analysis-table th, .analysis-table td { font-size: 12px; }
+.analysis-frame { width: 100%; min-height: 720px; border: 1px solid #d9dee8; border-radius: 8px; background: #fff; margin-top: 14px; }
+@media (max-width: 760px) { main { padding: 18px; } .analysis-grid, .analysis-stats { grid-template-columns: 1fr; } .analysis-frame { min-height: 620px; } }</style>
+</head>
+<body>
+<main>
+<h1>Velocity Pipeline</h1>
+<p><strong>ARS + Transaction analysis pipeline for credit union and bank clients.</strong></p>
+<p>CSMs format raw ODD data, run dozens of analytics modules, and ship presentation-ready PowerPoint decks &mdash; entirely from a web UI. No notebooks, no terminals, no Python knowledge required.</p>
+<p>The repo is <code>JG-CSI-Velocity/ars-production-pipeline</code>. The operator-facing surface lives at <code>05_UI/</code> &mdash; everything else is plumbing.</p>
+<section class="analysis-entry">
+<h2>Open the analysis engine first</h2>
+<p class="analysis-lede">This is the visual index for the actual ARS and transaction analysis. Start here to see every section, what it analyzes, which scripts feed it, which outputs/charts it creates, what metrics it proves, what data it needs, and what is still blocked before production.</p>
+<div class="analysis-stats">
+<div class="analysis-stat"><b>30</b><span>ARS/TXN analysis sections</span></div>
+<div class="analysis-stat"><b>91</b><span>chart and graph specs</span></div>
+<div class="analysis-stat"><b>56</b><span>semantic metrics</span></div>
+<div class="analysis-stat"><b>68</b><span>generated package artifacts</span></div>
+<div class="analysis-stat"><b>473</b><span>production backlog rows</span></div>
+</div>
+<a class="analysis-primary" href="docs/modules.html">Open all analysis sections</a>
+<a class="analysis-primary" href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_analysis_workbench.html">Open analysis workbench</a>
+<a class="analysis-primary" href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_section_drilldowns.html">Open section drilldowns</a>
+<a class="analysis-primary" href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_chart_gallery.html">Open charts and graphs</a>
+<div class="analysis-grid">
+<div class="analysis-card"><strong>Client story</strong><p>Use the consulting narrative, proof points, decision prompts, action exports, and measurement plan.</p><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_client_story.html">Open client story</a></div>
+<div class="analysis-card"><strong>All analysis sections</strong><p>Browse every ARS/TXN section and filter by product, domain, status, script, chart, output, or metric.</p><a href="docs/modules.html">Open analysis browser</a></div>
+<div class="analysis-card"><strong>Monthly file intake</strong><p>Review received client files, layout matches, fallback extracts, contract drafts, and Snowflake readiness.</p><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_intake_cockpit.html">Open intake cockpit</a></div>
+<div class="analysis-card"><strong>Generated intelligence package</strong><p>Start by role: owner, CSM, analyst, data/Snowflake, marketing, or banker team.</p><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_launchpad.html">Open launchpad</a></div>
+<div class="analysis-card"><strong>Charts and graph outputs</strong><p>Review the generated chart/table/story specs and the backing data snapshots.</p><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_chart_gallery.html">Open chart gallery</a></div>
+</div>
+<h3>All 30 analysis sections</h3>
+<div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Section</th><th>Name</th><th>What it analyzes</th><th>Charts/Graph</th><th>Primary output</th></tr></thead><tbody>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_attrition.html"><code>ars.attrition</code></a></td><td>Attrition</td><td>Who is degrading, dormant, at risk, or ready to upgrade? Evidence is generated through relationship_segments.csv|opportunities.csv|outcome_summary.csv.</td><td>3 charts &middot; lift_bar</td><td><code>outcome_summary.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_dctr.html"><code>ars.dctr</code></a></td><td>Dctr</td><td>Where is card, overdraft, interchange, or modeled value opportunity? Evidence is generated through opportunities.csv|opportunity_portfolio.csv|campaign_targets.csv.</td><td>3 charts &middot; target_table</td><td><code>campaign_targets.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_insights.html"><code>ars.insights</code></a></td><td>Insights</td><td>What is the story, decision, priority, and roadmap? Evidence is generated through insights.json|consulting_story.json|strategy_roadmap.csv.</td><td>3 charts &middot; story_cards</td><td><code>insights.json</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_mailer.html"><code>ars.mailer</code></a></td><td>Mailer</td><td>Which actions changed behavior and what should be targeted next? Evidence is generated through campaign_targets.csv|measurement_baseline.csv|outcome_summary.csv.</td><td>3 charts &middot; lift_bar</td><td><code>measurement_baseline.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_overview.html"><code>ars.overview</code></a></td><td>Overview</td><td>What is the usable account base and how is it structured? Evidence is generated through data_quality.json|account_month_features.csv|executive_scorecard.csv.</td><td>3 charts &middot; horizontal_bar</td><td><code>executive_scorecard.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_rege.html"><code>ars.rege</code></a></td><td>Rege</td><td>Where is card, overdraft, interchange, or modeled value opportunity? Evidence is generated through executive_scorecard.csv|strategy_roadmap.csv|action_plan.csv.</td><td>3 charts &middot; horizontal_bar</td><td><code>executive_scorecard.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/ars_value.html"><code>ars.value</code></a></td><td>Value</td><td>Where is card, overdraft, interchange, or modeled value opportunity? Evidence is generated through opportunities.csv|opportunity_portfolio.csv|executive_scorecard.csv.</td><td>3 charts &middot; horizontal_bar</td><td><code>executive_scorecard.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_attrition_txn.html"><code>txn.attrition_txn</code></a></td><td>Attrition (Velocity)</td><td>Who is degrading, dormant, at risk, or ready to upgrade? Evidence is generated through relationship_segments.csv|opportunities.csv|campaign_targets.csv.</td><td>3 charts &middot; stacked_bar</td><td><code>relationship_segments.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_balance.html"><code>txn.balance</code></a></td><td>Balance Analysis</td><td>Who owns the relationship and where is primacy weak? Evidence is generated through account_month_features.csv|pfi_verdicts.csv|opportunities.csv.</td><td>3 charts &middot; detail_table</td><td><code>account_month_features.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_branch_txn.html"><code>txn.branch_txn</code></a></td><td>Branch Performance</td><td>Where is activity concentrating, changing, or leaking? Evidence is generated through account_month_features.csv|strategy_roadmap.csv|campaign_targets.csv.</td><td>3 charts &middot; target_table</td><td><code>campaign_targets.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_business_accts.html"><code>txn.business_accts</code></a></td><td>Business Accounts</td><td>What is the usable account base and how is it structured? Evidence is generated through account_month_features.csv|relationship_segments.csv|strategy_roadmap.csv.</td><td>3 charts &middot; stacked_bar</td><td><code>relationship_segments.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_campaign.html"><code>txn.campaign</code></a></td><td>Campaign Analysis</td><td>Which actions changed behavior and what should be targeted next? Evidence is generated through campaign_targets.csv|measurement_baseline.csv|outcome_results.csv|outcome_summary.csv.</td><td>4 charts &middot; lift_bar</td><td><code>measurement_baseline.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_competition.html"><code>txn.competition</code></a></td><td>Competition</td><td>Which outside institutions and ecosystems are capturing wallet share? Evidence is generated through counterparty_signals.csv|pfi_verdicts.csv|opportunities.csv.</td><td>3 charts &middot; ranked_bar</td><td><code>counterparty_signals.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_engagement.html"><code>txn.engagement</code></a></td><td>Engagement Migration</td><td>Who is degrading, dormant, at risk, or ready to upgrade? Evidence is generated through relationship_segments.csv|strategy_roadmap.csv|outcome_summary.csv.</td><td>3 charts &middot; lift_bar</td><td><code>outcome_summary.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_executive.html"><code>txn.executive</code></a></td><td>Executive Scorecard</td><td>What is the story, decision, priority, and roadmap? Evidence is generated through executive_scorecard.csv|strategy_roadmap.csv|consulting_story.json.</td><td>3 charts &middot; horizontal_bar</td><td><code>executive_scorecard.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_financial_services.html"><code>txn.financial_services</code></a></td><td>Financial Services</td><td>Which outside institutions and ecosystems are capturing wallet share? Evidence is generated through counterparty_summary.csv|relationship_segments.csv|opportunities.csv.</td><td>3 charts &middot; ranked_bar</td><td><code>counterparty_summary.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_general.html"><code>txn.general</code></a></td><td>Portfolio Overview</td><td>What is the usable account base and how is it structured? Evidence is generated through account_month_features.csv|relationship_segments.csv|executive_scorecard.csv.</td><td>3 charts &middot; horizontal_bar</td><td><code>executive_scorecard.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_ics_acquisition.html"><code>txn.ics_acquisition</code></a></td><td>ICS Acquisition</td><td>Which actions changed behavior and what should be targeted next? Evidence is generated through campaign_targets.csv|measurement_plan.csv|outcome_summary.csv.</td><td>3 charts &middot; lift_bar</td><td><code>measurement_plan.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_ics_cohort.html"><code>txn.ICS_cohort</code></a></td><td>ICS Cohort</td><td>Which actions changed behavior and what should be targeted next? Evidence is generated through account_month_features.csv|relationship_segments.csv|outcome_summary.csv.</td><td>3 charts &middot; lift_bar</td><td><code>outcome_summary.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_interchange.html"><code>txn.interchange</code></a></td><td>Interchange Revenue</td><td>Where is card, overdraft, interchange, or modeled value opportunity? Evidence is generated through account_month_features.csv|opportunities.csv|opportunity_portfolio.csv.</td><td>3 charts &middot; detail_table</td><td><code>account_month_features.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_mcc_code.html"><code>txn.mcc_code</code></a></td><td>MCC Categories</td><td>Where is activity concentrating, changing, or leaking? Evidence is generated through counterparty_summary.csv|account_month_features.csv|relationship_segments.csv.</td><td>3 charts &middot; ranked_bar</td><td><code>counterparty_summary.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_merchant.html"><code>txn.merchant</code></a></td><td>Merchant Analysis</td><td>Where is activity concentrating, changing, or leaking? Evidence is generated through counterparty_signals.csv|counterparty_summary.csv|opportunities.csv.</td><td>3 charts &middot; ranked_bar</td><td><code>counterparty_signals.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_payroll.html"><code>txn.payroll</code></a></td><td>Payroll &amp; Direct Deposit</td><td>Who owns the relationship and where is primacy weak? Evidence is generated through account_month_features.csv|pfi_verdicts.csv|opportunities.csv.</td><td>3 charts &middot; detail_table</td><td><code>account_month_features.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_personal_accts.html"><code>txn.personal_accts</code></a></td><td>Personal Accounts</td><td>What is the usable account base and how is it structured? Evidence is generated through account_month_features.csv|relationship_segments.csv|strategy_roadmap.csv.</td><td>3 charts &middot; stacked_bar</td><td><code>relationship_segments.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_product.html"><code>txn.product</code></a></td><td>Product Analysis</td><td>What is the usable account base and how is it structured? Evidence is generated through account_month_features.csv|relationship_segments.csv|opportunity_portfolio.csv.</td><td>3 charts &middot; stacked_bar</td><td><code>relationship_segments.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_rege_overdraft.html"><code>txn.rege_overdraft</code></a></td><td>Reg E / Overdraft</td><td>Where is card, overdraft, interchange, or modeled value opportunity? Evidence is generated through executive_scorecard.csv|strategy_roadmap.csv|measurement_plan.csv.</td><td>3 charts &middot; lift_bar</td><td><code>measurement_plan.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_relationship.html"><code>txn.relationship</code></a></td><td>Relationship Depth</td><td>Who owns the relationship and where is primacy weak? Evidence is generated through relationship_segments.csv|segment_summary.csv|opportunities.csv.</td><td>3 charts &middot; stacked_bar</td><td><code>relationship_segments.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_retention.html"><code>txn.retention</code></a></td><td>Retention Analysis</td><td>Who is degrading, dormant, at risk, or ready to upgrade? Evidence is generated through relationship_segments.csv|opportunities.csv|outcome_summary.csv.</td><td>3 charts &middot; lift_bar</td><td><code>outcome_summary.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_segment_evolution.html"><code>txn.segment_evolution</code></a></td><td>Segment Evolution</td><td>Who is degrading, dormant, at risk, or ready to upgrade? Evidence is generated through relationship_segments.csv|segment_summary.csv|strategy_roadmap.csv.</td><td>3 charts &middot; stacked_bar</td><td><code>relationship_segments.csv</code></td></tr>
+<tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/analysis_sections/txn_transaction_type.html"><code>txn.transaction_type</code></a></td><td>Transaction Type</td><td>Where is activity concentrating, changing, or leaking? Evidence is generated through account_month_features.csv|relationship_segments.csv|executive_scorecard.csv.</td><td>3 charts &middot; horizontal_bar</td><td><code>executive_scorecard.csv</code></td></tr>
+</tbody></table></div>
+<iframe class="analysis-frame" src="docs/modules.html" title="All analysis sections visual browser"></iframe>
+</section>
+<hr>
+<h2>Quick start (work machine)</h2>
+<p>The pipeline runs on Windows from <code>M:\ARS\</code>. To launch:</p>
+<p>1. Double-click <strong><code>Start Here.bat</code></strong> at the repo root</p>
+<p>2. Wait a few seconds for the server; your browser opens to <code>http://localhost:8000</code> automatically</p>
+<p>3. Keep the black terminal window open while you work; closing it stops the server</p>
+<p>If port 8000 is busy, the launcher walks 8001..8010 and prints the actual URL it served on. Override the starting port with <code>ARS_UI_PORT=&lt;n&gt;</code>.</p>
+<p><strong>First-time setup, updating the code, and troubleshooting</strong> &mdash; see <a href="SETUP.md">SETUP.md</a>. (Dependencies install with <code>pip install -r requirements.txt</code>.)</p>
+<hr>
+<h2>The UI (seven tabs)</h2>
+<table><tbody><tr><th>Tab</th><th>What it does</th></tr><tr><td><strong>Dashboard</strong></td><td>KPIs across all CSMs, recent runs, success rate</td></tr><tr><td><strong>Format</strong></td><td>Step 1: read raw ODD ZIPs from a CSM&#x27;s data-dump folder, format into ready-for-analysis Excel. Also a <strong>manual data-drop</strong> panel for CSMs whose dump folder you can&#x27;t access</td></tr><tr><td><strong>Generate</strong></td><td>Step 2: pick CSM + period + client + product (ARS / TXN / Combined / Deposits), click <strong>Format + Analyze + Build PPTX</strong>, get a deck</td></tr><tr><td><strong>Intelligence</strong></td><td>Run the transactional intelligence engine and open the client story, intake cockpit, review board, chart data, metric catalog, workbook, and backlog</td></tr><tr><td><strong>Results</strong></td><td>Browse charts and slides from completed runs; download Excel / PPTX</td></tr><tr><td><strong>History</strong></td><td>Every run across every CSM with duration, slide count, status</td></tr><tr><td><strong>Schedules</strong></td><td>Recurring monthly auto-runs per client</td></tr></tbody></table>
+<p>The Generate tab is the primary loop. A typical month: pick a client, click Generate, and watch a 5-stage checklist (Read your data &rarr; Prepare analyses &rarr; Run analytics &rarr; Build PowerPoint deck &rarr; Save and deliver files) with real-time sub-progress through the analytics modules. When it finishes, a completion card shows what worked, what was skipped, and where the files landed &mdash; with a one-click <strong>Open downloads</strong> link.</p>
+<p>For a developer-facing map of every screen and the HTML IDs / CSS classes / API endpoints behind each component, see <a href="05_UI/UI-OVERVIEW.md"><code>05_UI/UI-OVERVIEW.md</code></a>.</p>
+<hr>
+<h2>Pipeline at a glance</h2>
+<pre><code>CSM data dump (raw ZIPs)              --&gt;  Format (Step 1)  --&gt; Ready-for-Analysis Excel
+                                                                            |
+                                                                            v
+Ready-for-Analysis Excel              --&gt;  Analyze (Step 2) --&gt; Completed analysis
+   (ARS modules, optionally                  + chart PNGs + run_manifest.json
+    TXN sections)                            + run_scorecard.md
+                                                                            |
+                                                                            v
+                                            Build deck       --&gt; PowerPoint (.pptx)
+                                                                  + Excel workbook
+                                                                  + (optional) local copy
+                                                                  + competition_diagnostic.txt
+                                                                  + Actionable Lists for Clients/</code></pre>
+<h3>CSM &harr; client membership</h3>
+<p>There is <strong>no master CSM-client mapping anywhere</strong>. <code>03_Config/clients_config.json</code> is a flat list of every client across every CSM. A client is associated with a CSM when their data appears in the CSM&#x27;s folder at any pipeline stage:</p>
+<table><tbody><tr><th>Stage</th><th>Path</th></tr><tr><td>Raw</td><td><code>M:\&lt;CSM&gt;\OD Data Dumps\&lt;period&gt;\&lt;client&gt;_ODDD.zip</code></td></tr><tr><td>Formatted</td><td><code>00_Formatting\02-Data-Ready for Analysis\&lt;CSM&gt;\&lt;period&gt;\&lt;client&gt;\</code></td></tr><tr><td>Completed</td><td><code>01_Analysis\01_Completed_Analysis\&lt;CSM&gt;\&lt;period&gt;\&lt;client&gt;\</code></td></tr></tbody></table>
+<p>The Generate-tab client dropdown unions all three, so a client shows up the moment a raw ZIP lands and stays visible after formatting/analysis even if the ZIP moves.</p>
+<blockquote><strong>Folder-naming tolerance.</strong> A CSM&#x27;s source folder name and its monthly subfolders are configured/resolved rather than assumed: the source base is read from config per CSM (the on-disk folder may differ from the CSM&#x27;s display name), and the month subfolder is matched by parsed *(year, month)* so any convention works (<code>2026.06</code>, <code>2026-06</code>, <code>June, 2026</code>, <code>Jun 2026</code>, ...).</blockquote>
+<h3>Products</h3>
+<p>Pick a product on the Generate tab; under the hood it sets the <code>--product</code> flag:</p>
+<table><tbody><tr><th>Product</th><th>What runs</th><th>Deck filename</th></tr><tr><td><strong>ARS Full Suite</strong> _(default)_</td><td>ARS modules from ODD data</td><td><code>&lt;id&gt;_&lt;period&gt;_ars_deck.pptx</code></td></tr><tr><td><strong>Transaction</strong></td><td>TXN sections from transaction data</td><td><code>&lt;id&gt;_&lt;period&gt;_txn_deck.pptx</code></td></tr><tr><td><strong>Combined</strong></td><td>ARS + TXN in one deck</td><td><code>&lt;id&gt;_&lt;period&gt;_combined_deck.pptx</code></td></tr><tr><td><strong>Deposits</strong></td><td>Deposit-focused subset</td><td>(separate output)</td></tr></tbody></table>
+<p>The three product decks have distinct filenames, so running TXN never overwrites an existing ARS deck for the same client + period.</p>
+<hr>
+<h2>The slide manifest (operator-driven deck shaping)</h2>
+<p><code>SLIDE_MANIFEST.xlsx</code> at the repo root is <strong>your personal working manifest</strong> &mdash; git pulls will never overwrite it. Each per-section sheet lists every slide and a <code>Keep? (Y/N)</code> column you fill in:</p>
+<table><tbody><tr><th>Value</th><th>Meaning</th></tr><tr><td><code>Y</code></td><td>Keep on the main deck</td></tr><tr><td><code>A</code></td><td>Route to a separate <code>*_aux_deck.pptx</code> (appendix)</td></tr><tr><td><code>N</code></td><td>Drop entirely from every deck</td></tr><tr><td>_(blank)_</td><td>Not yet decided &mdash; treated as keep</td></tr></tbody></table>
+<p>The deck builder reads these decisions on every run. The Generate tab&#x27;s completion card surfaces the breakdown: <strong>main / appendix / dropped / undecided</strong>, with color-coded counts.</p>
+<p>The repo ships <code>SLIDE_MANIFEST.template.xlsx</code> as a fresh starting point. On a new machine, seed your working copy once:</p>
+<pre><code>copy SLIDE_MANIFEST.template.xlsx SLIDE_MANIFEST.xlsx</code></pre>
+<p>From then on it&#x27;s yours &mdash; nothing in git can clobber it.</p>
+<hr>
+<h2>Other features worth knowing</h2>
+<table><tbody><tr><th>Feature</th><th>Where</th><th>What it does</th></tr><tr><td><strong>Save deck to local folder</strong></td><td>Checkbox under the Run button on Generate</td><td>Optional: also writes the PPTX to a local path you specify (avoids slow download from the shared M: drive)</td></tr><tr><td><strong>Manual data-drop</strong></td><td>Collapsible panel on the Format tab</td><td>For any CSM whose raw dump folder you can&#x27;t see &mdash; paste a path to pre-formatted ODD files and stage them into the canonical layout in one click</td></tr><tr><td><strong>Run manifest</strong></td><td>Every analysis run writes <code>run_manifest.json</code> to <code>01_Completed_Analysis/&lt;CSM&gt;/&lt;period&gt;/&lt;client&gt;/</code></td><td>Structured JSON with per-script status, error details, suggested fixes, copy-paste GitHub issue bodies</td></tr><tr><td><strong>Run scorecard</strong></td><td><code>run_scorecard.md</code> in the same folder</td><td>One-page markdown summary: overall verdict, section table, every failure with context</td></tr><tr><td><strong>Competition diagnostic</strong></td><td>Auto-runs at the end of the competition section, writes <code>competition_diagnostic.txt</code></td><td>Per-category counts, top merchants, unmatched financial keywords, BNPL audit. Surfaced in the completion card.</td></tr><tr><td><strong>File-lock fallback</strong></td><td>Automatic</td><td>If your previous deck is open in PowerPoint when a new run finishes, the new deck saves as <code>..._v2.pptx</code> instead of failing. Long analyses never have to be redone.</td></tr><tr><td><strong>Versioned outputs</strong></td><td>Automatic</td><td>Three product flags, three distinct deck filenames. Run TXN without losing your ARS deck.</td></tr><tr><td><strong>Actionable Lists for Clients</strong></td><td><code>01_Analysis/00-Scripts/Actionable Lists for Clients/&lt;client-id&gt;_&lt;client-name&gt;/cross_sell_lists/</code></td><td>Cross-sell candidate lists from the competition module, in a clearly-named folder (formerly <code>output/</code>). Low-volume competitors are suppressed so the export stays operational.</td></tr><tr><td><strong>Resilient file loading</strong></td><td>Automatic</td><td>ODD workbooks read via a cached local copy; TXN files auto-detect their delimiter (tab / comma / pipe / semicolon) so unusual processor exports still parse.</td></tr></tbody></table>
+<hr>
+<h2>Repository layout</h2>
+<pre><code>M:\ARS\
+|-- 00_Formatting/                    Step 1: format raw ODDs
+|   |-- run.py
+|   |-- 00-Scripts/                     Formatting helpers (settings, month resolver, shared/, ars_staging/ file-drop poller)
+|   |-- 01-Data-Ready for Formatting/   Staging (extracted ZIPs)
+|   `-- 02-Data-Ready for Analysis/     Formatted Excel (per CSM/period/client)
+|
+|-- 01_Analysis/                      Step 2: run analysis + generate deck
+|   |-- run.py
+|   |-- 00-Scripts/
+|   |   |-- analytics/                    ARS modules + TXN script-folder sections
+|   |   |-- ars_engine/                   v3 engine (Wave 0, not yet routed to production) -- see docs/V3_STATUS.md
+|   |   |-- ars_parity/                   v3 parity harness (capture/compare vs v2 output) -- see docs/V3_STATUS.md
+|   |   |-- charts/                       Chart styling, cache, guards
+|   |   |-- output/                       Deck builder, manifest loader, slide-spec renderer
+|   |   |-- pipeline/                     Runner, steps, context, run_manifest, scorecard
+|   |   |-- shared/                       Utilities: brand, branch_mapping, format_odd, helpers
+|   |   |-- tests/                        pytest test suite
+|   |   |-- tools/                        Dev utilities (section lister, baseline diff, stale-cache cleaner)
+|   |   |-- Actionable Lists for Clients/ Cross-sell candidate lists (was: output/)
+|   |   |-- ars_bootstrap.py              Canonical sys.path + ars_analysis alias wiring for entry points
+|   |   |-- config.py                     Pydantic settings loaded from the JSON config files
+|   |   `-- runner.py                     Bridge between the shared PipelineContext and ARS v2 internals
+|   `-- 01_Completed_Analysis/        Excel + charts + JSON per client per run
+|
+|-- 02_Presentations/                 PowerPoint decks: {CSM}/{YYYY.MM}/{client}/
+|
+|-- 03_Config/
+|   |-- ars_config.json                   Pipeline paths + per-CSM source folders
+|   `-- clients_config.json               Per-client settings (multi-tenant); includes BranchMapping
+|
+|-- 04_Logs/                          Per-run log files
+|-- 05_UI/                            FastAPI backend + single-page UI
+|   |-- app.py                            API + run orchestration
+|   |-- index.html                        Operator console
+|   `-- UI-OVERVIEW.md                    Developer-facing component map
+|
+|-- Start Here.bat                    Double-click to launch the UI
+|-- requirements.txt                  Python deps (pip install -r requirements.txt)
+|-- SETUP.md                          First-time setup, common operations, troubleshooting
+|-- SLIDE_MANIFEST.template.xlsx      Manifest template (copy to your own SLIDE_MANIFEST.xlsx)
+|-- SLIDE_MANIFEST.xlsx               Your personal Keep?-marked manifest (NOT tracked)
+|-- SLIDE_MAPPING.md                  Master slide spec
+`-- SLIDE_DESIGN.md                   Design system reference</code></pre>
+<p>Generated client decks are <strong>not</strong> tracked in git (they&#x27;re pipeline outputs); <code>Start Here.bat</code> is the only tracked <code>.bat</code>.</p>
+<hr>
+<h2>CLI usage (developer / batch)</h2>
+<p>The UI calls the same <code>run.py</code> entrypoints internally. For batch work or debugging from a terminal, replace <code>&lt;csm&gt;</code> / <code>&lt;client-id&gt;</code> with real values and use the canonical <code>YYYY.MM</code> period:</p>
+<p><strong>Format a single client:</strong></p>
+<pre><code>cd M:\ARS\00_Formatting
+python run.py --month 2026.04 --csm &lt;csm&gt; --client &lt;client-id&gt;</code></pre>
+<p><strong>Run analysis + generate deck:</strong></p>
+<pre><code>cd M:\ARS\01_Analysis
+python run.py --month 2026.04 --csm &lt;csm&gt; --client &lt;client-id&gt;
+python run.py --month 2026.04 --csm &lt;csm&gt; --client &lt;client-id&gt; --product txn
+python run.py --month 2026.04 --csm &lt;csm&gt; --client &lt;client-id&gt; --product combined</code></pre>
+<p><strong>Run one section (or a few) instead of a whole product:</strong></p>
+<pre><code>python run.py --month 2026.04 --csm &lt;csm&gt; --client &lt;client-id&gt; --section txn.merchant
+python run.py --month 2026.04 --csm &lt;csm&gt; --client &lt;client-id&gt; --sections txn.merchant,txn.mcc_code
+python run.py --month 2026.04 --csm &lt;csm&gt; --client &lt;client-id&gt; --product txn --all-modules</code></pre>
+<p><code>--section</code> runs ONE analytics section end-to-end and builds a scoped deck for just its slides; <code>--sections</code> does the same for several sections in one pass (aggregate once, a deck per section); <code>--all-modules</code> runs every section for the chosen <code>--product</code> that way. Section ids like <code>txn.merchant</code> / <code>ars.dctr</code> are listed in <code>analytics/section_registry.py</code>. All three override <code>--product</code>&#x27;s normal single-deck behavior.</p>
+<p><strong>Force a rebuild of the TXN cache:</strong></p>
+<pre><code>python run.py --month 2026.04 --csm &lt;csm&gt; --client &lt;client-id&gt; --product txn --rebuild-cache</code></pre>
+<p>Ignores the TXN parquet cache and rebuilds <code>combined_df</code> from the raw files -- use after changing data-loading code so a stale cache isn&#x27;t served.</p>
+<p><strong>Save a local copy of the deck:</strong></p>
+<pre><code>python run.py --month 2026.04 --csm &lt;csm&gt; --client &lt;client-id&gt; --local-copy &quot;C:\Users\you\Documents\Velocity Decks&quot;</code></pre>
+<p><strong>Diagnose a malformed TXN file (read-only):</strong></p>
+<pre><code>python 01_Analysis\00-Scripts\diagnose_txn_files.py --csm &lt;csm&gt; --client &lt;client-id&gt;</code></pre>
+<p>CSM names are matched case-insensitively by prefix against the folders on disk, so a short form resolves to the full folder name when it&#x27;s unambiguous.</p>
+<h3>Environment variables</h3>
+<table><tbody><tr><th>Var</th><th>Default</th><th>Effect</th></tr><tr><td><code>SLIDE_MODE</code></td><td><code>standard</code></td><td>TXN deck size. <code>standard</code>, <code>deep</code> (more detail), <code>minimal</code> (trimmed).</td></tr><tr><td><code>SLIDE_BUDGET</code></td><td><code>150</code></td><td>If the TXN summary exceeds this, prints a notice and suggests <code>SLIDE_MODE=minimal</code>.</td></tr><tr><td><code>CLIENT_TYPE</code></td><td>auto-detect</td><td><code>cu</code> or <code>bank</code>. Forces member/customer language. Auto-detected from the client name.</td></tr><tr><td><code>ARS_UI_PORT</code></td><td><code>8000</code></td><td>Starting port for the UI server; walks 8001..8010 if busy.</td></tr><tr><td><code>MPLBACKEND</code></td><td><code>Agg</code></td><td>Headless chart backend, forced at the entry points so parallel runs never hit the interactive Tk backend.</td></tr><tr><td><code>SLIDE_MANIFEST_PATH</code></td><td>(search)</td><td>Override the manifest path. Useful for tests and ad-hoc runs.</td></tr></tbody></table>
+<hr>
+<h2>Configuration</h2>
+<h3><code>03_Config/ars_config.json</code></h3>
+<p>Pipeline paths and per-CSM source folders. A source folder name can differ from the CSM&#x27;s display name, so it&#x27;s configured explicitly:</p>
+<pre><code>{
+  &quot;paths&quot;: {
+    &quot;ars_base&quot;: &quot;M:\\ARS&quot;,
+    &quot;retrieve_dir&quot;: &quot;00_Formatting\\01-Data-Ready for Formatting&quot;,
+    &quot;watch_root&quot;: &quot;00_Formatting\\02-Data-Ready for Analysis&quot;
+  },
+  &quot;csm_sources&quot;: {
+    &quot;sources&quot;: {
+      &quot;&lt;csm&gt;&quot;: &quot;M:\\&lt;csm-folder&gt;\\OD Data Dumps&quot;
+    }
+  }
+}</code></pre>
+<p>The monthly subfolder under each source is resolved by parsed *(year, month)*, so the CSM can name it however they like.</p>
+<h3><code>03_Config/clients_config.json</code></h3>
+<p>Per-client settings: IC rates, NSF fees, status codes, product codes, branch mappings. Multi-tenant; a flat list across all CSMs.</p>
+<h3>Branch mapping</h3>
+<p>Lives inside <code>clients_config.json</code> as the <code>BranchMapping</code> field on each client entry &mdash; a dict of <code>&quot;branch_id&quot;: &quot;Branch Name&quot;</code>. The Branch Performance section reads it directly:</p>
+<pre><code>&quot;&lt;client-id&gt;&quot;: {
+  &quot;ClientName&quot;: &quot;&lt;Client Name&gt;&quot;,
+  &quot;BranchMapping&quot;: {
+    &quot;10&quot;: &quot;Main&quot;,
+    &quot;20&quot;: &quot;Branch B&quot;,
+    &quot;30&quot;: &quot;Branch C&quot;
+  }
+}</code></pre>
+<p>No separate per-client branch file is needed. The pipeline prints a clear warning if a client&#x27;s <code>BranchMapping</code> is missing.</p>
+<h3><code>01_Analysis/00-Scripts/analytics/competition/01_competitor_config.py</code></h3>
+<p>Per-client competitor patterns (<code>credit_unions</code>, <code>local_banks</code>, <code>custom</code>, <code>rollups</code>). New clients onboard by adding an entry to <code>CLIENT_CONFIGS</code>. The pipeline prints a loud warning if the active <code>CLIENT_ID</code> is missing.</p>
+<hr>
+<h2>Analysis modules</h2>
+<p>To visually inspect every ARS and TXN analysis section, open <a href="docs/modules.html"><code>docs/modules.html</code></a>. It shows what each section analyzes, scripts, outputs, charts, metrics, data requirements, and readiness blockers. To use the generated demo package by role, open <a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_launchpad.html"><code>transactional_intelligence_launchpad.html</code></a>.</p>
+<h3>ARS (from ODD data)</h3>
+<table><tbody><tr><th>Section</th><th>What it analyzes</th></tr><tr><td>Overview</td><td>Eligibility, stat codes, product codes</td></tr><tr><td>Debit Card Take Rate</td><td>Penetration, trends, branches, funnel</td></tr><tr><td>Reg E / Overdraft</td><td>Opt-in rates, branch comparison, dimensions</td></tr><tr><td>Attrition</td><td>Closure rates, demographics, revenue impact</td></tr><tr><td>Mailer Campaign</td><td>Response rates, cohort lift, reach</td></tr><tr><td>Value</td><td>Revenue attribution</td></tr><tr><td>Insights</td><td>Synthesis, recommendations, branch scorecard, dormant opportunity</td></tr></tbody></table>
+<h3>TXN (from transaction data)</h3>
+<table><tbody><tr><th>Section</th><th>Highlights</th></tr><tr><td>txn_setup (shared)</td><td>File loading + delimiter detection, merchant consolidation, Parquet cache</td></tr><tr><td>general</td><td>Portfolio KPIs, demographics, swipe segmentation</td></tr><tr><td>merchant</td><td>Top merchants, concentration, trends</td></tr><tr><td>mcc_code</td><td>Category analysis</td></tr><tr><td>business_accts / personal_accts</td><td>Business vs personal patterns</td></tr><tr><td>competition</td><td>Competitor detection, wallet share, CU/bank audit, detection diagnostic</td></tr><tr><td>financial_services</td><td>FI leakage, brand-root audit</td></tr><tr><td>ics_acquisition / ICS_cohort</td><td>Channel analysis + cohort retention</td></tr><tr><td>campaign</td><td>Mailer + cohort lift</td></tr><tr><td>branch_txn</td><td>Branch-level spend</td></tr><tr><td>transaction_type</td><td>PIN / SIG / ACH channels</td></tr><tr><td>product</td><td>Product-level spend</td></tr><tr><td>attrition_txn</td><td>Velocity-based risk</td></tr><tr><td>balance</td><td>Balance-band analysis</td></tr><tr><td>interchange</td><td>PIN / SIG revenue</td></tr><tr><td>rege_overdraft</td><td>Opt-in trends</td></tr><tr><td>payroll</td><td>Direct-deposit detection, PFI scoring</td></tr><tr><td>relationship</td><td>Cross-product holdings</td></tr><tr><td>segment_evolution</td><td>Engagement-tier migration</td></tr><tr><td>retention</td><td>Churn / dormancy</td></tr><tr><td>engagement</td><td>Monthly tier classification</td></tr><tr><td>executive</td><td>KPI scorecard, action roadmap</td></tr></tbody></table>
+<hr>
+<h2>Development</h2>
+<p>Work runs on the Windows work PC at <code>M:\ARS\</code>. GitHub is the source of truth &mdash; pull to update, branch + PR to share. See <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> for the branch workflow and architectural patterns, and <a href="SETUP.md">SETUP.md</a> for the exact work-PC update method.</p>
+<h3>Pull updates and restart the UI</h3>
+<pre><code>M:
+cd \ARS
+git checkout main
+git pull</code></pre>
+<p>Then close the Velocity Pipeline terminal window, double-click <code>Start Here.bat</code> to relaunch, and press <strong>Ctrl+Shift+R</strong> in the browser to clear cached HTML/JS.</p>
+<h3>Make your own changes (branch off <code>main</code>, PR back)</h3>
+<pre><code>M:
+cd \ARS
+git checkout main
+git pull
+git checkout -b fix/&lt;short-name&gt;
+git add &lt;files&gt;
+git commit -m &quot;&lt;conventional message&gt;&quot;
+git push -u origin fix/&lt;short-name&gt;
+gh pr create --base main</code></pre>
+<p>Merge to <code>main</code> via reviewed PR; one concern per branch.</p>
+<h3>Edits made via Claude Code</h3>
+<p>Changes pushed from a Claude session land on a branch in the same repo. Pull on the work PC:</p>
+<pre><code>git fetch
+git checkout &lt;branch-name&gt;
+git pull</code></pre>
+<p>Restart <code>Start Here.bat</code>, then Ctrl+Shift+R in the browser.</p>
+<h3>Files that are operator-local (gitignored)</h3>
+<ul>
+<li><code>SLIDE_MANIFEST.xlsx</code> &mdash; your Keep? decisions</li>
+<li>Generated decks at the repo root and <code>02_Presentations/</code>, <code>04_Logs/</code> &mdash; per-run output</li>
+<li><code>CLAUDE.md</code> &mdash; AI-assistant working notes</li>
+</ul>
+<h3>Tests</h3>
+<p>Run from the repo root:</p>
+<pre><code>python -m pytest</code></pre>
+<p><code>pyproject.toml</code> points pytest at all four suites (<code>01_Analysis/00-Scripts/tests</code>, <code>05_UI/tests</code>, <code>00_Formatting/tests</code>, <code>02_Presentations/html_review/tests</code>), so the single command covers everything. Highlights: the run manifest, error-capture and scorecard utilities, the slide-manifest loader, the branch ID &rarr; name helper, competitor tagging + detection, TXN delimiter detection, the formatting month-folder resolver, and pipeline integration.</p>
+<hr>
+<h2>Reference docs</h2>
+<table><tbody><tr><th>File</th><th>Purpose</th></tr><tr><td><a href="docs/modules.html"><code>docs/modules.html</code></a></td><td>HTML analysis browser &mdash; all sections, outputs, charts, metrics, data requirements, and readiness blockers</td></tr><tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_launchpad.html"><code>transactional_intelligence_launchpad.html</code></a></td><td>Role-based launchpad for the generated intelligence package: CSM, analyst, Snowflake, marketing, banker, and executive entry points</td></tr><tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_analysis_workbench.html"><code>transactional_intelligence_analysis_workbench.html</code></a></td><td>Interactive analysis workbench with section readiness, chart specs, metrics, and scripts</td></tr><tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_section_drilldowns.html"><code>transactional_intelligence_section_drilldowns.html</code></a></td><td>All section drilldowns in one HTML page</td></tr><tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_chart_gallery.html"><code>transactional_intelligence_chart_gallery.html</code></a></td><td>Chart and graph output catalog with backing data snapshots</td></tr><tr><td><a href="01_Analysis/01_Completed_Intelligence/Demo/9999/transactional_intelligence_intake_cockpit.html"><code>transactional_intelligence_intake_cockpit.html</code></a></td><td>Monthly file intake, layout contract, fallback extract, and Snowflake readiness view</td></tr></tbody></table>
+<hr>
+<h2>Tech stack</h2>
+<ul>
+<li>Python 3.12</li>
+<li>FastAPI + Uvicorn (web server, single-page UI)</li>
+<li>Pandas + NumPy (data)</li>
+<li>Matplotlib (charts, headless <code>Agg</code> backend)</li>
+<li>python-pptx (PowerPoint generation)</li>
+<li>openpyxl / xlsxwriter (Excel I/O)</li>
+<li>pyarrow (Parquet cache for TXN)</li>
+<li>loguru (logging)</li>
+<li>pytest (test suite)</li>
+<li>CSI brand: navy <code>#00274C</code>, orange <code>#F15D22</code>, Montserrat font, Space Mono for numerics</li>
+</ul>
+</main>
+</body>
+</html>

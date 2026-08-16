@@ -1,0 +1,5 @@
+client_id,period_month,relationship_segment,segment_group,lifecycle_stage,risk_level,account_count,avg_pfi_score,avg_external_intensity,avg_balance,payroll_accounts,total_expected_value,avg_readiness_score,top_next_best_motion,top_reason_codes,model_version
+9999,2026-07,Primary Banking Conversion Candidate,Grow,Convert,medium,2,18.0,0.09,12590.0,0,2491.0,62.4,Target for direct deposit or primary banking conversion.,no_payroll_detected|money_movement_present,segment_summary_v0_rules
+9999,2026-07,Primary Payroll Relationship,Retain,Protect,low,2,61.9,0.112,13025.0,2,358.5,58.1,Protect payroll relationship and deepen product usage.,payroll_detected|primary_with_us,segment_summary_v0_rules
+9999,2026-07,Dormant Save Candidate,Reactivate,Save,high,3,31.7,0.0,3800.0,1,106.5,33.5,Queue for reactivation or save-list outreach.,low_activity|relationship_value_present,segment_summary_v0_rules
+9999,2026-07,Engagement Activation Candidate,Activate,Activate,medium,1,52.4,0.0,1850.0,1,0.0,19.0,"Prompt debit, wallet, or digital engagement.",weak_debit_or_activity|eligible_account,segment_summary_v0_rules

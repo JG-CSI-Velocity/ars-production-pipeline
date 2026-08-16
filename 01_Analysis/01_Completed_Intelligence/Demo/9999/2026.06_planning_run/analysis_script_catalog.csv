@@ -1,0 +1,408 @@
+source_section_id,product,display_name,folder,script_order,script_name,source_path,inferred_topic,output_role,runnable_flag,catalog_version
+ars.attrition,ars,Attrition,attrition,,_helpers.py,01_Analysis/00-Scripts/analytics/attrition/_helpers.py,helpers,data_prep,False,analysis_catalog_v0
+ars.attrition,ars,Attrition,attrition,,cohort.py,01_Analysis/00-Scripts/analytics/attrition/cohort.py,cohort,trend_or_cohort,True,analysis_catalog_v0
+ars.attrition,ars,Attrition,attrition,,dimensions.py,01_Analysis/00-Scripts/analytics/attrition/dimensions.py,dimensions,analysis,True,analysis_catalog_v0
+ars.attrition,ars,Attrition,attrition,,impact.py,01_Analysis/00-Scripts/analytics/attrition/impact.py,impact,analysis,True,analysis_catalog_v0
+ars.attrition,ars,Attrition,attrition,,rates.py,01_Analysis/00-Scripts/analytics/attrition/rates.py,rates,analysis,True,analysis_catalog_v0
+ars.dctr,ars,Dctr,dctr,,_helpers.py,01_Analysis/00-Scripts/analytics/dctr/_helpers.py,helpers,data_prep,False,analysis_catalog_v0
+ars.dctr,ars,Dctr,dctr,,branches.py,01_Analysis/00-Scripts/analytics/dctr/branches.py,branches,analysis,True,analysis_catalog_v0
+ars.dctr,ars,Dctr,dctr,,funnel.py,01_Analysis/00-Scripts/analytics/dctr/funnel.py,funnel,analysis,True,analysis_catalog_v0
+ars.dctr,ars,Dctr,dctr,,overlays.py,01_Analysis/00-Scripts/analytics/dctr/overlays.py,overlays,analysis,True,analysis_catalog_v0
+ars.dctr,ars,Dctr,dctr,,penetration.py,01_Analysis/00-Scripts/analytics/dctr/penetration.py,penetration,analysis,True,analysis_catalog_v0
+ars.dctr,ars,Dctr,dctr,,trends.py,01_Analysis/00-Scripts/analytics/dctr/trends.py,trends,trend_or_cohort,True,analysis_catalog_v0
+ars.insights,ars,Insights,insights,,_data.py,01_Analysis/00-Scripts/analytics/insights/_data.py,data,data_prep,False,analysis_catalog_v0
+ars.insights,ars,Insights,insights,,branch_scorecard.py,01_Analysis/00-Scripts/analytics/insights/branch_scorecard.py,branch scorecard,kpi_or_summary,True,analysis_catalog_v0
+ars.insights,ars,Insights,insights,,conclusions.py,01_Analysis/00-Scripts/analytics/insights/conclusions.py,conclusions,analysis,True,analysis_catalog_v0
+ars.insights,ars,Insights,insights,,dormant.py,01_Analysis/00-Scripts/analytics/insights/dormant.py,dormant,analysis,True,analysis_catalog_v0
+ars.insights,ars,Insights,insights,,effectiveness.py,01_Analysis/00-Scripts/analytics/insights/effectiveness.py,effectiveness,analysis,True,analysis_catalog_v0
+ars.insights,ars,Insights,insights,,synthesis.py,01_Analysis/00-Scripts/analytics/insights/synthesis.py,synthesis,analysis,True,analysis_catalog_v0
+ars.mailer,ars,Mailer,mailer,,_helpers.py,01_Analysis/00-Scripts/analytics/mailer/_helpers.py,helpers,data_prep,False,analysis_catalog_v0
+ars.mailer,ars,Mailer,mailer,,cohort.py,01_Analysis/00-Scripts/analytics/mailer/cohort.py,cohort,trend_or_cohort,True,analysis_catalog_v0
+ars.mailer,ars,Mailer,mailer,,impact.py,01_Analysis/00-Scripts/analytics/mailer/impact.py,impact,analysis,True,analysis_catalog_v0
+ars.mailer,ars,Mailer,mailer,,insights.py,01_Analysis/00-Scripts/analytics/mailer/insights.py,insights,analysis,True,analysis_catalog_v0
+ars.mailer,ars,Mailer,mailer,,reach.py,01_Analysis/00-Scripts/analytics/mailer/reach.py,reach,analysis,True,analysis_catalog_v0
+ars.mailer,ars,Mailer,mailer,,response.py,01_Analysis/00-Scripts/analytics/mailer/response.py,response,analysis,True,analysis_catalog_v0
+ars.overview,ars,Overview,overview,,eligibility.py,01_Analysis/00-Scripts/analytics/overview/eligibility.py,eligibility,analysis,True,analysis_catalog_v0
+ars.overview,ars,Overview,overview,,product_codes.py,01_Analysis/00-Scripts/analytics/overview/product_codes.py,product codes,analysis,True,analysis_catalog_v0
+ars.overview,ars,Overview,overview,,stat_codes.py,01_Analysis/00-Scripts/analytics/overview/stat_codes.py,stat codes,analysis,True,analysis_catalog_v0
+ars.rege,ars,Rege,rege,,_helpers.py,01_Analysis/00-Scripts/analytics/rege/_helpers.py,helpers,data_prep,False,analysis_catalog_v0
+ars.rege,ars,Rege,rege,,branches.py,01_Analysis/00-Scripts/analytics/rege/branches.py,branches,analysis,True,analysis_catalog_v0
+ars.rege,ars,Rege,rege,,dimensions.py,01_Analysis/00-Scripts/analytics/rege/dimensions.py,dimensions,analysis,True,analysis_catalog_v0
+ars.rege,ars,Rege,rege,,status.py,01_Analysis/00-Scripts/analytics/rege/status.py,status,analysis,True,analysis_catalog_v0
+ars.value,ars,Value,value,,analysis.py,01_Analysis/00-Scripts/analytics/value/analysis.py,analysis,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,0.0,00_config.py,01_Analysis/00-Scripts/analytics/ICS_cohort/00_config.py,config,data_prep,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,1.0,01_normalize.py,01_Analysis/00-Scripts/analytics/ICS_cohort/01_normalize.py,normalize,data_prep,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,2.0,02_helpers.py,01_Analysis/00-Scripts/analytics/ICS_cohort/02_helpers.py,helpers,data_prep,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,3.0,03_portfolio_totals.py,01_Analysis/00-Scripts/analytics/ICS_cohort/03_portfolio_totals.py,portfolio totals,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,4.0,04_portfolio_open.py,01_Analysis/00-Scripts/analytics/ICS_cohort/04_portfolio_open.py,portfolio open,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,5.0,05_stat_code_distribution.py,01_Analysis/00-Scripts/analytics/ICS_cohort/05_stat_code_distribution.py,stat code distribution,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,6.0,06_product_mix.py,01_Analysis/00-Scripts/analytics/ICS_cohort/06_product_mix.py,product mix,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,7.0,07_debit_coverage.py,01_Analysis/00-Scripts/analytics/ICS_cohort/07_debit_coverage.py,debit coverage,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,8.0,08_debit_by_product.py,01_Analysis/00-Scripts/analytics/ICS_cohort/08_debit_by_product.py,debit by product,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,9.0,09_debit_by_branch.py,01_Analysis/00-Scripts/analytics/ICS_cohort/09_debit_by_branch.py,debit by branch,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,10.0,10_source_distribution.py,01_Analysis/00-Scripts/analytics/ICS_cohort/10_source_distribution.py,source distribution,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,11.0,11_source_by_stat_code.py,01_Analysis/00-Scripts/analytics/ICS_cohort/11_source_by_stat_code.py,source by stat code,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,12.0,12_source_by_product.py,01_Analysis/00-Scripts/analytics/ICS_cohort/12_source_by_product.py,source by product,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,13.0,13_source_by_branch.py,01_Analysis/00-Scripts/analytics/ICS_cohort/13_source_by_branch.py,source by branch,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,14.0,14_business_vs_personal.py,01_Analysis/00-Scripts/analytics/ICS_cohort/14_business_vs_personal.py,business vs personal,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,15.0,15_source_by_account_type.py,01_Analysis/00-Scripts/analytics/ICS_cohort/15_source_by_account_type.py,source by account type,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,16.0,16_age_by_ics_status.py,01_Analysis/00-Scripts/analytics/ICS_cohort/16_age_by_ics_status.py,age by ics status,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,17.0,17_closed_duration.py,01_Analysis/00-Scripts/analytics/ICS_cohort/17_closed_duration.py,closed duration,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,18.0,18_balance_by_age.py,01_Analysis/00-Scripts/analytics/ICS_cohort/18_balance_by_age.py,balance by age,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,19.0,19_open_vs_closed_duration.py,01_Analysis/00-Scripts/analytics/ICS_cohort/19_open_vs_closed_duration.py,open vs closed duration,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,20.0,20_stat_code_open_vs_closed.py,01_Analysis/00-Scripts/analytics/ICS_cohort/20_stat_code_open_vs_closed.py,stat code open vs closed,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,21.0,21_balance_distribution_avg.py,01_Analysis/00-Scripts/analytics/ICS_cohort/21_balance_distribution_avg.py,balance distribution avg,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,22.0,22_balance_distribution_current.py,01_Analysis/00-Scripts/analytics/ICS_cohort/22_balance_distribution_current.py,balance distribution current,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,23.0,23_age_distribution_target.py,01_Analysis/00-Scripts/analytics/ICS_cohort/23_age_distribution_target.py,age distribution target,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,24.0,24_activity_validation.py,01_Analysis/00-Scripts/analytics/ICS_cohort/24_activity_validation.py,activity validation,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,25.0,25_activity_summary.py,01_Analysis/00-Scripts/analytics/ICS_cohort/25_activity_summary.py,activity summary,kpi_or_summary,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,26.0,26_activity_by_source_debit.py,01_Analysis/00-Scripts/analytics/ICS_cohort/26_activity_by_source_debit.py,activity by source debit,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,27.0,27_activity_by_balance.py,01_Analysis/00-Scripts/analytics/ICS_cohort/27_activity_by_balance.py,activity by balance,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,28.0,28_activity_by_branch.py,01_Analysis/00-Scripts/analytics/ICS_cohort/28_activity_by_branch.py,activity by branch,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,29.0,29_monthly_activity_trend.py,01_Analysis/00-Scripts/analytics/ICS_cohort/29_monthly_activity_trend.py,monthly activity trend,trend_or_cohort,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,30.0,30_cohort_retention_heatmap.py,01_Analysis/00-Scripts/analytics/ICS_cohort/30_cohort_retention_heatmap.py,cohort retention heatmap,trend_or_cohort,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,31.0,31_cohort_milestones.py,01_Analysis/00-Scripts/analytics/ICS_cohort/31_cohort_milestones.py,cohort milestones,trend_or_cohort,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,32.0,32_cohort_activation_curves.py,01_Analysis/00-Scripts/analytics/ICS_cohort/32_cohort_activation_curves.py,cohort activation curves,trend_or_cohort,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,33.0,33_cohort_milestones_extended.py,01_Analysis/00-Scripts/analytics/ICS_cohort/33_cohort_milestones_extended.py,cohort milestones extended,trend_or_cohort,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,34.0,34_activation_by_cohort.py,01_Analysis/00-Scripts/analytics/ICS_cohort/34_activation_by_cohort.py,activation by cohort,trend_or_cohort,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,35.0,35_milestones_per_period_pivot.py,01_Analysis/00-Scripts/analytics/ICS_cohort/35_milestones_per_period_pivot.py,milestones per period pivot,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,36.0,36_cohort_growth.py,01_Analysis/00-Scripts/analytics/ICS_cohort/36_cohort_growth.py,cohort growth,trend_or_cohort,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,37.0,37_activation_personas.py,01_Analysis/00-Scripts/analytics/ICS_cohort/37_activation_personas.py,activation personas,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,38.0,38_persona_by_branch.py,01_Analysis/00-Scripts/analytics/ICS_cohort/38_persona_by_branch.py,persona by branch,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,40.0,40_exec_summary.py,01_Analysis/00-Scripts/analytics/ICS_cohort/40_exec_summary.py,exec summary,kpi_or_summary,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,41.0,41_ics_vs_nonics_activity.py,01_Analysis/00-Scripts/analytics/ICS_cohort/41_ics_vs_nonics_activity.py,ics vs nonics activity,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,42.0,42_ics_vs_nonics_closure.py,01_Analysis/00-Scripts/analytics/ICS_cohort/42_ics_vs_nonics_closure.py,ics vs nonics closure,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,43.0,43_ics_vs_nonics_ttfs.py,01_Analysis/00-Scripts/analytics/ICS_cohort/43_ics_vs_nonics_ttfs.py,ics vs nonics ttfs,analysis,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,44.0,44_vis_headline_comparison.py,01_Analysis/00-Scripts/analytics/ICS_cohort/44_vis_headline_comparison.py,vis headline comparison,visual_evidence,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,45.0,45_vis_survival_curves.py,01_Analysis/00-Scripts/analytics/ICS_cohort/45_vis_survival_curves.py,vis survival curves,trend_or_cohort,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,46.0,46_vis_branch_scatter.py,01_Analysis/00-Scripts/analytics/ICS_cohort/46_vis_branch_scatter.py,vis branch scatter,visual_evidence,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,47.0,47_vis_ttfs_distribution.py,01_Analysis/00-Scripts/analytics/ICS_cohort/47_vis_ttfs_distribution.py,vis ttfs distribution,visual_evidence,True,analysis_catalog_v0
+txn.ICS_cohort,txn,ICS Cohort,ICS_cohort,48.0,48_vis_activation_curves.py,01_Analysis/00-Scripts/analytics/ICS_cohort/48_vis_activation_curves.py,vis activation curves,visual_evidence,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,1.0,01_attrition_data.py,01_Analysis/00-Scripts/analytics/attrition_txn/01_attrition_data.py,attrition data,data_prep,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,2.0,02_attrition_kpi.py,01_Analysis/00-Scripts/analytics/attrition_txn/02_attrition_kpi.py,attrition kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,3.0,03_risk_distribution.py,01_Analysis/00-Scripts/analytics/attrition_txn/03_risk_distribution.py,risk distribution,analysis,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,4.0,04_velocity_scatter.py,01_Analysis/00-Scripts/analytics/attrition_txn/04_velocity_scatter.py,velocity scatter,visual_evidence,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,5.0,05_monthly_progression.py,01_Analysis/00-Scripts/analytics/attrition_txn/05_monthly_progression.py,monthly progression,analysis,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,6.0,06_risk_by_demographics.py,01_Analysis/00-Scripts/analytics/attrition_txn/06_risk_by_demographics.py,risk by demographics,analysis,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,7.0,07_risk_by_product.py,01_Analysis/00-Scripts/analytics/attrition_txn/07_risk_by_product.py,risk by product,analysis,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,8.0,08_risk_by_competitor.py,01_Analysis/00-Scripts/analytics/attrition_txn/08_risk_by_competitor.py,risk by competitor,analysis,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,9.0,09_early_warning.py,01_Analysis/00-Scripts/analytics/attrition_txn/09_early_warning.py,early warning,analysis,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,10.0,10_dormancy_progression.py,01_Analysis/00-Scripts/analytics/attrition_txn/10_dormancy_progression.py,dormancy progression,analysis,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,11.0,11_at_risk_export.py,01_Analysis/00-Scripts/analytics/attrition_txn/11_at_risk_export.py,at risk export,action_or_strategy,True,analysis_catalog_v0
+txn.attrition_txn,txn,Attrition (Velocity),attrition_txn,12.0,12_action_summary.py,01_Analysis/00-Scripts/analytics/attrition_txn/12_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,1.0,01_balance_data.py,01_Analysis/00-Scripts/analytics/balance/01_balance_data.py,balance data,data_prep,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,2.0,02_balance_kpi.py,01_Analysis/00-Scripts/analytics/balance/02_balance_kpi.py,balance kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,3.0,03_balance_distribution.py,01_Analysis/00-Scripts/analytics/balance/03_balance_distribution.py,balance distribution,analysis,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,4.0,04_balance_bands_bar.py,01_Analysis/00-Scripts/analytics/balance/04_balance_bands_bar.py,balance bands bar,visual_evidence,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,5.0,05_balance_vs_activity.py,01_Analysis/00-Scripts/analytics/balance/05_balance_vs_activity.py,balance vs activity,analysis,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,6.0,06_deposit_flight_risk.py,01_Analysis/00-Scripts/analytics/balance/06_deposit_flight_risk.py,deposit flight risk,analysis,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,7.0,07_balance_by_demographics.py,01_Analysis/00-Scripts/analytics/balance/07_balance_by_demographics.py,balance by demographics,analysis,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,8.0,08_pfi_scoring.py,01_Analysis/00-Scripts/analytics/balance/08_pfi_scoring.py,pfi scoring,analysis,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,9.0,09_balance_vs_competitor.py,01_Analysis/00-Scripts/analytics/balance/09_balance_vs_competitor.py,balance vs competitor,analysis,True,analysis_catalog_v0
+txn.balance,txn,Balance Analysis,balance,10.0,10_action_summary.py,01_Analysis/00-Scripts/analytics/balance/10_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,1.0,01_branch_data.py,01_Analysis/00-Scripts/analytics/branch_txn/01_branch_data.py,branch data,data_prep,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,2.0,02_branch_kpi.py,01_Analysis/00-Scripts/analytics/branch_txn/02_branch_kpi.py,branch kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,3.0,03_branch_top_bar.py,01_Analysis/00-Scripts/analytics/branch_txn/03_branch_top_bar.py,branch top bar,visual_evidence,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,4.0,04_branch_spend_comparison.py,01_Analysis/00-Scripts/analytics/branch_txn/04_branch_spend_comparison.py,branch spend comparison,analysis,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,5.0,05_branch_concentration.py,01_Analysis/00-Scripts/analytics/branch_txn/05_branch_concentration.py,branch concentration,analysis,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,6.0,06_branch_merchant_heatmap.py,01_Analysis/00-Scripts/analytics/branch_txn/06_branch_merchant_heatmap.py,branch merchant heatmap,visual_evidence,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,7.0,07_branch_monthly_trend.py,01_Analysis/00-Scripts/analytics/branch_txn/07_branch_monthly_trend.py,branch monthly trend,trend_or_cohort,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,8.0,08_branch_biz_personal_mix.py,01_Analysis/00-Scripts/analytics/branch_txn/08_branch_biz_personal_mix.py,branch biz personal mix,analysis,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,9.0,09_branch_spend_profile.py,01_Analysis/00-Scripts/analytics/branch_txn/09_branch_spend_profile.py,branch spend profile,analysis,True,analysis_catalog_v0
+txn.branch_txn,txn,Branch Performance,branch_txn,10.0,10_branch_action_summary.py,01_Analysis/00-Scripts/analytics/branch_txn/10_branch_action_summary.py,branch action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,1.0,01_business_data.py,01_Analysis/00-Scripts/analytics/business_accts/01_business_data.py,business data,data_prep,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,2.0,02_business_kpi.py,01_Analysis/00-Scripts/analytics/business_accts/02_business_kpi.py,business kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,3.0,03_business_top20_bar.py,01_Analysis/00-Scripts/analytics/business_accts/03_business_top20_bar.py,business top20 bar,visual_evidence,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,4.0,04_business_donut.py,01_Analysis/00-Scripts/analytics/business_accts/04_business_donut.py,business donut,visual_evidence,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,5.0,05_business_concentration.py,01_Analysis/00-Scripts/analytics/business_accts/05_business_concentration.py,business concentration,analysis,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,6.0,06_business_trend.py,01_Analysis/00-Scripts/analytics/business_accts/06_business_trend.py,business trend,trend_or_cohort,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,7.0,07_business_growth.py,01_Analysis/00-Scripts/analytics/business_accts/07_business_growth.py,business growth,analysis,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,8.0,08_business_volatility.py,01_Analysis/00-Scripts/analytics/business_accts/08_business_volatility.py,business volatility,analysis,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,9.0,09_business_lifecycle.py,01_Analysis/00-Scripts/analytics/business_accts/09_business_lifecycle.py,business lifecycle,trend_or_cohort,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,10.0,10_business_vs_portfolio.py,01_Analysis/00-Scripts/analytics/business_accts/10_business_vs_portfolio.py,business vs portfolio,analysis,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,11.0,11_business_by_age.py,01_Analysis/00-Scripts/analytics/business_accts/11_business_by_age.py,business by age,analysis,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,12.0,12_business_by_engagement.py,01_Analysis/00-Scripts/analytics/business_accts/12_business_by_engagement.py,business by engagement,analysis,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,13.0,13_business_new_entrants.py,01_Analysis/00-Scripts/analytics/business_accts/13_business_new_entrants.py,business new entrants,analysis,True,analysis_catalog_v0
+txn.business_accts,txn,Business Accounts,business_accts,14.0,14_business_action_summary.py,01_Analysis/00-Scripts/analytics/business_accts/14_business_action_summary.py,business action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,1.0,01_campaign_data.py,01_Analysis/00-Scripts/analytics/campaign/01_campaign_data.py,campaign data,data_prep,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,2.0,02_campaign_kpi.py,01_Analysis/00-Scripts/analytics/campaign/02_campaign_kpi.py,campaign kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,3.0,03_campaign_response_grouping.py,01_Analysis/00-Scripts/analytics/campaign/03_campaign_response_grouping.py,campaign response grouping,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,4.0,04_campaign_penetration.py,01_Analysis/00-Scripts/analytics/campaign/04_campaign_penetration.py,campaign penetration,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,5.0,05_response_by_wave.py,01_Analysis/00-Scripts/analytics/campaign/05_response_by_wave.py,response by wave,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,6.0,06_response_rate_trend.py,01_Analysis/00-Scripts/analytics/campaign/06_response_rate_trend.py,response rate trend,trend_or_cohort,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,7.0,07_response_ladder.py,01_Analysis/00-Scripts/analytics/campaign/07_response_ladder.py,response ladder,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,8.0,08_response_revenue_attribution.py,01_Analysis/00-Scripts/analytics/campaign/08_response_revenue_attribution.py,response revenue attribution,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,9.0,09_did_explainer.py,01_Analysis/00-Scripts/analytics/campaign/09_did_explainer.py,did explainer,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,10.0,10_cohort_lift_data.py,01_Analysis/00-Scripts/analytics/campaign/10_cohort_lift_data.py,cohort lift data,data_prep,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,11.0,11_cohort_lift_kpi.py,01_Analysis/00-Scripts/analytics/campaign/11_cohort_lift_kpi.py,cohort lift kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,12.0,12_cohort_before_after.py,01_Analysis/00-Scripts/analytics/campaign/12_cohort_before_after.py,cohort before after,trend_or_cohort,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,13.0,13_cohort_did_lift.py,01_Analysis/00-Scripts/analytics/campaign/13_cohort_did_lift.py,cohort did lift,trend_or_cohort,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,14.0,14_cohort_spend_persistence.py,01_Analysis/00-Scripts/analytics/campaign/14_cohort_spend_persistence.py,cohort spend persistence,trend_or_cohort,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,15.0,15_cohort_cumulative_spend.py,01_Analysis/00-Scripts/analytics/campaign/15_cohort_cumulative_spend.py,cohort cumulative spend,trend_or_cohort,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,16.0,16_cohort_counterfactual.py,01_Analysis/00-Scripts/analytics/campaign/16_cohort_counterfactual.py,cohort counterfactual,trend_or_cohort,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,17.0,17_swipe_kpi.py,01_Analysis/00-Scripts/analytics/campaign/17_swipe_kpi.py,swipe kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,18.0,18_swipe_did_lift.py,01_Analysis/00-Scripts/analytics/campaign/18_swipe_did_lift.py,swipe did lift,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,19.0,19_swipe_response_tiers.py,01_Analysis/00-Scripts/analytics/campaign/19_swipe_response_tiers.py,swipe response tiers,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,20.0,20_swipe_trend.py,01_Analysis/00-Scripts/analytics/campaign/20_swipe_trend.py,swipe trend,trend_or_cohort,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,21.0,21_swipe_migration_matrix.py,01_Analysis/00-Scripts/analytics/campaign/21_swipe_migration_matrix.py,swipe migration matrix,trend_or_cohort,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,22.0,22_segment_cohort_data.py,01_Analysis/00-Scripts/analytics/campaign/22_segment_cohort_data.py,segment cohort data,data_prep,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,23.0,23_segment_cohort_summary.py,01_Analysis/00-Scripts/analytics/campaign/23_segment_cohort_summary.py,segment cohort summary,kpi_or_summary,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,28.0,28_segment_combo_lines.py,01_Analysis/00-Scripts/analytics/campaign/28_segment_combo_lines.py,segment combo lines,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,29.0,29_segment_slope_proof.py,01_Analysis/00-Scripts/analytics/campaign/29_segment_slope_proof.py,segment slope proof,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,30.0,30_responder_txn_profile.py,01_Analysis/00-Scripts/analytics/campaign/30_responder_txn_profile.py,responder txn profile,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,31.0,31_responder_ticket_chart.py,01_Analysis/00-Scripts/analytics/campaign/31_responder_ticket_chart.py,responder ticket chart,visual_evidence,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,32.0,32_responder_timing_chart.py,01_Analysis/00-Scripts/analytics/campaign/32_responder_timing_chart.py,responder timing chart,visual_evidence,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,33.0,33_responder_account_age_data.py,01_Analysis/00-Scripts/analytics/campaign/33_responder_account_age_data.py,responder account age data,data_prep,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,34.0,34_responder_account_age_chart.py,01_Analysis/00-Scripts/analytics/campaign/34_responder_account_age_chart.py,responder account age chart,visual_evidence,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,35.0,35_responder_holder_age_data.py,01_Analysis/00-Scripts/analytics/campaign/35_responder_holder_age_data.py,responder holder age data,data_prep,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,36.0,36_responder_holder_age_chart.py,01_Analysis/00-Scripts/analytics/campaign/36_responder_holder_age_chart.py,responder holder age chart,visual_evidence,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,37.0,37_program_effectiveness.py,01_Analysis/00-Scripts/analytics/campaign/37_program_effectiveness.py,program effectiveness,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,38.0,38_mailer_program_proof.py,01_Analysis/00-Scripts/analytics/campaign/38_mailer_program_proof.py,mailer program proof,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,39.0,39_revenue_cascade.py,01_Analysis/00-Scripts/analytics/campaign/39_revenue_cascade.py,revenue cascade,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,40.0,40_opportunity_map.py,01_Analysis/00-Scripts/analytics/campaign/40_opportunity_map.py,opportunity map,action_or_strategy,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,41.0,41_what_if_scenario.py,01_Analysis/00-Scripts/analytics/campaign/41_what_if_scenario.py,what if scenario,analysis,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,42.0,42_campaign_summary_slide.py,01_Analysis/00-Scripts/analytics/campaign/42_campaign_summary_slide.py,campaign summary slide,kpi_or_summary,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,43.0,43_cohort_lift_summary.py,01_Analysis/00-Scripts/analytics/campaign/43_cohort_lift_summary.py,cohort lift summary,kpi_or_summary,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,44.0,44_spend_shift_data.py,01_Analysis/00-Scripts/analytics/campaign/44_spend_shift_data.py,spend shift data,data_prep,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,45.0,45_spend_shift_spend_chart.py,01_Analysis/00-Scripts/analytics/campaign/45_spend_shift_spend_chart.py,spend shift spend chart,visual_evidence,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,46.0,46_spend_shift_vendors_chart.py,01_Analysis/00-Scripts/analytics/campaign/46_spend_shift_vendors_chart.py,spend shift vendors chart,visual_evidence,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,47.0,47_spend_shift_pin_sig_chart.py,01_Analysis/00-Scripts/analytics/campaign/47_spend_shift_pin_sig_chart.py,spend shift pin sig chart,visual_evidence,True,analysis_catalog_v0
+txn.campaign,txn,Campaign Analysis,campaign,48.0,48_cleanup.py,01_Analysis/00-Scripts/analytics/campaign/48_cleanup.py,cleanup,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,0.0,00_axes.py,01_Analysis/00-Scripts/analytics/competition/00_axes.py,axes,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,1.0,01_competitor_config.py,01_Analysis/00-Scripts/analytics/competition/01_competitor_config.py,competitor config,data_prep,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,2.0,02_competitor_detection.py,01_Analysis/00-Scripts/analytics/competition/02_competitor_detection.py,competitor detection,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,4.0,04_build_threat_data.py,01_Analysis/00-Scripts/analytics/competition/04_build_threat_data.py,build threat data,data_prep,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,6.0,06_conference_theme.py,01_Analysis/00-Scripts/analytics/competition/06_conference_theme.py,conference theme,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,7.0,07_kpi_dashboard.py,01_Analysis/00-Scripts/analytics/competition/07_kpi_dashboard.py,kpi dashboard,kpi_or_summary,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,8.0,08_top_competitors_bar.py,01_Analysis/00-Scripts/analytics/competition/08_top_competitors_bar.py,top competitors bar,visual_evidence,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,9.0,09_category_donut.py,01_Analysis/00-Scripts/analytics/competition/09_category_donut.py,category donut,visual_evidence,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,10.0,10_biz_vs_personal.py,01_Analysis/00-Scripts/analytics/competition/10_biz_vs_personal.py,biz vs personal,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,11.0,11_monthly_trend.py,01_Analysis/00-Scripts/analytics/competition/11_monthly_trend.py,monthly trend,trend_or_cohort,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,12.0,12_bubble_chart.py,01_Analysis/00-Scripts/analytics/competition/12_bubble_chart.py,bubble chart,visual_evidence,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,13.0,13_threat_quadrant.py,01_Analysis/00-Scripts/analytics/competition/13_threat_quadrant.py,threat quadrant,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,14.0,14_engagement_scatter.py,01_Analysis/00-Scripts/analytics/competition/14_engagement_scatter.py,engagement scatter,visual_evidence,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,15.0,15_momentum.py,01_Analysis/00-Scripts/analytics/competition/15_momentum.py,momentum,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,16.0,16_opportunity.py,01_Analysis/00-Scripts/analytics/competition/16_opportunity.py,opportunity,action_or_strategy,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,17.0,17_engagement_depth.py,01_Analysis/00-Scripts/analytics/competition/17_engagement_depth.py,engagement depth,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,18.0,18_competition_aggregate.py,01_Analysis/00-Scripts/analytics/competition/18_competition_aggregate.py,competition aggregate,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,19.0,19_account_summaries.py,01_Analysis/00-Scripts/analytics/competition/19_account_summaries.py,account summaries,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,20.0,20_spend_segmentation.py,01_Analysis/00-Scripts/analytics/competition/20_spend_segmentation.py,spend segmentation,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,21.0,21_segment_summary.py,01_Analysis/00-Scripts/analytics/competition/21_segment_summary.py,segment summary,kpi_or_summary,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,22.0,22_segment_top_competitors.py,01_Analysis/00-Scripts/analytics/competition/22_segment_top_competitors.py,segment top competitors,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,23.0,23_segment_by_category.py,01_Analysis/00-Scripts/analytics/competition/23_segment_by_category.py,segment by category,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,24.0,24_segment_heatmap.py,01_Analysis/00-Scripts/analytics/competition/24_segment_heatmap.py,segment heatmap,visual_evidence,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,27.0,27_recency_analysis.py,01_Analysis/00-Scripts/analytics/competition/27_recency_analysis.py,recency analysis,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,30.0,30_category_leaders.py,01_Analysis/00-Scripts/analytics/competition/30_category_leaders.py,category leaders,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,31.0,31_spend_ranking.py,01_Analysis/00-Scripts/analytics/competition/31_spend_ranking.py,spend ranking,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,32.0,32_material_threats.py,01_Analysis/00-Scripts/analytics/competition/32_material_threats.py,material threats,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,33.0,33_non_bank_threats.py,01_Analysis/00-Scripts/analytics/competition/33_non_bank_threats.py,non bank threats,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,35.0,35_competitor_count_distribution.py,01_Analysis/00-Scripts/analytics/competition/35_competitor_count_distribution.py,competitor count distribution,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,40.0,40_account_detail_table.py,01_Analysis/00-Scripts/analytics/competition/40_account_detail_table.py,account detail table,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,41.0,41_export_lists.py,01_Analysis/00-Scripts/analytics/competition/41_export_lists.py,export lists,action_or_strategy,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,60.0,60_banks_only_kpi.py,01_Analysis/00-Scripts/analytics/competition/60_banks_only_kpi.py,banks only kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,60.0,60_core_competition_kpi.py,01_Analysis/00-Scripts/analytics/competition/60_core_competition_kpi.py,core competition kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,61.0,61_banks_only_donut.py,01_Analysis/00-Scripts/analytics/competition/61_banks_only_donut.py,banks only donut,visual_evidence,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,61.0,61_core_competition_donut.py,01_Analysis/00-Scripts/analytics/competition/61_core_competition_donut.py,core competition donut,visual_evidence,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,62.0,62_banks_only_top10.py,01_Analysis/00-Scripts/analytics/competition/62_banks_only_top10.py,banks only top10,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,62.0,62_core_competition_top10.py,01_Analysis/00-Scripts/analytics/competition/62_core_competition_top10.py,core competition top10,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,65.0,65_banks_only_deep_dive.py,01_Analysis/00-Scripts/analytics/competition/65_banks_only_deep_dive.py,banks only deep dive,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,65.0,65_core_competition_deep_dive.py,01_Analysis/00-Scripts/analytics/competition/65_core_competition_deep_dive.py,core competition deep dive,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,66.0,66_core_bnpl_share.py,01_Analysis/00-Scripts/analytics/competition/66_core_bnpl_share.py,core bnpl share,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,67.0,67_core_bnpl_threats.py,01_Analysis/00-Scripts/analytics/competition/67_core_bnpl_threats.py,core bnpl threats,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,68.0,68_detection_diagnostic.py,01_Analysis/00-Scripts/analytics/competition/68_detection_diagnostic.py,detection diagnostic,analysis,True,analysis_catalog_v0
+txn.competition,txn,Competition,competition,70.0,70_banking_vs_ecosystems.py,01_Analysis/00-Scripts/analytics/competition/70_banking_vs_ecosystems.py,banking vs ecosystems,analysis,True,analysis_catalog_v0
+txn.engagement,txn,Engagement Migration,engagement,1.0,01_migration_data.py,01_Analysis/00-Scripts/analytics/engagement/01_migration_data.py,migration data,data_prep,True,analysis_catalog_v0
+txn.engagement,txn,Engagement Migration,engagement,2.0,02_migration_kpi.py,01_Analysis/00-Scripts/analytics/engagement/02_migration_kpi.py,migration kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.engagement,txn,Engagement Migration,engagement,3.0,03_migration_matrix.py,01_Analysis/00-Scripts/analytics/engagement/03_migration_matrix.py,migration matrix,trend_or_cohort,True,analysis_catalog_v0
+txn.engagement,txn,Engagement Migration,engagement,4.0,04_net_flow.py,01_Analysis/00-Scripts/analytics/engagement/04_net_flow.py,net flow,analysis,True,analysis_catalog_v0
+txn.engagement,txn,Engagement Migration,engagement,5.0,05_migration_by_segment.py,01_Analysis/00-Scripts/analytics/engagement/05_migration_by_segment.py,migration by segment,trend_or_cohort,True,analysis_catalog_v0
+txn.engagement,txn,Engagement Migration,engagement,10.0,10_action_summary.py,01_Analysis/00-Scripts/analytics/engagement/10_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.executive,txn,Executive Scorecard,executive,1.0,01_scorecard_data.py,01_Analysis/00-Scripts/analytics/executive/01_scorecard_data.py,scorecard data,data_prep,True,analysis_catalog_v0
+txn.executive,txn,Executive Scorecard,executive,2.0,02_scorecard_dashboard.py,01_Analysis/00-Scripts/analytics/executive/02_scorecard_dashboard.py,scorecard dashboard,kpi_or_summary,True,analysis_catalog_v0
+txn.executive,txn,Executive Scorecard,executive,3.0,03_strategic_priorities.py,01_Analysis/00-Scripts/analytics/executive/03_strategic_priorities.py,strategic priorities,analysis,True,analysis_catalog_v0
+txn.executive,txn,Executive Scorecard,executive,4.0,04_opportunity_waterfall.py,01_Analysis/00-Scripts/analytics/executive/04_opportunity_waterfall.py,opportunity waterfall,action_or_strategy,True,analysis_catalog_v0
+txn.executive,txn,Executive Scorecard,executive,5.0,05_action_roadmap.py,01_Analysis/00-Scripts/analytics/executive/05_action_roadmap.py,action roadmap,action_or_strategy,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,1.0,01_config.py,01_Analysis/00-Scripts/analytics/financial_services/01_config.py,config,data_prep,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,2.0,02_identify.py,01_Analysis/00-Scripts/analytics/financial_services/02_identify.py,identify,analysis,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,3.0,03_build_account_data.py,01_Analysis/00-Scripts/analytics/financial_services/03_build_account_data.py,build account data,data_prep,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,4.0,04_build_cross_category.py,01_Analysis/00-Scripts/analytics/financial_services/04_build_cross_category.py,build cross category,data_prep,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,5.0,05_conference_theme.py,01_Analysis/00-Scripts/analytics/financial_services/05_conference_theme.py,conference theme,analysis,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,6.0,06_kpi_dashboard.py,01_Analysis/00-Scripts/analytics/financial_services/06_kpi_dashboard.py,kpi dashboard,kpi_or_summary,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,7.0,07_category_accounts_bar.py,01_Analysis/00-Scripts/analytics/financial_services/07_category_accounts_bar.py,category accounts bar,visual_evidence,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,8.0,08_category_activity_donut.py,01_Analysis/00-Scripts/analytics/financial_services/08_category_activity_donut.py,category activity donut,visual_evidence,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,9.0,09_top_merchants.py,01_Analysis/00-Scripts/analytics/financial_services/09_top_merchants.py,top merchants,analysis,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,10.0,10_recency_heatmap.py,01_Analysis/00-Scripts/analytics/financial_services/10_recency_heatmap.py,recency heatmap,visual_evidence,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,11.0,11_monthly_trend.py,01_Analysis/00-Scripts/analytics/financial_services/11_monthly_trend.py,monthly trend,trend_or_cohort,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,12.0,12_multi_product.py,01_Analysis/00-Scripts/analytics/financial_services/12_multi_product.py,multi product,analysis,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,13.0,13_category_combinations.py,01_Analysis/00-Scripts/analytics/financial_services/13_category_combinations.py,category combinations,analysis,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,14.0,14_leakage_intensity.py,01_Analysis/00-Scripts/analytics/financial_services/14_leakage_intensity.py,leakage intensity,analysis,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,15.0,15_biz_vs_personal.py,01_Analysis/00-Scripts/analytics/financial_services/15_biz_vs_personal.py,biz vs personal,analysis,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,16.0,16_recency_by_category.py,01_Analysis/00-Scripts/analytics/financial_services/16_recency_by_category.py,recency by category,analysis,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,17.0,17_new_vs_recurring.py,01_Analysis/00-Scripts/analytics/financial_services/17_new_vs_recurring.py,new vs recurring,analysis,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,18.0,18_opportunity_waterfall.py,01_Analysis/00-Scripts/analytics/financial_services/18_opportunity_waterfall.py,opportunity waterfall,action_or_strategy,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,19.0,19_action_lists.py,01_Analysis/00-Scripts/analytics/financial_services/19_action_lists.py,action lists,action_or_strategy,True,analysis_catalog_v0
+txn.financial_services,txn,Financial Services,financial_services,20.0,20_detection_diagnostic.py,01_Analysis/00-Scripts/analytics/financial_services/20_detection_diagnostic.py,detection diagnostic,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,1.0,01_general_theme.py,01_Analysis/00-Scripts/analytics/general/01_general_theme.py,general theme,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,2.0,02_portfolio_data.py,01_Analysis/00-Scripts/analytics/general/02_portfolio_data.py,portfolio data,data_prep,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,3.0,03_kpi_dashboard.py,01_Analysis/00-Scripts/analytics/general/03_kpi_dashboard.py,kpi dashboard,kpi_or_summary,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,4.0,04_monthly_trend.py,01_Analysis/00-Scripts/analytics/general/04_monthly_trend.py,monthly trend,trend_or_cohort,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,5.0,05_monthly_table.py,01_Analysis/00-Scripts/analytics/general/05_monthly_table.py,monthly table,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,6.0,06_bracket_data.py,01_Analysis/00-Scripts/analytics/general/06_bracket_data.py,bracket data,data_prep,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,7.0,07_bracket_bar.py,01_Analysis/00-Scripts/analytics/general/07_bracket_bar.py,bracket bar,visual_evidence,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,8.0,08_bracket_donut.py,01_Analysis/00-Scripts/analytics/general/08_bracket_donut.py,bracket donut,visual_evidence,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,9.0,09_bracket_volatility.py,01_Analysis/00-Scripts/analytics/general/09_bracket_volatility.py,bracket volatility,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,10.0,10_bracket_trend.py,01_Analysis/00-Scripts/analytics/general/10_bracket_trend.py,bracket trend,trend_or_cohort,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,11.0,11_demographic_data.py,01_Analysis/00-Scripts/analytics/general/11_demographic_data.py,demographic data,data_prep,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,12.0,12_hourly_heatmap.py,01_Analysis/00-Scripts/analytics/general/12_hourly_heatmap.py,hourly heatmap,visual_evidence,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,13.0,13_age_time_patterns.py,01_Analysis/00-Scripts/analytics/general/13_age_time_patterns.py,age time patterns,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,14.0,14_age_spending_profile.py,01_Analysis/00-Scripts/analytics/general/14_age_spending_profile.py,age spending profile,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,15.0,15_age_bracket_comparison.py,01_Analysis/00-Scripts/analytics/general/15_age_bracket_comparison.py,age bracket comparison,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,16.0,16_biz_personal_split.py,01_Analysis/00-Scripts/analytics/general/16_biz_personal_split.py,biz personal split,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,17.0,17_engagement_data.py,01_Analysis/00-Scripts/analytics/general/17_engagement_data.py,engagement data,data_prep,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,18.0,18_engagement_bar.py,01_Analysis/00-Scripts/analytics/general/18_engagement_bar.py,engagement bar,visual_evidence,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,19.0,19_seasonal_index.py,01_Analysis/00-Scripts/analytics/general/19_seasonal_index.py,seasonal index,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,20.0,20_merchant_concentration.py,01_Analysis/00-Scripts/analytics/general/20_merchant_concentration.py,merchant concentration,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,21.0,21_growth_scorecard.py,01_Analysis/00-Scripts/analytics/general/21_growth_scorecard.py,growth scorecard,kpi_or_summary,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,22.0,22_action_summary.py,01_Analysis/00-Scripts/analytics/general/22_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,23.0,23_account_age_data.py,01_Analysis/00-Scripts/analytics/general/23_account_age_data.py,account age data,data_prep,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,24.0,24_account_age_bar.py,01_Analysis/00-Scripts/analytics/general/24_account_age_bar.py,account age bar,visual_evidence,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,25.0,25_time_to_first_txn.py,01_Analysis/00-Scripts/analytics/general/25_time_to_first_txn.py,time to first txn,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,26.0,26_spend_by_account_age.py,01_Analysis/00-Scripts/analytics/general/26_spend_by_account_age.py,spend by account age,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,27.0,27_new_account_profile.py,01_Analysis/00-Scripts/analytics/general/27_new_account_profile.py,new account profile,analysis,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,28.0,28_lifecycle_summary.py,01_Analysis/00-Scripts/analytics/general/28_lifecycle_summary.py,lifecycle summary,kpi_or_summary,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,29.0,29_swipe_category_data.py,01_Analysis/00-Scripts/analytics/general/29_swipe_category_data.py,swipe category data,data_prep,True,analysis_catalog_v0
+txn.general,txn,Portfolio Overview,general,30.0,30_ars_swipe_segmentation.py,01_Analysis/00-Scripts/analytics/general/30_ars_swipe_segmentation.py,ars swipe segmentation,analysis,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,1.0,01_ics_data.py,01_Analysis/00-Scripts/analytics/ics_acquisition/01_ics_data.py,ics data,data_prep,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,2.0,02_ics_kpi.py,01_Analysis/00-Scripts/analytics/ics_acquisition/02_ics_kpi.py,ics kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,3.0,03_ics_channel_comparison.py,01_Analysis/00-Scripts/analytics/ics_acquisition/03_ics_channel_comparison.py,ics channel comparison,analysis,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,4.0,04_ics_merchant_preferences.py,01_Analysis/00-Scripts/analytics/ics_acquisition/04_ics_merchant_preferences.py,ics merchant preferences,analysis,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,5.0,05_ics_spend_profile.py,01_Analysis/00-Scripts/analytics/ics_acquisition/05_ics_spend_profile.py,ics spend profile,analysis,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,6.0,06_ics_monthly_trend.py,01_Analysis/00-Scripts/analytics/ics_acquisition/06_ics_monthly_trend.py,ics monthly trend,trend_or_cohort,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,7.0,07_ics_engagement.py,01_Analysis/00-Scripts/analytics/ics_acquisition/07_ics_engagement.py,ics engagement,analysis,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,8.0,08_ics_retention.py,01_Analysis/00-Scripts/analytics/ics_acquisition/08_ics_retention.py,ics retention,trend_or_cohort,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,9.0,09_ics_vs_portfolio.py,01_Analysis/00-Scripts/analytics/ics_acquisition/09_ics_vs_portfolio.py,ics vs portfolio,analysis,True,analysis_catalog_v0
+txn.ics_acquisition,txn,ICS Acquisition,ics_acquisition,10.0,10_ics_action_summary.py,01_Analysis/00-Scripts/analytics/ics_acquisition/10_ics_action_summary.py,ics action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,1.0,01_interchange_data.py,01_Analysis/00-Scripts/analytics/interchange/01_interchange_data.py,interchange data,data_prep,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,2.0,02_interchange_kpi.py,01_Analysis/00-Scripts/analytics/interchange/02_interchange_kpi.py,interchange kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,3.0,03_pin_sig_trend.py,01_Analysis/00-Scripts/analytics/interchange/03_pin_sig_trend.py,pin sig trend,trend_or_cohort,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,4.0,04_pin_sig_ratio.py,01_Analysis/00-Scripts/analytics/interchange/04_pin_sig_ratio.py,pin sig ratio,analysis,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,5.0,05_revenue_waterfall.py,01_Analysis/00-Scripts/analytics/interchange/05_revenue_waterfall.py,revenue waterfall,action_or_strategy,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,6.0,06_pin_heavy_accounts.py,01_Analysis/00-Scripts/analytics/interchange/06_pin_heavy_accounts.py,pin heavy accounts,analysis,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,7.0,07_interchange_by_demographics.py,01_Analysis/00-Scripts/analytics/interchange/07_interchange_by_demographics.py,interchange by demographics,analysis,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,8.0,08_interchange_by_merchant.py,01_Analysis/00-Scripts/analytics/interchange/08_interchange_by_merchant.py,interchange by merchant,analysis,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,9.0,09_interchange_by_product.py,01_Analysis/00-Scripts/analytics/interchange/09_interchange_by_product.py,interchange by product,analysis,True,analysis_catalog_v0
+txn.interchange,txn,Interchange Revenue,interchange,10.0,10_action_summary.py,01_Analysis/00-Scripts/analytics/interchange/10_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,1.0,01_mcc_data.py,01_Analysis/00-Scripts/analytics/mcc_code/01_mcc_data.py,mcc data,data_prep,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,2.0,02_mcc_kpi.py,01_Analysis/00-Scripts/analytics/mcc_code/02_mcc_kpi.py,mcc kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,3.0,03_mcc_top20_bar.py,01_Analysis/00-Scripts/analytics/mcc_code/03_mcc_top20_bar.py,mcc top20 bar,visual_evidence,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,4.0,04_mcc_donut.py,01_Analysis/00-Scripts/analytics/mcc_code/04_mcc_donut.py,mcc donut,visual_evidence,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,5.0,05_mcc_three_panel.py,01_Analysis/00-Scripts/analytics/mcc_code/05_mcc_three_panel.py,mcc three panel,analysis,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,6.0,06_mcc_concentration.py,01_Analysis/00-Scripts/analytics/mcc_code/06_mcc_concentration.py,mcc concentration,analysis,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,7.0,07_mcc_trend.py,01_Analysis/00-Scripts/analytics/mcc_code/07_mcc_trend.py,mcc trend,trend_or_cohort,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,8.0,08_mcc_by_age_band.py,01_Analysis/00-Scripts/analytics/mcc_code/08_mcc_by_age_band.py,mcc by age band,analysis,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,9.0,09_mcc_by_account_age.py,01_Analysis/00-Scripts/analytics/mcc_code/09_mcc_by_account_age.py,mcc by account age,analysis,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,10.0,10_mcc_by_engagement.py,01_Analysis/00-Scripts/analytics/mcc_code/10_mcc_by_engagement.py,mcc by engagement,analysis,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,11.0,11_mcc_by_biz_personal.py,01_Analysis/00-Scripts/analytics/mcc_code/11_mcc_by_biz_personal.py,mcc by biz personal,analysis,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,12.0,12_mcc_seasonal.py,01_Analysis/00-Scripts/analytics/mcc_code/12_mcc_seasonal.py,mcc seasonal,analysis,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,13.0,13_mcc_diversity.py,01_Analysis/00-Scripts/analytics/mcc_code/13_mcc_diversity.py,mcc diversity,analysis,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,14.0,14_mcc_spend_profile.py,01_Analysis/00-Scripts/analytics/mcc_code/14_mcc_spend_profile.py,mcc spend profile,analysis,True,analysis_catalog_v0
+txn.mcc_code,txn,MCC Categories,mcc_code,15.0,15_mcc_action_summary.py,01_Analysis/00-Scripts/analytics/mcc_code/15_mcc_action_summary.py,mcc action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,1.0,01_merchant_data.py,01_Analysis/00-Scripts/analytics/merchant/01_merchant_data.py,merchant data,data_prep,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,2.0,02_merchant_kpi.py,01_Analysis/00-Scripts/analytics/merchant/02_merchant_kpi.py,merchant kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,3.0,03_merchant_top20_bar.py,01_Analysis/00-Scripts/analytics/merchant/03_merchant_top20_bar.py,merchant top20 bar,visual_evidence,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,4.0,04_merchant_donut.py,01_Analysis/00-Scripts/analytics/merchant/04_merchant_donut.py,merchant donut,visual_evidence,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,5.0,05_merchant_concentration.py,01_Analysis/00-Scripts/analytics/merchant/05_merchant_concentration.py,merchant concentration,analysis,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,6.0,06_merchant_trend.py,01_Analysis/00-Scripts/analytics/merchant/06_merchant_trend.py,merchant trend,trend_or_cohort,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,7.0,07_merchant_growth.py,01_Analysis/00-Scripts/analytics/merchant/07_merchant_growth.py,merchant growth,analysis,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,8.0,08_merchant_volatility.py,01_Analysis/00-Scripts/analytics/merchant/08_merchant_volatility.py,merchant volatility,analysis,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,9.0,09_merchant_lifecycle.py,01_Analysis/00-Scripts/analytics/merchant/09_merchant_lifecycle.py,merchant lifecycle,trend_or_cohort,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,10.0,10_merchant_by_biz_personal.py,01_Analysis/00-Scripts/analytics/merchant/10_merchant_by_biz_personal.py,merchant by biz personal,analysis,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,11.0,11_merchant_by_age.py,01_Analysis/00-Scripts/analytics/merchant/11_merchant_by_age.py,merchant by age,analysis,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,12.0,12_merchant_by_engagement.py,01_Analysis/00-Scripts/analytics/merchant/12_merchant_by_engagement.py,merchant by engagement,analysis,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,13.0,13_merchant_new_entrants.py,01_Analysis/00-Scripts/analytics/merchant/13_merchant_new_entrants.py,merchant new entrants,analysis,True,analysis_catalog_v0
+txn.merchant,txn,Merchant Analysis,merchant,14.0,14_merchant_action_summary.py,01_Analysis/00-Scripts/analytics/merchant/14_merchant_action_summary.py,merchant action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,1.0,01_payroll_data.py,01_Analysis/00-Scripts/analytics/payroll/01_payroll_data.py,payroll data,data_prep,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,2.0,02_payroll_kpi.py,01_Analysis/00-Scripts/analytics/payroll/02_payroll_kpi.py,payroll kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,3.0,03_payroll_distribution.py,01_Analysis/00-Scripts/analytics/payroll/03_payroll_distribution.py,payroll distribution,analysis,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,4.0,04_payroll_value.py,01_Analysis/00-Scripts/analytics/payroll/04_payroll_value.py,payroll value,analysis,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,5.0,05_payroll_by_demographics.py,01_Analysis/00-Scripts/analytics/payroll/05_payroll_by_demographics.py,payroll by demographics,analysis,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,6.0,06_payroll_processors.py,01_Analysis/00-Scripts/analytics/payroll/06_payroll_processors.py,payroll processors,analysis,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,7.0,07_payroll_retention.py,01_Analysis/00-Scripts/analytics/payroll/07_payroll_retention.py,payroll retention,trend_or_cohort,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,8.0,08_pfi_composite_score.py,01_Analysis/00-Scripts/analytics/payroll/08_pfi_composite_score.py,pfi composite score,analysis,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,9.0,09_pfi_vs_competitor.py,01_Analysis/00-Scripts/analytics/payroll/09_pfi_vs_competitor.py,pfi vs competitor,analysis,True,analysis_catalog_v0
+txn.payroll,txn,Payroll & Direct Deposit,payroll,10.0,10_action_summary.py,01_Analysis/00-Scripts/analytics/payroll/10_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,1.0,01_personal_data.py,01_Analysis/00-Scripts/analytics/personal_accts/01_personal_data.py,personal data,data_prep,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,2.0,02_personal_kpi.py,01_Analysis/00-Scripts/analytics/personal_accts/02_personal_kpi.py,personal kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,3.0,03_personal_top20_bar.py,01_Analysis/00-Scripts/analytics/personal_accts/03_personal_top20_bar.py,personal top20 bar,visual_evidence,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,4.0,04_personal_donut.py,01_Analysis/00-Scripts/analytics/personal_accts/04_personal_donut.py,personal donut,visual_evidence,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,5.0,05_personal_concentration.py,01_Analysis/00-Scripts/analytics/personal_accts/05_personal_concentration.py,personal concentration,analysis,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,6.0,06_personal_trend.py,01_Analysis/00-Scripts/analytics/personal_accts/06_personal_trend.py,personal trend,trend_or_cohort,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,7.0,07_personal_growth.py,01_Analysis/00-Scripts/analytics/personal_accts/07_personal_growth.py,personal growth,analysis,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,8.0,08_personal_volatility.py,01_Analysis/00-Scripts/analytics/personal_accts/08_personal_volatility.py,personal volatility,analysis,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,9.0,09_personal_lifecycle.py,01_Analysis/00-Scripts/analytics/personal_accts/09_personal_lifecycle.py,personal lifecycle,trend_or_cohort,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,10.0,10_personal_vs_portfolio.py,01_Analysis/00-Scripts/analytics/personal_accts/10_personal_vs_portfolio.py,personal vs portfolio,analysis,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,11.0,11_personal_by_age.py,01_Analysis/00-Scripts/analytics/personal_accts/11_personal_by_age.py,personal by age,analysis,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,12.0,12_personal_by_engagement.py,01_Analysis/00-Scripts/analytics/personal_accts/12_personal_by_engagement.py,personal by engagement,analysis,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,13.0,13_personal_new_entrants.py,01_Analysis/00-Scripts/analytics/personal_accts/13_personal_new_entrants.py,personal new entrants,analysis,True,analysis_catalog_v0
+txn.personal_accts,txn,Personal Accounts,personal_accts,14.0,14_personal_action_summary.py,01_Analysis/00-Scripts/analytics/personal_accts/14_personal_action_summary.py,personal action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,1.0,01_product_data.py,01_Analysis/00-Scripts/analytics/product/01_product_data.py,product data,data_prep,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,2.0,02_product_kpi.py,01_Analysis/00-Scripts/analytics/product/02_product_kpi.py,product kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,3.0,03_product_distribution.py,01_Analysis/00-Scripts/analytics/product/03_product_distribution.py,product distribution,analysis,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,4.0,04_product_donut.py,01_Analysis/00-Scripts/analytics/product/04_product_donut.py,product donut,visual_evidence,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,5.0,05_product_spend_profile.py,01_Analysis/00-Scripts/analytics/product/05_product_spend_profile.py,product spend profile,analysis,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,6.0,06_product_monthly_trend.py,01_Analysis/00-Scripts/analytics/product/06_product_monthly_trend.py,product monthly trend,trend_or_cohort,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,7.0,07_product_merchant_heatmap.py,01_Analysis/00-Scripts/analytics/product/07_product_merchant_heatmap.py,product merchant heatmap,visual_evidence,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,8.0,08_product_biz_personal.py,01_Analysis/00-Scripts/analytics/product/08_product_biz_personal.py,product biz personal,analysis,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,9.0,09_product_by_engagement.py,01_Analysis/00-Scripts/analytics/product/09_product_by_engagement.py,product by engagement,analysis,True,analysis_catalog_v0
+txn.product,txn,Product Analysis,product,10.0,10_product_action_summary.py,01_Analysis/00-Scripts/analytics/product/10_product_action_summary.py,product action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,1.0,01_rege_data.py,01_Analysis/00-Scripts/analytics/rege_overdraft/01_rege_data.py,rege data,data_prep,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,2.0,02_rege_kpi.py,01_Analysis/00-Scripts/analytics/rege_overdraft/02_rege_kpi.py,rege kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,3.0,03_optin_trend.py,01_Analysis/00-Scripts/analytics/rege_overdraft/03_optin_trend.py,optin trend,trend_or_cohort,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,4.0,04_optin_migration.py,01_Analysis/00-Scripts/analytics/rege_overdraft/04_optin_migration.py,optin migration,trend_or_cohort,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,5.0,05_od_limit_distribution.py,01_Analysis/00-Scripts/analytics/rege_overdraft/05_od_limit_distribution.py,od limit distribution,analysis,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,6.0,06_od_limit_trend.py,01_Analysis/00-Scripts/analytics/rege_overdraft/06_od_limit_trend.py,od limit trend,trend_or_cohort,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,7.0,07_rege_by_demographics.py,01_Analysis/00-Scripts/analytics/rege_overdraft/07_rege_by_demographics.py,rege by demographics,analysis,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,8.0,08_rege_revenue_exposure.py,01_Analysis/00-Scripts/analytics/rege_overdraft/08_rege_revenue_exposure.py,rege revenue exposure,analysis,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,9.0,09_rege_vs_balance.py,01_Analysis/00-Scripts/analytics/rege_overdraft/09_rege_vs_balance.py,rege vs balance,analysis,True,analysis_catalog_v0
+txn.rege_overdraft,txn,Reg E / Overdraft,rege_overdraft,10.0,10_action_summary.py,01_Analysis/00-Scripts/analytics/rege_overdraft/10_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,1.0,01_relationship_data.py,01_Analysis/00-Scripts/analytics/relationship/01_relationship_data.py,relationship data,data_prep,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,2.0,02_relationship_kpi.py,01_Analysis/00-Scripts/analytics/relationship/02_relationship_kpi.py,relationship kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,3.0,03_product_count_bar.py,01_Analysis/00-Scripts/analytics/relationship/03_product_count_bar.py,product count bar,visual_evidence,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,4.0,04_single_product_risk.py,01_Analysis/00-Scripts/analytics/relationship/04_single_product_risk.py,single product risk,analysis,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,5.0,05_cross_sell_matrix.py,01_Analysis/00-Scripts/analytics/relationship/05_cross_sell_matrix.py,cross sell matrix,analysis,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,6.0,06_relationship_value.py,01_Analysis/00-Scripts/analytics/relationship/06_relationship_value.py,relationship value,analysis,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,7.0,07_leakage_opportunity.py,01_Analysis/00-Scripts/analytics/relationship/07_leakage_opportunity.py,leakage opportunity,action_or_strategy,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,8.0,08_relationship_by_demographics.py,01_Analysis/00-Scripts/analytics/relationship/08_relationship_by_demographics.py,relationship by demographics,analysis,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,9.0,09_next_best_product.py,01_Analysis/00-Scripts/analytics/relationship/09_next_best_product.py,next best product,analysis,True,analysis_catalog_v0
+txn.relationship,txn,Relationship Depth,relationship,10.0,10_action_summary.py,01_Analysis/00-Scripts/analytics/relationship/10_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.retention,txn,Retention Analysis,retention,1.0,01_retention_data.py,01_Analysis/00-Scripts/analytics/retention/01_retention_data.py,retention data,data_prep,True,analysis_catalog_v0
+txn.retention,txn,Retention Analysis,retention,2.0,02_retention_kpi.py,01_Analysis/00-Scripts/analytics/retention/02_retention_kpi.py,retention kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.retention,txn,Retention Analysis,retention,3.0,03_churn_by_segment.py,01_Analysis/00-Scripts/analytics/retention/03_churn_by_segment.py,churn by segment,analysis,True,analysis_catalog_v0
+txn.retention,txn,Retention Analysis,retention,4.0,04_attrition_cost.py,01_Analysis/00-Scripts/analytics/retention/04_attrition_cost.py,attrition cost,analysis,True,analysis_catalog_v0
+txn.retention,txn,Retention Analysis,retention,5.0,05_dormancy_funnel.py,01_Analysis/00-Scripts/analytics/retention/05_dormancy_funnel.py,dormancy funnel,analysis,True,analysis_catalog_v0
+txn.retention,txn,Retention Analysis,retention,6.0,06_early_warning.py,01_Analysis/00-Scripts/analytics/retention/06_early_warning.py,early warning,analysis,True,analysis_catalog_v0
+txn.retention,txn,Retention Analysis,retention,10.0,10_action_summary.py,01_Analysis/00-Scripts/analytics/retention/10_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.segment_evolution,txn,Segment Evolution,segment_evolution,1.0,01_segment_data.py,01_Analysis/00-Scripts/analytics/segment_evolution/01_segment_data.py,segment data,data_prep,True,analysis_catalog_v0
+txn.segment_evolution,txn,Segment Evolution,segment_evolution,2.0,02_segment_kpi.py,01_Analysis/00-Scripts/analytics/segment_evolution/02_segment_kpi.py,segment kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.segment_evolution,txn,Segment Evolution,segment_evolution,3.0,03_segment_distribution.py,01_Analysis/00-Scripts/analytics/segment_evolution/03_segment_distribution.py,segment distribution,analysis,True,analysis_catalog_v0
+txn.segment_evolution,txn,Segment Evolution,segment_evolution,4.0,04_migration_matrix.py,01_Analysis/00-Scripts/analytics/segment_evolution/04_migration_matrix.py,migration matrix,trend_or_cohort,True,analysis_catalog_v0
+txn.segment_evolution,txn,Segment Evolution,segment_evolution,5.0,05_upgraders_vs_degraders.py,01_Analysis/00-Scripts/analytics/segment_evolution/05_upgraders_vs_degraders.py,upgraders vs degraders,analysis,True,analysis_catalog_v0
+txn.segment_evolution,txn,Segment Evolution,segment_evolution,6.0,06_segment_vs_campaign.py,01_Analysis/00-Scripts/analytics/segment_evolution/06_segment_vs_campaign.py,segment vs campaign,analysis,True,analysis_catalog_v0
+txn.segment_evolution,txn,Segment Evolution,segment_evolution,7.0,07_segment_prediction.py,01_Analysis/00-Scripts/analytics/segment_evolution/07_segment_prediction.py,segment prediction,analysis,True,analysis_catalog_v0
+txn.segment_evolution,txn,Segment Evolution,segment_evolution,8.0,08_action_summary.py,01_Analysis/00-Scripts/analytics/segment_evolution/08_action_summary.py,action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,1.0,01_txn_type_data.py,01_Analysis/00-Scripts/analytics/transaction_type/01_txn_type_data.py,txn type data,data_prep,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,2.0,02_txn_type_kpi.py,01_Analysis/00-Scripts/analytics/transaction_type/02_txn_type_kpi.py,txn type kpi,kpi_or_summary,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,3.0,03_txn_type_split.py,01_Analysis/00-Scripts/analytics/transaction_type/03_txn_type_split.py,txn type split,analysis,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,4.0,04_txn_type_merchant.py,01_Analysis/00-Scripts/analytics/transaction_type/04_txn_type_merchant.py,txn type merchant,analysis,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,5.0,05_txn_type_trend.py,01_Analysis/00-Scripts/analytics/transaction_type/05_txn_type_trend.py,txn type trend,trend_or_cohort,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,6.0,06_txn_type_by_bracket.py,01_Analysis/00-Scripts/analytics/transaction_type/06_txn_type_by_bracket.py,txn type by bracket,analysis,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,7.0,07_txn_type_by_age.py,01_Analysis/00-Scripts/analytics/transaction_type/07_txn_type_by_age.py,txn type by age,analysis,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,8.0,08_txn_type_action_summary.py,01_Analysis/00-Scripts/analytics/transaction_type/08_txn_type_action_summary.py,txn type action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,9.0,09_payment_channel_overview.py,01_Analysis/00-Scripts/analytics/transaction_type/09_payment_channel_overview.py,payment channel overview,analysis,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,10.0,10_ach_deep_dive.py,01_Analysis/00-Scripts/analytics/transaction_type/10_ach_deep_dive.py,ach deep dive,analysis,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,11.0,11_chk_patterns.py,01_Analysis/00-Scripts/analytics/transaction_type/11_chk_patterns.py,chk patterns,analysis,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,12.0,12_channel_migration.py,01_Analysis/00-Scripts/analytics/transaction_type/12_channel_migration.py,channel migration,trend_or_cohort,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,13.0,13_multi_channel_engagement.py,01_Analysis/00-Scripts/analytics/transaction_type/13_multi_channel_engagement.py,multi channel engagement,analysis,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,14.0,14_ars_channel_bridge.py,01_Analysis/00-Scripts/analytics/transaction_type/14_ars_channel_bridge.py,ars channel bridge,analysis,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,15.0,15_ach_chk_action_summary.py,01_Analysis/00-Scripts/analytics/transaction_type/15_ach_chk_action_summary.py,ach chk action summary,kpi_or_summary,True,analysis_catalog_v0
+txn.transaction_type,txn,Transaction Type,transaction_type,,05b_total_spend_volume.py,01_Analysis/00-Scripts/analytics/transaction_type/05b_total_spend_volume.py,05b total spend volume,analysis,True,analysis_catalog_v0

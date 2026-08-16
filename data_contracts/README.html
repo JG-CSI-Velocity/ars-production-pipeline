@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Contracts</title>
+  <style>
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #14213d; background: #f6f7f9; }
+    main { max-width: 880px; margin: 0 auto; padding: 28px; }
+    h1 { margin: 0 0 12px; font-size: 30px; }
+    p, li { line-height: 1.5; }
+    code { background: #eef1f5; border: 1px solid #d9dee8; border-radius: 4px; padding: 2px 5px; }
+    a { color: #155eef; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .panel { background: #fff; border: 1px solid #d9dee8; border-radius: 8px; padding: 18px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Data Contracts</h1>
+    <div class="panel">
+      <p>Draft YAML contracts for client-delivered monthly files.</p>
+      <p>These files are the version-controlled source of truth for layout matching, field mapping, and validation. A loader can parse them and mirror the contract body into Snowflake <code>config.layout_contract</code>, with individual field rows in <code>config.layout_field_map</code>.</p>
+      <p>Current drafts:</p>
+      <ul>
+        <li><a href="txn_velocity_standard.v1.yml"><code>txn_velocity_standard.v1.yml</code></a> mirrors the raw transaction file process in <code>01_Analysis/00-Scripts/analytics/txn_setup/04-define-data-func.py</code>.</li>
+        <li><a href="odd_extract.v1.yml"><code>odd_extract.v1.yml</code></a> mirrors the modified ODD-style account extract expected by the current Python pipeline.</li>
+        <li><a href="intelligence_outputs.v1.yml"><code>intelligence_outputs.v1.yml</code></a> documents the V1 engine output package and Snowflake targets.</li>
+      </ul>
+    </div>
+  </main>
+</body>
+</html>

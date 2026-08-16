@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Analysis Sections | Transactional Intelligence Engine</title>
+  <link rel="stylesheet" href="transactional-intelligence-ui.css">
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p class="eyebrow">Analysis Inventory</p>
+      <h1>Every section becomes an engine signal.</h1>
+      <p class="subtitle">A compact browser view of the ARS and TXN analysis sections, grouped by what they contribute to the intelligence engine.</p>
+      <nav class="nav-row">
+        <a class="nav-pill" href="transactional-intelligence-analysis-map.html">Engine map</a>
+        <a class="nav-pill" href="transactional-intelligence-strategy.html">Strategy</a>
+        <a class="nav-pill" href="workflow-map.html">Workflow</a>
+        <a class="nav-pill" href="data-science-analysis-plan.html">Data science plan</a>
+        <a class="nav-pill" href="engine-build.html">Engine build</a>
+        <a class="nav-pill" href="engine-operating-model.html">Operating model</a>
+        <a class="nav-pill" href="ANALYSIS_SECTION_SUMMARY.md">Markdown source</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="band">
+        <div class="section-head">
+          <h2>Run Process</h2>
+          <p class="kicker">From run scope to package</p>
+        </div>
+        <div class="flow compact">
+          <div class="step"><span class="num">1</span><strong>Scope</strong><span>CSM, month, client, product.</span></div>
+          <div class="step"><span class="num">2</span><strong>Format</strong><span>Normalize source files.</span></div>
+          <div class="step"><span class="num">3</span><strong>Validate</strong><span>Columns, dates, config, derivations.</span></div>
+          <div class="step"><span class="num">4</span><strong>Subset</strong><span>Open, eligible, personal, business, cohorts.</span></div>
+          <div class="step"><span class="num">5</span><strong>Analyze</strong><span>ARS modules and TXN sections.</span></div>
+          <div class="step"><span class="num">6</span><strong>Package</strong><span>Workbook, charts, deck, scorecard.</span></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>ARS Sections</h2>
+          <p class="kicker">Current account/debit suite</p>
+        </div>
+        <div class="grid-4">
+          <div class="mini"><strong>Overview</strong><span>Account base, status, product coverage.</span></div>
+          <div class="mini teal"><strong>DCTR</strong><span>Debit card take rate, cohorts, branches, funnels.</span></div>
+          <div class="mini orange"><strong>Reg E</strong><span>Opt-in status and overdraft exposure.</span></div>
+          <div class="mini red"><strong>Attrition</strong><span>Closure, retention, cohorts, revenue impact.</span></div>
+          <div class="mini gold"><strong>Value</strong><span>Debit and Reg E revenue opportunity.</span></div>
+          <div class="mini green"><strong>Mailer</strong><span>Reach, response, lift, persistence, attribution.</span></div>
+          <div class="mini orange"><strong>Insights</strong><span>Executive story, conclusions, scorecards.</span></div>
+          <div class="mini"><strong>TXN Setup</strong><span>Shared transaction loaders and common DataFrames.</span></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>TXN Domains</h2>
+          <p class="kicker">20+ sections grouped by intelligence use</p>
+        </div>
+        <div class="grid-4">
+          <div class="domain"><h3>Portfolio Foundation</h3><p>Portfolio overview, business accounts, personal accounts, product analysis.</p><div class="chips"><span class="chip">general</span><span class="chip">business</span><span class="chip">personal</span><span class="chip">product</span></div></div>
+          <div class="domain teal"><h3>Spend and Merchant</h3><p>Merchant concentration, MCC categories, branch performance, transaction type.</p><div class="chips"><span class="chip">merchant</span><span class="chip">mcc</span><span class="chip">branch</span><span class="chip">type</span></div></div>
+          <div class="domain red"><h3>Competitive Leakage</h3><p>Competitor threats, external wallet share, financial-services leakage.</p><div class="chips"><span class="chip">competition</span><span class="chip">financial services</span></div></div>
+          <div class="domain orange"><h3>Relationship and Primacy</h3><p>Payroll, direct deposit, relationship depth, balances, PFI scoring.</p><div class="chips"><span class="chip">payroll</span><span class="chip">relationship</span><span class="chip">balance</span></div></div>
+          <div class="domain gold"><h3>Revenue and Value</h3><p>Interchange, PIN/signature mix, overdraft, Reg E revenue exposure.</p><div class="chips"><span class="chip">interchange</span><span class="chip">rege</span><span class="chip">overdraft</span></div></div>
+          <div class="domain green"><h3>Lifecycle and Retention</h3><p>Attrition, retention, dormancy, segment movement, ICS cohorts.</p><div class="chips"><span class="chip">attrition</span><span class="chip">retention</span><span class="chip">cohort</span><span class="chip">migration</span></div></div>
+          <div class="domain teal"><h3>Campaign Effectiveness</h3><p>Response cohorts, DID lift, migration, persistence, revenue cascade.</p><div class="chips"><span class="chip">campaign</span><span class="chip">lift</span><span class="chip">mailer</span></div></div>
+          <div class="domain orange"><h3>Executive Synthesis</h3><p>Executive scorecard, strategic priorities, opportunity waterfall, roadmap.</p><div class="chips"><span class="chip">executive</span><span class="chip">insights</span><span class="chip">roadmap</span></div></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Signal Types</h2>
+          <p class="kicker">How sections feed the engine</p>
+        </div>
+        <div class="grid-4">
+          <div class="metric"><strong>Behavior</strong><span>Spend, swipes, activity, channel use, merchant mix.</span></div>
+          <div class="metric"><strong>Relationship</strong><span>Depth, payroll, balance, external movement, PFI.</span></div>
+          <div class="metric"><strong>Risk</strong><span>Attrition, dormancy, deposit flight, competitor capture.</span></div>
+          <div class="metric"><strong>Action</strong><span>Audience, reason code, opportunity, campaign, measurement.</span></div>
+        </div>
+      </section>
+
+      <p class="source-note">HTML companion page for ANALYSIS_SECTION_SUMMARY.md.</p>
+    </main>
+  </div>
+</body>
+</html>

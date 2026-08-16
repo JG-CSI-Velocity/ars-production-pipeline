@@ -1,0 +1,56 @@
+contract_id: account.odd_extract.v1
+source_family: account
+display_name: 9999 Odd Accounts 2026.07
+version: '1'
+status: draft
+match:
+  filename_patterns:
+  - 9999_ODD_accounts_2026.07.csv
+  required_headers_any:
+  - Account Number
+  - Stat Code
+  - Product Code
+  - Date Opened
+  - Avg Bal
+  - Debit?
+canonical_fields:
+  account_id:
+    type: string
+    required: true
+    aliases:
+    - Account Number
+  avg_balance:
+    type: number
+    required: false
+    aliases:
+    - Avg Bal
+  branch_id:
+    type: string
+    required: false
+    aliases:
+    - Branch
+  business_flag:
+    type: boolean
+    required: false
+    aliases:
+    - Business?
+  date_opened:
+    type: date
+    required: false
+    aliases:
+    - Date Opened
+  has_debit:
+    type: boolean
+    required: false
+    aliases:
+    - Debit?
+  product_code:
+    type: string
+    required: false
+    aliases:
+    - Product Code
+  stat_code:
+    type: string
+    required: false
+    aliases:
+    - Stat Code

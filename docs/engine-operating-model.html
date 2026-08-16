@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Operating Model | Transactional Intelligence Engine</title>
+  <link rel="stylesheet" href="transactional-intelligence-ui.css">
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p class="eyebrow">Operating Model</p>
+      <h1>How people use the engine.</h1>
+      <p class="subtitle">The CLI is the backend runner. The product experience belongs in the Velocity UI: readiness, run, review, export, consult, measure.</p>
+      <nav class="nav-row">
+        <a class="nav-pill" href="transactional-intelligence-analysis-map.html">Engine map</a>
+        <a class="nav-pill" href="engine-build.html">Engine build</a>
+        <a class="nav-pill" href="data-science-analysis-plan.html">Data science plan</a>
+        <a class="nav-pill" href="ENGINE_OPERATING_MODEL.md">Markdown source</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="band">
+        <div class="section-head">
+          <h2>User Workflow</h2>
+          <p class="kicker">No CLI for CSMs</p>
+        </div>
+        <div class="flow compact">
+          <div class="step"><span class="num">1</span><strong>Stage files</strong><span>Client sends ODD, TXN, extracts, workbooks.</span></div>
+          <div class="step"><span class="num">2</span><strong>Select run</strong><span>CSM, month, client, product mode.</span></div>
+          <div class="step"><span class="num">3</span><strong>Check readiness</strong><span>Files, layout, match rate, history, confidence.</span></div>
+          <div class="step"><span class="num">4</span><strong>Run engine</strong><span>Python engine runs behind the UI.</span></div>
+          <div class="step"><span class="num">5</span><strong>Review story</strong><span>Analyst validates, consultant frames.</span></div>
+          <div class="step"><span class="num">6</span><strong>Export package</strong><span>Brief, action lists, data trust, measurement.</span></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Who Sees What</h2>
+          <p class="kicker">CSM | analyst | consultant | client</p>
+        </div>
+        <div class="grid-4">
+          <div class="tile"><strong>CSM</strong><span>Run status, file readiness, warnings, client-ready downloads.</span></div>
+          <div class="tile teal"><strong>Analyst</strong><span>Features, PFI reasons, quality flags, model diagnostics.</span></div>
+          <div class="tile orange"><strong>Consultant</strong><span>Top insights, financial impact, opportunity priority, proof.</span></div>
+          <div class="tile green"><strong>Client</strong><span>Executive brief, target lists, campaign plays, measurement plan.</span></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Review Surfaces</h2>
+          <p class="kicker">The Intelligence tab</p>
+        </div>
+        <div class="engine-strip">
+          <div class="tile"><strong>Data Trust</strong><span>Can we trust this month's files and matches?</span></div>
+          <div class="core"><h2>Intelligence Review</h2><p>PFI, opportunity portfolio, action lists, measurement, and story are reviewed before export.</p></div>
+          <div class="tile green"><strong>Client Package</strong><span>Executive brief, action lists, data-quality report, insight registry.</span></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Output Package</h2>
+          <p class="kicker">How the data gets out</p>
+        </div>
+        <div class="grid-4">
+          <div class="mini"><strong>Executive brief</strong><span>Client story and top decisions.</span></div>
+          <div class="mini teal"><strong>Opportunities workbook</strong><span>Ranked portfolio for review.</span></div>
+          <div class="mini orange"><strong>Action lists</strong><span>Named targets, reason codes, channels.</span></div>
+          <div class="mini red"><strong>Data trust report</strong><span>Coverage, warnings, confidence.</span></div>
+          <div class="mini green"><strong>PFI verdicts</strong><span>Account-level relationship status.</span></div>
+          <div class="mini gold"><strong>Insights registry</strong><span>Structured findings for Snowflake/API.</span></div>
+          <div class="mini"><strong>Measurement plan</strong><span>Controls, lift, persistence, value.</span></div>
+          <div class="mini teal"><strong>Snowflake tables</strong><span>Durable product source of truth.</span></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Consulting Story</h2>
+          <p class="kicker">The client-facing narrative</p>
+        </div>
+        <div class="flow">
+          <div class="step"><span class="num">1</span><strong>Trust</strong><span>What files and confidence support the analysis?</span></div>
+          <div class="step"><span class="num">2</span><strong>Relationship</strong><span>Who owns the customer relationship?</span></div>
+          <div class="step"><span class="num">3</span><strong>Leakage</strong><span>Where is money or value leaving?</span></div>
+          <div class="step"><span class="num">4</span><strong>Action</strong><span>Who should the client target and how will we measure it?</span></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Next Wire-Up</h2>
+          <p class="kicker">Make it usable in Velocity UI</p>
+        </div>
+        <div class="grid-3">
+          <div class="tile"><strong>Backend API</strong><span>Add /api/intelligence/run and /api/intelligence/outputs endpoints.</span></div>
+          <div class="tile teal"><strong>UI tab</strong><span>Add Intelligence tab with readiness, run, review, export states.</span></div>
+          <div class="tile green"><strong>Business exports</strong><span>Add Excel/PPT/HTML packages on top of CSV/JSON artifacts.</span></div>
+        </div>
+      </section>
+
+      <p class="source-note">HTML companion page for ENGINE_OPERATING_MODEL.md.</p>
+    </main>
+  </div>
+</body>
+</html>

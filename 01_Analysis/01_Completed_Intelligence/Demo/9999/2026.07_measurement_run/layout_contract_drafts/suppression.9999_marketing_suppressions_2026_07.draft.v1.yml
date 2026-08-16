@@ -1,0 +1,22 @@
+contract_id: suppression.9999_marketing_suppressions_2026_07.draft.v1
+source_family: suppression
+display_name: 9999 Marketing Suppressions 2026.07
+version: '1'
+status: draft
+match:
+  filename_patterns:
+  - 9999_marketing_suppressions_2026.07.csv
+  required_headers_any:
+  - Account Number
+  - Suppression Reason
+canonical_fields:
+  account_id:
+    type: string
+    required: true
+    aliases:
+    - Account Number
+  suppression_field:
+    type: string
+    required: false
+    aliases:
+    - Suppression Reason

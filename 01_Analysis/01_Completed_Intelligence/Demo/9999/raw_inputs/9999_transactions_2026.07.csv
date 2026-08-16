@@ -1,0 +1,28 @@
+primary_account_num,transaction_date,amount,description,transaction_type
+1001,2026-07-03,3600,ADP Payroll Direct Deposit,ACH Credit
+1001,2026-07-17,3600,ADP Payroll Direct Deposit,ACH Credit
+1001,2026-07-05,-105,Kroger Grocery,Debit Card
+1001,2026-07-09,-900,Chase Bank Transfer,ACH Debit
+1001,2026-07-12,-1800,Rocket Mortgage Payment,ACH Debit
+1002,2026-07-02,2450,ADP Payroll Direct Deposit,ACH Credit
+1002,2026-07-06,-145,Walmart,Debit Card
+1002,2026-07-14,-72,Gas Station,Debit Card
+1002,2026-07-26,-62,Grocery Store,Debit Card
+1003,2026-07-03,7600,Stripe Merchant Settlement,ACH Credit
+1003,2026-07-07,-1200,Bank of America Transfer,ACH Debit
+1003,2026-07-21,-260,Office Depot,Debit Card
+1004,2026-07-03,-110,Grocery Store,Debit Card
+1004,2026-07-10,-95,Fuel Center,Debit Card
+1004,2026-07-18,-130,Home Improvement,Debit Card
+1005,2026-07-05,3200,Paychex Payroll,ACH Credit
+1005,2026-07-08,-125,Target,Debit Card
+1005,2026-07-18,-180,Costco,Debit Card
+1006,2026-07-02,1500,Mobile Deposit,ACH Credit
+1006,2026-07-06,-100,Capital One Credit Card,ACH Debit
+1006,2026-07-17,-60,Venmo Transfer,ACH Debit
+1007,2026-07-04,1800,Gusto Payroll,ACH Credit
+1007,2026-07-09,-280,SoFi Student Loan,ACH Debit
+1007,2026-07-20,-95,Debit Card Purchase,Debit Card
+1008,2026-07-05,-70,Shell Fuel,Debit Card
+1008,2026-07-11,-84,Grocery Store,Debit Card
+1008,2026-07-24,-65,Restaurant,Debit Card

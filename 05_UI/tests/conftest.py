@@ -34,6 +34,7 @@ def app_module(tmp_path, monkeypatch):
     for d in (formatting, analysis, presentations, config, logs):
         d.mkdir(parents=True, exist_ok=True)
     (analysis / "01_Completed_Analysis").mkdir()
+    (analysis / "01_Completed_Intelligence").mkdir()
     (formatting / "02-Data-Ready for Analysis").mkdir()
 
     # Empty config files so loaders return empty dicts
@@ -60,6 +61,7 @@ def app_module(tmp_path, monkeypatch):
     app.LOGS_BASE = logs
     app.READY_FOR_ANALYSIS = formatting / "02-Data-Ready for Analysis"
     app.COMPLETED_ANALYSIS = analysis / "01_Completed_Analysis"
+    app.COMPLETED_INTELLIGENCE = analysis / "01_Completed_Intelligence"
     app.CONFIG_PATH = config / "clients_config.json"
     app.ARS_CONFIG_PATH = config / "ars_config.json"
 

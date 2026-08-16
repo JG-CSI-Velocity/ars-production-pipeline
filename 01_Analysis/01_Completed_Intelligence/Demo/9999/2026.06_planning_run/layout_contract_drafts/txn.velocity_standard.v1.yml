@@ -1,0 +1,40 @@
+contract_id: txn.velocity_standard.v1
+source_family: transaction
+display_name: 9999 Transactions 2026.06
+version: '1'
+status: draft
+match:
+  filename_patterns:
+  - 9999_transactions_2026.06.csv
+  required_headers_any:
+  - primary_account_num
+  - transaction_date
+  - amount
+  - description
+  - transaction_type
+canonical_fields:
+  account_id:
+    type: string
+    required: true
+    aliases:
+    - primary_account_num
+  amount:
+    type: number
+    required: true
+    aliases:
+    - amount
+  merchant_name:
+    type: string
+    required: false
+    aliases:
+    - description
+  transaction_date:
+    type: date
+    required: true
+    aliases:
+    - transaction_date
+  transaction_type:
+    type: string
+    required: true
+    aliases:
+    - transaction_type

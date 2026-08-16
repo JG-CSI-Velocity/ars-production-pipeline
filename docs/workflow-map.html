@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workflow | Transactional Intelligence Engine</title>
+  <link rel="stylesheet" href="transactional-intelligence-ui.css">
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p class="eyebrow">Workflow View</p>
+      <h1>How monthly files become finished deliverables.</h1>
+      <p class="subtitle">A visual browser version of the pipeline map: format, analyze, build deck, package output.</p>
+      <nav class="nav-row">
+        <a class="nav-pill" href="transactional-intelligence-analysis-map.html">Engine map</a>
+        <a class="nav-pill" href="transactional-intelligence-strategy.html">Strategy</a>
+        <a class="nav-pill" href="analysis-section-summary.html">Analysis sections</a>
+        <a class="nav-pill" href="data-science-analysis-plan.html">Data science plan</a>
+        <a class="nav-pill" href="engine-build.html">Engine build</a>
+        <a class="nav-pill" href="engine-operating-model.html">Operating model</a>
+        <a class="nav-pill" href="WORKFLOW_MAP.md">Markdown source</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="band">
+        <div class="section-head">
+          <h2>Operator Flow</h2>
+          <p class="kicker">05_UI drives all three steps</p>
+        </div>
+        <div class="flow">
+          <div class="step"><span class="num">1</span><strong>Select run</strong><span>CSM, month, client, and product.</span></div>
+          <div class="step"><span class="num">2</span><strong>Format</strong><span>Retrieve raw ODD ZIPs, normalize, stage side files.</span></div>
+          <div class="step"><span class="num">3</span><strong>Analyze</strong><span>Run ARS and TXN modules, write charts and workbook.</span></div>
+          <div class="step"><span class="num">4</span><strong>Build deck</strong><span>Use slide manifest, action titles, and chart assets.</span></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Pipeline Map</h2>
+          <p class="kicker">Input | process | output</p>
+        </div>
+        <div class="table-map">
+          <div class="table-cell label">Step</div>
+          <div class="table-cell"><strong>Format</strong><span>00_Formatting/run.py</span></div>
+          <div class="table-cell"><strong>Analyze</strong><span>01_Analysis/run.py</span></div>
+          <div class="table-cell"><strong>Build Deck</strong><span>02_Presentations + output builder</span></div>
+
+          <div class="table-cell label">Inputs</div>
+          <div class="table-cell"><strong>Raw ODD ZIPs</strong><span>CSM data dump folder.</span></div>
+          <div class="table-cell"><strong>Formatted ODD + TXN</strong><span>Optional deferred revenue and workbook files.</span></div>
+          <div class="table-cell"><strong>Completed analysis</strong><span>Charts, workbook, manifest, slide manifest.</span></div>
+
+          <div class="table-cell label">What happens</div>
+          <div class="table-cell"><strong>Normalize</strong><span>Unzip, CSV to Excel, seven-step ODD format, stage files.</span></div>
+          <div class="table-cell"><strong>Run modules</strong><span>Load, scan, subsets, analyze, generate, format.</span></div>
+          <div class="table-cell"><strong>Assemble</strong><span>Keep Y/A/N slides, stitch charts, fill action titles.</span></div>
+
+          <div class="table-cell label">Outputs</div>
+          <div class="table-cell"><strong>Ready workbook</strong><span>ODD formatted, transaction CSVs, workbook side files.</span></div>
+          <div class="table-cell"><strong>Analysis package</strong><span>Charts, analysis workbook, run manifest, scorecard.</span></div>
+          <div class="table-cell"><strong>Presentation package</strong><span>Main deck, aux deck, review summary, quality report, metadata.</span></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>Cross-Cutting Controls</h2>
+          <p class="kicker">What keeps runs repeatable</p>
+        </div>
+        <div class="grid-4">
+          <div class="tile"><strong>UI orchestrator</strong><span>05_UI/app.py is the operator path.</span></div>
+          <div class="tile teal"><strong>CLI parity</strong><span>run.py entrypoints support batch and debug work.</span></div>
+          <div class="tile orange"><strong>Client membership</strong><span>Client belongs to the CSM folder where files sit.</span></div>
+          <div class="tile green"><strong>Product modes</strong><span>ARS Full Suite, Transaction, Combined, Deposits.</span></div>
+        </div>
+      </section>
+
+      <p class="source-note">HTML companion page for WORKFLOW_MAP.md.</p>
+    </main>
+  </div>
+</body>
+</html>

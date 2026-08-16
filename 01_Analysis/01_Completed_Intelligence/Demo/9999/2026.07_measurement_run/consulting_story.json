@@ -1,0 +1,204 @@
+{
+  "story_version": "consulting_story_v0_rules",
+  "client_id": "9999",
+  "client_name": "Demo Community Credit Union",
+  "period_month": "2026-07",
+  "headline": "Primary Banking Conversion is the lead relationship play.",
+  "executive_summary": "The lead recommendation is Primary Banking Conversion for 2 target account(s), supported by a quality score of 88.1 and high confidence. 1 data warning(s) should be reviewed before presentation. Primary Banking Conversion measured 50.0% outcome conversion for test accounts; Outcome activity detected; no holdout available, compare with prior baseline..",
+  "recommended_conversation": [
+    "Start with data confidence and what the file coverage can support.",
+    "Explain the top relationship behavior, not just the top chart.",
+    "Recommend one to three action plays with owners, channels, and measurement.",
+    "Agree on campaign or banker execution and the next monthly outcome readout."
+  ],
+  "consulting_questions": [
+    "Which play is most aligned to the client's current growth or retention priority?",
+    "Who owns activation: marketing, branch leadership, banker team, or CSM follow-up?",
+    "What suppressions, compliance exclusions, or branch assignments are required before launch?",
+    "How will outcomes be captured back into next month's run?"
+  ],
+  "top_plays": [
+    {
+      "action_id": "9999:2026.07:action:1",
+      "client_id": "9999",
+      "period_month": "2026.07",
+      "priority_rank": 1,
+      "play_name": "Primary Banking Conversion",
+      "opportunity_type": "payroll_conversion",
+      "objective": "Move external income or credits into a primary banking relationship.",
+      "target_accounts": 2,
+      "expected_value": 2208.0,
+      "confidence": "high",
+      "audience_definition": "Accounts with external money movement or credits but no payroll detected.",
+      "owner_role": "CSM plus retail banking",
+      "recommended_channel": "Email plus banker follow-up",
+      "next_step": "Create a direct-deposit conversion audience and review top balances with branch managers.",
+      "talk_track": "2 account(s) show payroll conversion behavior with $2,208 in modeled value. Review data confidence, approve the target list, and measure movement over 30/60/90 days.",
+      "target_list_ref": "opportunities.csv#payroll_conversion",
+      "measurement_id": "9999:2026.07:measure:1",
+      "status": "ready_for_review",
+      "model_version": "action_plan_v0_rules"
+    },
+    {
+      "action_id": "9999:2026.07:action:2",
+      "client_id": "9999",
+      "period_month": "2026.07",
+      "priority_rank": 2,
+      "play_name": "Relationship Expansion",
+      "opportunity_type": "relationship_expansion",
+      "objective": "Grow thin relationships with next-best-product outreach.",
+      "target_accounts": 2,
+      "expected_value": 300.0,
+      "confidence": "high",
+      "audience_definition": "Thin relationships with external financial activity.",
+      "owner_role": "CSM plus retail banking",
+      "recommended_channel": "Next-best-product outreach",
+      "next_step": "Review top thin-relationship accounts for targeted product expansion.",
+      "talk_track": "2 account(s) show relationship expansion behavior with $300 in modeled value. Review data confidence, approve the target list, and measure movement over 30/60/90 days.",
+      "target_list_ref": "opportunities.csv#relationship_expansion",
+      "measurement_id": "9999:2026.07:measure:2",
+      "status": "ready_for_review",
+      "model_version": "action_plan_v0_rules"
+    },
+    {
+      "action_id": "9999:2026.07:action:3",
+      "client_id": "9999",
+      "period_month": "2026.07",
+      "priority_rank": 3,
+      "play_name": "Dormant Reactivation",
+      "opportunity_type": "dormant_reactivation",
+      "objective": "Restore measurable transaction activity before dormancy deepens.",
+      "target_accounts": 6,
+      "expected_value": 277.0,
+      "confidence": "high",
+      "audience_definition": "Low-activity accounts with balance or product evidence.",
+      "owner_role": "CSM plus lifecycle marketing",
+      "recommended_channel": "Lifecycle campaign",
+      "next_step": "Create a reactivation audience and test digital/card usage prompts.",
+      "talk_track": "6 account(s) show dormant reactivation behavior with $277 in modeled value. Review data confidence, approve the target list, and measure movement over 30/60/90 days.",
+      "target_list_ref": "opportunities.csv#dormant_reactivation",
+      "measurement_id": "9999:2026.07:measure:3",
+      "status": "ready_for_review",
+      "model_version": "action_plan_v0_rules"
+    }
+  ],
+  "top_opportunity_portfolio": [
+    {
+      "priority_rank": 1,
+      "portfolio_id": "9999:2026.07:payroll_conversion",
+      "client_id": "9999",
+      "period_month": "2026.07",
+      "opportunity_type": "payroll_conversion",
+      "play_name": "Primary Banking Conversion",
+      "target_accounts": 2,
+      "high_priority_accounts": 1,
+      "expected_value": 2208.0,
+      "avg_expected_value_per_account": 1104.0,
+      "avg_priority_score": 44.9,
+      "confidence": "high",
+      "confidence_score": 0.75,
+      "top_reason_codes": "no_payroll_detected|external_money_movement",
+      "pfi_mix": "No verdict",
+      "source_sections": "txn.competition|txn.payroll|txn.relationship",
+      "audience_definition": "Accounts with external money movement or credits but no payroll detected.",
+      "owner_role": "CSM plus retail banking",
+      "recommended_channel": "Email plus banker follow-up",
+      "next_step": "Create a direct-deposit conversion audience and review top balances with branch managers.",
+      "primary_metric": "new_direct_deposit_or_payroll_detected",
+      "model_version": "portfolio_v0_rules"
+    },
+    {
+      "priority_rank": 2,
+      "portfolio_id": "9999:2026.07:relationship_expansion",
+      "client_id": "9999",
+      "period_month": "2026.07",
+      "opportunity_type": "relationship_expansion",
+      "play_name": "Relationship Expansion",
+      "target_accounts": 2,
+      "high_priority_accounts": 0,
+      "expected_value": 300.0,
+      "avg_expected_value_per_account": 150.0,
+      "avg_priority_score": 30.4,
+      "confidence": "high",
+      "confidence_score": 0.85,
+      "top_reason_codes": "thin_relationship|external_financial_activity",
+      "pfi_mix": "Primary with us|No verdict",
+      "source_sections": "txn.financial_services|txn.relationship",
+      "audience_definition": "Thin relationships with external financial activity.",
+      "owner_role": "CSM plus retail banking",
+      "recommended_channel": "Next-best-product outreach",
+      "next_step": "Review top thin-relationship accounts for targeted product expansion.",
+      "primary_metric": "new_product_or_relationship_depth",
+      "model_version": "portfolio_v0_rules"
+    },
+    {
+      "priority_rank": 3,
+      "portfolio_id": "9999:2026.07:dormant_reactivation",
+      "client_id": "9999",
+      "period_month": "2026.07",
+      "opportunity_type": "dormant_reactivation",
+      "play_name": "Dormant Reactivation",
+      "target_accounts": 6,
+      "high_priority_accounts": 0,
+      "expected_value": 277.0,
+      "avg_expected_value_per_account": 46.17,
+      "avg_priority_score": 20.1,
+      "confidence": "high",
+      "confidence_score": 0.792,
+      "top_reason_codes": "low_activity|reactivation_candidate",
+      "pfi_mix": "No verdict|Primary with us",
+      "source_sections": "txn.attrition_txn|txn.engagement|txn.retention",
+      "audience_definition": "Low-activity accounts with balance or product evidence.",
+      "owner_role": "CSM plus lifecycle marketing",
+      "recommended_channel": "Lifecycle campaign",
+      "next_step": "Create a reactivation audience and test digital/card usage prompts.",
+      "primary_metric": "recovered_transaction_activity",
+      "model_version": "portfolio_v0_rules"
+    }
+  ],
+  "story_arc": [
+    {
+      "step": "Data readiness",
+      "summary": "Quality score 88.1 with high confidence and 1 warning(s).",
+      "artifact": "data_quality_report.html"
+    },
+    {
+      "step": "Behavioral signals",
+      "summary": "Account-month features summarize payroll, debit use, balances, external FI movement, engagement, and relationship depth.",
+      "artifact": "account_month_features.csv"
+    },
+    {
+      "step": "Relationship diagnosis",
+      "summary": "PFI verdicts separate primary, split, competitor-primary, and no-verdict relationships with reason codes.",
+      "artifact": "pfi_verdicts.csv"
+    },
+    {
+      "step": "Opportunity portfolio",
+      "summary": "Primary Banking Conversion covers 2 account(s) with $2,208 in modeled value.",
+      "artifact": "opportunity_portfolio.csv"
+    },
+    {
+      "step": "Action and activation",
+      "summary": "Start with Primary Banking Conversion owned by CSM plus retail banking; next step: Create a direct-deposit conversion audience and review top balances with branch managers..",
+      "artifact": "action_plan.csv|campaign_targets.csv"
+    },
+    {
+      "step": "Measurement loop",
+      "summary": "Primary Banking Conversion measured 50.0% outcome conversion for test accounts; Outcome activity detected; no holdout available, compare with prior baseline..",
+      "artifact": "measurement_plan.csv|outcome_summary.csv"
+    }
+  ],
+  "analyst_notes": [
+    "short_transaction_history"
+  ],
+  "measurement_message": "Primary Banking Conversion measured 50.0% outcome conversion for test accounts; Outcome activity detected; no holdout available, compare with prior baseline..",
+  "source_artifacts": [
+    "data_quality.json",
+    "opportunity_portfolio.csv",
+    "action_plan.csv",
+    "campaign_targets.csv",
+    "measurement_plan.csv",
+    "outcome_summary.csv"
+  ],
+  "insight_count": 6
+}

@@ -1,0 +1,113 @@
+[
+  {
+    "source_path": "01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_ODD_accounts_2026.07.csv",
+    "file_name": "9999_ODD_accounts_2026.07.csv",
+    "suffix": ".csv",
+    "exists": true,
+    "size_bytes": 452,
+    "sha256": "b9d4a05af751ba2f62a4275d537bcf3139bc4ff380387b8e21375049bd3157f7",
+    "detected_format": "text",
+    "delimiter": "comma",
+    "header_columns": [
+      "Account Number",
+      "Stat Code",
+      "Product Code",
+      "Date Opened",
+      "Avg Bal",
+      "Debit?",
+      "Business?",
+      "Branch"
+    ],
+    "column_count": 8,
+    "estimated_rows": 10,
+    "profile_warnings": [],
+    "header_mode": "header_row",
+    "contract_match": {
+      "contract_id": "account.odd_extract.v1",
+      "display_name": "ODD-style account extract",
+      "source_family": "odd",
+      "score": 0.917,
+      "matched_fields": [
+        "account_id",
+        "avg_balance",
+        "branch_id",
+        "business_flag",
+        "date_opened",
+        "has_debit",
+        "product_code",
+        "stat_code"
+      ],
+      "missing_required_fields": [],
+      "status": "matched"
+    }
+  },
+  {
+    "source_path": "01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_transactions_2026.07.csv",
+    "file_name": "9999_transactions_2026.07.csv",
+    "suffix": ".csv",
+    "exists": true,
+    "size_bytes": 1379,
+    "sha256": "c6a1111f37321bb64a75e352a90c2ba7cb54bb1f48aa040c427ed2861858042f",
+    "detected_format": "text",
+    "delimiter": "comma",
+    "header_columns": [
+      "primary_account_num",
+      "transaction_date",
+      "amount",
+      "description",
+      "transaction_type"
+    ],
+    "column_count": 5,
+    "estimated_rows": 27,
+    "profile_warnings": [],
+    "header_mode": "header_row",
+    "contract_match": {
+      "contract_id": "txn.velocity_standard.v1",
+      "display_name": "Velocity standard raw transaction file",
+      "source_family": "transaction",
+      "score": 0.846,
+      "matched_fields": [
+        "account_id",
+        "amount",
+        "merchant_name",
+        "transaction_date",
+        "transaction_type"
+      ],
+      "missing_required_fields": [],
+      "status": "matched"
+    }
+  },
+  {
+    "source_path": "01_Analysis/01_Completed_Intelligence/Demo/9999/raw_inputs/9999_marketing_suppressions_2026.07.csv",
+    "file_name": "9999_marketing_suppressions_2026.07.csv",
+    "suffix": ".csv",
+    "exists": true,
+    "size_bytes": 77,
+    "sha256": "57d7f0b05d1dc43a15b6ef08aa2d2c64da06fc772f24be7cadc695a8d0e4812e",
+    "detected_format": "text",
+    "delimiter": "comma",
+    "header_columns": [
+      "Account Number",
+      "Suppression Reason"
+    ],
+    "column_count": 2,
+    "estimated_rows": 2,
+    "profile_warnings": [],
+    "header_mode": "header_row",
+    "contract_match": {
+      "contract_id": "txn.velocity_standard.v1",
+      "display_name": "Velocity standard raw transaction file",
+      "source_family": "transaction",
+      "score": 0.219,
+      "matched_fields": [
+        "account_id"
+      ],
+      "missing_required_fields": [
+        "amount",
+        "transaction_date",
+        "transaction_type"
+      ],
+      "status": "candidate"
+    }
+  }
+]

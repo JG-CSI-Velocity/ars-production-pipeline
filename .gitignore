@@ -3,8 +3,16 @@ __pycache__/
 **/*.pyc
 
 # Pipeline output directories (contain client data)
-02_Presentations/
+02_Presentations/*
 !02_Presentations/.gitkeep
+!02_Presentations/README.html
+!02_Presentations/__init__.py
+!02_Presentations/conftest.py
+!02_Presentations/html_review/
+!02_Presentations/html_review/**
+02_Presentations/**/__pycache__/
+02_Presentations/**/*.pyc
+02_Presentations/**/.pytest_cache/
 04_Logs/
 !04_Logs/.gitkeep
 

@@ -1,0 +1,22 @@
+{
+  "quality_score": 88.1,
+  "confidence": "high",
+  "warnings": [
+    "short_transaction_history"
+  ],
+  "account_rows": 10,
+  "transaction_rows": 27,
+  "feature_rows": 8,
+  "account_match_rate": 1.0,
+  "transaction_months": 1,
+  "mapped_account_columns": {
+    "account_id": "Account Number"
+  },
+  "mapped_transaction_columns": {
+    "account_id": "primary_account_num",
+    "transaction_date": "transaction_date",
+    "amount": "amount",
+    "merchant": "description"
+  },
+  "file_count": 3
+}
